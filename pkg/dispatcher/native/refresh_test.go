@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -134,16 +135,16 @@ func TestRefreshIndex_ComparesTheDirectoryUnlessForced(t *testing.T) {
 	if err := server.RefreshIndex(false); err != nil {
 		t.Fatalf("RefreshIndex(false): %v", err)
 	}
-	if got, _ := server.Get(created.ID); got.Title != "Before" {
-		t.Fatalf("a drift-only check re-read card contents: title = %q", got.Title)
+	if got, gerr := server.Get(created.ID); gerr != nil || got.Title != "Before" {
+		t.Fatalf("a drift-only check re-read card contents: Get = %+v, %v", got, gerr)
 	}
 
 	// Forced: every card is re-read.
 	if err := server.RefreshIndex(true); err != nil {
 		t.Fatalf("RefreshIndex(true): %v", err)
 	}
-	if got, _ := server.Get(created.ID); got.Title != "After" {
-		t.Errorf("forced refresh kept the stale title %q", got.Title)
+	if got, gerr := server.Get(created.ID); gerr != nil || got.Title != "After" {
+		t.Errorf("forced refresh kept the stale card: Get = %+v, %v", got, gerr)
 	}
 
 	// A card deleted behind the index's back is a drift too.
@@ -256,12 +257,19 @@ func TestWatcher_VerificationNetRepairsALostEvent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
+	// Let the create's own events settle, then count scans from here: only
+	// the verification net scans on a store whose watch is armed, so a scan
+	// after the drop is the net's, not an event's.
+	time.Sleep(300 * time.Millisecond)
+	var scans atomic.Int64
+	scanCounter := func(*Store) { scans.Add(1) }
+	setSeam(t, &reconcileScanning, scanCounter)
 	s.mu.Lock()
 	s.dropIndexLocked(created.ID) // the event that never arrived
 	s.mu.Unlock()
 
 	deadline := time.Now().Add(10 * time.Second)
-	for !indexed(s, created.ID) {
+	for scans.Load() == 0 || !indexed(s, created.ID) {
 		if time.Now().After(deadline) {
 			t.Fatal("the verification net never re-indexed a card that is on disk")
 		}
@@ -322,5 +330,25 @@ func TestListEndpoint_SeesExternalWritesAndRefreshRereads(t *testing.T) {
 	}
 	if got := list("?refresh=1"); got[0].Title != "Edited by the CLI" {
 		t.Errorf("refresh=1 list kept the stale title %q", got[0].Title)
+	}
+}
+
+// A corrupt card file that never reads must not make every list look like
+// drift (and so run a full scan each time).
+func TestIndexDrifted_IgnoresAKnownUnreadableCard(t *testing.T) {
+	server, _ := isolatedStores(t)
+	bad := server.issuePath("native:7f2c1d0e-0000-4000-8000-0000000000aa")
+	if err := os.WriteFile(bad, []byte("{not json"), filePerm); err != nil {
+		t.Fatal(err)
+	}
+	if err := server.RefreshIndex(true); err != nil {
+		t.Fatalf("RefreshIndex(true): %v", err)
+	}
+	drifted, err := server.indexDrifted()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if drifted {
+		t.Error("a card known to be unreadable was reported as drift")
 	}
 }

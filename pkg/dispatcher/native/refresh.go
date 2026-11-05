@@ -78,15 +78,33 @@ func (s *Store) indexDrifted() (bool, error) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if len(onDisk) != len(s.index) {
+	for id := range onDisk {
+		if _, ok := s.index[id]; ok {
+			continue
+		}
+		if _, bad := s.unreadableIDs[id]; bad {
+			continue // present, known unreadable: re-scanning would not change it
+		}
 		return true, nil
 	}
-	for id := range onDisk {
-		if _, ok := s.index[id]; !ok {
+	for id := range s.index {
+		if _, ok := onDisk[id]; !ok {
 			return true, nil
 		}
 	}
 	return false, nil
+}
+
+// idSet turns a scan's unreadable map into a set of ids.
+func idSet(m map[string]error) map[string]struct{} {
+	if len(m) == 0 {
+		return nil
+	}
+	out := make(map[string]struct{}, len(m))
+	for id := range m {
+		out[id] = struct{}{}
+	}
+	return out
 }
 
 // adoptFromDiskLocked is the miss path of a by-id lookup: the index does not

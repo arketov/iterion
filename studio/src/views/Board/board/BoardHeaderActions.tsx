@@ -39,7 +39,6 @@ export function BoardHeaderActions({
         <DropdownMenuItem onSelect={onManageLabels}>Labels…</DropdownMenuItem>
         <DropdownMenuItem onSelect={onManageFields}>Fields…</DropdownMenuItem>
         <DropdownMenuItem onSelect={onAddColumn}>Add column…</DropdownMenuItem>
-        <DropdownMenuItem onSelect={onRefresh}>Refresh</DropdownMenuItem>
       </DropdownMenu>
       <Button variant="primary" size="sm" onClick={onNewIssue}>
         + New issue

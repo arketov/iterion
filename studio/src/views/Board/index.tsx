@@ -53,7 +53,7 @@ export default function BoardView() {
     return new URLSearchParams(search).get("focus");
   }, [search]);
 
-  const { board, issues, setIssues, loading, error, setError, refresh } =
+  const { board, issues, setIssues, loading, error, setError, refresh, forceRefresh } =
     useBoardData();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -239,7 +239,7 @@ export default function BoardView() {
         onManageLabels={() => setLocation("/board/labels")}
         onManageFields={() => setLocation("/board/fields")}
         onAddColumn={columns.openAddColumn}
-        onRefresh={() => void refresh()}
+        onRefresh={() => void forceRefresh()}
         onNewIssue={() => setCreating(true)}
       />
     ) : null,
@@ -249,7 +249,7 @@ export default function BoardView() {
     return <BoardSkeleton />;
   }
   if (!board) {
-    return <EmptyBoard kind="missing" error={error} onRetry={() => void refresh()} />;
+    return <EmptyBoard kind="missing" error={error} onRetry={() => void forceRefresh()} />;
   }
 
   return (

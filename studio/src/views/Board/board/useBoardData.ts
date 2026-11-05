@@ -30,6 +30,9 @@ export interface UseBoardDataResult {
   error: string | null;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   refresh: () => Promise<void>;
+  // The explicit "Refresh" gesture: like refresh(), but the server re-reads
+  // every card from disk first.
+  forceRefresh: () => Promise<void>;
 }
 
 // Owns the board + issues fetch. Exposes a refresh() imperative so
@@ -39,7 +42,7 @@ export interface UseBoardDataResult {
 // without going through the round-trip.
 export function useBoardData(): UseBoardDataResult {
   const queryClient = useQueryClient();
-  // Set by refresh() for exactly one fetch: the server then re-reads every
+  // Set by forceRefresh() for exactly one fetch: the server then re-reads every
   // card from disk instead of trusting its in-memory index, so cards written
   // by another process (CLI, MCP) show up even when the server missed the
   // filesystem event.
@@ -76,6 +79,11 @@ export function useBoardData(): UseBoardDataResult {
 
   const refresh = useCallback(async () => {
     setActionError(null);
+    await refetch();
+  }, [refetch]);
+
+  const forceRefresh = useCallback(async () => {
+    setActionError(null);
     forceRescanRef.current = true;
     await refetch();
   }, [refetch]);
@@ -88,5 +96,6 @@ export function useBoardData(): UseBoardDataResult {
     error: actionError ?? (query.error ? errorMessage(query.error) : null),
     setError: setActionError,
     refresh,
+    forceRefresh,
   };
 }

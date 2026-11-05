@@ -246,6 +246,7 @@ func (s *Store) swapIndexLocked(fresh map[string]*Issue, unreadable map[string]e
 		}
 	}
 	s.index = fresh
+	s.unreadableIDs = idSet(unreadable)
 
 	ids := make([]string, 0, len(unreadable))
 	for id := range unreadable {

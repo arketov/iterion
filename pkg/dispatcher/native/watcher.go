@@ -1,6 +1,7 @@
 package native
 
 import (
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"strings"
@@ -310,7 +311,14 @@ func applyEventUntil(s *Store, id string, stop <-chan struct{}) {
 		if err = s.syncIssueFromDisk(id); err == nil {
 			return
 		}
-		if attempt >= len(eventReadRetries) {
+		limit := len(eventReadRetries)
+		var syn *json.SyntaxError
+		if errors.As(err, &syn) && limit > 2 {
+			// A half-written card heals within a tick or two; a corrupt one
+			// never does and must not hold the event loop for the full budget.
+			limit = 2
+		}
+		if attempt >= limit {
 			break
 		}
 		select {
