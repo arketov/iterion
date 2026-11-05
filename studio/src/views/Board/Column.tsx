@@ -101,7 +101,7 @@ export function Column({
         dragOver
           ? "border-accent bg-accent-soft/30 ring-2 ring-accent/40"
           : "border-border-default bg-surface-1"
-      } flex flex-col ${fadeForPause ? "grayscale" : ""}`}
+      } flex flex-col min-h-0 ${fadeForPause ? "grayscale" : ""}`}
       style={{ borderTopColor: color, borderTopWidth: 3 }}
       onDragOver={(e) => {
         e.preventDefault();
@@ -260,7 +260,7 @@ export function Column({
           )}
         </span>
       </div>
-      <div className="p-2 flex-1 flex flex-col gap-2 overflow-auto">
+      <div className="p-2 flex-1 min-h-0 flex flex-col gap-2 overflow-y-auto overflow-x-hidden">
         {issues.map((iss) => (
           <IssueCard
             key={iss.id}

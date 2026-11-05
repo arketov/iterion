@@ -16,6 +16,7 @@ import { RequireSuperAdmin } from "@/auth/RequireSuperAdmin";
 import AdminConsoleRoutes from "@/views/admin/AdminConsoleRoutes";
 import { ADMIN_BASE } from "@/views/admin/adminRoutes";
 const HomeView = lazy(() => import("@/components/Home/HomeView"));
+const NotFoundView = lazy(() => import("@/views/NotFound"));
 const WhatsNextView = lazy(() => import("@/components/WhatsNext/WhatsNextView"));
 const EditorTabsView = lazy(() => import("@/components/Editor/EditorTabsView"));
 const LaunchView = lazy(() => import("@/components/Runs/LaunchView"));
@@ -957,7 +958,13 @@ function AuthedApp() {
             </ErrorBoundary>
           </Route>
           <Route path="/" component={HomeView} />
-          <Route component={HomeView} />
+          {/* An address no route declares is a 404, not Home: a typo must
+              not look like a working page. */}
+          <Route>
+            <ErrorBoundary area="Not found view">
+              <NotFoundView />
+            </ErrorBoundary>
+          </Route>
           </Switch>
         </ErrorBoundary>
       </AppShell>
