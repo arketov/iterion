@@ -582,6 +582,7 @@ function ManifestlessBots({ bots, query }: { bots: BotEntryWithSchema[]; query: 
                   variant="ghost"
                   size="sm"
                   className="ml-auto"
+                  aria-label={`Open in editor: ${b.name}`}
                   onClick={() => void open(b)}
                 >
                   Open in editor

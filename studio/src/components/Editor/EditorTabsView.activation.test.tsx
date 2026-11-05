@@ -28,6 +28,11 @@ vi.mock("@/components/shared/EditorTabHost", () => ({
 vi.mock("@/components/Home/RecentFilesPanel", () => ({
   default: () => <div />,
 }));
+// The home pane's project-file list queries the server (react-query), which
+// this test neither serves nor wraps in a QueryClientProvider.
+vi.mock("./ProjectFilesPanel", () => ({
+  default: () => <div />,
+}));
 
 let search = "";
 const loc = vi.hoisted(() => ({ setLocation: vi.fn() }));
