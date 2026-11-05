@@ -126,6 +126,7 @@ func NewManager(opts ManagerOptions) (*Manager, error) {
 	// labels for the entire window between backend restart and the
 	// operator manually starting the dispatcher (ticket 7221c7be).
 	m.sweepStaleLocalClaimsAtBoot()
+	m.pruneGhostRunsAtBoot()
 
 	// Restore the operator's last-known intent. On first boot (no
 	// runtime.json), default to Running when a config exists so the
@@ -171,6 +172,38 @@ func (m *Manager) sweepStaleLocalClaimsAtBoot() {
 	}
 	if len(cleared) > 0 {
 		m.logger.Info("manager: released %d stale claim(s) at boot from dead local PIDs: %v", len(cleared), cleared)
+	}
+}
+
+// ghostRunGrace is how young a run-history entry must be to be left alone by
+// the boot-time ghost cleanup: a run stamped moments ago may not have reached
+// the disk yet.
+const ghostRunGrace = 10 * time.Minute
+
+// pruneGhostRunsAtBoot drops from each card's run history the runs that have
+// no directory under <store>/runs — the phantoms a failed after_create hook
+// used to leave behind (a console that 404s, a diff of nothing). Best-effort:
+// an error is logged at warn and never blocks boot. A missing runs/ directory
+// is not evidence that every run is gone (the store may simply be fresh or
+// elsewhere), but the dispatcher launches into this same store, so a card's
+// run lives here or nowhere; the grace period and the claimed-card skip cover
+// the in-flight cases.
+func (m *Manager) pruneGhostRunsAtBoot() {
+	if m.nativeStore == nil || m.storeDir == "" {
+		return
+	}
+	runsDir := filepath.Join(m.storeDir, "runs")
+	pruned, err := m.nativeStore.PruneRunRefs(func(runID string) bool {
+		_, statErr := os.Stat(filepath.Join(runsDir, runID))
+		// Only a definite "does not exist" counts as gone.
+		return statErr == nil || !errors.Is(statErr, fs.ErrNotExist)
+	}, ghostRunGrace)
+	if err != nil {
+		m.logger.Warn("manager: boot-time ghost-run cleanup failed: %v", err)
+		return
+	}
+	for _, p := range pruned {
+		m.logger.Info("manager: removed %d run(s) that never started from the history of %s: %v", len(p.RunIDs), p.IssueID, p.RunIDs)
 	}
 }
 

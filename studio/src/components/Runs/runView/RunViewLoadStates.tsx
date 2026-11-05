@@ -3,7 +3,7 @@
 // data is ready: a load-error panel (snapshot fetch failed past the
 // retry budget) and the loading skeleton.
 
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 
 import { Button, Skeleton } from "@/components/ui";
 import { useServerInfoStore } from "@/store/serverInfo";
@@ -33,12 +33,23 @@ export function RunViewLoadError({
   const [, setLocation] = useLocation();
   const cloud = useServerInfoStore((s) => s.info?.mode === "cloud");
   const isNotFound = status === 404;
+  // The board card this run was opened from (?from=<issue id>): a run that
+  // never started is not in any list, so the card is the way back.
+  const fromIssue = new URLSearchParams(useSearch()).get("from");
   return (
     <div className="h-full w-full flex flex-col items-center justify-center gap-4 p-8">
       <div className="max-w-md text-center space-y-3 mt-4">
         <h2 className="text-base font-semibold text-fg-default">
           {isNotFound ? "Run not found" : "Run failed to load"}
         </h2>
+        {isNotFound && (
+          <p className="text-xs text-fg-default">
+            This run did not start or was deleted.
+            {fromIssue
+              ? " Its card on the board still lists it; a failed setup hook leaves no run behind."
+              : ""}
+          </p>
+        )}
         <p className="text-xs text-fg-muted font-mono break-all">{runId}</p>
         {isNotFound ? (
           cloud ? (
@@ -79,6 +90,17 @@ export function RunViewLoadError({
           <p className="text-xs text-fg-muted">{message}</p>
         )}
         <div className="flex justify-center gap-2 pt-2">
+          {fromIssue && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() =>
+                setLocation(`/board?focus=${encodeURIComponent(fromIssue)}`)
+              }
+            >
+              Back to card
+            </Button>
+          )}
           <Button
             variant="secondary"
             size="sm"

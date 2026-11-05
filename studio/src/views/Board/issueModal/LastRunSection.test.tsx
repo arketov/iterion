@@ -233,3 +233,15 @@ describe("LastRunSection run history list", () => {
     expect(screen.getAllByText(/production/i).length).toBeGreaterThan(0);
   });
 });
+
+describe("LastRunSection run that does not exist", () => {
+  it("says the run did not start and offers no console link or diff", async () => {
+    const { ApiError } = await import("@/api/client");
+    getRun.mockRejectedValue(new ApiError(404, "API error 404: run not found"));
+    renderSection("ghost-run-1");
+    await waitFor(() => expect(screen.getByTestId("run-missing")).toBeTruthy());
+    expect(screen.getByText(/did not start or was deleted/i)).toBeTruthy();
+    expect(screen.queryByText("View diff")).toBeNull();
+    expect(screen.queryByTitle(/Open run/)).toBeNull();
+  });
+});

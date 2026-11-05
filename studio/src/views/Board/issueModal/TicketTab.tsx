@@ -143,6 +143,7 @@ export function TicketTab({
             runID={initial.last_run_id}
             workdir={initial.last_workdir}
             runs={initial.runs}
+            issueID={initial.id}
           />
         )}
 

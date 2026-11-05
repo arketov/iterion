@@ -5,6 +5,7 @@ import { Link } from "wouter";
 import BranchDiffModal from "@/components/Runs/BranchDiffModal";
 import HumanPromptForm from "@/components/Runs/conversation/HumanPromptForm";
 import { getRun } from "@/api/runs";
+import { is404 } from "@/api/client";
 import { rehydratePendingHumanInput } from "@/store/run/reducer";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -77,10 +78,13 @@ function ChildrenDisclosure({ runID }: { runID: string }) {
 // the server resumes against the run's persisted FilePath (the operator
 // isn't editing this run's workflow); onResumed refetches the board view
 // instead of the run-console WS machinery.
-function AwaitingInput({ runID }: { runID: string }) {
-  const { data, refetch } = useQuery({
+function useBoardRun(runID: string) {
+  return useQuery({
     queryKey: ["board-last-run", runID],
     queryFn: ({ signal }) => getRun(runID, { signal }),
+    // A run that does not exist will not appear by asking again.
+    enabled: runID !== "",
+    retry: (count, err) => !is404(err) && count < 2,
     // Poll while the run can still transition into (or back out of) a pause,
     // stopping once it is terminal. A resume flips a paused card to running
     // and a later human node re-pauses it — polling through 'running'/'queued'
@@ -96,6 +100,10 @@ function AwaitingInput({ runID }: { runID: string }) {
         : false;
     },
   });
+}
+
+function AwaitingInput({ runID }: { runID: string }) {
+  const { data, refetch } = useBoardRun(runID);
   const pending = data?.run ? rehydratePendingHumanInput(data) : null;
   if (!pending || !pending.node_id) return null;
   return (
@@ -120,11 +128,42 @@ function AwaitingInput({ runID }: { runID: string }) {
 // single-last-run fallback renders.
 //
 // Renders nothing when neither runID nor workdir is set.
-function RunPanel({ runID, workdir }: { runID?: string; workdir?: string }) {
+function RunPanel({
+  runID,
+  workdir,
+  issueID,
+}: {
+  runID?: string;
+  workdir?: string;
+  issueID?: string;
+}) {
   const cloud = useServerInfoStore((s) => s.info?.mode === "cloud");
   const [diffOpen, setDiffOpen] = useState(false);
+  // Same query AwaitingInput issues (shared cache entry): a run the server
+  // does not know — a dispatch whose lifecycle hook failed before the run was
+  // created, or a deleted run — must not offer a console link or a diff.
+  const { error: runError } = useBoardRun(runID ?? "");
   if (!runID && !workdir) return null;
   const runLabel = runID ? runID.slice(0, 12) : "";
+  if (runID && runError && is404(runError)) {
+    return (
+      <div className="text-xs space-y-1" data-testid="run-missing">
+        <div className="flex items-center gap-1.5">
+          <span className="text-fg-muted">Run:</span>
+          <span className="font-mono text-fg-subtle" title={runID}>
+            {runLabel}
+          </span>
+          <Badge variant="warning" className="ml-1">
+            did not start or was deleted
+          </Badge>
+        </div>
+        <div className="text-fg-subtle">
+          No run record exists for this entry (a failed setup hook leaves none).
+          See the Retry queue on the Dispatcher page for the reason.
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-1.5">
       {runID && <AwaitingInput runID={runID} />}
@@ -132,7 +171,7 @@ function RunPanel({ runID, workdir }: { runID?: string; workdir?: string }) {
         <div className="flex items-center gap-1.5 text-xs">
           <span className="text-fg-muted">Run:</span>
           <Link
-            href={`/runs/${encodeURIComponent(runID)}`}
+            href={`/runs/${encodeURIComponent(runID)}${issueID ? `?from=${encodeURIComponent(issueID)}` : ""}`}
             className="font-mono text-accent-text hover:underline"
             title={`Open run ${runID}`}
           >
@@ -197,10 +236,14 @@ export function LastRunSection({
   runID,
   workdir,
   runs,
+  issueID,
 }: {
   runID?: string;
   workdir?: string;
   runs?: RunRef[];
+  // The card the history belongs to; carried to the run page so its
+  // "not found" state can link back.
+  issueID?: string;
 }) {
   const hasHistory = runs != null && runs.length > 0;
   if (!hasHistory && !runID && !workdir) return null;
@@ -218,12 +261,12 @@ export function LastRunSection({
                 i > 0 ? "border-t border-border-default pt-2" : undefined
               }
             >
-              <RunPanel runID={r.run_id} workdir={r.workdir} />
+              <RunPanel runID={r.run_id} workdir={r.workdir} issueID={issueID} />
             </div>
           ))}
         </div>
       ) : (
-        <RunPanel runID={runID} workdir={workdir} />
+        <RunPanel runID={runID} workdir={workdir} issueID={issueID} />
       )}
     </div>
   );

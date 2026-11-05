@@ -247,13 +247,13 @@ type transitionReq struct {
 func resolvePathID(s BoardStore, w http.ResponseWriter, r *http.Request) (string, bool) {
 	raw := r.PathValue("id")
 	if raw == "" {
-		http.NotFound(w, r)
+		writeErr(w, http.StatusNotFound, errors.New("not found"))
 		return "", false
 	}
 	id, err := s.Resolve(raw)
 	if err != nil {
 		if errors.Is(err, tracker.ErrNotFound) {
-			http.Error(w, "issue not found", http.StatusNotFound)
+			writeErr(w, http.StatusNotFound, errors.New("issue not found"))
 			return "", false
 		}
 		writeErr(w, http.StatusBadRequest, err)
