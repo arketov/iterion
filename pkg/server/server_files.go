@@ -595,7 +595,7 @@ func (s *Server) handleListFiles(w http.ResponseWriter, _ *http.Request) {
 			return nil
 		}
 		rel, _ := filepath.Rel(workDir, path)
-		files = append(files, fileEntry{Name: rel, Size: info.Size()})
+		files = append(files, fileEntry{Name: filepath.ToSlash(rel), Size: info.Size()})
 		return nil
 	})
 	if files == nil {
