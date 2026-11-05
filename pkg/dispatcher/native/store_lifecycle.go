@@ -246,6 +246,9 @@ func (s *Store) setLastRunLocked(iss *Issue, runID, workdir string) error {
 	iss.LastWorkdir = workdir
 	iss.Runs = AppendRunRef(iss.Runs, runID, workdir, now)
 	iss.LaunchRefusal = nil // a launch happened: the retry ledger no longer describes the card
+	if runID != "" {
+		iss.LaunchFailures = nil // …and so do the failed attempts before it
+	}
 	iss.UpdatedAt = now
 	if err := s.writeIssueLocked(iss); err != nil {
 		return err
@@ -331,6 +334,29 @@ func (s *Store) setAwaitingInputLocked(iss *Issue, v bool) error {
 		Type:    EvtIssueUpdated,
 		IssueID: iss.ID,
 		Payload: map[string]any{"awaiting_input": v},
+	})
+}
+
+// RecordLaunchFailure appends a failed dispatch attempt to the card (see
+// Issue.LaunchFailures). UpdatedAt is left alone: it orders the dispatch
+// queue, and a diagnostic is not an edit of the card.
+func (s *Store) RecordLaunchFailure(id string, f LaunchFailure) (err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	defer s.recoverMutator("RecordLaunchFailure", &err)
+	iss, err := s.readIssueLocked(id)
+	if err != nil {
+		return err
+	}
+	iss.LaunchFailures = AppendLaunchFailure(iss.LaunchFailures, f)
+	if err := s.writeIssueLocked(iss); err != nil {
+		return err
+	}
+	s.setIndexLocked(iss.ID, cloneIssue(iss))
+	return s.emitPostCommitEvent(Event{
+		Type:    EvtIssueUpdated,
+		IssueID: iss.ID,
+		Payload: map[string]any{"launch_failure": f.Hook},
 	})
 }
 

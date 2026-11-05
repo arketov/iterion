@@ -505,6 +505,7 @@ func (c *Dispatcher) finishRun(ctx context.Context, issueID string, err error) {
 	// SetLastRun is a native-tracker local write (a no-op for github/forgejo),
 	// not the blocking tracker HTTP that ADR-028 Step 3 offloads.
 	c.stampLastRun(issueID, r)
+	c.recordLaunchFailure(issueID, r, err)
 
 	// Decide the outcome on the actor — all c.state mutation (retry
 	// scheduling, retries-clear) happens here, synchronously, and we capture
@@ -897,6 +898,51 @@ func (c *Dispatcher) stampLastRun(issueID string, r *runningEntry) {
 	}
 	if err := setter.SetLastRun(issueID, r.RunID, workdir); err != nil {
 		c.logger.Warn("dispatcher: stamp last-run on %s: %v", r.Identifier, err)
+	}
+}
+
+// recordLaunchFailure persists, on the card itself, why a dispatch attempt
+// never became a run (a lifecycle hook failed first): hook, exit code, stderr
+// tail, the full text, when, which attempt, the minted run id and the host
+// log. The retry queue holds the same facts only in memory — they vanished
+// when the dispatcher was stopped, leaving a card with a history of runs that
+// do not exist and no reason. The record survives Stop and a studio restart
+// and is cleared when a run is finally stamped (see native.Issue.LaunchFailures).
+//
+// Not recorded when the attempt died because the dispatcher is shutting down
+// or the run was cancelled: that is an interruption, not a failure of the hook.
+// Best-effort: a write failure is logged at warn and never derails the finish.
+func (c *Dispatcher) recordLaunchFailure(issueID string, r *runningEntry, err error) {
+	if err == nil || !r.neverStarted.Load() || !r.CancelIssuedAt.IsZero() {
+		return
+	}
+	select {
+	case <-c.stop:
+		return
+	default:
+	}
+	rec, ok := c.tracker.(native.LaunchFailureRecorder)
+	if !ok {
+		return
+	}
+	f := native.LaunchFailure{
+		At:      time.Now().UTC(),
+		Attempt: r.Attempt + 1,
+		RunID:   r.RunID,
+		Error:   err.Error(),
+		LogPath: os.Getenv(DaemonLogEnv),
+	}
+	var he *HookError
+	if errors.As(err, &he) {
+		f.Hook = he.Hook
+		f.Stderr = he.Stderr
+		if !he.TimedOut && he.ExitCode >= 0 {
+			code := he.ExitCode
+			f.ExitCode = &code
+		}
+	}
+	if werr := rec.RecordLaunchFailure(issueID, f); werr != nil && !errors.Is(werr, tracker.ErrNotSupported) {
+		c.logger.Warn("dispatcher: record launch failure on %s: %v", r.Identifier, werr)
 	}
 }
 
