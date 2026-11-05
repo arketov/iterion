@@ -453,6 +453,7 @@ function AssigneeWorkflowsField({
             <Input
               size="sm"
               value={r.k}
+              aria-label={`Assignee name for row ${i + 1}`}
               placeholder="assignee"
               onChange={(e) => commit(rows.map((x, j) => (j === i ? { ...x, k: e.target.value } : x)))}
             />
