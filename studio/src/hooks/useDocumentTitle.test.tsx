@@ -83,6 +83,11 @@ describe("useDocumentTitle — every page names itself (RGAA 8.6)", () => {
     expect(document.title).toBe("Run — workspace · iterion studio");
   });
 
+  it("titles an address no route declares as not found, never as Home", () => {
+    renderAt("/settings");
+    expect(document.title).toBe("Page not found — workspace · iterion studio");
+  });
+
   it("titles the admin console from its own route table", () => {
     renderAt("/admin/users");
     expect(document.title).toBe("Admin — Users — workspace · iterion studio");
