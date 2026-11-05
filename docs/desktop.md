@@ -77,7 +77,9 @@ The desktop app boots into a Welcome wizard that asks you to:
 2. Configure API keys (stored in the OS keychain — Keychain on macOS, Credential Manager on Windows, Secret Service on Linux). Skippable; you can also rely on environment variables in your shell.
 3. Verify external CLIs (`claude`, `codex`) detection — only needed if you use `backend: "claude_code"` or `backend: "codex"` in your workflows.
 
-After onboarding the studio opens on your project. Multi-project switcher is in the top-left.
+After onboarding the studio opens on your project. The sidebar shows the name of the current project (read-only). Switch projects with the project switcher (Cmd/Ctrl+P or the native menu): the window re-attaches to that project's own studio server and reloads, so files, bot catalog, board, runs and dispatcher all follow. The browser studio (`iterion studio`) has no in-window switcher — it serves one project; open another tab or window with its own server for another project.
+
+The editor home (no tab open) lists the project's `.bot` files, offers **Open file…** for a file from disk, and keeps the Recent and Bots lists.
 
 ## Auto-update
 

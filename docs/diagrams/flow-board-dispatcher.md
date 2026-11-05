@@ -42,7 +42,7 @@ flowchart TD
     session --> setup["runDispatchSetup OFF the actor - fenced UpdateState to running_state, then the workspace mkdir"]
     setup -- "ErrClaimConflict" --> lostc["claim lost before launch - the run is NOT started"]
     setup --> hooks["after_create once, then before_run - sh -lc in the workspace"]
-    hooks -- "hook failed" --> fin
+    hooks -- "hook failed - the run never started, so its id is NOT stamped as last_run" --> fin
     hooks --> run["runner.Dispatch - the compiled bot runs"]
     run --> afterrun["after_run - on every return of the dispatch, best-effort, it never overrides the verdict"]
     afterrun --> teardown["clean return only - before_remove, remove the directory, deregister the worktree"]

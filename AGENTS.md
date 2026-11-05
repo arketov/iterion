@@ -45,7 +45,7 @@ interactive sessions).
 - **Never hand-edit `CHANGELOG.md`.** Bump `claw-code-go` only with
   `scripts/bump-claw.sh`; first-party — improve it in its `.works/` worktree
   when a seam crosses it, then bump.
-- **`.bot` traps.** A tool node's `command:` runs under `bash -c`; a `script:`
+- **`.bot` traps.** A tool node's `command:` runs under `bash -c` (PowerShell on a Windows host); a `script:`
   with `language: sh` runs `sh`, so keep it POSIX ([pitfalls](docs/workflow_authoring_pitfalls.md#shell-portability-for-tool-nodes)).
   A literal `{{` in a template is `{{"{{"}}` ([delimiters](docs/dsl.md#literal-template-delimiters)).
 - **A bot links its run** — `{{run.url}}` in what it posts

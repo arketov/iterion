@@ -14,6 +14,7 @@ import (
 
 	"github.com/arketov/iterion/bots"
 	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/backend/mcp"
 	"github.com/arketov/iterion/pkg/botsource"
 	"github.com/arketov/iterion/pkg/bundle"
 	"github.com/arketov/iterion/pkg/bundlelint"
@@ -339,6 +340,9 @@ func (s *Server) handleValidate(w http.ResponseWriter, r *http.Request) {
 
 	var unopenable error
 	var notRead string
+	// The directory the bot's .mcp.json is read from — the file's own, as at
+	// a run and in `iterion validate` — when the editor names a local file.
+	catalogDir := s.cfg.WorkDir
 	// A bundle's prompts/*.md reach the compiler the way they do at a
 	// launch when the editor says which file the document is. The path is
 	// a hint: one the server cannot place (no workdir on a cloud server, an
@@ -359,6 +363,7 @@ func (s *Server) handleValidate(w http.ResponseWriter, r *http.Request) {
 		}
 	case req.Path != "" && !strings.Contains(req.Path, "://"):
 		if abs, perr := s.safePath(req.Path); perr == nil {
+			catalogDir = filepath.Dir(abs)
 			b, oerr := runview.ResolveBundleFromFilePath(abs)
 			switch {
 			case oerr != nil:
@@ -433,9 +438,40 @@ func (s *Server) handleValidate(w http.ResponseWriter, r *http.Request) {
 	if cr.Workflow != nil {
 		resp.NodeCount = len(cr.Workflow.Nodes)
 		resp.EdgeCount = len(cr.Workflow.Edges)
+		s.appendMCPCatalogIssues(&resp, cr.Workflow, catalogDir)
 	}
 
 	writeJSON(w, resp)
+}
+
+// appendMCPCatalogIssues is what `iterion validate` says about the host's MCP
+// catalog, for the studio: plugins skipped at load and `tools:` entries naming
+// an MCP server the catalog lacks (C332). Local/desktop servers only — the
+// catalog is the project's .mcp.json plus the operator's plugins, and a cloud
+// server's WorkDir is not the tenant's project, so there it would warn about
+// servers that exist where the bot runs. Everything is a warning: an
+// environmental problem never makes the editor mark a document invalid (the
+// CLI is stricter about a catalog that cannot be built).
+func (s *Server) appendMCPCatalogIssues(resp *validateResponse, wf *ir.Workflow, projectDir string) {
+	if s.cfg.Mode == "cloud" || s.cfg.WorkDir == "" {
+		return
+	}
+	add := func(d DiagnosticDTO) {
+		resp.Issues = append(resp.Issues, d)
+		resp.Warnings = append(resp.Warnings, d.Message)
+	}
+	if err := mcp.PluginServersUnavailable(); err != nil {
+		add(DiagnosticDTO{Severity: "warning", Message: err.Error()})
+	}
+	// PrepareWorkflow fills wf's resolved catalog in place; this compile is
+	// the request's own, discarded after the response.
+	if err := mcp.PrepareWorkflow(wf, projectDir, s.cfg.WorkDir); err != nil {
+		add(DiagnosticDTO{Severity: "warning", Message: "MCP catalog could not be resolved, tool servers were not checked: " + err.Error()})
+		return
+	}
+	for _, d := range mcp.UnknownToolServerDiagnostics(wf) {
+		add(irDiagToDTO(d))
+	}
 }
 
 // botSourceScheme prefixes the studio editor's virtual path of a cloud

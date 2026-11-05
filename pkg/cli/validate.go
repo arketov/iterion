@@ -582,6 +582,20 @@ func RunValidateWithContext(ctx context.Context, path string, p *Printer, opts V
 				Message:  err.Error(),
 			})
 			result.Valid = false
+		} else {
+			// C332 reads the catalog PrepareWorkflow just resolved, so it
+			// runs only when that succeeded. Warnings, kept out of
+			// CompileDiagnostics for the reason the plugin warning above is.
+			for _, d := range mcp.UnknownToolServerDiagnostics(cr.Workflow) {
+				result.Diagnostics = append(result.Diagnostics, ValidateDiagnostic{
+					Source:   "compile",
+					Code:     string(d.Code),
+					Severity: d.Severity.String(),
+					Message:  d.Message,
+					Hint:     d.Hint,
+					NodeID:   d.NodeID,
+				})
+			}
 		}
 		result.WorkflowName = cr.Workflow.Name
 		result.NodeCount = len(cr.Workflow.Nodes)

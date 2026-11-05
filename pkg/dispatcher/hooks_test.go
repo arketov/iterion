@@ -112,3 +112,11 @@ func TestHooksValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestHookRunUnknownShellNamesIt(t *testing.T) {
+	h := &Hook{Script: "echo hi", Shell: "no-such-shell-xyz"}
+	err := h.Run(context.Background(), newTestLogger(), "after_create", t.TempDir(), nil)
+	if err == nil || !strings.Contains(err.Error(), "no-such-shell-xyz") {
+		t.Fatalf("want an error naming the shell, got %v", err)
+	}
+}

@@ -380,6 +380,14 @@ func (c *Dispatcher) dispatch(ctx context.Context, iss tracker.Issue) {
 		iss.Bot = bot
 	}
 
+	// A card with a pending retry already started under an earlier policy
+	// (e.g. before an upgrade): let its retry/resume run its course.
+	if _, retrying := c.state.retries[iss.ID]; cfg.RequireAssignee && !retrying && iss.Bot == "" && iss.Assignee == "" {
+		c.recordDispatchSkipKind(iss, DispatchSkipNoAssignee,
+			"no assignee: assign a bot to this card to run it (the dispatcher does not fall back to the default bot)")
+		return
+	}
+
 	if !c.resolveExplicitBot(cfg, iss) {
 		return
 	}
@@ -958,13 +966,11 @@ func (c *Dispatcher) buildRunningEntry(
 	c.state.running[iss.ID] = entry
 	c.state.slotsByState[iss.WorkflowState]++
 
-	// Stamp last_run at dispatch (not just at finish) so the studio's
-	// IssueModal / WatchPanel "run ↗" link is live for the whole run
-	// instead of pointing at the previous run until this one completes.
-	// run.json doesn't exist yet, so stampLastRun falls back to the
-	// workspace path; the finish-time stamp later upgrades it to the
-	// resolved worktree path.
-	c.stampLastRun(iss.ID, entry)
+	// last_run is stamped by runWorker right before the runner takes the run
+	// (see there), NOT here: the run id is minted at claim time but the
+	// engine creates the run only inside Dispatch, so a lifecycle hook that
+	// fails first would leave a phantom run (no run.json, console 404) in the
+	// card's history.
 	// A fresh dispatch (incl. a re-dispatch of a previously-parked issue)
 	// supersedes any prior pause — clear the denormalized awaiting-input
 	// badge so the card doesn't show a stale ⏸ while the new run executes.
@@ -1238,6 +1244,12 @@ func (c *Dispatcher) declaredVarsFor(routeKey string) map[string]struct{} {
 // eligible ticket is idle. Runs on the actor goroutine; pruned in tick() once
 // the issue stops being a candidate and cleared in dispatch() once it claims.
 func (c *Dispatcher) recordDispatchSkip(iss tracker.Issue, reason string) {
+	c.recordDispatchSkipKind(iss, "", reason)
+}
+
+// recordDispatchSkipKind is recordDispatchSkip with a classification the UI
+// keys its dedicated state off (see DispatchSkipNoAssignee).
+func (c *Dispatcher) recordDispatchSkipKind(iss tracker.Issue, kind, reason string) {
 	if c.state.dispatchSkips == nil {
 		c.state.dispatchSkips = map[string]DispatchSkipView{}
 	}
@@ -1246,6 +1258,7 @@ func (c *Dispatcher) recordDispatchSkip(iss tracker.Issue, reason string) {
 		Identifier: iss.Identifier,
 		Bot:        iss.Bot,
 		Reason:     reason,
+		Kind:       kind,
 	}
 }
 
@@ -1267,14 +1280,25 @@ func (c *Dispatcher) runWorker(ctx context.Context, entry *runningEntry, created
 
 	if created && hooks.AfterCreate != nil {
 		if err := hooks.AfterCreate.Run(ctx, c.logger, "after_create", entry.WorkspacePath, env); err != nil {
+			entry.neverStarted.Store(true)
 			c.postFinished(entry.IssueID, fmt.Errorf("after_create hook: %w", err))
 			return
 		}
 	}
 	if err := hooks.BeforeRun.Run(ctx, c.logger, "before_run", entry.WorkspacePath, env); err != nil {
+		entry.neverStarted.Store(true)
 		c.postFinished(entry.IssueID, fmt.Errorf("before_run hook: %w", err))
 		return
 	}
+
+	// Stamp last_run at dispatch (not just at finish) so the studio's
+	// IssueModal / WatchPanel "run ↗" link is live for the whole run
+	// instead of pointing at the previous run until this one completes.
+	// run.json doesn't exist yet, so stampLastRun falls back to the
+	// workspace path; the finish-time stamp later upgrades it to the
+	// resolved worktree path. After the hooks, so a run that never got
+	// here never reaches the card's history.
+	c.stampLastRun(entry.IssueID, entry)
 
 	dispatchErr := c.runner.Dispatch(ctx, spec)
 

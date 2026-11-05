@@ -695,12 +695,14 @@ See [scheduling](scheduling.md), including sub-minute keepalive behavior.
 
 ### `iterion issue`
 
-Subcommands are `create`, `list`, `show`, `move`, `update`, `close`, `board`, and `import`.
+Subcommands are `create`, `list`, `show`, `move`, `update`, `close`, `delete`, `board`, and `import`.
 
 ```bash
 iterion issue create --title "Fix auth" --label backend --priority 10
 iterion issue list --state todo --unclaimed
 iterion issue move ISSUE --to doing
+iterion issue update ISSUE --bot docs-refresh --bot-arg doc_globs="docs/**/*.md"
+iterion issue delete ISSUE            # asks [y/N]; --yes skips it (required without a terminal)
 iterion issue board show
 FORGE_TOKEN=... iterion issue import --forge forgejo \
   --repo owner/name --base-url https://forge.example --token-env FORGE_TOKEN
