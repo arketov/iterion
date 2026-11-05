@@ -40,6 +40,8 @@ See [cli-reference.md `#iterion-studio`](cli-reference.md#iterion-studio) for th
 - **Run console** — Launch a workflow from the studio and watch events stream live
 - **Assistant dock** — The conversational assistant on *every* route: a corner bubble that opens into a floating panel or a docked right column. It hosts the same session `/whats-next` renders full-width, so navigating neither restarts it nor loses the transcript, and it reports the page you are on as a dismissible context chip (see [assistant-dock.md](assistant-dock.md))
 
+What each page of the studio does, and how to run a file or a board card, is in the [studio overview](studio-overview.md).
+
 This mode is the simplest way to design and iterate locally. If you want a packaged native window instead (no browser, OS-keychain credentials, auto-update), see the [Desktop App](desktop.md).
 
 ## Creating a bot (`/bots/new`)
