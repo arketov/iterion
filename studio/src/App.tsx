@@ -16,6 +16,7 @@ import { RequireSuperAdmin } from "@/auth/RequireSuperAdmin";
 import AdminConsoleRoutes from "@/views/admin/AdminConsoleRoutes";
 import { ADMIN_BASE } from "@/views/admin/adminRoutes";
 const HomeView = lazy(() => import("@/components/Home/HomeView"));
+const NotFoundView = lazy(() => import("@/views/NotFound"));
 const WhatsNextView = lazy(() => import("@/components/WhatsNext/WhatsNextView"));
 const EditorTabsView = lazy(() => import("@/components/Editor/EditorTabsView"));
 const LaunchView = lazy(() => import("@/components/Runs/LaunchView"));
@@ -28,6 +29,9 @@ const BotHomeView = lazy(() => import("@/views/Bots/BotHome"));
 const BotBuilderView = lazy(() => import("@/views/Bots/BotBuilder"));
 const BoardView = lazy(() => import("@/views/Board"));
 const PipelineBoardView = lazy(() => import("@/views/PipelineBoard"));
+const PipelineCardPageView = lazy(
+  () => import("@/views/PipelineBoard/PipelineCardPage"),
+);
 const LabelsView = lazy(() => import("@/views/Board/Labels"));
 const FieldsView = lazy(() => import("@/views/Board/Fields"));
 const RunsAnalyticsView = lazy(() => import("@/views/RunsAnalytics"));
@@ -858,6 +862,13 @@ function AuthedApp() {
               />
             </Route>
           )}
+          {/* The dedicated card page every pipeline card click and the
+              assistant's "Open pipeline" link navigate to. */}
+          <Route path="/pipelines/cards/:kind/:id">
+            <ErrorBoundary area="Pipeline card view">
+              <PipelineCardPageView />
+            </ErrorBoundary>
+          </Route>
           {serverInfo?.native_tracker_enabled ? (
             <Route path="/pipelines">
               <ErrorBoundary area="Pipeline board view">
@@ -957,7 +968,13 @@ function AuthedApp() {
             </ErrorBoundary>
           </Route>
           <Route path="/" component={HomeView} />
-          <Route component={HomeView} />
+          {/* An address no route declares is a 404, not Home: a typo must
+              not look like a working page. */}
+          <Route>
+            <ErrorBoundary area="Not found view">
+              <NotFoundView />
+            </ErrorBoundary>
+          </Route>
           </Switch>
         </ErrorBoundary>
       </AppShell>

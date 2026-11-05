@@ -29,9 +29,7 @@ const PUBLIC_ROUTES: { path: string; reason: string }[] = [
 
 // Table entries with no <Route> literal in App.tsx: the route exists, but a
 // view mounts it internally rather than the top-level Switch.
-const NON_LITERAL: { pattern: string; reason: string }[] = [
-  { pattern: "/pipelines/cards/:kind/:id", reason: "the pipelines view routes its card pages internally" },
-];
+const NON_LITERAL: { pattern: string; reason: string }[] = [];
 
 /** Every string-literal `path` attribute on a <Route> in App.tsx. */
 function routeLiterals(): string[] {

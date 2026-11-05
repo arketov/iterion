@@ -127,7 +127,14 @@ export function BoardColumnsArea({
 
   return (
     <div
-      className="flex-1 overflow-auto p-3"
+      // The ONE scroller of the board page. Flat view: it scrolls only
+      // horizontally (the columns are as tall as the area and scroll their
+      // own cards), so there is never a second vertical bar. Swimlanes
+      // stack taller than the area, so there it scrolls both ways. min-w-0 /
+      // min-h-0 keep the area from growing past the page in the flex column.
+      className={`flex-1 min-h-0 min-w-0 p-3 ${
+        swimlanes ? "overflow-auto" : "overflow-x-auto overflow-y-hidden"
+      }`}
       // Click in the empty board area (column gaps, "drop here" space,
       // padding) clears the selection. Clicks landing on a card are
       // ignored here — the card carries data-issue-card and runs its
@@ -166,7 +173,7 @@ export function BoardColumnsArea({
           ))}
         </div>
       ) : (
-        <div className="flex gap-3 min-w-fit">
+        <div className="flex gap-3 min-w-fit h-full">
           {board.states.map((s) => renderStateColumn(s, byState, true))}
           {renderUnmapped(byState)}
         </div>

@@ -145,11 +145,11 @@ function RunsAnalyticsViewInner() {
         ) : (
           <EmptyState
             title="No runs in this window"
-            message={`No runs in the last ${stats.since_days} days. Launch one from /whats-next or the editor to populate this dashboard.`}
+            message={`No runs in the last ${stats.since_days} days. Launch one from What's Next or the Editor to populate this dashboard.`}
             action={
               <Link href="/whats-next">
                 <Button variant="primary" size="sm">
-                  Open /whats-next
+                  Open What's Next
                 </Button>
               </Link>
             }
