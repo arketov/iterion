@@ -527,7 +527,15 @@ if no shell is found the hook fails naming what was looked for. A hook
 script is written in the dialect of the shell that runs it — see
 [shell portability](workflow_authoring_pitfalls.md#shell-portability-for-tool-nodes).
 The default `iterion dispatch` workspace-seeding `after_create` hook comes in
-a `sh` and a PowerShell variant and picks the one that matches the shell.
+a `sh` and a PowerShell variant and picks the one that matches the shell; on
+Windows the saved config carries `shell: pwsh` (or `powershell`) with it.
+A config saved by an older version holds the `sh` variant with no `shell:`:
+when the studio loads it on a PowerShell host, that exact old preset is
+rewritten into the PowerShell variant (and saved). A hook you wrote or edited
+yourself is never rewritten: if its text is plainly `sh` (`set -e`, `VAR=value`,
+`[ ... ]`, a `#!/bin/sh` line) and it has no `shell:`, it keeps running under
+`sh` or `bash` when one is on PATH (the log says so), and otherwise fails
+before starting with a message to add `shell:` or rewrite it for PowerShell.
 The dispatcher exports six environment variables, on top of its own, before
 invoking the hook:
 
@@ -636,7 +644,10 @@ typed by hand is still accepted; if it is relative it is resolved against the
 dispatcher config folder (`~/.iterion/projects/<key>/dispatcher/`), **not**
 against the project root — write it absolute. With no dispatcher configured
 yet the drawer and the *No dispatcher running* page offer **Use default
-settings**, which calls `POST /api/v1/dispatcher/defaults/apply`.
+settings**, which calls `POST /api/v1/dispatcher/defaults/apply`. With a
+dispatcher already configured the drawer shows **Reset to default settings**
+instead: after a confirmation it overwrites the saved settings (hooks included)
+with the ready-made ones, through `POST .../defaults/apply?replace=1`.
 
 This is what makes whats-next.bot's kanban output auto-pilot: the
 bot stamps each issue with `--assignee feature_dev` (or any
@@ -986,7 +997,7 @@ when `server.port` is set — pass `iterion dispatch --no-server`.
 | `/api/v1/dispatcher/status`                          | GET    | Manager state (`state`, `has_config`, `last_error`, `started_at`). |
 | `/api/v1/dispatcher/config`                          | GET, PUT | Read or replace the persisted config. |
 | `/api/v1/dispatcher/start` · `/stop` · `/pause` · `/resume` | POST | Daemon lifecycle — what the studio's dispatcher control bar drives. |
-| `/api/v1/dispatcher/defaults/apply`                  | POST   | Persist the baked-in defaults and start; `409` when a config already exists. |
+| `/api/v1/dispatcher/defaults/apply`                  | POST   | Persist the baked-in defaults and start; `409` when a config already exists, unless `?replace=1` (the studio's *Reset to default settings*). |
 | `/api/v1/dispatcher/state`                           | GET    | Live snapshot (running, retries, slots). |
 | `/api/v1/dispatcher/refresh`                         | POST   | Force an immediate tick.                 |
 | `/api/v1/dispatcher/reload`                          | POST   | Re-parse the YAML config.                |

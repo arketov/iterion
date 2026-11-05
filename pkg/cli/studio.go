@@ -431,6 +431,7 @@ func RunStudio(ctx context.Context, opts StudioOptions, p *Printer) error {
 					// nothing).
 					return BuildDefaultConfig(resolvedStoreDir, dir)
 				},
+				MigrateConfig: MigrateLegacySeedHook,
 			})
 			if mgrErr == nil {
 				cfg.Dispatcher = mgr

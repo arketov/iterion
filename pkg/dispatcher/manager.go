@@ -60,6 +60,11 @@ type ManagerOptions struct {
 	// Injected from pkg/cli (where the embed.FS lives) so the
 	// pkg/dispatcher package stays free of the templates dep.
 	DefaultsFn func() (*Config, error)
+	// MigrateConfig, when set, is called with the config loaded from disk at
+	// start-up and may rewrite it in place (a preset an older version saved);
+	// true means it changed and is written back. Injected from pkg/cli for
+	// the same reason as DefaultsFn.
+	MigrateConfig func(*Config) bool
 }
 
 // Manager owns the lifecycle of an in-process Dispatcher instance.
@@ -119,6 +124,13 @@ func NewManager(opts ManagerOptions) (*Manager, error) {
 	}
 	if m.cfg != nil && len(m.cfg.Bots.Paths) == 0 {
 		m.cfg.Bots.Paths = append([]string(nil), m.defaultBotsPaths...)
+	}
+	if m.cfg != nil && opts.MigrateConfig != nil && opts.MigrateConfig(m.cfg) {
+		if err := saveConfigJSON(m.configPath, m.cfg); err != nil {
+			opts.Logger.Warn("manager: persist migrated config (%s): %v", m.configPath, err)
+		} else {
+			opts.Logger.Info("manager: migrated the saved dispatcher config (%s) to this host's shell", m.configPath)
+		}
 	}
 	// Sweep stale claims left over from a dead local PID at server
 	// boot, before any operator has clicked Start on the dispatcher.
@@ -757,14 +769,19 @@ func (m *Manager) handleStart(w http.ResponseWriter, _ *http.Request) {
 // PUT to overwrite — applying defaults over an existing config would
 // silently clobber operator edits), 400 if the defaults builder fails
 // (typically a binary built before the templates were embedded),
-// 202 + ManagerStatus on success.
-func (m *Manager) handleApplyDefaults(w http.ResponseWriter, _ *http.Request) {
+// 202 + ManagerStatus on success. `?replace=1` lifts the 409: the operator
+// asked to return the saved config to the defaults.
+func (m *Manager) handleApplyDefaults(w http.ResponseWriter, r *http.Request) {
 	if m.defaultsFn == nil {
 		WriteErr(w, http.StatusNotImplemented, errors.New("dispatcher defaults: not wired in this build"))
 		return
 	}
-	if m.Config() != nil {
-		WriteErr(w, http.StatusConflict, errors.New("dispatcher defaults: a config already exists; PUT /config to overwrite or DELETE first"))
+	// ?replace=1 is the operator's explicit "back to the default settings":
+	// the saved config is overwritten (SaveConfig live-reloads a running
+	// dispatcher). Without it an existing config is never clobbered.
+	replace := r.URL.Query().Get("replace") == "1"
+	if m.Config() != nil && !replace {
+		WriteErr(w, http.StatusConflict, errors.New("dispatcher defaults: a config already exists; PUT /config to overwrite, DELETE first, or POST /defaults/apply?replace=1"))
 		return
 	}
 	cfg, err := m.defaultsFn()
@@ -776,7 +793,7 @@ func (m *Manager) handleApplyDefaults(w http.ResponseWriter, _ *http.Request) {
 		WriteErr(w, http.StatusBadRequest, err)
 		return
 	}
-	if err := m.Start(); err != nil {
+	if err := m.Start(); err != nil && !errors.Is(err, ErrAlreadyRunning) {
 		WriteErr(w, http.StatusBadRequest, err)
 		return
 	}

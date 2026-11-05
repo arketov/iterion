@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"reflect"
 	"runtime"
 	"strings"
@@ -58,6 +59,9 @@ type Shell struct {
 	// Path is what exec starts: an absolute path when it was looked up, a
 	// bare name for a POSIX default that is left to exec.
 	Path string
+	// Note, when set, says why this shell is not the one the platform default
+	// would have been (a sh-written script kept on sh): callers may log it.
+	Note string
 }
 
 // Request says what the caller wants.
@@ -68,6 +72,14 @@ type Request struct {
 	// PosixDefault is the shell used on non-Windows when Name is empty:
 	// KindSh (the default of the zero value) or KindBash.
 	PosixDefault Kind
+	// Script, when set and Name is empty, is the text about to run. A text
+	// that is plainly sh (LooksPosix) on a host whose default is PowerShell is
+	// a script written before the default changed — a saved dispatcher config,
+	// a plugin command: it runs under sh/bash when one is on PATH (Shell.Note
+	// says so) and otherwise fails with a *PosixScriptError naming the remedy,
+	// instead of being fed to PowerShell, which misreads it. Leave it empty for
+	// text written for the platform shell (a tool node's `command:`).
+	Script string
 }
 
 // NotFoundError says no shell could be started, naming what was looked for.
@@ -121,9 +133,69 @@ func resolve(req Request, platform string) (Shell, error) {
 		}
 	}
 	if name == "" {
-		return defaultShell(req, platform)
+		sh, err := defaultShell(req, platform)
+		if err == nil && sh.Kind == KindPowerShell && req.Script != "" && LooksPosix(req.Script) {
+			return posixForLegacyScript(platform)
+		}
+		if err != nil && platform == "windows" && req.Script != "" && LooksPosix(req.Script) {
+			return posixForLegacyScript(platform)
+		}
+		return sh, err
 	}
 	return named(name, platform)
+}
+
+// PosixScriptError says a script written for sh meets a host whose command
+// shell is PowerShell and no POSIX shell is installed to run it.
+type PosixScriptError struct{}
+
+func (*PosixScriptError) Error() string {
+	return "this script is written for sh, but commands on this host run in PowerShell and no sh or bash is on PATH: " +
+		"rewrite it in PowerShell, set `shell: pwsh` on it if it already is, install Git for Windows (sh) and set `shell: sh`, " +
+		"or choose the shell with " + EnvVar
+}
+
+func (*PosixScriptError) Is(target error) bool { return target == exec.ErrNotFound }
+
+func posixForLegacyScript(platform string) (Shell, error) {
+	for _, n := range []string{"sh", "bash"} {
+		p, err := lookPath(n)
+		if err != nil || strings.Contains(strings.ToLower(p), `\system32\`) {
+			// System32\bash.exe is the WSL launcher, not a shell of this host.
+			continue
+		}
+		kind := KindSh
+		if n == "bash" {
+			kind = KindBash
+		}
+		return Shell{Kind: kind, Path: p, Note: "the script is written for sh and has no `shell:`: running it under " + n +
+			" as before; add `shell: " + n + "` to say so, or rewrite it for PowerShell"}, nil
+	}
+	return Shell{}, &PosixScriptError{}
+}
+
+// posixLine matches a line only a POSIX shell can read: `set -e`, a VAR=value
+// assignment, `export`, a shebang, a `[ ... ]` test, or the closing words of
+// an sh block. PowerShell variables start with `$`, so none of these is
+// PowerShell.
+var posixLine = regexp.MustCompile(`^(set\s+-[a-zA-Z]+\b|[A-Za-z_][A-Za-z0-9_]*=\S|export\s+[A-Za-z_]|#!\s*/\S*(ba)?sh\b|(if|elif|while|until)\s+(!\s+)?\[|\[\[?\s.*\s\]\]?\s*(&&|\|\||;|$)|fi\s*$|done\s*$|esac\s*$)`)
+
+// LooksPosix reports whether script contains a line only a POSIX shell can
+// read (see posixLine). Conservative: false for anything ambiguous.
+func LooksPosix(script string) bool {
+	for _, line := range strings.Split(script, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "#!") {
+			continue
+		}
+		if posixLine.MatchString(line) {
+			return true
+		}
+	}
+	return false
 }
 
 func defaultShell(req Request, platform string) (Shell, error) {
