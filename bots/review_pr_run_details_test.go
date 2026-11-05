@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/deeplink"
+	"github.com/arketov/iterion/pkg/deeplink"
 )
 
 func TestReviewPRRunDetails(t *testing.T) {

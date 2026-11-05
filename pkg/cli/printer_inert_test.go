@@ -15,8 +15,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
-	"github.com/SocialGouv/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/runtime"
 )
 
 // hostileText carries what a terminal would act on: an OSC title and a

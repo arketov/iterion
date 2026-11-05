@@ -4,7 +4,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/secretsink"
+	"github.com/arketov/iterion/pkg/dsl/secretsink"
 )
 
 // MaterializeForHost is MaterializeForHostWithin unbounded: the

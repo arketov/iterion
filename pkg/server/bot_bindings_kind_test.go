@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/pluginsource"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/pluginsource"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 const bindingsBase = "/api/teams/t1/bots/doki/bindings"

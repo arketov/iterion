@@ -8,7 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"github.com/SocialGouv/iterion/pkg/internal/mongoutil"
+	"github.com/arketov/iterion/pkg/internal/mongoutil"
 )
 
 // Mongo wraps one typed collection with the domain package's error

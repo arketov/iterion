@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 // TestForgeRejectedTheWrite_AStepEndingOnAReadAppliedNothing: the classifier

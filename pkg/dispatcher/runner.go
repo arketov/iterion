@@ -3,7 +3,7 @@ package dispatcher
 import (
 	"context"
 
-	"github.com/SocialGouv/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/runtime"
 )
 
 // DispatchSpec describes a single workflow run the dispatcher wants to

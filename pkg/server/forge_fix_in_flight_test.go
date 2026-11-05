@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/deeplink"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	"github.com/SocialGouv/iterion/pkg/webhooks/prforge"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/deeplink"
+	"github.com/arketov/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/webhooks/prforge"
 )
 
 // fixLaunchFixture is inFlightFixture plus the REAL bots/ catalog, because the

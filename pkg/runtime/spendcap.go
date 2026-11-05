@@ -3,8 +3,8 @@ package runtime
 import (
 	"context"
 
-	"github.com/SocialGouv/iterion/pkg/clock"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/clock"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // CapReasonDaily is the sentinel value written to the run_paused event's

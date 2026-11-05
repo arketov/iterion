@@ -3,7 +3,7 @@ package runtime
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // A `vars:` default's ${ITERION_*:-default} resolves through the bot-var

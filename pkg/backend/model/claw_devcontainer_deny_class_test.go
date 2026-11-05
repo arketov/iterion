@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox/devcontainer"
+	"github.com/arketov/iterion/pkg/sandbox/devcontainer"
 )
 
 // The in-container runner rebuilds its registry from the env that crossed

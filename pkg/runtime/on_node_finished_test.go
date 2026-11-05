@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // TestOnNodeFinished_ReceivesRunIDAndRawOutput is the contract MVP3b's

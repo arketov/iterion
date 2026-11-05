@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/internal/isolationenv"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/isolationenv"
 )
 
 // loadEnv overlays ITERION_* env vars onto cfg. An empty / unset env

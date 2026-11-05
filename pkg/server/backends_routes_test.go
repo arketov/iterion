@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/detect"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/detect"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // TestBackendsDetectRouteShape verifies the route returns a well-formed

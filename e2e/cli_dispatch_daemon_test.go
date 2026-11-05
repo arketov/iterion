@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/cli"
 )
 
 // `iterion dispatch <config.yaml>` is the long-running daemon: it loads the

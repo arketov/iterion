@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // LocalScopeTeam is the synthetic team id stamped on every secret held by

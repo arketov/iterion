@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/pricingtest"
-	"github.com/SocialGouv/iterion/pkg/backend/modelspecs"
+	"github.com/arketov/iterion/internal/pricingtest"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
 )
 
 // TestMain isolates this package's tests from the host's live model prices

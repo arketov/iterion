@@ -12,10 +12,10 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
-	"github.com/SocialGouv/iterion/pkg/internal/mongotest"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/store/blob"
-	"github.com/SocialGouv/iterion/pkg/store/storetest"
+	"github.com/arketov/iterion/pkg/internal/mongotest"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store/blob"
+	"github.com/arketov/iterion/pkg/store/storetest"
 )
 
 // TestConformance_Mongo plugs the Mongo store into pkg/store's shared

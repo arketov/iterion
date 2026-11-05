@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/runtime"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/runtime"
 )
 
 // lfsFixture is a clone whose tree carries one LFS-tracked path, with the

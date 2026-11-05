@@ -1,12 +1,12 @@
 package runner
 
 import (
-	"github.com/SocialGouv/iterion/internal/detecttest"
+	"github.com/arketov/iterion/internal/detecttest"
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/pricingtest"
-	"github.com/SocialGouv/iterion/internal/proctest"
+	"github.com/arketov/iterion/internal/pricingtest"
+	"github.com/arketov/iterion/internal/proctest"
 )
 
 // The fake shared sandbox here runs subbot children as real host commands.

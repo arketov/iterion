@@ -14,11 +14,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
-	"github.com/SocialGouv/iterion/pkg/backend/rewrite"
-	"github.com/SocialGouv/iterion/pkg/backend/secretguard"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/plugin"
+	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
+	"github.com/arketov/iterion/pkg/backend/rewrite"
+	"github.com/arketov/iterion/pkg/backend/secretguard"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/plugin"
 )
 
 // A secret goes into the command byte for byte, whatever it holds: swapped in

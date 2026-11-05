@@ -1,6 +1,6 @@
 package ir
 
-import "github.com/SocialGouv/iterion/pkg/dsl/expr"
+import "github.com/arketov/iterion/pkg/dsl/expr"
 
 // walkRootVarsSubscripts finds vars[key] locally: Refs reports the receiver as
 // a root vars path with no key, so changing it would affect every ref consumer.

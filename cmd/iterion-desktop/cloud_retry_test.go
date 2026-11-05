@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	iserver "github.com/SocialGouv/iterion/pkg/server"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/identity"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	iserver "github.com/arketov/iterion/pkg/server"
 )
 
 // TestJar_TheRetryOutlastsTheCloudsSlowestRefresh pins the presentation a

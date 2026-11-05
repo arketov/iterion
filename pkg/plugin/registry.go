@@ -11,11 +11,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/yamlx"
+	"github.com/arketov/iterion/internal/yamlx"
 	yaml "gopkg.in/yaml.v3"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 //go:embed all:builtin

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/dsl/expr"
 )
 
 // `holdout_detected == holdout_total` is the gate's strongest clause and it is

@@ -3,7 +3,7 @@ package ir
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/llmroute"
+	"github.com/arketov/iterion/pkg/llmroute"
 )
 
 // The routing policy's harness vocabulary (pkg/llmroute) must cover every

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // orgAdminFixture builds one org holding one team the user is NOT a member

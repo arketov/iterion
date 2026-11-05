@@ -13,9 +13,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/docsguard"
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/internal/mdcode"
+	"github.com/arketov/iterion/internal/docsguard"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/mdcode"
 )
 
 // The agent instruction tree is paid on every turn of every session:

@@ -29,8 +29,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
+	"github.com/arketov/iterion/pkg/backend/permission"
 )
 
 func TestCLILiveOneShotHookChannelIsNotRefused(t *testing.T) {

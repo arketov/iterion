@@ -3,8 +3,8 @@ package store_test
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/store/storetest"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store/storetest"
 )
 
 // TestConformance_FilesystemShared runs the EXPORTED cross-backend

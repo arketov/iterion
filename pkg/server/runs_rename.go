@@ -2,7 +2,7 @@ package server
 
 import (
 	"errors"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 	"net/http"
 	"strings"
 )

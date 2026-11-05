@@ -17,8 +17,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/httpx"
-	iserver "github.com/SocialGouv/iterion/pkg/server"
+	"github.com/arketov/iterion/internal/httpx"
+	iserver "github.com/arketov/iterion/pkg/server"
 )
 
 // assetProxyHandler is the http.Handler the desktop binary plugs into Wails'

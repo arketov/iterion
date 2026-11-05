@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/yamlx"
+	"github.com/arketov/iterion/internal/yamlx"
 )
 
 // SynthesizeSkillsManifest builds a skills-only Manifest for a directory that

@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // A required check has three states an operator can act on — green, red, and

@@ -223,9 +223,9 @@ func TestDepUpdateGuardVerifyPrechecks(t *testing.T) {
 		var b strings.Builder
 		b.WriteString("#!/bin/sh\n")
 		b.WriteString("echo '--- FAIL: TestAwaitTerminal_LoadRunMissTransient (0.42s)'\n")
-		b.WriteString("echo 'FAIL\tgithub.com/SocialGouv/iterion/cmd/iterion\t0.51s'\n")
+		b.WriteString("echo 'FAIL\tgithub.com/arketov/iterion/cmd/iterion\t0.51s'\n")
 		for i := 0; i < 400; i++ {
-			b.WriteString("echo 'ok  \tgithub.com/SocialGouv/iterion/pkg/filler" +
+			b.WriteString("echo 'ok  \tgithub.com/arketov/iterion/pkg/filler" +
 				strings.Repeat("x", 20) + "\t(cached)'\n")
 		}
 		b.WriteString("echo FAIL\n")
@@ -280,11 +280,11 @@ func TestDepUpdateGuardVerifyPrechecks(t *testing.T) {
 		var b strings.Builder
 		b.WriteString("#!/bin/sh\n")
 		b.WriteString("echo 'pkg/foo/bar.go:12:5: undefined: Baz'\n")
-		b.WriteString("echo 'FAIL\tgithub.com/SocialGouv/iterion/pkg/foo [build failed]'\n")
+		b.WriteString("echo 'FAIL\tgithub.com/arketov/iterion/pkg/foo [build failed]'\n")
 		b.WriteString("echo '--- FAIL: TestThing (0.02s)'\n")
 		b.WriteString("echo '    thing_test.go:41: got 3, want 4'\n")
 		for i := 0; i < 300; i++ {
-			b.WriteString("echo 'ok  \tgithub.com/SocialGouv/iterion/pkg/other\t(cached)'\n")
+			b.WriteString("echo 'ok  \tgithub.com/arketov/iterion/pkg/other\t(cached)'\n")
 		}
 		b.WriteString("exit 1\n")
 		if err := os.WriteFile(filepath.Join(scratch, "verify.sh"), []byte(b.String()), 0o755); err != nil {

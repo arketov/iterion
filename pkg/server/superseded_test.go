@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/cloudsched"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/cloudsched"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 type observedScheduleStore struct {

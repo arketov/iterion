@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/internal/gittest"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 func gitRun(t *testing.T, dir string, args ...string) {

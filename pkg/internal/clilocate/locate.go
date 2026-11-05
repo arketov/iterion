@@ -14,7 +14,7 @@ import (
 	goruntime "runtime"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // Spec describes how to look for a CLI binary.

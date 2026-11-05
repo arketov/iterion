@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // `iterion run --model <sel>=<spec>` / `--backend <sel>=<name>` re-target the

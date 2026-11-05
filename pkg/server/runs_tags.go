@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // tagsRequest is the body of PUT /api/runs/{id}/tags — the full replacement

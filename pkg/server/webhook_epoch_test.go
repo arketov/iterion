@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 type unavailableEpochStore struct{ forge.RepoIntegrationStore }

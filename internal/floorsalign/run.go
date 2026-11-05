@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/bundle"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // Options is one run of the aligner.

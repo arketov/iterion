@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/notify"
+	"github.com/arketov/iterion/pkg/notify"
 )
 
 // postJSON builds a POST request to a handler and returns the recorder.

@@ -1,10 +1,10 @@
 package main
 
 import (
-	iterconfig "github.com/SocialGouv/iterion/pkg/config"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	natsq "github.com/SocialGouv/iterion/pkg/queue/nats"
-	"github.com/SocialGouv/iterion/pkg/runner"
+	iterconfig "github.com/arketov/iterion/pkg/config"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	natsq "github.com/arketov/iterion/pkg/queue/nats"
+	"github.com/arketov/iterion/pkg/runner"
 )
 
 // natsConfig is the queue connection the server and the runner both open.

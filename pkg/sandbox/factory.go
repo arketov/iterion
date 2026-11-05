@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // HostKind identifies the iterion deployment topology.

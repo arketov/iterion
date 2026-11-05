@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/SocialGouv/iterion/pkg/botinstall"
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/botinstall"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // resolveSnapshotSkills materializes the `dependencies.skills` every bundle of

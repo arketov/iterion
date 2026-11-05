@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/schedgate"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/schedgate"
 )
 
 func TestFromKeepaliveInvocation(t *testing.T) {

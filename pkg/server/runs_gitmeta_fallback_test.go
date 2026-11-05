@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
-	"github.com/SocialGouv/iterion/pkg/store"
+	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // seedCloudRunWithGitMeta creates a run whose WorkDir points at a path that

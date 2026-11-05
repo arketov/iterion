@@ -6,7 +6,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/sweepwalk"
+	"github.com/arketov/iterion/internal/sweepwalk"
 )
 
 // The walk is the shared ruleset of every blocking sweep gate, so its rules

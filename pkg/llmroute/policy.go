@@ -28,7 +28,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
 )
 
 // RefusedPinnedKey policy values. A shared-tier key refused or capped at

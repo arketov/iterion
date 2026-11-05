@@ -3,7 +3,7 @@ package runtime
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // TestContainsClawNode_SeesFallbackRoutes: the sandbox's iterion

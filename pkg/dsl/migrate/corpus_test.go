@@ -2,12 +2,12 @@ package migrate
 
 import (
 	"bytes"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/internal/dsltest"
+	"github.com/arketov/iterion/pkg/dsl/internal/dsltest"
 )
 
 // Every shipped bot, example and fixture migrates without a refusal, and

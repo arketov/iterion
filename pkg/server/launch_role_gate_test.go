@@ -9,13 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/budgetfloor"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/eventbus"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	mongostore "github.com/SocialGouv/iterion/pkg/store/mongo"
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/budgetfloor"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/eventbus"
+	"github.com/arketov/iterion/pkg/identity"
+	mongostore "github.com/arketov/iterion/pkg/store/mongo"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 // Launching a run spends the org's budget and executes code in its

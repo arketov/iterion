@@ -1,8 +1,8 @@
 package modelcatalog
 
 import (
-	"github.com/SocialGouv/iterion/pkg/backend/detect"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/backend/detect"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // unknownCloudReason is the operator-facing explanation for a model the

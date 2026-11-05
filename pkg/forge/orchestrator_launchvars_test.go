@@ -8,7 +8,7 @@ import (
 
 	"maps"
 
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 // The launch-vars pins an operator set on a repo — gate_context naming the

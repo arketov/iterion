@@ -3,7 +3,7 @@ package platformcfg
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/config"
+	"github.com/arketov/iterion/pkg/config"
 )
 
 // On a cloud process, workflow text reads no credential-shaped name from the

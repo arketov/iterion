@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/treeskip"
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/internal/treeskip"
+	"github.com/arketov/iterion/pkg/dsl/expr"
 )
 
 // whenEdge is a `from -> to when <src>` edge, carrying the parsed AST the

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/migrate"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/migrate"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // `iterion dsl migrate` writes no manifest floor off a walk cut short (r3a

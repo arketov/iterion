@@ -8,9 +8,9 @@ import (
 	"strings"
 	"sync"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/treenoise"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/treenoise"
 )
 
 // mirrorManifestName is the bookkeeping file the `.claude` mirror maintains

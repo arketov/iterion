@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/sandbox/noop"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox/noop"
 )
 
 // The child devbox decorator only puts a directory first on PATH: whether its

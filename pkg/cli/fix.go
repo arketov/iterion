@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/fix"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/fix"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 
 // FixOptions drive `iterion fix`.

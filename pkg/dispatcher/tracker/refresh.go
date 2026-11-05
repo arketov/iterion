@@ -1,7 +1,7 @@
 package tracker
 
 import (
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // refreshStateByID drives the RefreshStates pattern shared by the gitlab

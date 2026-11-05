@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/eventbus"
-	"github.com/SocialGouv/iterion/pkg/notify"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/eventbus"
+	"github.com/arketov/iterion/pkg/notify"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 // The sweeper's half of #2450's first point. The store's conditional write is

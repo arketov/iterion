@@ -20,7 +20,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/SocialGouv/iterion/internal/rendergate"
+	"github.com/arketov/iterion/internal/rendergate"
 )
 
 func main() {

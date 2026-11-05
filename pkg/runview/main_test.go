@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/internal/proctest"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/proctest"
 )
 
 // A run with `worktree: auto` (the IR default) registers its per-run worktree

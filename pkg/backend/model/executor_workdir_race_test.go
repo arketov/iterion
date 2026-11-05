@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/tool"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // mustCanonicalRoot resolves root the way ReadScope.AddExtraRoot stores

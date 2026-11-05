@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // ---------------------------------------------------------------------------

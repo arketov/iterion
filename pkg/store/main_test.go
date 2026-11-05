@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/hometest"
+	"github.com/arketov/iterion/internal/hometest"
 )
 
 func TestMain(m *testing.M) { os.Exit(hometest.Isolate(m.Run)) }

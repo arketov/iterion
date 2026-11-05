@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/SocialGouv/iterion/internal/corpusreading"
+	"github.com/arketov/iterion/internal/corpusreading"
 )
 
 func main() {

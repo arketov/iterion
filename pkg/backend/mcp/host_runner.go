@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // HostChromiumRunner launches Chromium directly on the host (no

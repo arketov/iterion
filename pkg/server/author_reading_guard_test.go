@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/modtypes"
+	"github.com/arketov/iterion/internal/modtypes"
 )
 
 // The author document's reading — the YAML decode of pkg/dsl/author
@@ -29,10 +29,10 @@ import (
 // is read as a .bot source, never decoded as YAML.
 func TestNoServerCodeReadsAnAuthorDocument(t *testing.T) {
 	const (
-		authorPkg     = "github.com/SocialGouv/iterion/pkg/dsl/author."
+		authorPkg     = "github.com/arketov/iterion/pkg/dsl/author."
 		readFirst     = authorPkg + "readFirst"
 		decode        = authorPkg + "decode"
-		canonDocument = "github.com/SocialGouv/iterion/pkg/dsl/canon.Document"
+		canonDocument = "github.com/arketov/iterion/pkg/dsl/canon.Document"
 	)
 	direct := map[string]string{
 		"pkg/dsl/canon/document.go":                  "canon.Document: the CLI's `iterion fmt` of a document",

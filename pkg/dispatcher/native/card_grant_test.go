@@ -3,7 +3,7 @@ package native
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // grantSentinel is the bearer a test plants on a card. Distinctive enough that

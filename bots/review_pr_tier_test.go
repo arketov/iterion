@@ -3,8 +3,8 @@ package bots
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // TestReviewPRTierExpand pins the review-tier resolution (native:685 /

@@ -3,7 +3,7 @@ package runtime
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/gittest"
 )
 
 // TestWorkspaceHasCommits distinguishes an unborn-HEAD repo (freshly

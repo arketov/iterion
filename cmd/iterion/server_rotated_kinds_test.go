@@ -4,8 +4,8 @@ import (
 	"slices"
 	"testing"
 
-	iterconfig "github.com/SocialGouv/iterion/pkg/config"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	iterconfig "github.com/arketov/iterion/pkg/config"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // The kinds a run may follow are exactly the kinds the server's refresh

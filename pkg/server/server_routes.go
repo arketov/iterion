@@ -4,7 +4,7 @@ import (
 	"io/fs"
 	"net/http"
 
-	"github.com/SocialGouv/iterion/internal/httpx"
+	"github.com/arketov/iterion/internal/httpx"
 )
 
 func (s *Server) routes() {

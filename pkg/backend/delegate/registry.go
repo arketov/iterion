@@ -3,7 +3,7 @@ package delegate
 import (
 	"fmt"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // Registry maps backend names to Backend implementations.

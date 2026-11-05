@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/pat"
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/server"
+	"github.com/arketov/iterion/pkg/pat"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/server"
 )
 
 // --- what a personal access token may not do ---

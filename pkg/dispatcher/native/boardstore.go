@@ -3,7 +3,7 @@ package native
 import (
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 )
 
 // BoardStore is the storage contract the board operations (boardops), the

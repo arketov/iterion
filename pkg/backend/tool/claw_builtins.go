@@ -15,12 +15,12 @@ import (
 	clawtools "github.com/SocialGouv/claw-code-go/pkg/api/tools"
 	clawworker "github.com/SocialGouv/claw-code-go/pkg/api/worker"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/rewrite"
-	"github.com/SocialGouv/iterion/pkg/backend/tool/privacy"
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
-	"github.com/SocialGouv/iterion/pkg/internal/shellquote"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/rewrite"
+	"github.com/arketov/iterion/pkg/backend/tool/privacy"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/internal/shellquote"
 )
 
 // ctxKeyBashExtraEnv carries per-task env additions (KEY=value entries)

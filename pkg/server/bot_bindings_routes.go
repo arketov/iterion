@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // registerBotBindingRoutes wires the per-org bot-secret-binding CRUD: a

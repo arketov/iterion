@@ -9,7 +9,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 // fakeBroker is an in-process stand-in for the NATS server implementing just

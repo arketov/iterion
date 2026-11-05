@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
-	"github.com/SocialGouv/iterion/pkg/internal/shellquote"
-	"github.com/SocialGouv/iterion/pkg/store"
+	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/internal/shellquote"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // WorkspaceCheckpoint is a recovery hint from a successful persisted push

@@ -14,12 +14,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/git"
-	"github.com/SocialGouv/iterion/pkg/internal/shellquote"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/sandbox/devcontainer"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/internal/shellquote"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox/devcontainer"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Every program iterion starts INSIDE the container runs under that

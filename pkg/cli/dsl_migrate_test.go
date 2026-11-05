@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 const migrateFixtureBot = "## the bot\nprompt p:\n  First.\n\n  Second.\n\nagent a:\n  system: p\n  description: \"a\\tb\"\n  memory:\n    enabled: true\n\nworkflow w:\n  entry: a\n  a -> done\n"

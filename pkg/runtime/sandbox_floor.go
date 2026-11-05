@@ -23,10 +23,10 @@ import (
 	"context"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/isolationenv"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/isolationenv"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // SandboxFloorEnvVar is the greppable escape hatch philosophy §1 requires

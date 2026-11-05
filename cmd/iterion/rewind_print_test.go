@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/workspacetrack"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/workspacetrack"
 )
 
 // TestPrintRewindFiles_NamesWhatItTook is the reporting half of issue

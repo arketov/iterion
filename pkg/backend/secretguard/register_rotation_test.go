@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/secretsink"
+	"github.com/arketov/iterion/pkg/dsl/secretsink"
 )
 
 // TestRegisterCarriesTheReplacedEgressScope is the rotation-scope witness

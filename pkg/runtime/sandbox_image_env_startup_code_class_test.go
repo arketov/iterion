@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/internal/isolationenv"
-	"github.com/SocialGouv/iterion/pkg/backend/mcp"
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/platformcfg"
-	"github.com/SocialGouv/iterion/pkg/sandbox/devcontainer"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/isolationenv"
+	"github.com/arketov/iterion/pkg/backend/mcp"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/platformcfg"
+	"github.com/arketov/iterion/pkg/sandbox/devcontainer"
 )
 
 // The deny class answers TWO questions about a name, and the table in

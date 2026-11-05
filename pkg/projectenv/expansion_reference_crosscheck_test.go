@@ -3,7 +3,7 @@ package projectenv
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // The reference scan the raw-plant lanes warn with and this lane's own

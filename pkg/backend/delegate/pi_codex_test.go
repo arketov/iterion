@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/piext"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/delegate/piext"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // testAccessExpiry is the deadline the fixture's access token carries.

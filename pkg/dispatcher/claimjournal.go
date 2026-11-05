@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // claimEntry is one issue claim this dispatcher process placed on the

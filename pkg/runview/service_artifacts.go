@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // ListArtifacts enumerates the persisted artifacts for one node.

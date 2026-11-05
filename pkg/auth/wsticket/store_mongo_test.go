@@ -11,8 +11,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/internal/mongotest"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/internal/mongotest"
 )
 
 // TestMongoStore runs the ticket flow against a real Mongo (same gating

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/plugin"
+	"github.com/arketov/iterion/pkg/plugin"
 )
 
 // handlePluginsList answers GET /api/v1/plugins — the loaded plugin registry

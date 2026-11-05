@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/liveenv"
-	"github.com/SocialGouv/iterion/internal/sweepwalk"
+	"github.com/arketov/iterion/internal/liveenv"
+	"github.com/arketov/iterion/internal/sweepwalk"
 )
 
 // liveKnobsFile is the e2e file that declares the launch-knob chokepoint.

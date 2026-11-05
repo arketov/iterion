@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	natsq "github.com/SocialGouv/iterion/pkg/queue/nats"
+	natsq "github.com/arketov/iterion/pkg/queue/nats"
 )
 
 func consumerCreatedAt(t *testing.T, conn *natsq.Conn, stream, consumer string) time.Time {

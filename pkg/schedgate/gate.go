@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // GateInput bundles what a launch surface knows at tick time. The

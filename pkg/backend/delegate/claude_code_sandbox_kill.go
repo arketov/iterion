@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
-	"github.com/SocialGouv/iterion/pkg/internal/shellquote"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/internal/shellquote"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // Sandboxed claude_code subprocess lifecycle (native:221edac8).

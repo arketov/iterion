@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/detect"
+	"github.com/arketov/iterion/pkg/backend/detect"
 )
 
 // Detection reads the staged host and nothing else: the claude_code CLI

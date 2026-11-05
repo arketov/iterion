@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/tool/privacy/detector"
+	"github.com/arketov/iterion/pkg/backend/tool/privacy/detector"
 )
 
 // allCategories is the canonical list of categories the v1

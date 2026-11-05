@@ -3,7 +3,7 @@ package ir
 import (
 	"sort"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 
 // attachPositions stamps a source position onto every diagnostic that names

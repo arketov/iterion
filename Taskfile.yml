@@ -28,7 +28,7 @@ vars:
     sh: node -p "require('./package.json').version" 2>/dev/null || echo "dev"
   COMMIT:
     sh: git rev-parse --short HEAD 2>/dev/null || echo ""
-  LDFLAGS: -X github.com/SocialGouv/iterion/pkg/internal/appinfo.Version=v{{.VERSION}} -X github.com/SocialGouv/iterion/pkg/internal/appinfo.Commit={{.COMMIT}}
+  LDFLAGS: -X github.com/arketov/iterion/pkg/internal/appinfo.Version=v{{.VERSION}} -X github.com/arketov/iterion/pkg/internal/appinfo.Commit={{.COMMIT}}
   # The cloud:* tasks name their compose project: a COMPOSE_PROJECT_NAME in
   # the shell or in .env would otherwise aim them — `down -v
   # --remove-orphans` included — at another project.

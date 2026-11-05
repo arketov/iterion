@@ -1,6 +1,6 @@
 package delegate
 
-import "github.com/SocialGouv/iterion/pkg/backend/cost"
+import "github.com/arketov/iterion/pkg/backend/cost"
 
 // AnnotateResultUsage records harness usage independently of the model's
 // output. A provider cost wins over the estimate, including for unknown models.

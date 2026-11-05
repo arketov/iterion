@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/cli"
 )
 
 // Shared JSON-RPC 2.0 message types for the internal MCP stdio servers

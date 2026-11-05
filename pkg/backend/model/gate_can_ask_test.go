@@ -3,7 +3,7 @@ package model
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // TestGateCanAsk_readsThePolicyTheGateArms: whether a node's gate can pause

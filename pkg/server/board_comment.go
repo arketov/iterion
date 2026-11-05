@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 // wireNativeBoardCommands installs the slash-command resolver on the native

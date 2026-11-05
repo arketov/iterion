@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/supervise"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/supervise"
 )
 
 // The ambient twin: on a run whose credentials carry the AmbientRefused

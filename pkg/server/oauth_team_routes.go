@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // registerOAuthTeamRoutes wires the team/org-scoped mirror of the

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // The pool's wants derivation and any other "what does this run target?"

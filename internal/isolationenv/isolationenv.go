@@ -35,7 +35,7 @@
 // state it mounts).
 package isolationenv
 
-import "github.com/SocialGouv/iterion/internal/envtrust"
+import "github.com/arketov/iterion/internal/envtrust"
 
 // The names, each a tier or a switch of the isolation a run resolves to.
 const (

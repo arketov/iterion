@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/secretguard"
-	"github.com/SocialGouv/iterion/pkg/sandbox/netproxy"
+	"github.com/arketov/iterion/pkg/backend/secretguard"
+	"github.com/arketov/iterion/pkg/sandbox/netproxy"
 )
 
 // seenRequest is what the upstream received for one request.

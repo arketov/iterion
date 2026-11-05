@@ -21,8 +21,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/mdcode"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/internal/mdcode"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // Golden is the pinned reading, relative to the repository root.

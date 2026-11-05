@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	iterconfig "github.com/SocialGouv/iterion/pkg/config"
-	"github.com/SocialGouv/iterion/pkg/runner"
+	iterconfig "github.com/arketov/iterion/pkg/config"
+	"github.com/arketov/iterion/pkg/runner"
 )
 
 // TestNATSConfig_carriesTheLeaseUnwindCeiling: the connection the server and

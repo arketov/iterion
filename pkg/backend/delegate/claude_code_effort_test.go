@@ -3,7 +3,7 @@ package delegate
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
+	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
 )
 
 // Anthropic's effort dial starts at low: no Claude model carries "none",

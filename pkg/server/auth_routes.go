@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/auth"
 )
 
 // loginRouteBucket, refreshRouteBucket and registerRouteBucket are the

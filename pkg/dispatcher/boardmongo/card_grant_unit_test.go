@@ -3,8 +3,8 @@ package boardmongo
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	launchstore "github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	launchstore "github.com/arketov/iterion/pkg/store"
 )
 
 // In-package on purpose: applyPatch is the Mongo twin's whole patch

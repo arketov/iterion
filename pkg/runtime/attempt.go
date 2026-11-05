@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 func (e *Engine) recordAttempt(ctx context.Context, runID string, data map[string]any) (map[string]any, error) {

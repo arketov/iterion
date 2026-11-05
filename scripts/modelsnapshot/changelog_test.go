@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/stdiotest"
-	"github.com/SocialGouv/iterion/pkg/backend/modelspecs"
+	"github.com/arketov/iterion/internal/stdiotest"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
 )
 
 func boolp(b bool) *bool { return &b }

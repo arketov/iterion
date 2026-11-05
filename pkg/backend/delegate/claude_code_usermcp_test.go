@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 func TestWireUserMCP_AddsValidServersSkipsInvalid(t *testing.T) {

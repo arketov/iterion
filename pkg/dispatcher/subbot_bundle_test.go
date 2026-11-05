@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/subbottest"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/subbottest"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 func TestDispatchSubbotBundleResourceScope(t *testing.T) {

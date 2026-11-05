@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/assistantmission"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/runwatch"
+	"github.com/arketov/iterion/pkg/assistantmission"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/runwatch"
 )
 
 // newMissionTestServer is a local server the test shuts down ITSELF, once:

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // ---------------------------------------------------------------------------

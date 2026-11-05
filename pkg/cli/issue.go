@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	forgegithub "github.com/SocialGouv/iterion/pkg/forge/github"
-	"github.com/SocialGouv/iterion/pkg/server"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/forge"
+	forgegithub "github.com/arketov/iterion/pkg/forge/github"
+	"github.com/arketov/iterion/pkg/server"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // IssueCommonOptions are flags shared by every `iterion issue` subcommand.

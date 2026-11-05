@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 func seedLegacyTeam(t *testing.T, st identity.Store, id, slug string, members map[string]identity.Role) {

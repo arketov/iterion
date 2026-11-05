@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/internal/stdiotest"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/stdiotest"
 )
 
 // TestReloadIterionEnvFile_ClearsCommentedKey reproduces the dogfood

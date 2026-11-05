@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/legal"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/legal"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // Mode selects the persistence/dispatch backend.

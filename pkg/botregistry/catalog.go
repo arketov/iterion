@@ -9,10 +9,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/mdcode"
-	"github.com/SocialGouv/iterion/pkg/authoringlock"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/mdcode"
+	"github.com/arketov/iterion/pkg/authoringlock"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Catalog markers delimit the machine-generated region inside the

@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/fswatch"
+	"github.com/arketov/iterion/internal/fswatch"
 	"github.com/fsnotify/fsnotify"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // This file holds the ONE filesystem tailer implementation every

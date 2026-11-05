@@ -3,7 +3,7 @@ package ir
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/docfences"
+	"github.com/arketov/iterion/pkg/dsl/docfences"
 )
 
 // A wrapped fragment may open with `dsl: 2`: the harness hoists the header

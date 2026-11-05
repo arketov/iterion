@@ -3,7 +3,7 @@ package permission
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
 )
 
 // writeProbes are calls of `Write` a reader asking "is this tool gone" must

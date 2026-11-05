@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	natsq "github.com/SocialGouv/iterion/pkg/queue/nats"
+	natsq "github.com/arketov/iterion/pkg/queue/nats"
 )
 
 // The tracker must trip only after hasWork has held — with the runner

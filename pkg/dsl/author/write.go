@@ -11,11 +11,11 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
-	"github.com/SocialGouv/iterion/pkg/dsl/spec"
-	"github.com/SocialGouv/iterion/pkg/dsl/unparse"
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/spec"
+	"github.com/arketov/iterion/pkg/dsl/unparse"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
 )
 
 // Write renders f as an author document: `dsl:` first, the catalog the

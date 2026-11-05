@@ -3,7 +3,7 @@ package errtrack
 import (
 	sentry "github.com/getsentry/sentry-go"
 
-	"github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/log"
 )
 
 // LogHook returns the pkg/log Hook that couples the central logger to

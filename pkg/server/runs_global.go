@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // globalActiveRun is the wire shape of GET /api/runs/global-active.

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/mail"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/mail"
 )
 
 // captureMailer records sent messages for assertions.

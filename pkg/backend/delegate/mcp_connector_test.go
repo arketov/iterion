@@ -3,7 +3,7 @@ package delegate
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/connection"
 )
 
 // The `connectors` capability is the DSL spelling that wires a node to the

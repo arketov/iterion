@@ -3,7 +3,7 @@ package unparse
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 
 // An artifact label that is not an identifier — what the studio canvas can

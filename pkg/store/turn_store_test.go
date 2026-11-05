@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // TestTurnStore_WriteLoadList exercises the per-turn store on the

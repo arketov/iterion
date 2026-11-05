@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // launchEnvPrefixes is the allowlist of env-var name prefixes whose

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/internal/testfs"
-	"github.com/SocialGouv/iterion/pkg/treenoise"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/testfs"
+	"github.com/arketov/iterion/pkg/treenoise"
 )
 
 // The delivery gates of the two documentary pushers, EXECUTED — the half no

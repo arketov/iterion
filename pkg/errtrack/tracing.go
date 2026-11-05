@@ -9,7 +9,7 @@ import (
 
 	sentry "github.com/getsentry/sentry-go"
 
-	"github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/log"
 )
 
 // EnvTracesSampleRate is the tracing dial: the fraction of units of

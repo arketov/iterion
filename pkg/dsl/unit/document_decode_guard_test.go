@@ -34,7 +34,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/modtypes"
+	"github.com/arketov/iterion/internal/modtypes"
 )
 
 // isASTType reports whether a type name is declared in pkg/dsl/ast: a
@@ -477,7 +477,7 @@ func TestADocumentIsDecodedThroughItsOneDoor(t *testing.T) {
 		"jsondirect": {`package x
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 func helper(b []byte, path string) error {
 	var f ast.File
@@ -490,8 +490,8 @@ func helper(b []byte, path string) error {
 		"holderjson": {`package x
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 func holder(s *unit.Salvaged) {
 	b, _ := s.MarshalDocument("")
@@ -502,7 +502,7 @@ func holder(s *unit.Salvaged) {
 		"chanjson": {`package x
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 func relay(ch <-chan []byte) error {
 	var f ast.File
@@ -515,7 +515,7 @@ func relay(ch <-chan []byte) error {
 		"mapstrip": {`package x
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 func strip(b []byte) error {
 	var mirror map[string]json.RawMessage
@@ -530,7 +530,7 @@ func strip(b []byte) error {
 		"dotjson": {`package x
 import (
 	. "encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 func helper(b []byte) error {
 	var f ast.File
@@ -540,7 +540,7 @@ func helper(b []byte) error {
 		"decoder": {`package x
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 func helper(r interface{ Read([]byte) (int, error) }) error {
 	var f ast.File
@@ -550,7 +550,7 @@ func helper(r interface{ Read([]byte) (int, error) }) error {
 		"decvar": {`package x
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 func helper(r interface{ Read([]byte) (int, error) }) error {
 	dec := json.NewDecoder(r)
@@ -561,7 +561,7 @@ func helper(r interface{ Read([]byte) (int, error) }) error {
 		"embedfile": {`package x
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 type Holder struct {
 	ast.File
@@ -575,7 +575,7 @@ func helper(b []byte) error {
 		"embedalias": {`package x
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 type Holder struct {
 	ast.File
@@ -590,7 +590,7 @@ func helper(b []byte) error {
 		"methodvalue": {`package x
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 func helper(r interface{ Read([]byte) (int, error) }) error {
 	dec := json.NewDecoder(r)
@@ -602,7 +602,7 @@ func helper(r interface{ Read([]byte) (int, error) }) error {
 		"methodexpr": {`package x
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 func helper(r interface{ Read([]byte) (int, error) }) error {
 	d := (*json.Decoder).Decode
@@ -614,7 +614,7 @@ func helper(r interface{ Read([]byte) (int, error) }) error {
 		"parencallee": {`package x
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 func helper(r interface{ Read([]byte) (int, error) }) error {
 	dec := json.NewDecoder(r)
@@ -625,7 +625,7 @@ func helper(r interface{ Read([]byte) (int, error) }) error {
 		"generictarget": {`package x
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 func grab[T any](r interface{ Read([]byte) (int, error) }) error {
 	dec := json.NewDecoder(r)
@@ -637,7 +637,7 @@ var _ = grab[ast.File]
 		"funcfield": {`package x
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 type holder struct {
 	unmarshal func([]byte, any) error
@@ -667,7 +667,7 @@ func helper(b []byte) error {
 	// a caller handed over names nothing — and pkg/dsl/ast's own mirror
 	// decode is the door's implementation, never an offender.
 	p, err := m.CheckSource("example.com/x", "x.go", `package x
-import "github.com/SocialGouv/iterion/pkg/dsl/ast"
+import "github.com/arketov/iterion/pkg/dsl/ast"
 func door(b []byte) error {
 	_, err := ast.UnmarshalFile(b)
 	return err

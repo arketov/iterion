@@ -3,7 +3,7 @@ package native
 import (
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 )
 
 // Issue is the native tracker's source-of-truth issue record. The

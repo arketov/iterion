@@ -3,7 +3,7 @@ package clilocate
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // The binaries clilocate resolves are the agent CLIs the backends spawn

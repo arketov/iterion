@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/jsonl"
-	"github.com/SocialGouv/iterion/pkg/schedgate"
+	"github.com/arketov/iterion/pkg/internal/jsonl"
+	"github.com/arketov/iterion/pkg/schedgate"
 )
 
 // ---------------------------------------------------------------------------

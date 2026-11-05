@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/credheader"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/usagecap"
+	"github.com/arketov/iterion/internal/credheader"
+	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/usagecap"
 )
 
 func resolveMaxConsecutiveToolErrors() int {

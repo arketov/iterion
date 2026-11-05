@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/SocialGouv/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/connection"
 )
 
 // LocalConnectorPlane is what a LOCAL studio wires for the connector plane's

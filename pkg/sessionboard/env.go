@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // Enabled reports whether the LLM curation layer should run, read from

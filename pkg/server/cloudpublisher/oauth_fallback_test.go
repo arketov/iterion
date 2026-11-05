@@ -2,15 +2,15 @@ package cloudpublisher
 
 import (
 	"context"
-	"github.com/SocialGouv/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/backend/model"
 	"hash/fnv"
 	"io"
 	"testing"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 func testLogger() *iterlog.Logger { return iterlog.New(iterlog.LevelError, io.Discard) }

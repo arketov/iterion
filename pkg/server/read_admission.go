@@ -13,8 +13,8 @@ import (
 
 	"golang.org/x/sync/semaphore"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // The server-wide admission control on DSL readings (#2693).

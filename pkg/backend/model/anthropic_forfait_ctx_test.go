@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // clientBearerForTest reads the OAuth bearer a resolved claw client will send.

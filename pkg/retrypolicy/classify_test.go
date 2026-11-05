@@ -3,7 +3,7 @@ package retrypolicy
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // A code the engine declares but nobody classified falls back to today's

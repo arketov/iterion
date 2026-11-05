@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // ctxWithPinnedCreds wires a context whose bundle carries `pinned` keys a

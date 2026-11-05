@@ -3,7 +3,7 @@ package secrets
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // The escape hatch is the OPERATOR's: a value a project .env planted does

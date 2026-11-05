@@ -3,7 +3,7 @@ package forge
 import (
 	"sort"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // normalizedToNative maps an iterion-normalized event (the vocabulary a

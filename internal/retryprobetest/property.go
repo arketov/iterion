@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The guarantee of the pull-forward probe, as predicates over the row.

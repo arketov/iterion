@@ -1,10 +1,10 @@
 package server
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/unit/unittest"
+	"github.com/arketov/iterion/pkg/dsl/unit/unittest"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 
 // wholeUnitAt fails the test unless the main at p loads as a unit of more

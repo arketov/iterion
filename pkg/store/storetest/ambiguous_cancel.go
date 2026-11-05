@@ -3,7 +3,7 @@ package storetest
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // testAmbiguousCancellation exercises both orderings of the cloud cancel and

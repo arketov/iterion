@@ -14,7 +14,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // A name seeded in the process does NOT read through a carried

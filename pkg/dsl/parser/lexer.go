@@ -6,9 +6,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
-	"github.com/SocialGouv/iterion/pkg/dsl/readbudget"
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/dsl/readbudget"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
 )
 
 // Safety limits to prevent DoS from malicious .bot files.

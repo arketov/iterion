@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/SocialGouv/iterion/pkg/plugin"
+	"github.com/arketov/iterion/pkg/plugin"
 )
 
 // File is one markdown contribution read out of a git-hosted plugin, in the

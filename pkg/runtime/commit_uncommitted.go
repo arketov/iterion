@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/treenoise"
+	gitlib "github.com/arketov/iterion/pkg/git"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/treenoise"
 )
 
 // CommitUncommittedAndFinalize stages every change in a run's worktree

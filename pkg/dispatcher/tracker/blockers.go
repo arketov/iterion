@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // Issue-dependency gating for the external forge adapters (github / forgejo /

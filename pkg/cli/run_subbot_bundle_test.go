@@ -5,8 +5,8 @@ import (
 	"io"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/subbottest"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/subbottest"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 func TestCLISubbotBundleResourceScope(t *testing.T) {

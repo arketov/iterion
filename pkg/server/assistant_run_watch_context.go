@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/runwatch"
+	"github.com/arketov/iterion/pkg/runwatch"
 )
 
 // assistantWatchContextStore guards every mutation initiated by the worker.

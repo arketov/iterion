@@ -17,9 +17,9 @@ import (
 	"sync"
 	"time"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	gitlib "github.com/arketov/iterion/pkg/git"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // Compile-time interface checks.

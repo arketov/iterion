@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // contentSecurityPolicy is the studio's CSP. It is enforceable as written

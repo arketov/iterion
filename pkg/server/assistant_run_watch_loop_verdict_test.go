@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/lease"
-	"github.com/SocialGouv/iterion/pkg/runwatch"
+	"github.com/arketov/iterion/pkg/lease"
+	"github.com/arketov/iterion/pkg/runwatch"
 )
 
 // announcedWatchReads announces every pass's FIRST read, so a witness can

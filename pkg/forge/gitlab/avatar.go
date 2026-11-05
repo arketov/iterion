@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // CurrentAvatar preserves uploaded/external images, including a previously

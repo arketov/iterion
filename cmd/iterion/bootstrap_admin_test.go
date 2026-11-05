@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	iterauth "github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/identity"
+	iterauth "github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // The declarative bootstrap reconcile is the one user writer in this binary,

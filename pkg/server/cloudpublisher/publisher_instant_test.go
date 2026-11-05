@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/credpool"
+	"github.com/arketov/iterion/pkg/credpool"
 )
 
 // TestPublishInstant_neverInsideTheGrantsMillisecond: a publication is

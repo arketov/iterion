@@ -676,7 +676,7 @@ const (
 		"func open(db database) collection { return db.Collection(colWidgets) }\n"
 
 	syntheticStoreY = "package y\n\n" +
-		"import \"github.com/SocialGouv/iterion/pkg/x\"\n\n" +
+		"import \"github.com/arketov/iterion/pkg/x\"\n\n" +
 		"func gizmos(db database) collection { return db.Collection(x.ColGizmos) }\n\n" +
 		"func sprockets(db database) collection { return db.Collection(\"sprockets\") }\n\n" +
 		"func cogs(db database) collection { return db.Collection(\"cogs\") }\n"

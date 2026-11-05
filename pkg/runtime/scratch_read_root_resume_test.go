@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/memory"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/memory"
 )
 
 // TestResume_NonWorktreeSubdirKeepsLaunchScratchDir is the #2867 witness:

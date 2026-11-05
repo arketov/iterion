@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/deeplink"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	"github.com/SocialGouv/iterion/pkg/retrypolicy"
+	"github.com/arketov/iterion/pkg/deeplink"
+	"github.com/arketov/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/retrypolicy"
 )
 
 // inFlightVars is a review-shaped launch: the repo pinned a gate context and

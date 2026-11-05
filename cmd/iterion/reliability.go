@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
-	iterconfig "github.com/SocialGouv/iterion/pkg/config"
+	"github.com/arketov/iterion/pkg/cli"
+	iterconfig "github.com/arketov/iterion/pkg/config"
 	"github.com/spf13/cobra"
 )
 

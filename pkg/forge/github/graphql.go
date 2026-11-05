@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // GraphQL is GitHub's second API surface. It is not an alternative style for

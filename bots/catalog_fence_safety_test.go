@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/mdcode"
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/internal/mdcode"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // The markers pkg/botregistry/catalog.go splices between. Spelled here

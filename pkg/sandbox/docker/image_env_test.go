@@ -21,10 +21,10 @@ import (
 	"testing"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/sandbox/devcontainer"
-	"github.com/SocialGouv/iterion/pkg/sandbox/netproxy"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox/devcontainer"
+	"github.com/arketov/iterion/pkg/sandbox/netproxy"
 )
 
 // discardLogger is a logger whose output goes nowhere: these tests assert on

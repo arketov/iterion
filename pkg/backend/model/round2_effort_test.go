@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"github.com/SocialGouv/claw-code-go/pkg/api"
-	"github.com/SocialGouv/iterion/pkg/backend/compatgw"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/compatgw"
+	iterlog "github.com/arketov/iterion/pkg/log"
 	"strings"
 	"testing"
 )

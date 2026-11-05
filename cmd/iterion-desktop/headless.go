@@ -10,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/cli"
 )
 
 // attachDaemonEnabled was the Phase 1 env gate for GUI-side daemon

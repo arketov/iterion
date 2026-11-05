@@ -5,10 +5,10 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/knowledge"
-	"github.com/SocialGouv/iterion/pkg/memory"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/pkg/memory"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // memoryStore returns the configured shared-knowledge store, falling

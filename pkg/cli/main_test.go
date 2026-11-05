@@ -1,13 +1,13 @@
 package cli_test
 
 import (
-	"github.com/SocialGouv/iterion/internal/detecttest"
+	"github.com/arketov/iterion/internal/detecttest"
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/internal/hometest"
-	"github.com/SocialGouv/iterion/internal/proctest"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/hometest"
+	"github.com/arketov/iterion/internal/proctest"
 )
 
 // `iterion run` takes its workspace from the process cwd, so a run with

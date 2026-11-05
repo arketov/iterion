@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/orgusage"
+	"github.com/arketov/iterion/pkg/orgusage"
 )
 
 // PurgeOrg deletes org_usage rows by an _id regex, and that collection now

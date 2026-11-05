@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // modernizeChildEnv is the environment every subprocess of the modernize

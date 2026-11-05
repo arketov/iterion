@@ -10,7 +10,7 @@ import (
 
 	exact "gopkg.in/yaml.v3"
 
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // Uncontracted records one success response that could NOT be given a v2

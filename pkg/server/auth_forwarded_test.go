@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // The mechanism is the OPERATOR's choice, not the client's. A reverse

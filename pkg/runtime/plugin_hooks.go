@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"reflect"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/plugin"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/plugin"
 )
 
 // pluginHooksSidecar records the exact hooks blob iterion last injected into

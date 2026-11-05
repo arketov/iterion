@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // IssueClient capability — forge→board sync (ListIssues) + board→forge push

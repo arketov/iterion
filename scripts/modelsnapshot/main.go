@@ -14,7 +14,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/modelspecs"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
 )
 
 // dst is the one snapshot the generator writes and the binary embeds.

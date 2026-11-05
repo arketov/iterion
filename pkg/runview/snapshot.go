@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // ExecStatus is the lifecycle state of a single execution (one branch ×

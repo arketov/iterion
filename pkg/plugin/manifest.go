@@ -26,7 +26,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/SocialGouv/iterion/internal/yamlx"
+	"github.com/arketov/iterion/internal/yamlx"
 )
 
 // SchemaVersion is the current plugin.yaml schema. Unknown future versions are

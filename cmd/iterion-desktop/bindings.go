@@ -14,7 +14,7 @@ import (
 	goruntime "runtime"
 	"strings"
 
-	cli "github.com/SocialGouv/iterion/pkg/cli"
+	cli "github.com/arketov/iterion/pkg/cli"
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 

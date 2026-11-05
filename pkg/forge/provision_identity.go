@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/errtrack"
-	"github.com/SocialGouv/iterion/pkg/lease"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/errtrack"
+	"github.com/arketov/iterion/pkg/lease"
+	"github.com/arketov/iterion/pkg/webhooks"
 	"github.com/google/uuid"
 )
 

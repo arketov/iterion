@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/SocialGouv/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/runview"
 )
 
 // RepoBucket is one row of the distinct-repos response: a repository

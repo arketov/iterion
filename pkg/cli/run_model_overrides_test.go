@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/backend/model"
 )
 
 // A CLI-launched run must record what the operator asked for, or the resume

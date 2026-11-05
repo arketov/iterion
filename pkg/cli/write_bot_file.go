@@ -8,7 +8,7 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/SocialGouv/iterion/pkg/authoringlock"
+	"github.com/arketov/iterion/pkg/authoringlock"
 )
 
 // ErrBotFileChanged is the cause of a refused replacement: the file on disk

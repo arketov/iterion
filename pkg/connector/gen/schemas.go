@@ -3,7 +3,7 @@ package gen
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // maxSchemaDepth bounds how deep an inline object is copied before the walk

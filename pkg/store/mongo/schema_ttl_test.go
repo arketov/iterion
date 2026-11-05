@@ -6,7 +6,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
 
-	"github.com/SocialGouv/iterion/pkg/internal/mongotest"
+	"github.com/arketov/iterion/pkg/internal/mongotest"
 )
 
 // newTTLTestStore builds a Mongo store with a non-zero EventsTTLDays

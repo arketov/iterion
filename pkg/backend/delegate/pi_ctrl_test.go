@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/piext"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/pisdk"
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
-	"github.com/SocialGouv/iterion/pkg/backend/tooldisplay"
+	"github.com/arketov/iterion/pkg/backend/delegate/piext"
+	"github.com/arketov/iterion/pkg/backend/delegate/pisdk"
+	"github.com/arketov/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/tooldisplay"
 )
 
 // The UI channel is shared with every extension the operator installed, so

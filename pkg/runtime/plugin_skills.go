@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/plugin"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/plugin"
 )
 
 // contribClaimTracker de-dups plugin contributions within a single mirror

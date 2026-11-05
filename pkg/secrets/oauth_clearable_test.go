@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/mongoutil"
+	"github.com/arketov/iterion/pkg/internal/mongoutil"
 )
 
 // TestOAuthRecordUpsertCanClearEveryFieldItCanSet guards the whole struct

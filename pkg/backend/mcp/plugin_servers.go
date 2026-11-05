@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/plugin"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/plugin"
 )
 
 // loadPluginServers loads the plugin registry and returns the MCP servers

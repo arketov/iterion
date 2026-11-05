@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/backend/tool"
 )
 
 // #2650 — rgaa-audit keeps its run directory under ${PROJECT_SCRATCH_DIR}

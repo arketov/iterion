@@ -3,7 +3,7 @@ package config
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // The operator-grade config surface reads through envtrust: this package

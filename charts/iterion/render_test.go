@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/rendergate"
+	"github.com/arketov/iterion/internal/rendergate"
 	"gopkg.in/yaml.v3"
 )
 

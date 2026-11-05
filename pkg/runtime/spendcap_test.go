@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/clock"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/clock"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // memSpendStore is an in-memory store.SpendStore for guard unit tests.

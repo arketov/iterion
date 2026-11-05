@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/detect"
+	"github.com/arketov/iterion/pkg/backend/detect"
 )
 
 // hostReport builds a detect.Report by hand so the tests never depend on the

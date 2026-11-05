@@ -2,9 +2,9 @@ package runner
 
 import (
 	"fmt"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/queue"
-	natsq "github.com/SocialGouv/iterion/pkg/queue/nats"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/queue"
+	natsq "github.com/arketov/iterion/pkg/queue/nats"
 )
 
 // verifyTenantOrTerm refuses a delivery whose message tenant doesn't

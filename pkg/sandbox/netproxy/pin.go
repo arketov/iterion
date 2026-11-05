@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/SocialGouv/iterion/pkg/secure/httpdial"
+	"github.com/arketov/iterion/pkg/secure/httpdial"
 )
 
 // dialFunc is the shape of the proxy's upstream dialer.

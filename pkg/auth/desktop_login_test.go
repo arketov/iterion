@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/auth/oidc"
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/auth/oidc"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // The desktop SSO login, split at the ticket (#2635): the callback DEFERS —

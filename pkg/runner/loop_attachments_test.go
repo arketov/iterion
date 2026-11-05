@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/runtime"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/runtime"
 )
 
 // The store did not hand the run's attachments over before the sandbox

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/internal/gittest"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // setupDiffRepo builds a repo with a base commit plus two run commits and

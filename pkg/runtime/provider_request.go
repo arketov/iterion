@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
-	"github.com/SocialGouv/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/backend/model"
 )
 
 // Keep the parent's context verdicts in one list for both typed API paths.

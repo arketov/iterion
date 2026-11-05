@@ -6,7 +6,7 @@ import (
 
 	"context"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // A bot that ended DECLINED did not fail: it read its task, concluded the

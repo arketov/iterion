@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/forfait"
-	"github.com/SocialGouv/iterion/pkg/usagecap"
+	"github.com/arketov/iterion/pkg/backend/forfait"
+	"github.com/arketov/iterion/pkg/usagecap"
 )
 
 // UsageProbe refreshes a forfait's usage windows from the provider itself,

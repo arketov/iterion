@@ -3,8 +3,8 @@ package cloudpublisher
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // A provider the publisher never tries to resolve cannot be spent: the key

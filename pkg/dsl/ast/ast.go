@@ -1,6 +1,6 @@
 package ast
 
-import "github.com/SocialGouv/iterion/pkg/dsl/types"
+import "github.com/arketov/iterion/pkg/dsl/types"
 
 // ---------------------------------------------------------------------------
 // File — root of the AST

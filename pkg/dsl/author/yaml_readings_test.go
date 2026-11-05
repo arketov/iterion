@@ -6,8 +6,8 @@ import (
 	"testing"
 	"unicode/utf16"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // agentDoc is a one-agent document with extra lines under its agent.

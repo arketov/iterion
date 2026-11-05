@@ -3,8 +3,8 @@ package runtime
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/isolationenv"
-	"github.com/SocialGouv/iterion/pkg/internal/appinfo"
+	"github.com/arketov/iterion/internal/isolationenv"
+	"github.com/arketov/iterion/pkg/internal/appinfo"
 )
 
 // plantedSandboxDefaultImage reports the warning a caller with a logger owes

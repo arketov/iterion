@@ -47,10 +47,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/yamlx"
+	"github.com/arketov/iterion/internal/yamlx"
 	yaml "gopkg.in/yaml.v3"
 
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // File is the overlay file name inside a connector package directory.

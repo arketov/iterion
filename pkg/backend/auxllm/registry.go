@@ -34,7 +34,7 @@
 package auxllm
 
 import (
-	"github.com/SocialGouv/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/backend/model"
 )
 
 // Registry returns the model registry an auxiliary server-side LLM surface

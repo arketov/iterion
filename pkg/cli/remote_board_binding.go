@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // `iterion remote board bind|show|unbind` — the team ⇄ forge project-board

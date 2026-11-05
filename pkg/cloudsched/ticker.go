@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/schedgate"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/schedgate"
 )
 
 // LaunchFunc fires one scheduled bot run. The cloud bootstrap wires it to the

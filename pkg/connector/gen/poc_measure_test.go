@@ -18,8 +18,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/connector/gen"
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/gen"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 func TestMeasureRealSpec(t *testing.T) {

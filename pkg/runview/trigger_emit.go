@@ -3,8 +3,8 @@ package runview
 import (
 	"context"
 
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 // emitRunOutcome publishes a run-outcome trigger.Event when a run leaves the

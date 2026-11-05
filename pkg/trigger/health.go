@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // healthWriteTimeout bounds the detached last_error write.

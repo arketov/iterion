@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // stubSandboxRun is a minimal sandbox.Run so tests can mark a Task as

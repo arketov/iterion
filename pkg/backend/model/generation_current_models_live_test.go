@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
-	"github.com/SocialGouv/iterion/pkg/backend/cost"
+	"github.com/arketov/iterion/pkg/backend/cost"
 )
 
 // Opt in with a comma-separated list of provider/model specs. This uses the

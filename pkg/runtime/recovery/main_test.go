@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/detecttest"
+	"github.com/arketov/iterion/internal/detecttest"
 )
 
 func TestMain(m *testing.M) {

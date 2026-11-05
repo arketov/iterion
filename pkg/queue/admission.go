@@ -3,8 +3,8 @@ package queue
 import (
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/retrypolicy"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/retrypolicy"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Drop is why a runner drops a delivery on admission without executing it.

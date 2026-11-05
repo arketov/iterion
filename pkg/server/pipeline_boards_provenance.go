@@ -2,9 +2,9 @@ package server
 
 import (
 	"fmt"
-	"github.com/SocialGouv/iterion/internal/httpx"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/errtrack"
+	"github.com/arketov/iterion/internal/httpx"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/errtrack"
 	"net/http"
 	"sort"
 	"strings"

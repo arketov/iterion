@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/retryprobetest"
-	"github.com/SocialGouv/iterion/pkg/cloud/metrics"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/retryprobetest"
+	"github.com/arketov/iterion/pkg/cloud/metrics"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The runner's half of the probe's guarantee, over random sequences.

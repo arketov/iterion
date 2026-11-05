@@ -12,12 +12,12 @@ import (
 	"syscall"
 	"time"
 
-	iterconfig "github.com/SocialGouv/iterion/pkg/config"
-	"github.com/SocialGouv/iterion/pkg/dispatcher"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/errtrack"
-	"github.com/SocialGouv/iterion/pkg/server"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterconfig "github.com/arketov/iterion/pkg/config"
+	"github.com/arketov/iterion/pkg/dispatcher"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/errtrack"
+	"github.com/arketov/iterion/pkg/server"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // DispatchOptions captures CLI flags for `iterion dispatch`.

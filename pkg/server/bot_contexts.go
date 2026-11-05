@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/SocialGouv/iterion/pkg/pluginsource"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/pluginsource"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // botContextResolver builds the launch-time materialiser of operator-bound

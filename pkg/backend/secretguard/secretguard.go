@@ -40,9 +40,9 @@ import (
 	"sync/atomic"
 	"unicode/utf8"
 
-	"github.com/SocialGouv/iterion/pkg/backend/tool/privacy/detector"
-	"github.com/SocialGouv/iterion/pkg/dsl/secretsink"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/backend/tool/privacy/detector"
+	"github.com/arketov/iterion/pkg/dsl/secretsink"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // Secret is one protected value. Value is the plaintext; Placeholder

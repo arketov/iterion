@@ -13,8 +13,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/internal/storekit"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/internal/storekit"
 )
 
 // ErrTicketNotFound is returned by Redeem for an unknown, already-redeemed, or

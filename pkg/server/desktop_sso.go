@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth/desktopsso"
+	"github.com/arketov/iterion/pkg/auth/desktopsso"
 )
 
 // desktop_sso.go implements the DESKTOP SSO exchange: the server side of the

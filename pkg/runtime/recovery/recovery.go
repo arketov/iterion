@@ -16,7 +16,7 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/runtime"
 )
 
 // ActionKind is an alias for the engine-facing decision kind so existing

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/tool/privacy/detector"
+	"github.com/arketov/iterion/pkg/backend/tool/privacy/detector"
 )
 
 // fakeRegistry is a minimal in-memory registry used by tests so we

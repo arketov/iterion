@@ -6,8 +6,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/SocialGouv/iterion/pkg/runops"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/runops"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // RegisterRunsRoutes exposes runops over Streamable HTTP. The RunStore is

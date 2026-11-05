@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 type labelRecorder func(*http.Request) (*http.Response, error)

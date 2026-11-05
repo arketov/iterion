@@ -1,7 +1,7 @@
 package subbotcontracts
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // ProjectOutput builds the output a parent's `subbot` node receives from a

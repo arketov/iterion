@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // Ported from packages/coding-agent/src/modes/rpc/rpc-client.ts, whose

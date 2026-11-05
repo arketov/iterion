@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/credheader"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/internal/credheader"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // #2244: the crossing forwarded ANTHROPIC_CUSTOM_HEADERS whole, and the CLI

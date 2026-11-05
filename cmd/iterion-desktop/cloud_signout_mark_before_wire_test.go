@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	iserver "github.com/SocialGouv/iterion/pkg/server"
+	iserver "github.com/arketov/iterion/pkg/server"
 )
 
 // TestAPaneSignOutWritesItsMarkBeforeTheWire (sign-out requested, invariant

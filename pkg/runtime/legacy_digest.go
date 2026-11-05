@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"os"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // LegacyBareDigestMatches reports whether run r recorded the BARE digest of

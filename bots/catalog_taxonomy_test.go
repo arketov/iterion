@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // TestCatalogBotsDeclareKnownCategory is the anti-absence gate for the

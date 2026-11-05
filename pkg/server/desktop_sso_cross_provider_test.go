@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth/desktopsso"
-	"github.com/SocialGouv/iterion/pkg/auth/oidc"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/auth/desktopsso"
+	"github.com/arketov/iterion/pkg/auth/oidc"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // otherStubSSO is a SECOND registered provider, so a callback can arrive on

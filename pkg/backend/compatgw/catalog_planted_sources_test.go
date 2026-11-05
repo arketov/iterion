@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/internal/stdiotest"
-	"github.com/SocialGouv/iterion/pkg/backend/modelspecs"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/stdiotest"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
 )
 
 // plantEnv records these names as a project `.env` filled them in — what

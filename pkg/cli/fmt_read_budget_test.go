@@ -3,14 +3,14 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"os"
 	"runtime"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/author"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/author"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // allocatedWhile is the number of bytes the heap handed out while f ran.

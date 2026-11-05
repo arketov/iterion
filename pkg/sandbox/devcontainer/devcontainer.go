@@ -37,7 +37,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/internal/shellquote"
+	"github.com/arketov/iterion/pkg/internal/shellquote"
 )
 
 // File is the parsed shape of a devcontainer.json. Field names mirror

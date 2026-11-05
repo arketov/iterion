@@ -4,15 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	httpdial "github.com/SocialGouv/iterion/pkg/secure/httpdial"
+	"github.com/arketov/iterion/pkg/secrets"
+	httpdial "github.com/arketov/iterion/pkg/secure/httpdial"
 	"net"
 	"net/url"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/compatgw"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/modelroute"
+	"github.com/arketov/iterion/pkg/backend/compatgw"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/modelroute"
 )
 
 // refuseGatewayCrossing is the parity rule for OpenAI-compatible gateway

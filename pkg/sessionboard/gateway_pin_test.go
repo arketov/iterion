@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The sessionboard twin of supervise's ErrGatewayWatchNeedsPin (#2099): a

@@ -3,8 +3,8 @@ package main
 import (
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/store"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )

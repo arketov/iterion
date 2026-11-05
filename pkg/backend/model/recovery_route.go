@@ -3,7 +3,7 @@ package model
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // recoveryRungsOf answers for a tool node's Verified Action recovery ladder

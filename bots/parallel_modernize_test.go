@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/testparallel"
+	"github.com/arketov/iterion/internal/testparallel"
 )
 
 // The t.Parallel campaign of the modernize family — what it freed, what holds

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/store/blob"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store/blob"
 )
 
 // The cloud (Mongo) store satisfies the per-tool-call I/O blob seam,

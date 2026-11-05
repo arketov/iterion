@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/internal/appinfo"
+	"github.com/arketov/iterion/pkg/internal/appinfo"
 )
 
 // registerOpenAPIRoutes serves the live route inventory as an OpenAPI 3 document

@@ -3,7 +3,7 @@ package trigger
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
 )
 
 // The claim watchdog reuses the EXISTING event vocabulary rather than

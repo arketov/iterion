@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // EnvServerEnvPassthrough is the operator's explicit, greppable way to hand a

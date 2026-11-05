@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/floorsalign"
-	"github.com/SocialGouv/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/floorsalign"
+	"github.com/arketov/iterion/internal/gittest"
 )
 
 // writeFiles creates each relative path under root with its body.

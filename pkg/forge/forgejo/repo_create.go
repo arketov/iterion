@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // CreateRepo implements forge.RepoCreator. Owner "" targets the token's

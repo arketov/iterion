@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/exec"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // CommandBuilder, when set via [WithCommandBuilder], replaces the

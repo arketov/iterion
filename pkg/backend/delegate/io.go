@@ -6,8 +6,8 @@ import (
 	"github.com/SocialGouv/claw-code-go/pkg/api"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/ambient"
-	"github.com/SocialGouv/iterion/pkg/plugin"
+	"github.com/arketov/iterion/pkg/backend/ambient"
+	"github.com/arketov/iterion/pkg/plugin"
 )
 
 // IOTask is the on-the-wire form of a [Task] used by the claw

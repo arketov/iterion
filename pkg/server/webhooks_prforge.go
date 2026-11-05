@@ -7,12 +7,12 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
-	fforgejo "github.com/SocialGouv/iterion/pkg/forge/forgejo"
-	fgithub "github.com/SocialGouv/iterion/pkg/forge/github"
-	"github.com/SocialGouv/iterion/pkg/knowledge"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
-	"github.com/SocialGouv/iterion/pkg/webhooks/prforge"
+	"github.com/arketov/iterion/pkg/forge"
+	fforgejo "github.com/arketov/iterion/pkg/forge/forgejo"
+	fgithub "github.com/arketov/iterion/pkg/forge/github"
+	"github.com/arketov/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/webhooks/prforge"
 )
 
 // prforgeReplierAPI is the minimal forge surface command handling needs:

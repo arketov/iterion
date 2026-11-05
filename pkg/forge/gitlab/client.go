@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // AdminClient talks to one GitLab instance as one connection. BaseURL is

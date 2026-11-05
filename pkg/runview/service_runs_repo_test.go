@@ -3,7 +3,7 @@ package runview
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 func TestMatchesFilterRepo(t *testing.T) {

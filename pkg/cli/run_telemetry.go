@@ -12,8 +12,8 @@ import (
 
 	"github.com/SocialGouv/claw-code-go/pkg/apikit/telemetry/otlpgrpc"
 
-	"github.com/SocialGouv/iterion/pkg/benchmark"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/benchmark"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // runTelemetry bundles the optional Prometheus + OTLP exporters started

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/sweepwalk"
+	"github.com/arketov/iterion/internal/sweepwalk"
 )
 
 // RunRetryState.ProbeFrom answers TWO questions, and they expire differently:

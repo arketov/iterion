@@ -3,7 +3,7 @@ package secrets
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // The private-endpoint switch is the OPERATOR's. The runner inside a

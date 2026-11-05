@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/audit"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/platformcfg"
+	"github.com/arketov/iterion/pkg/audit"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/platformcfg"
 )
 
 // The F2 core at the route layer: the delegated caps route is a PATCH —

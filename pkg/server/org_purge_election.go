@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/lease"
+	"github.com/arketov/iterion/pkg/lease"
 )
 
 // orgPurgeLeasePace is how often a replica that does not hold the org purge

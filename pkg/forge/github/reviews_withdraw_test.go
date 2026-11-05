@@ -9,7 +9,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 var _ forge.ReviewRequestWithdrawer = (*AdminClient)(nil)

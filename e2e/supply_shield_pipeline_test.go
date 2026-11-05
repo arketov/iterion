@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	itgit "github.com/SocialGouv/iterion/pkg/git"
-	iterruntime "github.com/SocialGouv/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	itgit "github.com/arketov/iterion/pkg/git"
+	iterruntime "github.com/arketov/iterion/pkg/runtime"
 )
 
 // The deterministic half of supply-shield (Shieldy): diff_scope, normalize_deps,

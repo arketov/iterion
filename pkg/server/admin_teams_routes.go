@@ -8,9 +8,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/platformcfg"
-	"github.com/SocialGouv/iterion/pkg/queue"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/platformcfg"
+	"github.com/arketov/iterion/pkg/queue"
 )
 
 func (s *Server) registerAdminTeamRoutes() {

@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
 )
 
 // MaxProfile is the newest syntax profile this build reads. A file declaring

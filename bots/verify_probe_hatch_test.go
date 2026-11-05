@@ -12,8 +12,8 @@ import (
 	"testing"
 	"unicode"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // A repo with genuinely nothing to build gets an EMPTY GATE: a verify.sh that

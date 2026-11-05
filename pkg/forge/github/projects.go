@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // GitHub Projects v2 — the implementation of forge.BoardClient (ADR-097).

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/log"
 )
 
 // pendingOrg seeds an org past its grace with the given teams in a memory

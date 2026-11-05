@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/compatgw"
+	"github.com/arketov/iterion/pkg/backend/compatgw"
 )
 
 // The two lists must not drift apart: every endpoint-shaped name on the

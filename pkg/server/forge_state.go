@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // forgeAgentBindingCookie is the per-flow CSRF-binding cookie for the

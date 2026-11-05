@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/usernotify"
-	"github.com/SocialGouv/iterion/pkg/usernotify/webpush"
+	"github.com/arketov/iterion/pkg/auth"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/usernotify"
+	"github.com/arketov/iterion/pkg/usernotify/webpush"
 )
 
 func newNotifTestServer(t *testing.T) *Server {

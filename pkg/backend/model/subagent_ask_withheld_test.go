@@ -15,8 +15,8 @@ import (
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/tool"
 )
 
 var theAskFamily = []string{"ask_user", delegate.AskUserAsyncToolName, delegate.AwaitAnswersToolName}

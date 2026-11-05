@@ -3,7 +3,7 @@ package parser
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 
 // Parsing for a tool node's connector-action recipe (ADR-098):

@@ -4,18 +4,18 @@
 # so treat them as relative weights, not walls; refresh when the mix drifts.
 # Unlisted packages weigh 1, so a stale or missing row only degrades the
 # balance — it never errors.
-github.com/SocialGouv/iterion/bots	1288
-github.com/SocialGouv/iterion/pkg/backend/model	1051
-github.com/SocialGouv/iterion/e2e	685
-github.com/SocialGouv/iterion/pkg/server	437
-github.com/SocialGouv/iterion/pkg/backend/delegate	412
-github.com/SocialGouv/iterion/internal/fswatch	299
-github.com/SocialGouv/iterion/cmd/iterion	276
-github.com/SocialGouv/iterion/pkg/cli	262
-github.com/SocialGouv/iterion/pkg/assistantmission	208
-github.com/SocialGouv/iterion/pkg/runtime	189
-github.com/SocialGouv/iterion/pkg/runview	179
-github.com/SocialGouv/iterion/pkg/auth	148
-github.com/SocialGouv/iterion/internal/automaintguard	112
-github.com/SocialGouv/iterion/internal/docsguard	106
-github.com/SocialGouv/iterion/pkg/backend/mcp	94
+github.com/arketov/iterion/bots	1288
+github.com/arketov/iterion/pkg/backend/model	1051
+github.com/arketov/iterion/e2e	685
+github.com/arketov/iterion/pkg/server	437
+github.com/arketov/iterion/pkg/backend/delegate	412
+github.com/arketov/iterion/internal/fswatch	299
+github.com/arketov/iterion/cmd/iterion	276
+github.com/arketov/iterion/pkg/cli	262
+github.com/arketov/iterion/pkg/assistantmission	208
+github.com/arketov/iterion/pkg/runtime	189
+github.com/arketov/iterion/pkg/runview	179
+github.com/arketov/iterion/pkg/auth	148
+github.com/arketov/iterion/internal/automaintguard	112
+github.com/arketov/iterion/internal/docsguard	106
+github.com/arketov/iterion/pkg/backend/mcp	94

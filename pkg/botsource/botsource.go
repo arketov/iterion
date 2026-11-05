@@ -24,8 +24,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
 )
 
 // MainBotFile is the required workflow entry of every bundle — mirrors

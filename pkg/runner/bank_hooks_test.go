@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/runtime"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/runtime"
 )
 
 // The per-run clone is the run's tree: its hooks directory and its config are

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/platformcfg"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/platformcfg"
 )
 
 const denyMaintenanceFence = "maintenance_fence"

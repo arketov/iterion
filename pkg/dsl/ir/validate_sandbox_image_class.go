@@ -3,7 +3,7 @@ package ir
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox/imageclass"
+	"github.com/arketov/iterion/pkg/sandbox/imageclass"
 )
 
 // warnUnknownSandboxImageClass emits C325 when a sandbox block's `image:` is

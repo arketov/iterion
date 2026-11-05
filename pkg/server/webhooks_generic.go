@@ -7,9 +7,9 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/SocialGouv/iterion/pkg/knowledge"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
-	"github.com/SocialGouv/iterion/pkg/webhooks/generic"
+	"github.com/arketov/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/webhooks/generic"
 )
 
 // registerGenericWebhookRoute wires the bot-agnostic JSON webhook

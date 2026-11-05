@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/sweepwalk"
+	"github.com/arketov/iterion/internal/sweepwalk"
 )
 
 // The trees the sweeps in this file subtract, each with the reason it is
@@ -379,7 +379,7 @@ func TestASeamLookupKeepsThePathItResolved(t *testing.T) {
 // LookPath unqualified, so it imports nothing to match and counts zero —
 // its exemption is the lookup census's business, not this one's.
 func seamLookPathDiscards(file *ast.File) (discards int, dotImported bool) {
-	names, dotImported := importNames(file, "github.com/SocialGouv/iterion/internal/envtrust")
+	names, dotImported := importNames(file, "github.com/arketov/iterion/internal/envtrust")
 	if dotImported {
 		return 0, true
 	}
@@ -505,7 +505,7 @@ func f() { _ = exec.Command("docker") }`,
 		{
 			name: "the seam's own call is not os/exec's",
 			src: `package p
-import "github.com/SocialGouv/iterion/internal/envtrust"
+import "github.com/arketov/iterion/internal/envtrust"
 func f() { _, _ = envtrust.LookPath("docker") }`,
 		},
 		{
@@ -561,7 +561,7 @@ func f() { _, _ = LookPath("docker") }`,
 // and it judges a STATEMENT shape rather than a reference — so the shapes
 // the tree actually writes are the ones it must read, each a case here.
 func TestTheCarrySweepReadsTheShapesItClaims(t *testing.T) {
-	const seam = `import "github.com/SocialGouv/iterion/internal/envtrust"` + "\n"
+	const seam = `import "github.com/arketov/iterion/internal/envtrust"` + "\n"
 	for _, tc := range []struct {
 		name     string
 		src      string
@@ -601,7 +601,7 @@ func TestTheCarrySweepReadsTheShapesItClaims(t *testing.T) {
 		},
 		{
 			name:     "an aliased import of the seam is still the seam",
-			src:      "package p\nimport et \"github.com/SocialGouv/iterion/internal/envtrust\"\nfunc f() error { _, err := et.LookPath(\"dash\"); return err }",
+			src:      "package p\nimport et \"github.com/arketov/iterion/internal/envtrust\"\nfunc f() error { _, err := et.LookPath(\"dash\"); return err }",
 			discards: 1,
 		},
 		{
@@ -620,7 +620,7 @@ func TestTheCarrySweepReadsTheShapesItClaims(t *testing.T) {
 		},
 		{
 			name: "a dot-import is reported, never silently zero",
-			src:  "package p\nimport . \"github.com/SocialGouv/iterion/internal/envtrust\"\nfunc f() error { _, err := LookPath(\"dash\"); return err }",
+			src:  "package p\nimport . \"github.com/arketov/iterion/internal/envtrust\"\nfunc f() error { _, err := LookPath(\"dash\"); return err }",
 			dot:  true,
 		},
 	} {

@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 	"testing"
 )
 

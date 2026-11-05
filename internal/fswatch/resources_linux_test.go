@@ -14,7 +14,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/SocialGouv/iterion/internal/proctest"
+	"github.com/arketov/iterion/internal/proctest"
 )
 
 // childNoFile is the descriptor ceiling the child lowers itself to; small

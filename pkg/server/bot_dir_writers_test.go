@@ -18,9 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/goroutinetest"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/internal/goroutinetest"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // putManifest sends the studio's metadata edit of bot meta-bot.

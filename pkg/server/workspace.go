@@ -18,11 +18,11 @@ import (
 
 	"github.com/gofrs/flock"
 
-	"github.com/SocialGouv/iterion/pkg/botregistry"
-	"github.com/SocialGouv/iterion/pkg/deeplink"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/server/projects"
-	runstore "github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/botregistry"
+	"github.com/arketov/iterion/pkg/deeplink"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/server/projects"
+	runstore "github.com/arketov/iterion/pkg/store"
 )
 
 // WorkspaceRuntimeFactory builds one complete project server. The host

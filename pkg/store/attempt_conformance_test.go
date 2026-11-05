@@ -1,8 +1,8 @@
 package store_test
 
 import (
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/store/storetest"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store/storetest"
 	"testing"
 )
 

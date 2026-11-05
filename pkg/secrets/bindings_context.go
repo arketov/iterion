@@ -9,7 +9,7 @@ import (
 	"path"
 	"strings"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // DefaultMaxContextBytes bounds what one bound context document may weigh

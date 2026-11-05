@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/repomap"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/repomap"
 )
 
 // repoRoot is where this package sits relative to the module root.

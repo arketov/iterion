@@ -3,7 +3,7 @@ package delegate
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/permission"
 )
 
 func diagnosticShellPolicy(t *testing.T, deny []string) *permission.Policy {

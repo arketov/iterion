@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 
 // maxPromptIncludeBytes caps the size of a single file inlined by an

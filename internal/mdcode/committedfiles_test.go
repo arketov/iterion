@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/corpusreading"
+	"github.com/arketov/iterion/internal/corpusreading"
 )
 
 // The four first-party readers of this package — the catalogue generator

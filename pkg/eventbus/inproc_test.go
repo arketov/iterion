@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 func TestInProcBusFanOutAndFilter(t *testing.T) {

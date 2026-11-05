@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // gitCommandTimeout bounds every `git` subprocess spawned by this

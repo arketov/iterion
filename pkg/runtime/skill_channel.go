@@ -34,7 +34,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // skillChannelDirName is the directory under <workDir>/.claude/ the run's

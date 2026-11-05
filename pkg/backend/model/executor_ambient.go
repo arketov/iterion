@@ -1,8 +1,8 @@
 package model
 
 import (
-	"github.com/SocialGouv/iterion/pkg/backend/ambient"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/ambient"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // ambientContextPolicy resolves a node's ambient-context policy (ADR-119) from

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // authoringGitIndex owns an alternate index, never the editor's index. Hooks

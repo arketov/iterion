@@ -10,8 +10,8 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	"github.com/SocialGouv/iterion/internal/fswatch"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/internal/fswatch"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 )
 
 // newFSWatcher is the seam through which a test can make the host refuse

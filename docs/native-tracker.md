@@ -635,7 +635,7 @@ an operator clicking "add") uses the **same** contract:
 The Go package is exported:
 
 ```go
-import "github.com/SocialGouv/iterion/pkg/dispatcher/native"
+import "github.com/arketov/iterion/pkg/dispatcher/native"
 
 s, err := native.NewStore(storeDir + "/dispatcher")
 if err != nil { return err }

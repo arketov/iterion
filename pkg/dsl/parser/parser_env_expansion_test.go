@@ -3,7 +3,7 @@ package parser_test
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // `env_expansion:` is a plain identifier property of a tool node (ADR-130):

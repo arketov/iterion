@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // A parent and a child whose bundles ship DIFFERENT engine-owned copies: a

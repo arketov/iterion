@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // EvalEnv names the operator's override of the evaluation work budget.

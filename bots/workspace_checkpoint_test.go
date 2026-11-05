@@ -3,7 +3,7 @@ package bots
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/runtime"
 )
 
 // readOnlyBots are the catalog bots that READ the repository they are

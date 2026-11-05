@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/internal/skillshare"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/skillshare"
 )
 
 // repoRoot is where this package sits relative to the module root.

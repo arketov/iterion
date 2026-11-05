@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Factory returns a fresh, empty RunStore for one subtest. Cleanup

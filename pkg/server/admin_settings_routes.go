@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/usagecap"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/usagecap"
 )
 
 // Platform runtime settings — the DB-backed form of the operational env

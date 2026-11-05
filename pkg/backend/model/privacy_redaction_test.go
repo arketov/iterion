@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/tool/privacy"
+	"github.com/arketov/iterion/pkg/backend/tool/privacy"
 )
 
 func TestRedactJSONTextField_DropsText(t *testing.T) {

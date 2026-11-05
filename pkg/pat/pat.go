@@ -25,8 +25,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // TokenPrefix marks an iterion personal access token. The middleware

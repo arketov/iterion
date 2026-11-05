@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // The App client is the PRODUCTION shape of a GitHub connection, so the

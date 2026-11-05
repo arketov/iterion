@@ -3,7 +3,7 @@ package forgejo
 import (
 	"strconv"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // forgejoHook is the repo-hook shape Forgejo/Gitea returns. Like GitHub it

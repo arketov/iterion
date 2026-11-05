@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // pinNames are the syntax floors, by the name of the constant that pins each
@@ -216,7 +216,7 @@ func TestTheSweepReadsEachShapeThatRestsAFloorOnAPin(t *testing.T) {
 			// The class, in a file routed through this package: the import
 			// is no cover for the splice beside it.
 			name:  "a floor spliced from a sibling pin, in a file that imports this package",
-			body:  lines(`import "github.com/SocialGouv/iterion/internal/floortest"`, floorFrom(imp), reads(con)),
+			body:  lines(`import "github.com/arketov/iterion/internal/floortest"`, floorFrom(imp), reads(con)),
 			wants: []string{"builds a string from ImportSince, and names ImportSince, ContractSince"},
 		},
 		{

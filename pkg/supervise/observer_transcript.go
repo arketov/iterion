@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // transcriptPollInterval is how often the tailer re-stats the transcript

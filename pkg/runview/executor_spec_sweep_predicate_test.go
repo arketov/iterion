@@ -24,13 +24,13 @@ func TestTheExecutorSpecSweepSeesWhatItClaimsTo(t *testing.T) {
 		{
 			name: "a literal that sets the field",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f() { _ = runview.ExecutorSpec{BotID: "b"} }`,
 		},
 		{
 			name: "a literal that omits it",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f() { _ = runview.ExecutorSpec{} }`,
 			missing: true,
 		},
@@ -39,14 +39,14 @@ func f() { _ = runview.ExecutorSpec{} }`,
 			// package's default name stops seeing every site behind one.
 			name: "an aliased import that omits it",
 			src: `package p
-import rv "github.com/SocialGouv/iterion/pkg/runview"
+import rv "github.com/arketov/iterion/pkg/runview"
 func f() { _ = rv.ExecutorSpec{} }`,
 			missing: true,
 		},
 		{
 			name: "an aliased import that sets it",
 			src: `package p
-import rv "github.com/SocialGouv/iterion/pkg/runview"
+import rv "github.com/arketov/iterion/pkg/runview"
 func f() { _ = rv.ExecutorSpec{BotID: "b"} }`,
 		},
 		{
@@ -54,7 +54,7 @@ func f() { _ = rv.ExecutorSpec{BotID: "b"} }`,
 			// package is called.
 			name: "a different type of the same package",
 			src: `package p
-import rv "github.com/SocialGouv/iterion/pkg/runview"
+import rv "github.com/arketov/iterion/pkg/runview"
 func f() { _ = rv.OtherSpec{} }`,
 		},
 		{
@@ -78,14 +78,14 @@ func f() ExecutorSpec { return ExecutorSpec{Name: "x"} }`,
 			// …but a dot-import DOES entitle the bare spelling.
 			name: "a dot-import that omits the field",
 			src: `package p
-import . "github.com/SocialGouv/iterion/pkg/runview"
+import . "github.com/arketov/iterion/pkg/runview"
 func f() { _ = ExecutorSpec{} }`,
 			missing: true,
 		},
 		{
 			name: "field-by-field assignment",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f() {
 	var s runview.ExecutorSpec
 	s.BotID = "b"
@@ -95,7 +95,7 @@ func f() {
 		{
 			name: "field-by-field, field never assigned",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f() {
 	var s runview.ExecutorSpec
 	_, _ = runview.BuildExecutor(s)
@@ -112,7 +112,7 @@ func f() {
 			// points at the right place.
 			name: "a factory that fills a spec and returns it",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func mk() runview.ExecutorSpec {
 	var s runview.ExecutorSpec
 	s.RunID = "r"
@@ -126,7 +126,7 @@ func mk() runview.ExecutorSpec {
 			// else. The give-up arm used to win over the assignment.
 			name: "both fields set, and the address handed to a helper",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func tune(s *runview.ExecutorSpec) { s.RunID = "r" }
 func f() {
 	var s runview.ExecutorSpec
@@ -140,7 +140,7 @@ func f() {
 			// …and the same shape with the field set is clean.
 			name: "a factory that sets the field",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func mk() runview.ExecutorSpec {
 	var s runview.ExecutorSpec
 	s.RunID = "r"
@@ -154,7 +154,7 @@ func mk() runview.ExecutorSpec {
 			// either, which would be noise about a variable nobody uses.
 			name: "a zero-value sentinel returned with an error",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func mk(fail bool) (runview.ExecutorSpec, error) {
 	var zero runview.ExecutorSpec
 	if fail {
@@ -170,7 +170,7 @@ func mk(fail bool) (runview.ExecutorSpec, error) {
 			// collected.
 			name: "new() handed by dereference",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f() {
 	spec := new(runview.ExecutorSpec)
 	spec.RunID = "r"
@@ -186,7 +186,7 @@ func f() {
 			name:   "two sites, one answering each field of the same question",
 			fields: []string{"WorkDir", "SandboxProbeWorkDir"},
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func engineSite(d string) runview.ExecutorSpec { return runview.ExecutorSpec{WorkDir: d} }
 func probeSite(d string) runview.ExecutorSpec { return runview.ExecutorSpec{SandboxProbeWorkDir: d} }`,
 		},
@@ -194,7 +194,7 @@ func probeSite(d string) runview.ExecutorSpec { return runview.ExecutorSpec{Sand
 			name:   "a site answering NEITHER field of a two-answer question",
 			fields: []string{"WorkDir", "SandboxProbeWorkDir"},
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f() { _ = runview.ExecutorSpec{BotID: "b"} }`,
 			missing: true,
 		},
@@ -207,7 +207,7 @@ func f() { _ = runview.ExecutorSpec{BotID: "b"} }`,
 			name:   "a fill-and-return factory answering with the probe field",
 			fields: []string{"WorkDir", "SandboxProbeWorkDir"},
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f(d string) runview.ExecutorSpec {
 	var s runview.ExecutorSpec
 	s.SandboxProbeWorkDir = d
@@ -218,7 +218,7 @@ func f(d string) runview.ExecutorSpec {
 			name:   "the same factory answering with the workspace field",
 			fields: []string{"WorkDir", "SandboxProbeWorkDir"},
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f(d string) runview.ExecutorSpec {
 	var s runview.ExecutorSpec
 	s.WorkDir = d
@@ -231,7 +231,7 @@ func f(d string) runview.ExecutorSpec {
 			name:   "a fill-and-return factory answering neither",
 			fields: []string{"WorkDir", "SandboxProbeWorkDir"},
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f(d string) runview.ExecutorSpec {
 	var s runview.ExecutorSpec
 	s.RunID = d
@@ -246,7 +246,7 @@ func f(d string) runview.ExecutorSpec {
 			unread: true,
 			name:   "a spec whose address is handed to a helper",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func fill(*runview.ExecutorSpec) {}
 func f() {
 	var s runview.ExecutorSpec
@@ -299,8 +299,8 @@ func TestTheElidedWalkStopsAtTheSpecsItself(t *testing.T) {
 			name: "an elided container whose spec holds a nested literal",
 			src: `package p
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/runview"
 )
 func f() []runview.ExecutorSpec {
 	return []runview.ExecutorSpec{{
@@ -315,8 +315,8 @@ func f() []runview.ExecutorSpec {
 			name: "the same shape with the field missing",
 			src: `package p
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/runview"
 )
 func f() []runview.ExecutorSpec {
 	return []runview.ExecutorSpec{{
@@ -330,7 +330,7 @@ func f() []runview.ExecutorSpec {
 			// Two container levels, field set: judged, not accused.
 			name: "two container levels, field set",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f() [][]runview.ExecutorSpec {
 	return [][]runview.ExecutorSpec{{{BotID: "b"}}}
 }`,
@@ -338,7 +338,7 @@ func f() [][]runview.ExecutorSpec {
 		{
 			name: "two container levels, field missing",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f() [][]runview.ExecutorSpec {
 	return [][]runview.ExecutorSpec{{{RunID: "r"}}}
 }`,
@@ -347,7 +347,7 @@ func f() [][]runview.ExecutorSpec {
 		{
 			name: "a map of slices of specs, field set",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f() map[string][]runview.ExecutorSpec {
 	return map[string][]runview.ExecutorSpec{"a": {{BotID: "b"}}}
 }`,

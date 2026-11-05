@@ -14,8 +14,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/internal/envtrust"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // sdkClient wraps the official MCP go-sdk Client + ClientSession,

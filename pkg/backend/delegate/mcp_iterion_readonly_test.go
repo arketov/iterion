@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/runops"
+	"github.com/arketov/iterion/pkg/runops"
 )
 
 // IsIterionMCPTool's one reader — the engine's shared-worktree classifier —

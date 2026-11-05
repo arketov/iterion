@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/runview/runstream"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/runview/runstream"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // svcEventTerminalPollInterval bounds how often an external/dispatcher

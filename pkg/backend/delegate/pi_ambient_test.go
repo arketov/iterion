@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/ambient"
+	"github.com/arketov/iterion/pkg/backend/ambient"
 )
 
 // piTree lays out pi's precedence cases: an agent dir, a directory above the

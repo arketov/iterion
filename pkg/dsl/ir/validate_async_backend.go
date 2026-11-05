@@ -1,6 +1,6 @@
 package ir
 
-import "github.com/SocialGouv/iterion/pkg/backend/backendcaps"
+import "github.com/arketov/iterion/pkg/backend/backendcaps"
 
 // validateAsyncBackends diagnoses the built-in routes whose lack of async
 // tools is knowable before launch. A route the source does not decide —

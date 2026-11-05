@@ -22,8 +22,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/botlock"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/botlock"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // talkativeGit puts a git in front of the real one that writes a warning on

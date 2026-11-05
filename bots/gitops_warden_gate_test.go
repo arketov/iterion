@@ -13,7 +13,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/git"
 )
 
 // The warden's FOLD is the executable half of ADR-123: the LLM classifies,

@@ -3,10 +3,10 @@ package server
 import (
 	"net/http"
 
-	"github.com/SocialGouv/iterion/internal/httpx"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/hostmcp"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/httpx"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/hostmcp"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The sandboxed host-MCP transport (C082) lives in pkg/hostmcp so the two

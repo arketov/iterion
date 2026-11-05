@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/connector/gen"
-	"github.com/SocialGouv/iterion/pkg/connector/overlay"
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
-	"github.com/SocialGouv/iterion/pkg/internal/appinfo"
-	"github.com/SocialGouv/iterion/pkg/secure/httpdial"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/connector/gen"
+	"github.com/arketov/iterion/pkg/connector/overlay"
+	"github.com/arketov/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/internal/appinfo"
+	"github.com/arketov/iterion/pkg/secure/httpdial"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // ConnectorsGenOptions drives `iterion connectors gen`.

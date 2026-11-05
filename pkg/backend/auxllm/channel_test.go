@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/sweepwalk"
+	"github.com/arketov/iterion/internal/sweepwalk"
 )
 
 // The channel's whole value is being the ONLY door: an auxiliary surface
@@ -182,7 +182,7 @@ type modelImports struct {
 // reading one name reads one shape, and the sweep judges every shape the
 // file can reach the package through.
 func modelImportsOf(file *ast.File) modelImports {
-	const path = `"github.com/SocialGouv/iterion/pkg/backend/model"`
+	const path = `"github.com/arketov/iterion/pkg/backend/model"`
 	var mi modelImports
 	for _, imp := range file.Imports {
 		if imp.Path == nil || imp.Path.Value != path {
@@ -307,21 +307,21 @@ func TestTheSweepPredicateReadsTheShapesItClaims(t *testing.T) {
 		{
 			name: "a direct construction",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/backend/model"
+import "github.com/arketov/iterion/pkg/backend/model"
 func f() { r := model.NewRegistry(); _ = r }`,
 			calls: 1,
 		},
 		{
 			name: "an aliased import is still ours",
 			src: `package p
-import m "github.com/SocialGouv/iterion/pkg/backend/model"
+import m "github.com/arketov/iterion/pkg/backend/model"
 func f() { r := m.NewRegistry(); _ = r }`,
 			calls: 1,
 		},
 		{
 			name: "another package's NewRegistry is not ours",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/backend/delegate"
+import "github.com/arketov/iterion/pkg/backend/delegate"
 func f() { r := delegate.NewRegistry(); _ = r }`,
 			calls: 0,
 		},
@@ -333,8 +333,8 @@ func f() { r := delegate.NewRegistry(); _ = r }`,
 			name: "a foreign NewRegistry beside a model import is not ours",
 			src: `package p
 import (
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/model"
 )
 func f() { d := delegate.NewRegistry(); r := model.NewRegistry(); _, _ = d, r }`,
 			calls: 1,
@@ -345,7 +345,7 @@ func f() { d := delegate.NewRegistry(); r := model.NewRegistry(); _, _ = d, r }`
 			// form must refuse this one too.
 			name: "a dot-imported construction is still ours",
 			src: `package p
-import . "github.com/SocialGouv/iterion/pkg/backend/model"
+import . "github.com/arketov/iterion/pkg/backend/model"
 func f() { r := NewRegistry(); _ = r }`,
 			calls: 1,
 		},
@@ -356,8 +356,8 @@ func f() { r := NewRegistry(); _ = r }`,
 			name: "a construction through a second binding of the same package is still ours",
 			src: `package p
 import (
-	"github.com/SocialGouv/iterion/pkg/backend/model"
-	m2 "github.com/SocialGouv/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/backend/model"
+	m2 "github.com/arketov/iterion/pkg/backend/model"
 )
 func f() { r := m2.NewRegistry(); _ = r }`,
 			calls: 1,
@@ -369,7 +369,7 @@ func f() { r := m2.NewRegistry(); _ = r }`,
 			// of ours.
 			name: "a bare NewRegistry without a dot import is not ours",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/backend/model"
+import "github.com/arketov/iterion/pkg/backend/model"
 func NewRegistry() *struct{} { return nil }
 func f() { r := NewRegistry(); _ = r }`,
 			calls: 0,
@@ -379,7 +379,7 @@ func f() { r := NewRegistry(); _ = r }`,
 			// import that builds no registry is no offence.
 			name: "a dot import without a construction is not a call",
 			src: `package p
-import . "github.com/SocialGouv/iterion/pkg/backend/model"
+import . "github.com/arketov/iterion/pkg/backend/model"
 func f() { s := ParseModelSpec("openai/x"); _ = s }`,
 			calls: 0,
 		},
@@ -393,7 +393,7 @@ func f() string { return strings.ToUpper("x") }`,
 		{
 			name: "a mention in a comment or string is not a call",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/backend/model"
+import "github.com/arketov/iterion/pkg/backend/model"
 // swap model.NewRegistry() for auxllm.Registry() someday
 const hint = "call model.NewRegistry()"
 func f() { _ = model.ParseModelSpec("openai/x"); _ = hint }`,

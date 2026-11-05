@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // The neighbor of the race #2897 closed: repoRoot carries the same

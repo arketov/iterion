@@ -3,7 +3,7 @@ package bots
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/skillshare"
+	"github.com/arketov/iterion/internal/skillshare"
 )
 
 // The programme contract has two readers with opposite jobs: the bot that

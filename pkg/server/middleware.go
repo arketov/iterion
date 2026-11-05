@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/pat"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/pat"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // authCookieName is the HttpOnly cookie carrying the access JWT for

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/dsl/expr"
 )
 
 // boundedText is the most a bounded message or hint measures: the bound of
@@ -140,13 +140,13 @@ func TestTheCanaryReadsEveryForm(t *testing.T) {
 		{"a wrapped construction", "package x\n\nvar d = parser.Bounded(parser.Diagnostic{Message: msg})\n", false, 0},
 		{"a bare pointer construction", "package x\n\nvar d = &parser.Diagnostic{Message: msg}\n", true, 0},
 		{"a bare construction", "package x\n\nvar d = parser.Diagnostic{Message: msg}\n", true, 0},
-		{"an aliased import", "package x\n\nimport (\n\tp \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\n)\n", true, 4},
-		{"an aliased import below empty lines", "package x\n\n\nimport (\n\tp \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\n)\n", true, 5},
-		{"a single-line plain import is no alias", "package x\n\nimport \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\n\nvar d = parser.Bounded(parser.Diagnostic{Message: msg})\n", false, 0},
-		{"a single-line aliased import", "package x\n\nimport p \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\n", true, 3},
-		{"a blank import composes nothing", "package x\n\nimport (\n\t_ \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\n)\n", false, 0},
-		{"a dot import hides the marker", "package x\n\nimport (\n\t. \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\n)\n", true, 4},
-		{"the plain import", "package x\n\nimport (\n\t\"github.com/SocialGouv/iterion/pkg/dsl/parser\"\n)\n\nvar d = parser.Bounded(parser.Diagnostic{Message: msg})\n", false, 0},
+		{"an aliased import", "package x\n\nimport (\n\tp \"github.com/arketov/iterion/pkg/dsl/parser\"\n)\n", true, 4},
+		{"an aliased import below empty lines", "package x\n\n\nimport (\n\tp \"github.com/arketov/iterion/pkg/dsl/parser\"\n)\n", true, 5},
+		{"a single-line plain import is no alias", "package x\n\nimport \"github.com/arketov/iterion/pkg/dsl/parser\"\n\nvar d = parser.Bounded(parser.Diagnostic{Message: msg})\n", false, 0},
+		{"a single-line aliased import", "package x\n\nimport p \"github.com/arketov/iterion/pkg/dsl/parser\"\n", true, 3},
+		{"a blank import composes nothing", "package x\n\nimport (\n\t_ \"github.com/arketov/iterion/pkg/dsl/parser\"\n)\n", false, 0},
+		{"a dot import hides the marker", "package x\n\nimport (\n\t. \"github.com/arketov/iterion/pkg/dsl/parser\"\n)\n", true, 4},
+		{"the plain import", "package x\n\nimport (\n\t\"github.com/arketov/iterion/pkg/dsl/parser\"\n)\n\nvar d = parser.Bounded(parser.Diagnostic{Message: msg})\n", false, 0},
 	} {
 		got := unboundedConstructions(c.src)
 		if isOffender := len(got) > 0; isOffender != c.want {
@@ -221,7 +221,7 @@ func unboundedConstructions(text string) []int {
 // caller), nor is `_`, which can compose nothing. The leading whitespace
 // is horizontal only ([ \t]): \s would cross the empty lines above and the
 // offense would be reported on the wrong line.
-var parserAliasImportRe = regexp.MustCompile(`(?m)^[ \t]*(?:import[ \t]+)?([\w.]+)[ \t]+"github\.com/SocialGouv/iterion/pkg/dsl/parser"`)
+var parserAliasImportRe = regexp.MustCompile(`(?m)^[ \t]*(?:import[ \t]+)?([\w.]+)[ \t]+"github.com/arketov/iterion/pkg/dsl/parser"`)
 
 // literalElements splits the composite literal whose opening brace is at
 // open into its top-level elements, each with its byte offset in src.

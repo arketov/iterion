@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/pkg/memory"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/memory"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // A workspace can pile up gigabytes of ${PROJECT_SCRATCH_DIR} while never

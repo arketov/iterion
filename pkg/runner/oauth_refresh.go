@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/errtrack"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/errtrack"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // oauthRefreshHTTPTimeout bounds a single token-refresh round-trip. The loop

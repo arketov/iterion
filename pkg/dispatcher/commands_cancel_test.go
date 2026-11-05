@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // TestForceRemoveSandboxContainer_EmptyRunIDIsNoop ensures the helper

@@ -63,17 +63,17 @@ func TestShardByHashPartitionsTotalityAndDisjointness(t *testing.T) {
 // with these package paths — do not recompute by hand.
 func TestShardByHashGolden(t *testing.T) {
 	pkgs := []string{
-		"github.com/SocialGouv/iterion/bots",
-		"github.com/SocialGouv/iterion/cmd/iterion",
-		"github.com/SocialGouv/iterion/e2e",
-		"github.com/SocialGouv/iterion/pkg/server",
-		"github.com/SocialGouv/iterion/pkg/store",
+		"github.com/arketov/iterion/bots",
+		"github.com/arketov/iterion/cmd/iterion",
+		"github.com/arketov/iterion/e2e",
+		"github.com/arketov/iterion/pkg/server",
+		"github.com/arketov/iterion/pkg/store",
 	}
 	got := shardByHash(pkgs, 3)
 	want := [][]string{
-		{"github.com/SocialGouv/iterion/pkg/store"},
-		{"github.com/SocialGouv/iterion/cmd/iterion", "github.com/SocialGouv/iterion/pkg/server"},
-		{"github.com/SocialGouv/iterion/bots", "github.com/SocialGouv/iterion/e2e"},
+		{"github.com/arketov/iterion/pkg/store"},
+		{"github.com/arketov/iterion/cmd/iterion", "github.com/arketov/iterion/pkg/server"},
+		{"github.com/arketov/iterion/bots", "github.com/arketov/iterion/e2e"},
 	}
 	for i := range want {
 		if strings.Join(got[i], ",") != strings.Join(want[i], ",") {

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/treenoise"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/treenoise"
 )
 
 // iterion lays the bundle's skills and plugin files under

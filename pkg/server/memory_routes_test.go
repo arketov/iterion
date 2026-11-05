@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/knowledge"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/knowledge"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 func TestMemoryRoutes_RoundTrip(t *testing.T) {

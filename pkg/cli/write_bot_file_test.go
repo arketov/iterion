@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/authoringlock"
+	"github.com/arketov/iterion/pkg/authoringlock"
 )
 
 // TestABotFileIsReplacedOnlyOverTheBytesItsWriterRead is the contract the

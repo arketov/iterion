@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/secretguard"
+	"github.com/arketov/iterion/pkg/backend/secretguard"
 )
 
 // A placeholder expands to its value, so a request under the inspection

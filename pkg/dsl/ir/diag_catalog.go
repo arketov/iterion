@@ -1,8 +1,8 @@
 package ir
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
-	"github.com/SocialGouv/iterion/pkg/dsl/readbudget"
+	"github.com/arketov/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/dsl/readbudget"
 )
 
 // DiagInfo is the catalogue entry of one diagnostic code: what the check is

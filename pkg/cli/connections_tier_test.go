@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/connection"
 )
 
 // TestConnectionsAddNamesTheTierThePackageCameFrom — #2757.

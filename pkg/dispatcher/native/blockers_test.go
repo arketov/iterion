@@ -3,7 +3,7 @@ package native_test
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
 )
 
 func TestBlockerSatisfiedOnlyDone(t *testing.T) {

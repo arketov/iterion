@@ -3,7 +3,7 @@ package ir
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/pkg/knowledge"
 )
 
 // InstallsWriteTool reports whether a run handed this declared `memory:`

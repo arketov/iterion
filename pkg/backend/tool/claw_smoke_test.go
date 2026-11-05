@@ -14,7 +14,7 @@ import (
 	clawtools "github.com/SocialGouv/claw-code-go/pkg/api/tools"
 	clawworker "github.com/SocialGouv/claw-code-go/pkg/api/worker"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // TestRegisterClawAll_EveryRegisteredToolDispatches is the empirical

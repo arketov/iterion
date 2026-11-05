@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/server/projects"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/server/projects"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 func TestWorkspaceHandoffCompletionReturnsDurablyToExactSource(t *testing.T) {

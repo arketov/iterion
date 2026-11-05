@@ -3,7 +3,7 @@ package delegate
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native/boardops"
+	"github.com/arketov/iterion/pkg/dispatcher/native/boardops"
 )
 
 // boardMCPServerName is the name under which iterion registers its internal

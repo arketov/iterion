@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // gitlabMR is the GitLab merge-request shape (read). Like issues, an MR is

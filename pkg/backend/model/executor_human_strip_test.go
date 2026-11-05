@@ -3,7 +3,7 @@ package model
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/cost"
+	"github.com/arketov/iterion/pkg/backend/cost"
 )
 
 // The metadata strip on the interaction path must remove everything the

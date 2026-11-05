@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/platformcfg"
+	"github.com/arketov/iterion/pkg/platformcfg"
 )
 
 // poolTopology is the slice of the queue connection the reconciler drives.

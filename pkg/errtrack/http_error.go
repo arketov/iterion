@@ -9,7 +9,7 @@ import (
 	sentry "github.com/getsentry/sentry-go"
 	"github.com/google/uuid"
 
-	"github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/log"
 )
 
 // HTTPErrorWriter binds the request and its logger to the response writer so

@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/stdiotest"
+	"github.com/arketov/iterion/internal/stdiotest"
 )
 
 // captureStderr redirects os.Stderr to a pipe for the caller's scope,

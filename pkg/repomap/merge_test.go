@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/repomap"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/repomap"
 )
 
 // The MERGEABLE ACROSS ENTRIES property of the package doc, checked the way

@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // pipelineSchedulerInterval is the backstop poll cadence for the pipeline

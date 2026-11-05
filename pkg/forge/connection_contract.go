@@ -1,7 +1,7 @@
 package forge
 
 import (
-	"github.com/SocialGouv/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/connection"
 )
 
 // The forge connection MODEL — the record, its enums, its store and its

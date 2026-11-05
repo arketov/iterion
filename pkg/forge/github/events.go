@@ -3,7 +3,7 @@ package github
 import (
 	"strconv"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // githubHook is the repo-hook shape GitHub returns/accepts. Unlike GitLab's

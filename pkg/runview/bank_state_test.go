@@ -2,7 +2,7 @@ package runview
 
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 	"testing"
 )
 

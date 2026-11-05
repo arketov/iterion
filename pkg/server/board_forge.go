@@ -14,14 +14,14 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	forgeforgejo "github.com/SocialGouv/iterion/pkg/forge/forgejo"
-	forgegithub "github.com/SocialGouv/iterion/pkg/forge/github"
-	forgegitlab "github.com/SocialGouv/iterion/pkg/forge/gitlab"
-	"github.com/SocialGouv/iterion/pkg/lease"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/pkg/forge"
+	forgeforgejo "github.com/arketov/iterion/pkg/forge/forgejo"
+	forgegithub "github.com/arketov/iterion/pkg/forge/github"
+	forgegitlab "github.com/arketov/iterion/pkg/forge/gitlab"
+	"github.com/arketov/iterion/pkg/lease"
 )
 
 // ImportForgeIssues mirrors one forge repo's issues into a native board from a

@@ -1,6 +1,6 @@
 package parser
 
-import "github.com/SocialGouv/iterion/pkg/dsl/ast"
+import "github.com/arketov/iterion/pkg/dsl/ast"
 
 // attachComments gives every `##` line of a parsed source to the
 // declaration it was written around, with the address Scan read for it.

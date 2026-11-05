@@ -9,9 +9,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
 
-	"github.com/SocialGouv/iterion/internal/treeskip"
+	"github.com/arketov/iterion/internal/treeskip"
 )
 
 // CacheDir is where a built graph lives, relative to the repository

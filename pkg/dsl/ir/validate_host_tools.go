@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/boardcaps"
-	"github.com/SocialGouv/iterion/pkg/runops"
+	"github.com/arketov/iterion/pkg/boardcaps"
+	"github.com/arketov/iterion/pkg/runops"
 )
 
 // validateHostToolCapabilities closes the learn-at-run-time gap of the

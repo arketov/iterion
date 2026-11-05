@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/marketplace"
+	"github.com/arketov/iterion/pkg/marketplace"
 )
 
 func writeSeedBundle(t *testing.T, dir, name, version string) {

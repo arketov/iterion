@@ -3,8 +3,8 @@ package runtime
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/internal/appinfo"
-	"github.com/SocialGouv/iterion/pkg/sandbox/imageclass"
+	"github.com/arketov/iterion/pkg/internal/appinfo"
+	"github.com/arketov/iterion/pkg/sandbox/imageclass"
 )
 
 // resolveSandboxImageClass resolves a workflow-declared `sandbox: { image: … }`

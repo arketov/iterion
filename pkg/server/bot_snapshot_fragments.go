@@ -9,8 +9,8 @@ import (
 	"os"
 	"sort"
 
-	"github.com/SocialGouv/iterion/pkg/botinstall"
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/botinstall"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // resolveSnapshotFragments materializes the `dependencies.fragments` one

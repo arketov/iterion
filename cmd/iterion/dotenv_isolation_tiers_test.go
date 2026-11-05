@@ -5,12 +5,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/internal/isolationenv"
-	iterconfig "github.com/SocialGouv/iterion/pkg/config"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	iterruntime "github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/isolationenv"
+	iterconfig "github.com/arketov/iterion/pkg/config"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	iterruntime "github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The #1959 floor neutralizes a non-operator bot's `sandbox: none` by falling

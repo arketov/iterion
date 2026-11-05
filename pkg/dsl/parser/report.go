@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/dsl/expr"
 )
 
 // MaxReported is how many diagnostics of one code, errors and warnings

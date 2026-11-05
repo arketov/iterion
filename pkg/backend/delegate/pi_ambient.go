@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/ambient"
+	"github.com/arketov/iterion/pkg/backend/ambient"
 )
 
 // piContextCandidates is pi's per-directory precedence: the first existing

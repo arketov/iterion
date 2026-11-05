@@ -12,8 +12,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
-	"github.com/SocialGouv/iterion/pkg/internal/mongotest"
+	"github.com/arketov/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/internal/mongotest"
 )
 
 // runBoardBindingStoreSuite exercises the forge.BoardBindingStore contract. It

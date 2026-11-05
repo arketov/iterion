@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/testparallel"
+	"github.com/arketov/iterion/internal/testparallel"
 )
 
 // The t.Parallel campaign of this package, and the reason the rest of it is

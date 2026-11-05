@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // overlayOver builds the overlay cmd wiring installs, over a fixed record,

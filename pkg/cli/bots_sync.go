@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/botdeps"
+	"github.com/arketov/iterion/pkg/botdeps"
 )
 
 // BotSyncResult describes one materialized lockfile dependency.

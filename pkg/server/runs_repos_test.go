@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/runview"
 )
 
 func TestAggregateRepos(t *testing.T) {

@@ -378,7 +378,7 @@ var previewRenderAllowed = map[string]string{}
 var previewRenderers = map[string]bool{"RenderCommand": true, "RenderScript": true}
 
 // modelImportPath is the package whose renderers this sweep follows.
-const modelImportPath = "github.com/SocialGouv/iterion/pkg/backend/model"
+const modelImportPath = "github.com/arketov/iterion/pkg/backend/model"
 
 // previewChokepointWrappers names the local helpers whose answer IS the
 // chokepoint's, with the reason. A helper spelled like one of these proves

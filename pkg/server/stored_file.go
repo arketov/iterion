@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
 )
 
 // storedFile is a stored file as one reading of it found it: its bytes, or

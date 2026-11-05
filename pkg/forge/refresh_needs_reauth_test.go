@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // The worker reading the filtered scan: a needs_reauth connection is never

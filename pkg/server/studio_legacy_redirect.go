@@ -5,7 +5,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/deeplink"
+	"github.com/arketov/iterion/pkg/deeplink"
 )
 
 // legacyStudioSegments are the first path segments the studio answered on

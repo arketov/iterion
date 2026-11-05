@@ -5,9 +5,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/supervise"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/supervise"
 )
 
 // The locked entry the OnUsage closure calls must stay locked: the sink

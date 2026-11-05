@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/authoringlock"
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/authoringlock"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // editorSave stands in for an authoring editor's save of path: it holds the

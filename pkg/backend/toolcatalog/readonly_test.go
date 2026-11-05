@@ -3,7 +3,7 @@ package toolcatalog
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
 )
 
 // TestReadonlyWithholdsDurableWritePerBackend pins the flag's per-backend

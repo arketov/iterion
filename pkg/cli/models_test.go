@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/stdiotest"
-	"github.com/SocialGouv/iterion/pkg/backend/compatgw"
-	"github.com/SocialGouv/iterion/pkg/backend/modelspecs"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/modelcatalog"
+	"github.com/arketov/iterion/internal/stdiotest"
+	"github.com/arketov/iterion/pkg/backend/compatgw"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/modelcatalog"
 )
 
 func TestRunModels_JSONSingleModel(t *testing.T) {

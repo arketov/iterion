@@ -3,7 +3,7 @@ package gen
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // deriveName turns a vendor operation into iterion's `<resource>.<verb>` pair.

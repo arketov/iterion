@@ -27,8 +27,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // New returns a fresh noop [sandbox.Driver]. It is always

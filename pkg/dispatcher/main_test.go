@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/hometest"
-	"github.com/SocialGouv/iterion/internal/proctest"
+	"github.com/arketov/iterion/internal/hometest"
+	"github.com/arketov/iterion/internal/proctest"
 )
 
 // The subbot fixtures here park a child on a sentinel file, so a dispatch

@@ -3,7 +3,7 @@ package bots
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // TestVerifyProbeLoopIterationWiring guards the cost-saving verify_probe

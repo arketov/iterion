@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // TestRemoteTeamsSwitch_TheBrowserApprovalMintsFromTheLiveSession is the

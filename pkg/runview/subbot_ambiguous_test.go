@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/runtime/recovery"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/runtime/recovery"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Mutation: return the child's text as fmt.Errorf, dropping FailureCode, in

@@ -1,8 +1,8 @@
 package runtime
 
 import (
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/internal/appinfo"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/internal/appinfo"
 )
 
 // A bundle and the engine that evaluates it are shipped by two different

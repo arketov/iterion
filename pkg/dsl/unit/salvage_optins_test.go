@@ -11,21 +11,21 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/git"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/modtypes"
+	"github.com/arketov/iterion/internal/modtypes"
 )
 
 const (
-	modulePath        = "github.com/SocialGouv/iterion"
-	unitPackagePath   = "github.com/SocialGouv/iterion/pkg/dsl/unit"
-	authorPackagePath = "github.com/SocialGouv/iterion/pkg/dsl/author"
-	astPackagePath    = "github.com/SocialGouv/iterion/pkg/dsl/ast"
+	modulePath        = "github.com/arketov/iterion"
+	unitPackagePath   = "github.com/arketov/iterion/pkg/dsl/unit"
+	authorPackagePath = "github.com/arketov/iterion/pkg/dsl/author"
+	astPackagePath    = "github.com/arketov/iterion/pkg/dsl/ast"
 )
 
 // A reading a bound of the reader refused — a source past the read budget or
@@ -82,8 +82,8 @@ var salvageDoors = map[string][]string{
 // answer as one value, panicking on a refusal: no package the module builds
 // for production depends on them.
 var testOnlyPackages = map[string]bool{
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest": true,
-	"github.com/SocialGouv/iterion/pkg/dsl/unit/unittest":     true,
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest": true,
+	"github.com/arketov/iterion/pkg/dsl/unit/unittest":     true,
 }
 
 // theModule is the module, listed and type-checked once for this test
@@ -1032,18 +1032,18 @@ func TestSalvageReferencesAreFoundWhateverTheSpelling(t *testing.T) {
 		src  string
 		want string
 	}{
-		"unit salvage":  {"package x\nimport \"github.com/SocialGouv/iterion/pkg/dsl/unit\"\nfunc f() { _ = unit.Salvage(unit.LoadDir(\"m\")) }\n", "x.go f Salvage unit.Salvage(unit.LoadDir(\"m\"))"},
-		"alias":         {"package x\nimport u \"github.com/SocialGouv/iterion/pkg/dsl/unit\"\nvar g = u.Salvage\n", "x.go var g Salvage u.Salvage"},
-		"dot unit":      {"package x\nimport . \"github.com/SocialGouv/iterion/pkg/dsl/unit\"\nfunc f() { _ = Salvage(nil, nil) }\n", "x.go f Salvage Salvage(nil, nil)"},
-		"author parse":  {"package x\nimport \"github.com/SocialGouv/iterion/pkg/dsl/author\"\nfunc f() { _ = author.Parse(\"a\", nil) }\n", "x.go f Parse author.Parse(\"a\", nil)"},
-		"lexer":         {"package x\nimport \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\nfunc f() { _ = parser.NewLexer(\"a\", \"b\").All() }\n", "x.go f NewLexer parser.NewLexer(\"a\", \"b\")"},
-		"second use":    {"package x\nimport \"github.com/SocialGouv/iterion/pkg/dsl/unit\"\nfunc f() { _ = unit.Salvage(nil, nil); _ = unit.Salvage(nil, nil) }\n", "x.go f Salvage unit.Salvage(nil, nil),x.go f Salvage unit.Salvage(nil, nil) #2"},
-		"another call":  {"package x\nimport \"github.com/SocialGouv/iterion/pkg/dsl/unit\"\nfunc f(a, b error) { _ = unit.Salvage(nil, b); _ = unit.Salvage(nil, a) }\n", "x.go f Salvage unit.Salvage(nil, a),x.go f Salvage unit.Salvage(nil, b)"},
-		"receivers":     {"package x\nimport \"github.com/SocialGouv/iterion/pkg/dsl/unit\"\ntype A struct{}\ntype B struct{}\nfunc (A) open() { _ = unit.Salvage(nil, nil) }\nfunc (*B) open() { _ = unit.Salvage(nil, nil) }\n", "x.go (*B).open Salvage unit.Salvage(nil, nil),x.go (A).open Salvage unit.Salvage(nil, nil)"},
-		"strict":        {"package x\nimport \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\nfunc f() { parser.Parse(\"a\", \"b\") }\n", ""},
+		"unit salvage":  {"package x\nimport \"github.com/arketov/iterion/pkg/dsl/unit\"\nfunc f() { _ = unit.Salvage(unit.LoadDir(\"m\")) }\n", "x.go f Salvage unit.Salvage(unit.LoadDir(\"m\"))"},
+		"alias":         {"package x\nimport u \"github.com/arketov/iterion/pkg/dsl/unit\"\nvar g = u.Salvage\n", "x.go var g Salvage u.Salvage"},
+		"dot unit":      {"package x\nimport . \"github.com/arketov/iterion/pkg/dsl/unit\"\nfunc f() { _ = Salvage(nil, nil) }\n", "x.go f Salvage Salvage(nil, nil)"},
+		"author parse":  {"package x\nimport \"github.com/arketov/iterion/pkg/dsl/author\"\nfunc f() { _ = author.Parse(\"a\", nil) }\n", "x.go f Parse author.Parse(\"a\", nil)"},
+		"lexer":         {"package x\nimport \"github.com/arketov/iterion/pkg/dsl/parser\"\nfunc f() { _ = parser.NewLexer(\"a\", \"b\").All() }\n", "x.go f NewLexer parser.NewLexer(\"a\", \"b\")"},
+		"second use":    {"package x\nimport \"github.com/arketov/iterion/pkg/dsl/unit\"\nfunc f() { _ = unit.Salvage(nil, nil); _ = unit.Salvage(nil, nil) }\n", "x.go f Salvage unit.Salvage(nil, nil),x.go f Salvage unit.Salvage(nil, nil) #2"},
+		"another call":  {"package x\nimport \"github.com/arketov/iterion/pkg/dsl/unit\"\nfunc f(a, b error) { _ = unit.Salvage(nil, b); _ = unit.Salvage(nil, a) }\n", "x.go f Salvage unit.Salvage(nil, a),x.go f Salvage unit.Salvage(nil, b)"},
+		"receivers":     {"package x\nimport \"github.com/arketov/iterion/pkg/dsl/unit\"\ntype A struct{}\ntype B struct{}\nfunc (A) open() { _ = unit.Salvage(nil, nil) }\nfunc (*B) open() { _ = unit.Salvage(nil, nil) }\n", "x.go (*B).open Salvage unit.Salvage(nil, nil),x.go (A).open Salvage unit.Salvage(nil, nil)"},
+		"strict":        {"package x\nimport \"github.com/arketov/iterion/pkg/dsl/parser\"\nfunc f() { parser.Parse(\"a\", \"b\") }\n", ""},
 		"other package": {"package x\nimport \"go/parser\"\nfunc f() { parser.ParseFile(nil, \"\", nil, 0) }\n", ""},
 		"a field":       {"package x\nfunc f(v struct{ Salvage int }) { _ = v.Salvage }\n", ""},
-		"prose only":    {"package x\nimport \"github.com/SocialGouv/iterion/pkg/dsl/unit\"\n// unit.Salvage( is prose\nvar _ = unit.FragmentDir\n", ""},
+		"prose only":    {"package x\nimport \"github.com/arketov/iterion/pkg/dsl/unit\"\n// unit.Salvage( is prose\nvar _ = unit.FragmentDir\n", ""},
 	} {
 		p, err := m.CheckSource("example.com/x", "x.go", tc.src)
 		if err != nil {
@@ -1057,7 +1057,7 @@ func TestSalvageReferencesAreFoundWhateverTheSpelling(t *testing.T) {
 	}
 	// A view handed to a helper makes the helper a holder, under an alias
 	// of its type too; a decoding there is said.
-	p, err := m.CheckSource("example.com/x", "x.go", "package x\nimport (\n\t\"github.com/SocialGouv/iterion/pkg/dsl/ast\"\n\t\"github.com/SocialGouv/iterion/pkg/dsl/unit\"\n)\ntype V = unit.Salvaged\nfunc helper(v *V) { b, _ := v.MarshalDocument(\"\"); _, _ = ast.UnmarshalFile(b) }\nfunc other() {}\n")
+	p, err := m.CheckSource("example.com/x", "x.go", "package x\nimport (\n\t\"github.com/arketov/iterion/pkg/dsl/ast\"\n\t\"github.com/arketov/iterion/pkg/dsl/unit\"\n)\ntype V = unit.Salvaged\nfunc helper(v *V) { b, _ := v.MarshalDocument(\"\"); _, _ = ast.UnmarshalFile(b) }\nfunc other() {}\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1071,8 +1071,8 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 type Program = ast.File
 type View struct{ AST *ast.File; n int }

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/liveledger"
+	"github.com/arketov/iterion/pkg/liveledger"
 )
 
 // fixtureTaskfile is a minimal Taskfile with one recording live target

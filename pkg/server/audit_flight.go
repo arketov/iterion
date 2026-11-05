@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/SocialGouv/iterion/pkg/audit"
+	"github.com/arketov/iterion/pkg/audit"
 )
 
 // defaultAuditInsertTimeout bounds one background audit insert from the

@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/store/blob"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store/blob"
 )
 
 // The cloud (Mongo) store satisfies the out-of-band IR blob seam, backed

@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // attachmentNamesIn lists the attachments a run's attachments directory

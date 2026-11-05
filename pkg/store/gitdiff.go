@@ -10,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // RunFileDiff is the persisted before/after content for one file, mirroring

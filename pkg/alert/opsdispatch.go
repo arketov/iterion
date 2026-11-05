@@ -8,11 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/deeplink"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/trigger"
-	"github.com/SocialGouv/iterion/pkg/usernotify"
+	"github.com/arketov/iterion/pkg/deeplink"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/usernotify"
 )
 
 // OpsDispatcher is the CLOUD twin of the in-process Manager for run-outcome

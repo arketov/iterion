@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/botscaffold"
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/botscaffold"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // TestLaunchRun_FileLaunchReadsTheBundleFromTheOperatorsPath: the launch

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/detect"
+	"github.com/arketov/iterion/pkg/backend/detect"
 )
 
 // TestOpenCodeIsOfferedOnlyForCredentialsItCanRead: iterion and opencode do

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/botregistry"
+	"github.com/arketov/iterion/pkg/botregistry"
 )
 
 // breakCatalogOwner vendors a catalog owner under <workdir>/bots/nexie whose

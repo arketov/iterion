@@ -12,10 +12,10 @@ import (
 	"github.com/SocialGouv/claw-code-go/pkg/api/hooks"
 	"github.com/SocialGouv/claw-code-go/pkg/apikit"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/modelroute"
-	"github.com/SocialGouv/iterion/pkg/backend/secretguard"
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/modelroute"
+	"github.com/arketov/iterion/pkg/backend/secretguard"
+	"github.com/arketov/iterion/pkg/backend/tool"
 )
 
 // ---------------------------------------------------------------------------

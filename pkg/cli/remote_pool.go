@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/credpool"
+	"github.com/arketov/iterion/pkg/credpool"
 )
 
 // Credential-pool CLI: lending an LLM subscription to the shared pool and

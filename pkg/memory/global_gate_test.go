@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/pkg/knowledge"
 )
 
 // TestFSStore_GlobalSpaceAnswersToPlatformAuthority drives the ungranted

@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/alert"
-	"github.com/SocialGouv/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/alert"
+	"github.com/arketov/iterion/pkg/cli"
 )
 
 // ServerHost wraps cli.RunStudio so the desktop App can stop and restart

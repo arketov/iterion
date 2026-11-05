@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // SetCommitStatus posts a commit status onto sha via the GitLab commit-status

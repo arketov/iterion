@@ -13,9 +13,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/mdcode"
-	"github.com/SocialGouv/iterion/internal/treeskip"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/internal/mdcode"
+	"github.com/arketov/iterion/internal/treeskip"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // docsPages maps docs/ — 300-odd pages and 100-odd ADRs whose only index

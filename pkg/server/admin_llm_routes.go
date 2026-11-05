@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Platform LLM credentials — the DB-backed form of the runner-pod env

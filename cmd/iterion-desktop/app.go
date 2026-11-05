@@ -14,7 +14,7 @@ import (
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"github.com/SocialGouv/iterion/pkg/alert"
+	"github.com/arketov/iterion/pkg/alert"
 )
 
 // App is the Wails-bound struct exposed to the frontend. Every public method

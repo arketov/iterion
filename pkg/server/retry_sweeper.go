@@ -8,15 +8,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/notify"
-	"github.com/SocialGouv/iterion/pkg/retrycoord"
-	"github.com/SocialGouv/iterion/pkg/retrypolicy"
-	"github.com/SocialGouv/iterion/pkg/reviewtopology"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/server/cloudpublisher"
-	"github.com/SocialGouv/iterion/pkg/store"
-	mongostore "github.com/SocialGouv/iterion/pkg/store/mongo"
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/notify"
+	"github.com/arketov/iterion/pkg/retrycoord"
+	"github.com/arketov/iterion/pkg/retrypolicy"
+	"github.com/arketov/iterion/pkg/reviewtopology"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/server/cloudpublisher"
+	"github.com/arketov/iterion/pkg/store"
+	mongostore "github.com/arketov/iterion/pkg/store/mongo"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 // Retry sweeper: the half of the usage-window retry that outlives the pod.

@@ -48,8 +48,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/SocialGouv/iterion/internal/mdcode"
-	"github.com/SocialGouv/iterion/internal/treeskip"
+	"github.com/arketov/iterion/internal/mdcode"
+	"github.com/arketov/iterion/internal/treeskip"
 )
 
 // Extractor renders one generated map from a repository tree.

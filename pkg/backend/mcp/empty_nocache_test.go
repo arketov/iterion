@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/backend/tool"
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

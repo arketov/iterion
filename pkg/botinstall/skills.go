@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/skilllib"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/skilllib"
 )
 
 // ResolveSkills materializes the `dependencies.skills` of the bundle

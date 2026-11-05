@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // SweepResult is what one pass took, spared, and could not take.

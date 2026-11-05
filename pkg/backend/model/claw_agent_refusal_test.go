@@ -7,9 +7,9 @@ import (
 
 	"github.com/SocialGouv/claw-code-go/pkg/api/hooks"
 
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // TestTheAgentRefusalReachesTheModelAsAToolError exercises the refusal from

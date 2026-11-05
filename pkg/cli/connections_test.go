@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/connection"
 )
 
 // The connection commands had no test at all, which is how `add` came to

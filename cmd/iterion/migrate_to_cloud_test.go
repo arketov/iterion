@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	iterconfig "github.com/SocialGouv/iterion/pkg/config"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterconfig "github.com/arketov/iterion/pkg/config"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // `iterion migrate to-cloud` is a one-way door: after it runs, the cloud

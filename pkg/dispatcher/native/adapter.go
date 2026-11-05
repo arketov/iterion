@@ -7,7 +7,7 @@ import (
 	"maps"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 )
 
 // Adapter exposes a BoardStore under the tracker.Tracker interface so the

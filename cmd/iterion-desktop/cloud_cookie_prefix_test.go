@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	iserver "github.com/SocialGouv/iterion/pkg/server"
+	iserver "github.com/arketov/iterion/pkg/server"
 )
 
 // TestCloudLoginHarvestsEitherCookieSpelling is the regression guard for the

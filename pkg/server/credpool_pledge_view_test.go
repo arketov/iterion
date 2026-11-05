@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 
-	"github.com/SocialGouv/iterion/pkg/credpool"
+	"github.com/arketov/iterion/pkg/credpool"
 )
 
 // TestToPledgeViewCarriesFallbackUse: the view must carry the donor's

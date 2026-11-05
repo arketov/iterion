@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 const mainSrc = "dsl: 2\nimport \"lib/schemas.bot\"\nimport \"lib/nodes.bot\"\n\nvars:\n  goal: string\n\nagent a:\n  model: \"anthropic/claude-opus-4-8\"\n  description: \"d\"\n  input: s\n\nworkflow w:\n  entry: a\n  a -> b\n  b -> done\n"

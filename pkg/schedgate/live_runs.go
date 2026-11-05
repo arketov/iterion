@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // ScheduleRunLister is the narrow slice of store.RunStore the overlap

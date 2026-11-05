@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/SocialGouv/claw-code-go/pkg/api/hooks"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 func TestRegisterSettingsHooks_BlocksOnExit2(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/SocialGouv/iterion/internal/httpx"
+	"github.com/arketov/iterion/internal/httpx"
 )
 
 // WriteJSON encodes v as JSON with the given HTTP status. Exported so

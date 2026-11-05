@@ -19,7 +19,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/httpx"
+	"github.com/arketov/iterion/internal/httpx"
 )
 
 // Request is one line-delimited JSON-RPC request the MCP Streamable HTTP

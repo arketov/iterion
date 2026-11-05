@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native/boardops"
+	"github.com/arketov/iterion/pkg/dispatcher/native/boardops"
 )
 
 // localBoardPrefix namespaces the boardops tool set inside the operator

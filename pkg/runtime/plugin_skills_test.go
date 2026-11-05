@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // installPack writes an enabled single-skill plugin into an ITERION_HOME.

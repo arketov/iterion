@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/credusage"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/credusage"
 )
 
 // registerCredUsageRoutes wires the per-credential usage views (#641) —

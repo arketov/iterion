@@ -3,8 +3,8 @@ package server
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/webhooks"
-	"github.com/SocialGouv/iterion/pkg/webhooks/prforge"
+	"github.com/arketov/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/webhooks/prforge"
 )
 
 // TestReviewPRVars_LaunchVarsCarryReviewTier pins the per-repo pin half of

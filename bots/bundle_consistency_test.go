@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/bundlelint"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/skilllib"
-	"github.com/SocialGouv/iterion/pkg/subbotcontracts"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundlelint"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/skilllib"
+	"github.com/arketov/iterion/pkg/subbotcontracts"
 )
 
 // consistencyAllowlist records (bot dir, diagnostic code) pairs that are

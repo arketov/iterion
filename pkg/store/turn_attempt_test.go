@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // #2806 — a retried or resumed attempt of a node re-derives the same

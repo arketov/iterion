@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/pat"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/pat"
 )
 
 // The current-password proof of POST /api/me/password stands in for the

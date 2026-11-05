@@ -7,11 +7,11 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/isolationenv"
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
-	iterruntime "github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/sandbox/registry"
+	"github.com/arketov/iterion/internal/isolationenv"
+	"github.com/arketov/iterion/pkg/internal/proc"
+	iterruntime "github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox/registry"
 )
 
 // SandboxDoctorOptions tunes `iterion sandbox doctor`. The zero value

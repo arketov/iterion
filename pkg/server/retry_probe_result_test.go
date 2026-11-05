@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/cloud/metrics"
-	mongostore "github.com/SocialGouv/iterion/pkg/store/mongo"
+	"github.com/arketov/iterion/pkg/cloud/metrics"
+	mongostore "github.com/arketov/iterion/pkg/store/mongo"
 )
 
 // scrapeMetrics renders the registry the way Prometheus reads it. The label

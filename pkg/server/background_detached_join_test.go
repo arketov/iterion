@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/audit"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/audit"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // registeredWorkerNames is the registry the shutdown will join, by name.

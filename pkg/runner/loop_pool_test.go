@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/queue"
+	"github.com/arketov/iterion/pkg/queue"
 )
 
 // The pure admission rule: "" when the three stamps agree (pod serves msg,

@@ -13,8 +13,8 @@ import (
 
 	"github.com/nats-io/nats.go"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 // The Bus contract (bus.go): cancel signals the handler's context, then waits

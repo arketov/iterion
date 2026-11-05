@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 
 // MergePromptFiles is the ONE rule every surface merges bundle prompts by

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	iterconfig "github.com/SocialGouv/iterion/pkg/config"
+	iterconfig "github.com/arketov/iterion/pkg/config"
 )
 
 // The dispatcher daemon ships its logs, so its default format is JSON —

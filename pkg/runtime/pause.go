@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // pauseOperatorWithCheckpoint is the shared soft-pause path: it saves a

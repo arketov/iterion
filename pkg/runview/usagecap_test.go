@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/usagecap"
+	"github.com/arketov/iterion/pkg/usagecap"
 )
 
 // The process ledger is deliberately global (a laptop's whole world), so

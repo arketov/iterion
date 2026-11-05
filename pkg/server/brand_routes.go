@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/brand"
+	"github.com/arketov/iterion/pkg/brand"
 )
 
 // registerBrandRoutes serves the iterion-bot mascot embedded in pkg/brand at a

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/SocialGouv/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/runtime"
 )
 
 // PromoteForHandoff runs a launch's attachment promotion on a path that

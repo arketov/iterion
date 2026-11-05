@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // ToolCall is one completed tool invocation, classified.

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/orgusage"
+	"github.com/arketov/iterion/pkg/orgusage"
 )
 
 // newLaunchRootcutServer is a gated server on workDir whose run service

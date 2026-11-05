@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // TestLive_Feat_OpenCodeProjectScreen is a CONFORMANCE bench, not a unit

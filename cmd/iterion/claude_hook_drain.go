@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/SocialGouv/iterion/pkg/supervise"
+	"github.com/arketov/iterion/pkg/supervise"
 	"github.com/spf13/cobra"
 )
 

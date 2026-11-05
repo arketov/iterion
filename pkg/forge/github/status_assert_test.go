@@ -3,7 +3,7 @@ package github
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // Both the admin client AND the App client (the production path) must satisfy

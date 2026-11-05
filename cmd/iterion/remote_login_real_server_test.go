@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/pat"
-	"github.com/SocialGouv/iterion/pkg/server"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/identity"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/pat"
+	"github.com/arketov/iterion/pkg/server"
 )
 
 // membershipUnreadable is an identity store whose membership read fails —

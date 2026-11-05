@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/sweepwalk"
+	"github.com/arketov/iterion/internal/sweepwalk"
 )
 
 // specSite is one lease.Spec construction the sweep judged: where it is, the
@@ -260,7 +260,7 @@ func leaseSpecSite(rel string, fset *token.FileSet, file *ast.File, lit *ast.Com
 // imports the package at all. A blank import binds no name, so no Spec can be
 // written through it.
 func leaseImportName(file *ast.File) (string, bool) {
-	const path = `"github.com/SocialGouv/iterion/pkg/lease"`
+	const path = `"github.com/arketov/iterion/pkg/lease"`
 	for _, imp := range file.Imports {
 		if imp.Path == nil || imp.Path.Value != path {
 			continue
@@ -383,7 +383,7 @@ func TestTheSpecHealthSweepNamesAnUnarmedSite(t *testing.T) {
 import (
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/lease"
+	"github.com/arketov/iterion/pkg/lease"
 )
 
 type netWiring struct{}
@@ -431,7 +431,7 @@ func TestTheSpecHealthSweepJudgesEverySpellingOfTheWiring(t *testing.T) {
 import (
 	"time"
 
-	l "github.com/SocialGouv/iterion/pkg/lease"
+	l "github.com/arketov/iterion/pkg/lease"
 )
 
 func wireANetWithANilHandover() l.Spec {
@@ -498,7 +498,7 @@ func TestTheSpecHealthSweepNamesWhatBuildsASpecOutsideAFuncDecl(t *testing.T) {
 import (
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/lease"
+	"github.com/arketov/iterion/pkg/lease"
 )
 
 var buildNet = func(owner string) lease.Spec {

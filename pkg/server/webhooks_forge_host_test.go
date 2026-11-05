@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 const mrURL = "https://gitlab.example.com/group/proj/-/merge_requests/5"

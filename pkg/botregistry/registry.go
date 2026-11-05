@@ -13,7 +13,7 @@ package botregistry
 import (
 	"errors"
 	"fmt"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -21,8 +21,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
 )
 
 // Entry is one bot discovered by List. Path is the file (single .bot)

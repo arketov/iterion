@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/runtime"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/runtime"
 )
 
 // ensureLogSource guarantees a run.log tailer is feeding a live RunLogBuffer

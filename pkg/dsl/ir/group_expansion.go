@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	"github.com/SocialGouv/iterion/pkg/dsl/readbudget"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/readbudget"
 )
 
 // Every instance owns its entire declaration tree. Walking all string fields

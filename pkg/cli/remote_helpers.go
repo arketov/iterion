@@ -13,8 +13,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/SocialGouv/iterion/pkg/server"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/server"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // APIError is a non-2xx response from the remote instance. Body is the raw

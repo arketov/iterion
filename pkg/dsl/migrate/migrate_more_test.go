@@ -2,12 +2,12 @@ package migrate
 
 import (
 	"errors"
-	"github.com/SocialGouv/iterion/pkg/dsl/internal/rewrite"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/internal/rewrite"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // The migration removes exactly the directive comments profile 2 refuses
