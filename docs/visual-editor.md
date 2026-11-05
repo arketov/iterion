@@ -78,6 +78,32 @@ reject conflicting teammate edits. See the
 [Cloud REST API](cloud-rest-api.md#team-bot-sources-cloud-bot-editing) for the
 team store.
 
+## Saving a file from the studio
+
+- **Save keeps the file name.** A file opened by path (a recent, a bot page,
+  a link) is saved back to that same path. The workflow block's name never
+  renames it: `dev-flow.bot` stays `dev-flow.bot`.
+- **Open… and Import carry the file's name.** The native picker (Open…,
+  Ctrl+O) hands the studio the file's text, not its path, so the tab is
+  unbound until the first save. That first Save opens **Save As**, which
+  proposes the picked file's own name (the workflow block's name is only the
+  proposal for a document that came from no file). Save As creates a new file
+  and never overwrites: if the name already exists in the project the dialog
+  says so; open the existing file from **Open recent** to save over it.
+- **A save rewrites the file in canonical form.** The studio writes the
+  document, not your spelling of it: field order, commas and line breaks may
+  change (a value written over several lines that the writer cannot
+  reproduce is refused instead, and the file is left alone). Save As says so
+  in its dialog, and the first Save of a file in a session says so in a
+  notice.
+- **`.iterion/authoring/` beside the file.** Every save takes a per-file lock
+  and keeps recovery copies in `.iterion/authoring/` in the file's folder.
+  The folder is the studio's working state, not part of your bot: it holds
+  its own `.gitignore` (`*`), so git shows nothing of it, and every walker of
+  a bundle skips `.iterion`. Add `.iterion/` to your project's `.gitignore`
+  if you also keep other files there. The lock's design is in
+  [authoring-lock.md](authoring-lock.md).
+
 ## Screenshots
 
 > All shots use the studio's dark theme; a light theme is available from Settings → Appearance or `⌘/Ctrl+K → Cycle theme`.

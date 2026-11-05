@@ -49,6 +49,10 @@ export default function DocumentSaveAsDialog({
           if (event.key === "Escape" && !controller.busy) controller.setOpen(false);
         }}
       />
+      <p className="mt-2 text-caption text-fg-muted">
+        Save As creates a new file under this name (it is not renamed to match the workflow) and writes it in
+        iterion&apos;s canonical format: field order, commas and line breaks may differ from the original.
+      </p>
       {controller.error && (
         <p className="mt-2 text-caption text-danger-fg" role="alert">
           {controller.error}

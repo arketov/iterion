@@ -6,7 +6,7 @@
 // tab's own write replaced — a 409 against our own edit — and the first
 // save after a Save As presents none over a file that now exists.
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({
   saveFile: vi.fn(),
@@ -19,7 +19,7 @@ vi.mock("@/api/client", async (importOriginal) => ({
 import { createEmptyDocument } from "@/lib/defaults";
 import { DocumentStoreProvider, createDocumentStore, type DocumentStore } from "@/store/document";
 import { useUIStore } from "@/store/ui";
-import { useDocumentFileOps } from "./useDocumentFileOps";
+import { resetReformatNotices, useDocumentFileOps } from "./useDocumentFileOps";
 import { useDocumentSaveAs } from "@/components/DocumentSaveAs/useDocumentSaveAs";
 
 function CanvasSaveButton() {
@@ -56,6 +56,11 @@ function mount(store: DocumentStore, children: React.ReactNode) {
 }
 
 const toasts = () => useUIStore.getState().toasts.map((t) => t.message);
+
+beforeEach(() => {
+  api.saveFile.mockReset();
+  resetReformatNotices();
+});
 
 afterEach(() => {
   cleanup();
@@ -94,5 +99,26 @@ describe("the save response refreshes the write claim", () => {
     // Ctrl+S presents. Without it that save presents none over a file that
     // now exists, and is refused.
     expect(store.getState().openedDigest).toBe("sha-created");
+  });
+});
+
+describe("a save says it rewrites the file", () => {
+  it("names the canonical rewrite once per file, and keeps the file name", async () => {
+    const store = boundStore("sha-open");
+    api.saveFile.mockResolvedValue({ path: "bots/a.bot", source: "saved\n", digest: "sha-saved" });
+    mount(store, <CanvasSaveButton />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Canvas Save" }));
+    await waitFor(() => expect(toasts()).toContain("Saved successfully"));
+    const notices = () => toasts().filter((m) => /canonical format/i.test(m));
+    expect(notices()).toHaveLength(1);
+    expect(notices()[0]).toMatch(/file name stays the same/i);
+    // The save went to the path the tab is bound to, never a workflow-derived name.
+    expect(api.saveFile).toHaveBeenCalledWith("bots/a.bot", expect.anything(), { digest: "sha-open" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Canvas Save" }));
+    await waitFor(() => expect(api.saveFile).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(toasts().filter((m) => m === "Saved successfully")).toHaveLength(2));
+    expect(notices()).toHaveLength(1);
   });
 });
