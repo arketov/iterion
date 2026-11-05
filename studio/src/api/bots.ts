@@ -16,6 +16,12 @@ const BASE = "/api/v1/bots";
  *  endpoint and embedded inside BotEntryWithSchema. */
 export interface BotEntry {
   name: string;
+  /** "tenant" for a team-authored bot, "platform" for a deployment-wide
+   *  override (super-admin-pushed — see /admin/bots), "catalog" for a
+   *  baked/project one, "builtin" for a recipe embedded in the binary and
+   *  "file" for a single .bot without a manifest (the last two only come
+   *  from `?include=all`). */
+  origin?: "tenant" | "platform" | "catalog" | "builtin" | "file";
   /** Bundle persona from manifest.yaml `display_name` (e.g. "Nexie",
    *  "Revi"). Empty for loose .bot files / un-personified bundles. The
    *  studio shows it as the lead label with `name` as a muted aside. */
@@ -303,10 +309,6 @@ export interface BotEntryWithSchema extends BotEntry {
   /** True for team-authored bots (editable in the cloud editor); false for the
    *  read-only baked catalog. Undefined on older servers → treated read-only. */
   editable?: boolean;
-  /** "tenant" for a team-authored bot, "platform" for a deployment-wide
-   *  override (super-admin-pushed — see /admin/bots), "catalog" for a
-   *  baked one. */
-  origin?: "tenant" | "platform" | "catalog" | "builtin" | "file";
   /** True for a package installed into the workspace's .botz/ (bots
    *  install, the marketplace, an upload). Its manifest is the package's —
    *  an update replaces it whole — so the server refuses its manifest edit

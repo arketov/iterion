@@ -38,7 +38,12 @@ export function BotPicker({
     // Disabled bots (catalog toggle off) aren't routable, so they don't
     // belong in the ticket assignment picker. The current value is kept
     // even if disabled so an existing assignment still renders.
-    const visible = bots.filter((b) => b.enabled !== false || botPickerValue(b) === value);
+    // A single .bot file is not routable for a card: the dispatcher resolves
+    // a ticket's bot by catalog name (botregistry.ResolveBotPath), so files
+    // are never offered here — they appear in Dispatcher settings instead.
+    const visible = bots.filter(
+      (b) => b.origin !== "file" && (b.enabled !== false || botPickerValue(b) === value),
+    );
     // Grouped by where the bot comes from: project bundles, team/platform,
     // built-in recipes, then single .bot files ("Project files"). The
     // origin label rides in the meta column so each row says where it is

@@ -416,7 +416,10 @@ function BotWorkflowSelect({
 }
 
 /** AssigneeWorkflowsField edits assignee_workflows: a card assigned to the
- *  name on the left runs the bot on the right instead of the default. */
+ *  name on the left runs the bot on the right instead of the default.
+ *  Rows live in local state (an array, so a half-typed or duplicate name and
+ *  a numeric-looking name keep their place); the config object is rebuilt
+ *  from the complete rows only — the server rejects an empty key or path. */
 function AssigneeWorkflowsField({
   value,
   onChange,
@@ -424,50 +427,55 @@ function AssigneeWorkflowsField({
   value: Record<string, string>;
   onChange: (v: Record<string, string>) => void;
 }) {
-  const entries = Object.entries(value);
-  const setKey = (oldKey: string, newKey: string) => {
-    const next: Record<string, string> = {};
-    for (const [k, v] of entries) next[k === oldKey ? newKey : k] = v;
-    onChange(next);
+  const [rows, setRows] = useState<{ k: string; v: string }[]>(() =>
+    Object.entries(value).map(([k, v]) => ({ k, v })),
+  );
+  const commit = (next: { k: string; v: string }[]) => {
+    setRows(next);
+    const out: Record<string, string> = {};
+    for (const r of next) {
+      const k = r.k.trim();
+      if (k && r.v) out[k] = r.v;
+    }
+    onChange(out);
   };
-  const remove = (k: string) => {
-    const next = { ...value };
-    delete next[k];
-    onChange(next);
-  };
+  const dup = (k: string) => k.trim() !== "" && rows.filter((r) => r.k.trim() === k.trim()).length > 1;
   return (
     <div className="space-y-2">
       <span className="text-xs font-medium text-fg-default">Per-assignee bots</span>
       <span className="block text-xs text-fg-muted">
         A card assigned to the name on the left runs the chosen bot instead of the default one.
+        A row with an empty name or bot is not saved.
       </span>
-      {entries.map(([assignee, wf], i) => (
+      {rows.map((r, i) => (
         <div key={i} className="flex items-start gap-2">
-          <Input
-            size="sm"
-            className="w-36"
-            value={assignee}
-            placeholder="assignee"
-            onChange={(e) => setKey(assignee, e.target.value)}
-          />
+          <div className="w-36">
+            <Input
+              size="sm"
+              value={r.k}
+              placeholder="assignee"
+              onChange={(e) => commit(rows.map((x, j) => (j === i ? { ...x, k: e.target.value } : x)))}
+            />
+            {dup(r.k) && <span className="text-micro text-warning-fg">duplicate name</span>}
+          </div>
           <div className="flex-1">
             <BotWorkflowSelect
-              value={wf}
-              onChange={(v) => onChange({ ...value, [assignee]: v })}
+              value={r.v}
+              onChange={(v) => commit(rows.map((x, j) => (j === i ? { ...x, v } : x)))}
               placeholder="Search bots…"
             />
           </div>
           <IconButton
             size="sm"
             variant="danger"
-            label={assignee ? `Remove ${assignee}` : "Remove row"}
-            onClick={() => remove(assignee)}
+            label={r.k ? `Remove ${r.k}` : "Remove row"}
+            onClick={() => commit(rows.filter((_, j) => j !== i))}
           >
             ×
           </IconButton>
         </div>
       ))}
-      <Button variant="ghost" size="sm" onClick={() => onChange({ ...value, "": "" })}>
+      <Button variant="ghost" size="sm" onClick={() => setRows([...rows, { k: "", v: "" }])}>
         + Add assignee bot
       </Button>
     </div>

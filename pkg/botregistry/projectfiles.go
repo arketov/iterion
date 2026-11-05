@@ -42,6 +42,9 @@ var skippedProjectDirs = map[string]struct{}{
 	"dist":         {},
 	"build":        {},
 	"target":       {},
+	"venv":         {},
+	"__pycache__":  {},
+	"out":          {},
 }
 
 // DiscoverProjectFiles lists the single workflow files under workDir that no
@@ -106,6 +109,9 @@ func DiscoverProjectFiles(workDir string, excludeRoots []string) []Entry {
 		if _, err := os.Stat(filepath.Join(filepath.Dir(path), "manifest.yaml")); err == nil {
 			return nil // belongs to a manifest bundle
 		}
+		if len(out) >= MaxProjectFiles {
+			return fs.SkipAll
+		}
 		rel, err := filepath.Rel(root, path)
 		if err != nil {
 			return nil
@@ -121,8 +127,5 @@ func DiscoverProjectFiles(workDir string, excludeRoots []string) []Entry {
 		return nil
 	})
 	sort.Slice(out, func(i, j int) bool { return out[i].RelPath < out[j].RelPath })
-	if len(out) > MaxProjectFiles {
-		out = out[:MaxProjectFiles]
-	}
 	return out
 }
