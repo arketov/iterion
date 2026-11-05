@@ -3,6 +3,30 @@
 Generated from Conventional Commits at each release. Older majors are archived
 under [docs/changelog/](https://github.com/SocialGouv/iterion/tree/main/docs/changelog).
 
+## [5.10.3](https://github.com/SocialGouv/iterion/compare/v5.10.2...v5.10.3) (2026-11-05)
+
+### Bug Fixes
+
+* **server:** cache the studio build — immutable /assets/*, ETag on unhashed statics ([#3079](https://github.com/SocialGouv/iterion/issues/3079)) ([1b9c278](https://github.com/SocialGouv/iterion/commit/1b9c278f14cbbc438320c059cf17d8ee8adc56c4)), references [#3073](https://github.com/SocialGouv/iterion/issues/3073)
+
+    <details><summary>why</summary>
+
+    The server serves the embedded studio through http.FileServer, and an embedded file has a zero modtime: every /assets/* response went out with no Cache-Control, ETag or Last-Modified, so a browser refetched the whole module graph on every visit (78 modules, 1.4 MB, measured on iterion.cloud on 2026-11-05).
+
+    </details>
+
+## [5.10.2](https://github.com/SocialGouv/iterion/compare/v5.10.1...v5.10.2) (2026-11-05)
+
+### Bug Fixes
+
+* **delegate:** read a reset instant in the zone its refusal gives ([#3071](https://github.com/SocialGouv/iterion/issues/3071)) ([242d503](https://github.com/SocialGouv/iterion/commit/242d50362642e5ee3766a772d4ace59fb2ee6233)), closes [#3070](https://github.com/SocialGouv/iterion/issues/3070)
+
+    <details><summary>why</summary>
+
+    The reset parser built every absolute or clock instant in UTC. z.ai's facade writes its zone-less "Your limit will reset at YYYY-MM-DD HH:MM:SS" in Beijing time (UTC+8), so every z.ai wall stood 8 h past the real reset. In prod the platform zai key is held blocked until 2026-11-08T01:20Z, and the window reopens 2026-11-07T17:20Z. The claude subscription notice "resets 9pm (Europe/Paris)" was read as 21:00Z, 1-2 h off.
+
+    </details>
+
 ## [5.10.1](https://github.com/SocialGouv/iterion/compare/v5.10.0...v5.10.1) (2026-11-05)
 
 ### Bug Fixes
