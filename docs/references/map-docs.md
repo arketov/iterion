@@ -7,6 +7,7 @@ One row per page under `docs/`, ADRs included. An ADR's **status** is the column
 
 | Page | Title | Opens with | Status |
 |---|---|---|---|
+| [`docs/BARS_INSTRUCTION.md`](../BARS_INSTRUCTION.md) | BARS_INSTRUCTION.md | This file is placed in the documentation root by bars, a local search tool over Markdown. | — |
 | [`docs/README.md`](../README.md) | Documentation | This index describes the current repository state. | — |
 | [`docs/adr/001-round-robin-router-mode.md`](../adr/001-round-robin-router-mode.md) | ADR-001: Adding the `round_robin` mode to Router | The Iterion v1 DSL orchestrates multi-agent workflows with a small set of | Accepted |
 | [`docs/adr/002-desktop-assetserver-proxy.md`](../adr/002-desktop-assetserver-proxy.md) | ADR-002: Desktop studio hosted via Wails AssetServer handler | The desktop binary (`iterion-desktop`) is a thin native shell around the | Accepted |
@@ -317,6 +318,7 @@ One row per page under `docs/`, ADRs included. An ADR's **status** is the column
 | [`docs/comparisons/methodology.md`](../comparisons/methodology.md) | 🔎 Comparison methodology and sources | September 11, 2026 — companion to the [feature matrix](../comparisons/feature-matrix.md). | — |
 | [`docs/config-share.md`](../config-share.md) | Scoped config-share editor | The config-share editor lets an operator hand a **non-operator** a bookmarkable | — |
 | [`docs/connector-identities.md`](../connector-identities.md) | Connector identities across regeneration | `iterion connectors gen` maintains `identity.lock.yaml` beside `connector.yaml`. | — |
+| [`docs/core-concepts.md`](../core-concepts.md) | Core concepts | and the studio. | — |
 | [`docs/credential-pool.md`](../credential-pool.md) | Credential pool — mutualising contributors' unused LLM capacity | How developers lend spare LLM capacity to an iterion deployment — a Claude | — |
 | [`docs/current-bot-models.md`](../current-bot-models.md) | Catalog model defaults and deployment | As of September 2026, catalog Anthropic routes default to `claude-opus-5-5`. | — |
 | [`docs/current-state.md`](../current-state.md) | Current state of Iterion | _A living, as-built snapshot maintained against `main` — the page footer shows | — |
@@ -451,6 +453,7 @@ One row per page under `docs/`, ADRs included. An ADR's **status** is the column
 | [`docs/sovereign-pools.md`](../sovereign-pools.md) | Sovereign runner pools | A team whose code must never reach a public LLM vendor runs on a **sovereign | — |
 | [`docs/stall-human-waits.md`](../stall-human-waits.md) | Human waits and stall detection | The dispatcher and runview alert manager both consult | — |
 | [`docs/state-of-the-art.md`](../state-of-the-art.md) | State of the art — how proven is each surface | backends.md and board-epics.md, and a leading emoji slugs differently on | — |
+| [`docs/studio-overview.md`](../studio-overview.md) | Studio overview | the [desktop app](../desktop.md)) on `main`; checked against `studio/src` | — |
 | [`docs/studio-ux-audit-2026-07.md`](../studio-ux-audit-2026-07.md) | Studio UX coherence audit — 2026-07 | Snapshot of the systematic UX audit run against the studio (cloud-first | — |
 | [`docs/supervisors.md`](../supervisors.md) | Supervisor agents | A **supervisor** is an LLM agent that watches another running agent and | — |
 | [`docs/test-capability-ledger.md`](../test-capability-ledger.md) | Test capability ledger | Generate the skip and sleep census from the working tree, without running tests | — |
@@ -467,6 +470,7 @@ One row per page under `docs/`, ADRs included. An ADR's **status** is the column
 | [`docs/web-search.md`](../web-search.md) | Web search & fetch | How agents discover and read the web in iterion. | — |
 | [`docs/webhooks.md`](../webhooks.md) | Inbound webhooks | and operators reviewing the auth + rate-limit + audit story before | — |
 | [`docs/webhooks/retry.md`](../webhooks/retry.md) | Webhook receipts and launch retries | A claimed inbound delivery answers **202** with | — |
+| [`docs/where-iterion-keeps-data.md`](../where-iterion-keeps-data.md) | Where iterion keeps data | against `pkg/store/storedir.go`, `pkg/cli/studio.go`, `pkg/skilllib`, | — |
 | [`docs/why-iterion.md`](../why-iterion.md) | Why Iterion? | Organisations are about to run **fleets of AI agents** — reviewing code, shipping | — |
 | [`docs/why-not-prompt-orchestration.md`](../why-not-prompt-orchestration.md) | Why not just prompt-orchestration? | A recurring question when someone first sees Iterion is: *"why a DSL? Can't I get the same thing with a single Claude Code session that… | — |
 | [`docs/workflow-reliability-1006.md`](../workflow-reliability-1006.md) | Workflow reliability rollout (#1006) | This document is the compatibility ledger for the reliability work. | — |

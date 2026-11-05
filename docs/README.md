@@ -12,6 +12,9 @@ This index describes the current repository state. Guides and references below a
 | [install.md](install.md) | Install through the CLI, studio, desktop, Docker, cloud, dispatcher, scheduler, or TypeScript SDK. |
 | [examples.md](examples.md) | Maintained bot catalogue and focused DSL examples. |
 | [cli-reference.md](cli-reference.md) | Complete top-level CLI map plus the commonly used commands and flags. |
+| [core-concepts.md](core-concepts.md) | Glossary for newcomers: workflow vs bot, `.bot`, bundles and `.botz`, node kinds, the bot catalog and its origins, project vs store. |
+| [studio-overview.md](studio-overview.md) | What each studio page does, and the two main scenarios: run a file by hand, run a board card. |
+| [where-iterion-keeps-data.md](where-iterion-keeps-data.md) | Where projects, runs, the board, plugins, the daemon registry and desktop settings live; how the store is chosen and overridden. |
 | [visual-editor.md](visual-editor.md) | Browser-based studio, graph editor, launch forms, and live diagnostics. |
 | [assistant-dock.md](assistant-dock.md) | The assistant reachable from every studio route: which bot answers (manifest-driven `chat:` registry), its page-context chip, dragging a run/card/bot onto the composer, and how it differs from run steering. |
 | [skill.md](skill.md) | Install Iterion guidance into AI coding agents. |
