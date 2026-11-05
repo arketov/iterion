@@ -1014,6 +1014,8 @@ export interface FileEntry {
 
 export interface ListFilesResponse {
   files: FileEntry[];
+  /** True when the server cut the list at its entry cap. */
+  truncated?: boolean;
 }
 
 export interface SaveFileResponse {

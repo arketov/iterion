@@ -79,7 +79,7 @@ The desktop app boots into a Welcome wizard that asks you to:
 
 After onboarding the studio opens on your project. The sidebar shows the name of the current project (read-only). Switch projects with the project switcher (Cmd/Ctrl+P or the native menu): the window re-attaches to that project's own studio server and reloads, so files, bot catalog, board, runs and dispatcher all follow. The browser studio (`iterion studio`) has no in-window switcher — it serves one project; open another tab or window with its own server for another project.
 
-The editor home (no tab open) lists the project's `.bot` files, offers **Open file…** for a file from disk, and keeps the Recent and Bots lists.
+The editor home (no tab open) lists the project's `.bot` files, offers **Open file…** for a file from disk, and keeps the Recent and Bots lists. The project list shows bots of this project only: it skips nested git checkouts and worktrees, shows a multi-file bot once (its `main.bot`, not its `lib/` parts) and is capped at 500 entries (`ITERION_STUDIO_FILES_LIMIT`, see [environment variables](environment-variables.md)).
 
 ## Auto-update
 

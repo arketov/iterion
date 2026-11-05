@@ -27,6 +27,8 @@ import (
 
 type listFilesResponse struct {
 	Files []fileEntry `json:"files"`
+	// Truncated is set when the list was cut at the entry cap.
+	Truncated bool `json:"truncated,omitempty"`
 }
 
 type fileEntry struct {
@@ -573,35 +575,8 @@ func (s *Server) handleListFiles(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, listFilesResponse{Files: []fileEntry{}})
 		return
 	}
-	var files []fileEntry
-	// Per-entry errors are handled in the callback; a root-level walk failure
-	// yields the partial (possibly empty) list, which this read-only file
-	// browser degrades to gracefully.
-	_ = filepath.WalkDir(workDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			if isSkippedDir(d.Name()) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !isWorkflowFile(d.Name()) {
-			return nil
-		}
-		info, err := d.Info()
-		if err != nil {
-			return nil
-		}
-		rel, _ := filepath.Rel(workDir, path)
-		files = append(files, fileEntry{Name: filepath.ToSlash(rel), Size: info.Size()})
-		return nil
-	})
-	if files == nil {
-		files = []fileEntry{}
-	}
-	writeJSON(w, listFilesResponse{Files: files})
+	files, truncated := listWorkflowFiles(workDir, listFilesLimit())
+	writeJSON(w, listFilesResponse{Files: files, Truncated: truncated})
 }
 
 func (s *Server) handleOpenFile(w http.ResponseWriter, r *http.Request) {
