@@ -1,7 +1,12 @@
 package dispatcher
 
 import (
+	"bytes"
+	"path/filepath"
+	"time"
+
 	"context"
+	iterlog "github.com/arketov/iterion/pkg/log"
 	"testing"
 
 	"github.com/arketov/iterion/pkg/dispatcher/tracker"
@@ -58,5 +63,59 @@ func TestStampLastRunSkipsNeverStartedRun(t *testing.T) {
 	c.stampLastRun("i1", r2)
 	if n := len(lt.lastRunCalls()); n != 1 {
 		t.Fatalf("SetLastRun calls = %d, want 1 for a started run", n)
+	}
+}
+
+// End to end: a fresh run whose after_create hook fails never reaches the
+// card's history (no SetLastRun at claim time), while the retry queue row
+// names the hook.
+func TestFailedAfterCreateLeavesNoPhantomRun(t *testing.T) {
+	lt := newLastRunTracker()
+	lt.add(tracker.Issue{ID: "fake:ghost", Identifier: "fake#ghost", Title: "go", WorkflowState: "ready"})
+
+	dir := t.TempDir()
+	cfg := &Config{
+		Name:      "test",
+		Workflow:  t.TempDir() + "/fake.bot",
+		Tracker:   TrackerConfig{Kind: "fake"},
+		Polling:   PollingConfig{IntervalMS: 30},
+		Agent:     AgentConfig{MaxConcurrent: 4, MaxRetryBackoffMS: 60000, RunningState: "in_progress"},
+		Workspace: WorkspaceConfig{Root: filepath.Join(dir, "ws")},
+		Stall:     StallConfig{TimeoutMS: 0},
+		Hooks:     Hooks{AfterCreate: &Hook{Script: "exit 3"}},
+	}
+	cfg.applyDefaults()
+	ws, err := NewWorkspaces(filepath.Join(dir, "ws"))
+	if err != nil {
+		t.Fatalf("NewWorkspaces: %v", err)
+	}
+	c, err := New(Options{
+		Config: cfg, Tracker: lt, Runner: &StubRunner{}, Workspaces: ws,
+		Logger:     iterlog.New(iterlog.LevelError, &bytes.Buffer{}),
+		HostMarker: "test", StoreDir: filepath.Join(dir, "store"),
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	c.Start(ctx)
+	defer c.Stop()
+
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		if snap := c.Snapshot(); len(snap.Retries) == 1 {
+			if snap.Retries[0].Hook != "after_create" {
+				t.Fatalf("retry row hook = %q, want after_create", snap.Retries[0].Hook)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("no retry queued after the failed hook")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if calls := lt.lastRunCalls(); len(calls) != 0 {
+		t.Fatalf("a run that never started was recorded on the card: %+v", calls)
 	}
 }

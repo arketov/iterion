@@ -147,9 +147,6 @@ export default function RetriesTable({
               {expanded && (
                 <Tr>
                   <Td colSpan={4} className="bg-surface-2/40">
-                    <pre className="whitespace-pre-wrap break-words text-xs text-danger-fg">
-                      {r.error}
-                    </pre>
                     {r.hook_stderr && (
                       <pre className="mt-1 whitespace-pre-wrap break-words text-xs text-fg-muted">
                         {r.hook_stderr}

@@ -20,5 +20,5 @@ describe("hookFailureLabel", () => {
 
 describe("logHint", () => {
   it("is empty without a path", () => expect(logHint(undefined)).toBe(""));
-  it("mentions the path", () => expect(logHint("C:\x\d.log")).toContain("C:\x\d.log"));
+  it("mentions the path", () => expect(logHint("C:/x/d.log")).toContain("C:/x/d.log"));
 });
