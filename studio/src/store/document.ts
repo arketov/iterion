@@ -196,6 +196,11 @@ export interface DocumentState {
    *  bundle). Cleared with the path. */
   openedDigest: string | null;
   setOpenedDigest: (digest: string | null) => void;
+  /** File name of an off-disk import (Open… picks a file through the browser's
+   *  picker, which names no path): Save As proposes it, so the first save does
+   *  not rename the file after its workflow block. Cleared with the path. */
+  importedFileName: string | null;
+  setImportedFileName: (name: string | null) => void;
   /** True once the path was SET to null — File → New, Import, Start blank:
    *  the document follows no file. A fresh store's null path is not that:
    *  it means "not resolved yet", and a tab keeps the file param its load is
@@ -473,6 +478,7 @@ export function createDocumentStore() {
   currentFilePath: null,
   salvaged: false,
   openedDigest: null,
+  importedFileName: null,
   readRefusal: null,
   detached: false,
   currentSource: null,
@@ -501,12 +507,13 @@ export function createDocumentStore() {
   // about this one, so the flag is dropped with the unit. A null path here is
   // a detachment — told apart from a fresh store's null by `detached`.
   setCurrentFilePath: (currentFilePath) =>
-    set({ currentFilePath, unit: null, sourceFile: null, salvaged: false, readRefusal: null, openedDigest: null, sourceBuffer: null, detached: currentFilePath === null }),
+    set({ currentFilePath, unit: null, sourceFile: null, salvaged: false, readRefusal: null, openedDigest: null, importedFileName: null, sourceBuffer: null, detached: currentFilePath === null }),
   setSalvaged: (salvaged, readRefusal = null) => set({ salvaged, readRefusal: salvaged ? readRefusal : null }),
   setCurrentSource: (currentSource) => set((s) => (s.currentSource === currentSource ? s : { currentSource })),
   setUnit: (unit) => set({ unit }),
   setSourceFile: (sourceFile) => set((s) => (s.sourceFile === sourceFile ? s : { sourceFile })),
   setOpenedDigest: (openedDigest) => set({ openedDigest }),
+  setImportedFileName: (importedFileName) => set({ importedFileName }),
   setSourceBuffer: (sourceBuffer) => set({ sourceBuffer }),
   markSaved: () => set((s) => ({ _savedGeneration: s._generation })),
   beginReplace: () => {

@@ -70,6 +70,18 @@ import { ReplaceDeadlineError, replaceDocument, replaceDocumentNow } from "@/lib
 import { offerReload } from "@/lib/reloadOffer";
 import { stampEditor, stampHolds } from "@/store/document";
 
+/** Files whose first save this session already said it rewrites the file. */
+const reformatNoticeShown = new Set<string>();
+
+/** Test seam: forgets which files were already told about. */
+export function resetReformatNotices(): void {
+  reformatNoticeShown.clear();
+}
+
+/** What every save of a .bot from the studio does to the file's text. */
+export const REFORMAT_NOTICE =
+  "Saving rewrites the file in iterion's canonical format: field order, commas and line breaks may change. The file name stays the same. Recovery copies are kept in .iterion/authoring/ beside it (iterion's own folder, ignored by git).";
+
 export function useDocumentFileOps({
   confirm,
 }: UseDocumentFileOpsArgs): UseDocumentFileOpsResult {
@@ -209,6 +221,10 @@ export function useDocumentFileOps({
             applyParsedSource(result, documentStore.getState());
             // Imported files are off-disk; the original text is the source.
             s.setCurrentSource(text);
+            // The picker names no path, but it does name the file: Save As
+            // proposes that name, not the workflow block's (dev-flow.bot
+            // must not come back as dev_flow.bot).
+            s.setImportedFileName(file.name);
           },
         );
       } catch (err) {
@@ -286,6 +302,15 @@ export function useDocumentFileOps({
               : undefined,
         );
         pushRecent(path);
+        // The write is the canonical rendering of the document, not the
+        // author's own spelling of it: said once per file per session.
+        // Local single-file saves only: a cloud bot source has no file beside
+        // which `.iterion/` lives, and a bot in several files is written file
+        // by file.
+        if (!isCloud && !unit && !reformatNoticeShown.has(path)) {
+          reformatNoticeShown.add(path);
+          addToast(REFORMAT_NOTICE, "info");
+        }
         // The answer is about the document it wrote. A tab that has moved to
         // another file meanwhile — or reopened this same one, which is a new
         // document under the same name — takes none of it: not this write's
@@ -336,6 +361,7 @@ export function useDocumentFileOps({
   }, [
     document,
     currentFilePath,
+    isCloud,
     setCurrentSource,
     setOpenedDigest,
     unit,

@@ -99,6 +99,10 @@ var startDaemonChild = func(projectDir string) (exited <-chan error, pid int, lo
 		cmd.Stdout = logFile
 		cmd.Stderr = logFile
 		logPath = logFile.Name()
+		// Tell the daemon where its own log lives so the dispatcher can point
+		// the operator at it from a failed-hook message (full hook output and
+		// chronology are only there).
+		cmd.Env = append(cmd.Env, "ITERION_DAEMON_LOG="+logPath)
 	}
 	detachChild(cmd) // platform-specific: setsid on unix, equivalent on windows
 	if err := cmd.Start(); err != nil {

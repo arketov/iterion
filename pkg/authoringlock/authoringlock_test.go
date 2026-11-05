@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -333,5 +334,38 @@ func TestTheControlEntryRulesAnswerForTheNamesTheDirectoryHolds(t *testing.T) {
 		if got := IsPrivateEntry(c.name); got != c.private {
 			t.Errorf("IsPrivateEntry(%s) = %v, want %v", c.name, got, c.private)
 		}
+	}
+}
+
+// A handle opened write-only must still answer Stat: the editor save stats the
+// file it just opened. On Windows FILE_GENERIC_WRITE lacks FILE_READ_ATTRIBUTES,
+// so GetFileInformationByHandle answered "Access is denied" (a OneDrive folder
+// enforces it) until OpenFileAt asked for that right.
+func TestAWriteOnlyHandleCanBeStatted(t *testing.T) {
+	path := authoringFile(t, "main.bot")
+	dir := filepath.Dir(path)
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parent, err := OpenDirectory(dir, info)
+	if err != nil && runtime.GOOS != "linux" && runtime.GOOS != "darwin" && runtime.GOOS != "windows" {
+		t.Skip("no authoring locks on this platform")
+	}
+	if err != nil {
+		t.Fatalf("open directory: %v", err)
+	}
+	defer func() { _ = parent.Close() }()
+	f, err := OpenFileAt(parent, "main.bot", os.O_WRONLY|os.O_CREATE, 0o644)
+	if err != nil {
+		t.Fatalf("open file: %v", err)
+	}
+	defer func() { _ = f.Close() }()
+	st, err := f.Stat()
+	if err != nil {
+		t.Fatalf("stat of a write-only handle: %v", err)
+	}
+	if !st.Mode().IsRegular() {
+		t.Fatalf("mode = %v, want a regular file", st.Mode())
 	}
 }

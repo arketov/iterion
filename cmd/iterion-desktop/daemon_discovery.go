@@ -3,12 +3,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -119,14 +121,29 @@ func findDaemonForProject(projectDir string) (string, bool) {
 	}
 	var info daemonInfo
 	if err := json.Unmarshal(raw, &info); err != nil {
-		_ = os.Remove(target)
+		removeDaemonFileIfUnchanged(target, raw)
 		return "", false
 	}
 	if !daemonAlive(info.PID, info.URL) {
-		_ = os.Remove(target)
+		removeDaemonFileIfUnchanged(target, raw)
 		return "", false
 	}
 	return info.URL, true
+}
+
+// removeDaemonFileIfUnchanged prunes a stale discovery file, but only if its
+// content is still exactly what the caller read and judged dead. A new daemon
+// may have overwritten the file with its own record between the read and the
+// removal; deleting that would hide a live daemon (which holds the project
+// lock) from the GUI until restart. The re-read narrows the window to the
+// gap between it and the Remove, which is orders of magnitude smaller than
+// the liveness probe the caller just ran.
+func removeDaemonFileIfUnchanged(path string, seen []byte) {
+	cur, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(cur, seen) {
+		return
+	}
+	_ = os.Remove(path)
 }
 
 // listLiveDaemons returns every daemon currently registered with a live
@@ -156,7 +173,7 @@ func listLiveDaemons() []daemonInfo {
 			continue
 		}
 		if !daemonAlive(info.PID, info.URL) {
-			_ = os.Remove(filepath.Join(dir, e.Name()))
+			removeDaemonFileIfUnchanged(filepath.Join(dir, e.Name()), raw)
 			continue
 		}
 		out = append(out, info)
@@ -285,13 +302,105 @@ func projectKeyForStorePath(storePath string) (string, bool) {
 // decode used to give spawnDaemonForProject something to launch when we
 // don't already have a live daemon for the project. The encoding is
 // lossy in principle (a literal "-" in the original path becomes "-",
-// indistinguishable from a separator), so the caller should treat the
-// returned path as a hint that needs validating before use.
+// indistinguishable from a separator), so the result is only a hint.
+//
+// On Windows a key like "-C--Users-me-proj" is resolved against the disk
+// (a dash may be a separator or part of a folder name); the hint is returned
+// only when exactly one existing directory matches, otherwise "" so the
+// caller stays on its current daemon instead of spawning one for a
+// nonexistent directory.
 func projectDirFromKey(key string) string {
+	if runtime.GOOS == "windows" {
+		return decodeWindowsProjectKey(key, dirExists)
+	}
+	return decodeUnixProjectKey(key)
+}
+
+func decodeUnixProjectKey(key string) string {
 	if !strings.HasPrefix(key, "-") {
 		return ""
 	}
 	return "/" + strings.ReplaceAll(strings.TrimPrefix(key, "-"), "-", "/")
+}
+
+// maxKeyProbes caps the filesystem probes one key decode may spend, so a
+// long key with many dashes cannot make the decoder explode.
+const maxKeyProbes = 4096
+
+// decodeWindowsProjectKey decodes "-<drive>--<a>-<b>" into a directory under
+// `<drive>:\` by walking the filesystem: every "-" is either a path
+// separator or a literal dash in a folder name, and only the disk can tell
+// which. It returns the single existing directory the key can denote, or ""
+// when there is none, more than one, or the key has another shape (UNC path,
+// no drive letter).
+func decodeWindowsProjectKey(key string, isDir func(string) bool) string {
+	if len(key) < 4 || key[0] != '-' || key[2] != '-' || key[3] != '-' {
+		return ""
+	}
+	drive := key[1]
+	if !(drive >= 'A' && drive <= 'Z' || drive >= 'a' && drive <= 'z') {
+		return ""
+	}
+	rest := key[4:]
+	if rest == "" {
+		return ""
+	}
+	return resolveKeyPath(string(drive)+`:\`, rest, isDir)
+}
+
+// resolveKeyPath resolves the dash-encoded relative path rest under root,
+// trying at each step every way of grouping the next dash-separated tokens
+// into one folder name that exists. Returns the path only if exactly one
+// complete interpretation exists on disk.
+func resolveKeyPath(root, rest string, isDir func(string) bool) string {
+	budget := maxKeyProbes
+	exhausted := false
+	var found []string
+	var walk func(cur string, tokens []string)
+	walk = func(cur string, tokens []string) {
+		if len(found) > 1 {
+			return
+		}
+		if len(tokens) == 0 {
+			found = append(found, cur)
+			return
+		}
+		name := ""
+		for j := 1; j <= len(tokens); j++ {
+			if j == 1 {
+				name = tokens[0]
+			} else {
+				name += "-" + tokens[j-1]
+			}
+			if budget <= 0 {
+				// Not every interpretation was examined, so a lone hit
+				// cannot be called unique.
+				exhausted = true
+				return
+			}
+			budget--
+			if name == "" || name == "." || name == ".." {
+				continue
+			}
+			cand := filepath.Join(cur, name)
+			if isDir(cand) {
+				walk(cand, tokens[j:])
+				if len(found) > 1 {
+					return
+				}
+			}
+		}
+	}
+	walk(root, strings.Split(rest, "-"))
+	if exhausted || len(found) != 1 {
+		return ""
+	}
+	return found[0]
+}
+
+func dirExists(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && fi.IsDir()
 }
 
 // findDaemonForStorePath returns the live daemon URL serving the given

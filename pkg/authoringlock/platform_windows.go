@@ -106,6 +106,12 @@ func OpenFileAt(parent *os.File, name string, flags int, mode os.FileMode) (*os.
 	if flags&os.O_RDWR != 0 {
 		access = windows.FILE_GENERIC_READ | windows.FILE_GENERIC_WRITE
 	}
+	// FILE_GENERIC_WRITE does not carry FILE_READ_ATTRIBUTES, which
+	// GetFileInformationByHandle (os.File.Stat) needs: a write-only handle
+	// then answers "Access is denied" to the Stat the editor save makes on
+	// the file it just opened — seen on a OneDrive folder, whose cloud filter
+	// enforces the missing right. Every handle asks for it explicitly.
+	access |= windows.FILE_READ_ATTRIBUTES
 	disposition := uint32(windows.FILE_OPEN)
 	if flags&os.O_CREATE != 0 {
 		disposition = windows.FILE_OPEN_IF

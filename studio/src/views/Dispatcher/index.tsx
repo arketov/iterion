@@ -343,6 +343,7 @@ export default function DispatcherView() {
           />
           <RetriesTable
             rows={retries}
+            logPath={snap.log_path}
             canPollDispatches={actions.canPollDispatches}
             pollTitle={actions.pollTitle}
             onFocusIssue={(id) =>
@@ -429,8 +430,8 @@ function DispatchSkipsTable({
       <header className="px-4 py-2 border-b border-danger/30 text-sm font-semibold text-danger-fg flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span>⚠ Won&apos;t dispatch ({rows.length})</span>
         <span className="text-micro font-normal text-danger-fg">
-          eligible issues the dispatcher refuses to claim — fix the{" "}
-          <code>bot</code> in the issue editor or add it to{" "}
+          eligible issues the dispatcher refuses to claim — pick an assignee or
+          fix the <code>bot</code> in the issue editor, or add it to{" "}
           <code>assignee_workflows</code>
         </span>
       </header>
@@ -455,7 +456,13 @@ function DispatchSkipsTable({
                 {s.identifier || s.issue_id}
               </Td>
               <Td className="font-mono">
-                {s.bot ? s.bot : <span className="text-fg-muted">—</span>}
+                {s.kind === "no_assignee" ? (
+                  <span className="text-warning-fg">no assignee</span>
+                ) : s.bot ? (
+                  s.bot
+                ) : (
+                  <span className="text-fg-muted">—</span>
+                )}
               </Td>
               <Td className="text-danger-fg">{s.reason}</Td>
             </Tr>

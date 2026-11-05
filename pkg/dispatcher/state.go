@@ -152,6 +152,14 @@ type runningEntry struct {
 	// indistinguishable from a hung watchdog. Actor-owned; no mutex.
 	parkedNoticed bool
 
+	// neverStarted is set by the worker when a lifecycle hook (after_create /
+	// before_run) failed before the run was handed to the runner. A run id is
+	// minted at claim time, but the engine creates the run (run.json) only
+	// inside Dispatch, so such an id names nothing; recording it on the card
+	// produced history rows that open to a 404. Atomic: the worker writes,
+	// the actor reads.
+	neverStarted atomic.Bool
+
 	// setupPending is true between claim-time allocation (dispatch, on the
 	// actor) and the off-actor setup worker reporting the in-progress
 	// transition + workspace back via cmdDispatchSetupDone. It marks the
@@ -228,7 +236,13 @@ type retryEntry struct {
 	Attempt    int
 	DueAt      time.Time
 	LastError  string
-	Timer      *time.Timer
+	// LastHook / LastHookExit name the lifecycle hook whose failure produced
+	// LastError (empty when the failure was not a hook's) and its exit code
+	// (-1: no exit status — could not start, or timed out).
+	LastHook       string
+	LastHookExit   int
+	LastHookStderr string
+	Timer          *time.Timer
 	// Fired is true once the backoff timer has expired and the entry
 	// is ready for re-dispatch. We keep the entry around (with the
 	// running Attempt count) instead of deleting it on timer fire so
@@ -275,6 +289,10 @@ type Snapshot struct {
 	// stall the dispatcher.
 	LastTrackerError   string    `json:"last_tracker_error,omitempty"`
 	LastTrackerErrorAt time.Time `json:"last_tracker_error_at,omitempty"`
+	// LogPath is the file the host process writes its log to, when it
+	// told the dispatcher (ITERION_DAEMON_LOG): the only place with the
+	// full chronology of hook output. Empty when unknown.
+	LogPath string `json:"log_path,omitempty"`
 	// CostCap reports the per-(store, UTC-day) spend-cap status when a
 	// cap is configured; nil when disabled. The dashboard renders a
 	// banner + spend/limit when Exceeded.
@@ -287,6 +305,10 @@ type Snapshot struct {
 	DispatchSkips []DispatchSkipView `json:"dispatch_skips,omitempty"`
 }
 
+// DispatchSkipNoAssignee is DispatchSkipView.Kind for a ready card with no
+// assignee and no bot while Config.RequireAssignee is on.
+const DispatchSkipNoAssignee = "no_assignee"
+
 // DispatchSkipView is one entry of the "won't dispatch" surface: an
 // eligible issue the dispatcher refused to claim because its explicit
 // bot can't be resolved to a workflow file, or resolves but has no
@@ -298,6 +320,10 @@ type DispatchSkipView struct {
 	Identifier string `json:"identifier"`
 	Bot        string `json:"bot,omitempty"`
 	Reason     string `json:"reason"`
+	// Kind classifies the skip so the UI can give it its own state:
+	// "no_assignee" (ready card with no assignee/bot while require_assignee
+	// is on), or empty for the bot-misconfiguration family.
+	Kind string `json:"kind,omitempty"`
 }
 
 // CostCapView is the dashboard projection of the daily spend cap.
@@ -322,13 +348,27 @@ type RunningView struct {
 	Attempt       int       `json:"attempt,omitempty"`
 }
 
+// DaemonLogEnv names the env var through which the host process (the desktop
+// app's daemon spawner) tells the dispatcher where its log file is.
+const DaemonLogEnv = "ITERION_DAEMON_LOG"
+
 // RetryView is one row of the dashboard's "retries" table.
 type RetryView struct {
 	IssueID    string    `json:"issue_id"`
 	Identifier string    `json:"identifier"`
 	Attempt    int       `json:"attempt"`
 	DueAt      time.Time `json:"due_at"`
-	Error      string    `json:"error,omitempty"`
+	// Error is the FULL last-failure text (never truncated here; the
+	// studio decides how to fold it).
+	Error string `json:"error,omitempty"`
+	// Hook names the lifecycle hook (after_create, before_run, …) whose
+	// failure this is; empty when the failure was not a hook's.
+	Hook string `json:"hook,omitempty"`
+	// HookExitCode is that hook's exit code; absent when Hook is empty,
+	// -1 when the hook produced no exit status (could not start, timeout).
+	HookExitCode *int `json:"hook_exit_code,omitempty"`
+	// HookStderr is the tail of the failed hook's stderr.
+	HookStderr string `json:"hook_stderr,omitempty"`
 }
 
 // SlotsView reports concurrency usage at the moment of capture.

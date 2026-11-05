@@ -401,6 +401,13 @@ iterion plugin install <path|git-url>    # install a third-party plugin under ~/
 iterion plugin uninstall <name>          # remove an installed plugin
 ```
 
+A plugin directory whose `plugin.yaml` is missing or unparseable is skipped at
+load, and `iterion validate` says so (`mcp: N installed plugin(s) were skipped
+…`) on every run. Restore the manifest, or remove the broken plugin with
+`iterion plugin uninstall <name>` — uninstall works on a plugin that never
+loaded. `plugin disable` does not silence the message: the manifest is read
+before the enabled state is consulted.
+
 ## Marketplace
 
 Marketplace entries carry a `kind` (`bot` | `plugin`, defaulting to `bot` for

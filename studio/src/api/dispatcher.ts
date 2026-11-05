@@ -124,6 +124,8 @@ export interface HookSpec {
   script?: string;
   path?: string;
   timeout_ms?: number;
+  /** sh, bash, pwsh, powershell or a path; empty = the host default. */
+  shell?: string;
 }
 
 export interface HooksConfig {
@@ -192,6 +194,8 @@ export interface DispatcherSnapshot {
   // Empty / absent once the next poll succeeds.
   last_tracker_error?: string;
   last_tracker_error_at?: string;
+  // File the host process logs to (full hook output / chronology), when known.
+  log_path?: string;
   // Per-(store, UTC-day) spend-cap status when a cap is configured;
   // absent when disabled. The dashboard renders the CostCapBanner off
   // the live /api/v1/limits/cost endpoint; this mirrors the gate state
@@ -215,6 +219,9 @@ export interface DispatchSkipView {
   identifier: string;
   bot?: string;
   reason: string;
+  // "no_assignee": a ready card with no assignee/bot (require_assignee on).
+  // Absent for the bot-misconfiguration family.
+  kind?: string;
 }
 
 export interface RunningView {
@@ -234,7 +241,14 @@ export interface RetryView {
   identifier: string;
   attempt: number;
   due_at: string;
+  // Full last-failure text (not truncated server-side).
   error?: string;
+  // Lifecycle hook (after_create, before_run, …) whose failure this is.
+  hook?: string;
+  // That hook's exit code; -1 = no exit status (could not start / timeout).
+  hook_exit_code?: number;
+  // Tail of the failed hook's stderr.
+  hook_stderr?: string;
 }
 
 export interface SlotsView {

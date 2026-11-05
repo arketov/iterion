@@ -10,18 +10,24 @@ import (
 	"strings"
 	"time"
 
+	"github.com/arketov/iterion/pkg/internal/hostshell"
 	"github.com/arketov/iterion/pkg/internal/proc"
 	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // Hook is a single lifecycle hook. Exactly one of Script or Path must be
-// set: Script is an inline shell snippet (passed to `sh -lc`); Path is
-// a path to a script (the path itself is the command — the file's
-// shebang controls the interpreter).
+// set: Script is an inline shell snippet, run by the host shell for this OS
+// (`sh -lc` on Linux/macOS, PowerShell on Windows — see Shell); Path is a
+// path to a script (the path itself is the command — on Unix the file's
+// shebang controls the interpreter; on Windows it is run by PowerShell).
 type Hook struct {
 	Script    string `yaml:"script,omitempty" json:"script,omitempty"`
 	Path      string `yaml:"path,omitempty" json:"path,omitempty"`
 	TimeoutMS int    `yaml:"timeout_ms,omitempty" json:"timeout_ms,omitempty"`
+	// Shell picks the shell explicitly: sh, bash, pwsh, powershell or a path.
+	// Empty means the host default (hostshell: sh on Linux/macOS, pwsh or
+	// powershell.exe on Windows), overridable by ITERION_SHELL.
+	Shell string `yaml:"shell,omitempty" json:"shell,omitempty"`
 }
 
 // Hooks groups the four workspace-lifecycle hooks. Any field can be nil.
@@ -85,7 +91,10 @@ func (h *Hook) Run(ctx context.Context, logger *iterlog.Logger, name, workspace 
 		return fmt.Errorf("hook %s: empty command", name)
 	}
 
-	cmd := exec.CommandContext(cctx, "sh", "-lc", command)
+	cmd, err := hostshell.Command(cctx, hostshell.Request{Name: h.Shell}, command, true)
+	if err != nil {
+		return fmt.Errorf("hook %s: %w", name, err)
+	}
 	// Cancellation takes the whole group: a hook's backgrounded grandchild
 	// would otherwise outlive the timeout, keep writing the workspace the
 	// next lifecycle step is about to act on, and hold the inherited
@@ -109,7 +118,7 @@ func (h *Hook) Run(ctx context.Context, logger *iterlog.Logger, name, workspace 
 
 	logger.Info("dispatcher: hook %s starting (cwd=%s timeout=%s)", name, workspace, timeout)
 	start := time.Now()
-	err := cmd.Run()
+	err = cmd.Run()
 	dur := time.Since(start)
 
 	if out := strings.TrimSpace(stdout.String()); out != "" {
@@ -134,10 +143,52 @@ func (h *Hook) Run(ctx context.Context, logger *iterlog.Logger, name, workspace 
 	}
 	if err != nil {
 		if errors.Is(cctx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("hook %s: timeout after %s", name, timeout)
+			return &HookError{Hook: name, ExitCode: -1, TimedOut: true, Timeout: timeout, Stderr: tailOutput(stderr.String()), Err: err}
 		}
-		return fmt.Errorf("hook %s: %w (after %s)", name, err, dur)
+		he := &HookError{Hook: name, ExitCode: -1, Duration: dur, Stderr: tailOutput(stderr.String()), Err: err}
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			he.ExitCode = exitErr.ExitCode()
+		}
+		return he
 	}
 	logger.Info("dispatcher: hook %s ok (%s)", name, dur)
 	return nil
+}
+
+// HookError is the structured failure of a lifecycle hook. It keeps the
+// historical message text ("hook <name>: <cause> (after <dur>)") so existing
+// log greps keep working, and additionally carries WHICH hook failed and with
+// WHAT exit code, so the dispatcher snapshot and the board can show them
+// without parsing the string. ExitCode is -1 when the hook never produced an
+// exit status (it could not start — e.g. the shell is missing — or it timed out).
+type HookError struct {
+	Hook     string
+	ExitCode int
+	TimedOut bool
+	Timeout  time.Duration
+	Duration time.Duration
+	// Stderr is the tail of the hook's stderr, the line that usually names the cause.
+	Stderr string
+	Err    error
+}
+
+func (e *HookError) Error() string {
+	if e.TimedOut {
+		return fmt.Sprintf("hook %s: timeout after %s", e.Hook, e.Timeout)
+	}
+	return fmt.Sprintf("hook %s: %v (after %s)", e.Hook, e.Err, e.Duration)
+}
+
+func (e *HookError) Unwrap() error { return e.Err }
+
+// hookErrorTailBytes bounds the stderr tail kept on a HookError.
+const hookErrorTailBytes = 2048
+
+func tailOutput(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) > hookErrorTailBytes {
+		s = "…" + s[len(s)-hookErrorTailBytes:]
+	}
+	return s
 }

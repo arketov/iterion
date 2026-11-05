@@ -54,7 +54,17 @@ Built-in assignees ([source bots](../bots/)):
 | 🛡️ Seki | `sec-audit-source` | `bots/sec-audit-source/` | Source-code security audit (gitleaks/trivy/semgrep/gosec) |
 | 📦 Depsy | `sec-audit-deps` | `bots/sec-audit-deps/` | Supply-chain dep audit + LLM review |
 | ⬆️ Renovacy | `secured-renovacy` | `bots/secured-renovacy/` | Security-aware dependency upgrades with cumulative review |
-| — | _(unassigned)_ | `default/` (embedded) | Generic triage agent: classifies the issue and recommends a next step |
+| — | _(unassigned)_ | `default/` (embedded) | Generic triage agent: classifies the issue and recommends a next step. **Not started automatically** — see below |
+
+The zero-config preset sets `require_assignee: true`: a card that is
+ready but names neither an assignee nor a bot is **not run** (the paid
+`default` bot is never chosen for you). It stays where it is and shows
+as **no assignee** — a badge on the board card and a row in the
+Dispatcher page's *Won't dispatch* table (`dispatch_skips[].kind =
+"no_assignee"`). Assign a bot in the issue editor and the next poll
+picks it up. Hand-written YAML keeps the old meaning unless you add
+`require_assignee: true` (the `workflow:` fallback still runs
+unassigned cards otherwise).
 
 Each assignee's input contract (`{{issue.title}} + {{issue.body}}` →
 the bot's main prompt var) is wired in
@@ -377,6 +387,16 @@ card stays visible after its first line.
 | External state change         | Same                                                   |
 | Hook failure (`before_run`)   | Same                                                   |
 
+The Dispatcher page's *Retry queue* shows the **full** last error
+(*Show full error* unfolds it; the board card shows up to three lines),
+which lifecycle hook failed and with what exit code (`-1`: the hook
+produced no exit status — it could not start, or timed out), the tail of
+the hook's stderr, and — when the host process reports it through
+`ITERION_DAEMON_LOG`, as the desktop app's daemon does — the path of the
+log file holding the full chronology. The snapshot fields are
+`retries[].error`, `hook`, `hook_exit_code`, `hook_stderr` and
+`log_path`.
+
 Retries are timer-driven (`time.AfterFunc` per issue, no min-heap).
 The timer callback posts `cmdRetryDue{issueID}` on the actor channel
 and the next tick reconsiders the candidate (which may by then have
@@ -498,8 +518,17 @@ hooks:
                                       # here if you want to keep it).
 ```
 
-Hooks execute via `sh -lc` with `cwd=<workspace path>`. The dispatcher
-exports six environment variables, on top of its own, before
+Hooks execute with `cwd=<workspace path>` in the host's command shell:
+`sh -lc` on Linux and macOS, **PowerShell on Windows** (`pwsh` when it is on
+PATH, otherwise the built-in `powershell.exe`; no Git for Windows needed).
+A hook may name its shell with `shell:` (`sh`, `bash`, `pwsh`, `powershell`
+or a path), and `ITERION_SHELL` overrides the default for every hook;
+if no shell is found the hook fails naming what was looked for. A hook
+script is written in the dialect of the shell that runs it — see
+[shell portability](workflow_authoring_pitfalls.md#shell-portability-for-tool-nodes).
+The default `iterion dispatch` workspace-seeding `after_create` hook comes in
+a `sh` and a PowerShell variant and picks the one that matches the shell.
+The dispatcher exports six environment variables, on top of its own, before
 invoking the hook:
 
 | Var                          | Value                                  |
@@ -512,7 +541,9 @@ invoking the hook:
 | `ITERION_STORE_DIR`          | the run store directory, when the dispatch carries one |
 
 A failed `after_create` or `before_run` aborts the dispatch and feeds
-the retry queue; failed `after_run` / `before_remove` are logged at
+the retry queue. The run never started, so its id is **not** recorded in
+the card's run history (it would open to a 404 and offer a diff of
+nothing); the failure is visible in the retry queue instead. Failed `after_run` / `before_remove` are logged at
 WARN.
 Legacy/custom `before_remove` hooks that already run
 `git worktree remove --force` remain compatible: the dispatcher's exact
@@ -649,14 +680,13 @@ for the stock assignee workflow selection.
 
 **How to set `bot` / `bot_args`**: `iterion issue create` exposes
 `--bot <id>` and repeatable `--bot-arg key=value` (the latter lands in
-`BotArgs`, merged over the rendered dispatch vars) — see
+`BotArgs`, merged over the rendered dispatch vars) and `iterion issue update`
+takes the same flags for an existing card — see
 [native-tracker.md](native-tracker.md). The same fields are settable over
 REST (`POST /api/v1/native/issues` or `PATCH /api/v1/native/issues/{id}`
 with `{ "bot": "feature_dev", "bot_args": { "feature_prompt": "…" } }`), via
-the board MCP `set_bot`, or in the studio Launch modal. Only `iterion issue
-update` still lacks dedicated flags — change routing on an existing card via
-REST `PATCH`, `set_bot`, or the studio. Operators can also route purely
-through `assignee_workflows:` + `assignee_dispatch:`.
+the board MCP `set_bot`, or in the studio Launch modal. Operators can also
+route purely through `assignee_workflows:` + `assignee_dispatch:`.
 
 ### Per-assignee dispatch overrides
 
@@ -752,7 +782,9 @@ that can't answer "does this issue have a linked PR?" (native/forgejo
 today) degrades to routing every unassigned issue to the implement bot —
 it never blocks an issue and never dedups against a PR-webhook it can't
 observe. An explicit per-ticket `Bot`/assignee always wins; the router
-only touches fully-unassigned issues. Implemented in
+only touches fully-unassigned issues. With the router off and
+`require_assignee: true`, an unassigned card is not dispatched at all
+(see [Quick start](#quick-start-zero-config)). Implemented in
 [pkg/dispatcher/loop.go](../pkg/dispatcher/loop.go) (`routeUnassignedIssue`).
 
 ## Hot-reload
