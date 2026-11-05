@@ -57,6 +57,16 @@ type Config struct {
 	// default workflow for unassigned issues. See docs/dispatcher.md.
 	TicketRouter TicketRouterConfig `yaml:"ticket_router,omitempty" json:"ticket_router,omitempty"`
 
+	// RequireAssignee, when true, makes the dispatcher refuse a card that
+	// names neither an assignee nor a bot (and that no ticket_router claims)
+	// instead of running it on the config's default workflow — a paid run the
+	// operator never chose. The card stays put and is reported in the
+	// snapshot's dispatch_skips with kind "no_assignee", which the board and
+	// the Dispatcher page show as "no assignee". Off by default so hand-written
+	// single-workflow configs keep their meaning; the zero-config
+	// `iterion dispatch` / desktop preset turns it on. See docs/dispatcher.md.
+	RequireAssignee bool `yaml:"require_assignee,omitempty" json:"require_assignee,omitempty"`
+
 	SourcePath string `yaml:"-" json:"-"`
 }
 
