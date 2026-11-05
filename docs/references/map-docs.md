@@ -7,6 +7,7 @@ One row per page under `docs/`, ADRs included. An ADR's **status** is the column
 
 | Page | Title | Opens with | Status |
 |---|---|---|---|
+| [`docs/BARS_INSTRUCTION.md`](../BARS_INSTRUCTION.md) | BARS_INSTRUCTION.md | This file is placed in the documentation root by bars, a local search tool over Markdown. | — |
 | [`docs/README.md`](../README.md) | Documentation | This index describes the current repository state. | — |
 | [`docs/adr/001-round-robin-router-mode.md`](../adr/001-round-robin-router-mode.md) | ADR-001: Adding the `round_robin` mode to Router | The Iterion v1 DSL orchestrates multi-agent workflows with a small set of | Accepted |
 | [`docs/adr/002-desktop-assetserver-proxy.md`](../adr/002-desktop-assetserver-proxy.md) | ADR-002: Desktop studio hosted via Wails AssetServer handler | The desktop binary (`iterion-desktop`) is a thin native shell around the | Accepted |
