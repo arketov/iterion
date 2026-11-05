@@ -76,6 +76,19 @@ The same tuple is on a cloud schedule ([scheduling](scheduling.md)) and on a
 trigger subscription ([cloud REST API](cloud-rest-api.md#triggers-event-driven-runs)):
 one spine writes it, one studio component renders it.
 
+**A history entry is a run that exists.** The dispatcher stamps a run into
+`runs` / `last_run_id` only once its lifecycle hooks (`after_create`,
+`before_run`) have passed and the run is handed to the engine; a run whose
+hook failed first never started and is never recorded (the failure shows in
+the dispatcher's Retry queue instead). Cards written by older builds may carry
+such phantoms; at boot the dispatcher manager removes the entries that have no
+run directory under `<store>/runs` (skipping claimed cards and entries younger
+than 10 minutes; the pointer is cleared, history kept). Anything
+still unresolvable shows in the card's run history as *did not start or was
+deleted* with no console link or diff, and the run page says the same with a
+*Back to card* link. The REST API answers a missing run or issue in the JSON
+`{"error": …}` envelope and never quotes the store's filesystem path.
+
 ## Board
 
 `board.json` defines what columns exist on the kanban and what custom

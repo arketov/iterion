@@ -76,6 +76,10 @@ export function useRunSnapshot(runId: string | null): RunSnapshotHandle {
     if (!runId) return;
     loadEventHistoryIfMissing(runId).catch((err) => {
       console.warn("[run] event history hydration failed:", err);
+      // A run that does not exist is explained by the "Run not found" panel
+      // the snapshot fetch raises; a second persistent toast quoting the raw
+      // server text ("API error 404: …") only adds noise.
+      if (is404(err)) return;
       const msg = errorMessage(err);
       useUIStore.getState().addToast(
         `Couldn't load event history: ${msg}`,

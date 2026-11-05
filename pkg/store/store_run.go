@@ -293,7 +293,10 @@ func (s *FilesystemRunStore) loadRunRaw(id string) (*Run, error) {
 			// os.ErrNotExist the ReadFile error already carries) so callers
 			// can distinguish genuine absence from a transient read failure
 			// via errors.Is(err, ErrRunNotFound) — see ErrRunNotFound.
-			return nil, fmt.Errorf("store: load run %s: %w: %w", id, ErrRunNotFound, err)
+			// os.ErrNotExist (not the *PathError) is wrapped: the PathError's
+			// message carries the absolute path of the user's store, and this
+			// error text is relayed verbatim in HTTP 4xx bodies.
+			return nil, fmt.Errorf("store: load run %s: %w: %w", id, ErrRunNotFound, os.ErrNotExist)
 		}
 		return nil, fmt.Errorf("store: load run %s: %w", id, err)
 	}
