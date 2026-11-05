@@ -202,3 +202,15 @@ func TestWorkspaceSeedingRunsNoRepositoryHook(t *testing.T) {
 		t.Fatalf("the workspace seeding runs the host repository's hooks:\n%s", script)
 	}
 }
+
+func TestWorkspaceSeedPowerShellQuotesProjectDir(t *testing.T) {
+	got := workspaceSeedPowerShell(`C:\Users\O'Brien\proj`)
+	if !strings.Contains(got, `$projectDir = 'C:\Users\O''Brien\proj'`) {
+		t.Fatalf("project dir not single-quoted and escaped:\n%s", got)
+	}
+	for _, want := range []string{"worktree add --detach", "core.hooksPath=/dev/null", "ITERION_WORKSPACE", "Copy-Item"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("seed script lacks %q", want)
+		}
+	}
+}

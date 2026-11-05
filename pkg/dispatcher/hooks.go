@@ -6,22 +6,27 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/arketov/iterion/pkg/internal/hostshell"
 	"github.com/arketov/iterion/pkg/internal/proc"
 	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // Hook is a single lifecycle hook. Exactly one of Script or Path must be
-// set: Script is an inline shell snippet (passed to `sh -lc`); Path is
-// a path to a script (the path itself is the command — the file's
-// shebang controls the interpreter).
+// set: Script is an inline shell snippet, run by the host shell for this OS
+// (`sh -lc` on Linux/macOS, PowerShell on Windows — see Shell); Path is a
+// path to a script (the path itself is the command — on Unix the file's
+// shebang controls the interpreter; on Windows it is run by PowerShell).
 type Hook struct {
 	Script    string `yaml:"script,omitempty" json:"script,omitempty"`
 	Path      string `yaml:"path,omitempty" json:"path,omitempty"`
 	TimeoutMS int    `yaml:"timeout_ms,omitempty" json:"timeout_ms,omitempty"`
+	// Shell picks the shell explicitly: sh, bash, pwsh, powershell or a path.
+	// Empty means the host default (hostshell: sh on Linux/macOS, pwsh or
+	// powershell.exe on Windows), overridable by ITERION_SHELL.
+	Shell string `yaml:"shell,omitempty" json:"shell,omitempty"`
 }
 
 // Hooks groups the four workspace-lifecycle hooks. Any field can be nil.
@@ -85,7 +90,10 @@ func (h *Hook) Run(ctx context.Context, logger *iterlog.Logger, name, workspace 
 		return fmt.Errorf("hook %s: empty command", name)
 	}
 
-	cmd := exec.CommandContext(cctx, "sh", "-lc", command)
+	cmd, err := hostshell.Command(cctx, hostshell.Request{Name: h.Shell}, command, true)
+	if err != nil {
+		return fmt.Errorf("hook %s: %w", name, err)
+	}
 	// Cancellation takes the whole group: a hook's backgrounded grandchild
 	// would otherwise outlive the timeout, keep writing the workspace the
 	// next lifecycle step is about to act on, and hold the inherited
@@ -109,7 +117,7 @@ func (h *Hook) Run(ctx context.Context, logger *iterlog.Logger, name, workspace 
 
 	logger.Info("dispatcher: hook %s starting (cwd=%s timeout=%s)", name, workspace, timeout)
 	start := time.Now()
-	err := cmd.Run()
+	err = cmd.Run()
 	dur := time.Since(start)
 
 	if out := strings.TrimSpace(stdout.String()); out != "" {

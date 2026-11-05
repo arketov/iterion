@@ -12,6 +12,7 @@ import (
 
 	"github.com/arketov/iterion/pkg/botregistry"
 	"github.com/arketov/iterion/pkg/dispatcher"
+	"github.com/arketov/iterion/pkg/internal/hostshell"
 )
 
 // defaultBotsFS is the embedded catalogue of bots exposed as assignees
@@ -150,6 +151,52 @@ fi
 `, projectDir)
 }
 
+// workspaceSeedPowerShell is workspaceSeedScript for a PowerShell host (the
+// Windows default): the same decisions — skip a non-empty workspace, a
+// detached `git worktree add` when the project is a repository, a recursive
+// copy otherwise — in PowerShell, with the same hooks-off worktree add.
+func workspaceSeedPowerShell(projectDir string) string {
+	q := "'" + strings.ReplaceAll(projectDir, "'", "''") + "'"
+	return `$projectDir = ` + q + `
+$ws = $env:ITERION_WORKSPACE
+# A workspace that already has content (a previous failed attempt) is not
+# re-seeded: the operator cleans it up rather than being silently overwritten.
+if ((Test-Path -LiteralPath $ws) -and (Get-ChildItem -LiteralPath $ws -Force | Select-Object -First 1)) {
+  Write-Output "workspace $ws non-empty - skipping seed"
+  exit 0
+}
+git -C $projectDir rev-parse --git-dir *> $null
+if ($LASTEXITCODE -eq 0) {
+  # Detached HEAD, the host repository's hooks and fsmonitor off: see
+  # workspaceSeedScript.
+  git -C $projectDir -c core.hooksPath=/dev/null -c core.fsmonitor=false worktree add --detach $ws HEAD
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  Write-Output "seeded git worktree from ${projectDir}@HEAD"
+} else {
+  if (-not (Test-Path -LiteralPath $ws)) { New-Item -ItemType Directory -Path $ws | Out-Null }
+  Get-ChildItem -LiteralPath $projectDir -Force | Copy-Item -Destination $ws -Recurse -Force
+  Write-Output "seeded copy from $projectDir"
+}
+`
+}
+
+// seedScriptForHost picks the seed script in the dialect of the shell the
+// after_create hook will run under (hostshell: PowerShell on Windows, sh
+// elsewhere, or what ITERION_SHELL names).
+func seedScriptForHost(projectDir string) string {
+	sh, err := hostshell.Resolve(hostshell.Request{})
+	powershell := sh.Kind == hostshell.KindPowerShell
+	if err != nil {
+		// No shell found: the hook reports it when it runs; the script is the
+		// one the platform default would have used.
+		powershell = hostshell.IsWindowsHost()
+	}
+	if powershell {
+		return workspaceSeedPowerShell(projectDir)
+	}
+	return workspaceSeedScript(projectDir)
+}
+
 // BuildDefaultConfig returns the in-memory dispatcher configuration
 // used by `iterion dispatch` when invoked without a YAML argument:
 // native tracker, HTTP on [defaultDispatchPort], polling every 30 s,
@@ -202,7 +249,7 @@ func BuildDefaultConfig(storeDir, projectDir string) (*dispatcher.Config, error)
 		// so the bot's workspace_dir input lands on a real
 		// checkout matching the host state at dispatch time.
 		hooks.AfterCreate = &dispatcher.Hook{
-			Script:    workspaceSeedScript(projectDir),
+			Script:    seedScriptForHost(projectDir),
 			TimeoutMS: 120_000,
 		}
 		// No destructive before_remove default: after removing an owned,

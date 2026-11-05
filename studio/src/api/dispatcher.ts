@@ -124,6 +124,8 @@ export interface HookSpec {
   script?: string;
   path?: string;
   timeout_ms?: number;
+  /** sh, bash, pwsh, powershell or a path; empty = the host default. */
+  shell?: string;
 }
 
 export interface HooksConfig {

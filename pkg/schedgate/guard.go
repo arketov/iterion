@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/arketov/iterion/pkg/internal/hostshell"
 	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
@@ -97,7 +98,10 @@ func RunGuard(parentCtx context.Context, spec GuardSpec) GuardResult {
 		return GuardResult{Kind: GuardError, ExitCode: -1, Err: fmt.Errorf("schedgate: empty guard command")}
 	}
 
-	cmd := exec.CommandContext(cctx, "sh", "-lc", spec.Command)
+	cmd, shErr := hostshell.Command(cctx, hostshell.Request{}, spec.Command, true)
+	if shErr != nil {
+		return GuardResult{Kind: GuardError, ExitCode: -1, Err: shErr}
+	}
 	// The timeout must end the guard's work, not just iterion's wait: a
 	// guard that backgrounds a probe would otherwise keep running against
 	// the repo after the tick moved on. WaitDelay stays as the final

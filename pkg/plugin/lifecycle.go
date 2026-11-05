@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"strings"
 
+	"github.com/arketov/iterion/pkg/internal/hostshell"
 	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
@@ -48,7 +48,10 @@ func RunLifecycle(ctx context.Context, reg *Registry, name, phase, workspace str
 	if cdErr := os.MkdirAll(reg.CacheDir(name), 0o755); cdErr != nil {
 		return cdErr
 	}
-	c := exec.CommandContext(ctx, "sh", "-c", expanded)
+	c, shErr := hostshell.Command(ctx, hostshell.Request{}, expanded, false)
+	if shErr != nil {
+		return shErr
+	}
 	// An index/refresh command walks the workspace and often forks helpers.
 	// Cancelling the request has to end that walk, not just stop reading it.
 	proc.TerminateGroupOnCancel(c)
