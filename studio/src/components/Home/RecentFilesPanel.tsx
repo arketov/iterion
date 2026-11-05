@@ -17,7 +17,7 @@ import { useRecentsStore } from "@/store/recents";
 import { useTabsStore } from "@/store/tabs";
 import { useUIStore } from "@/store/ui";
 import { useBotsStore } from "@/store/bots";
-import { BOT_SOURCE_HINT, BOT_SOURCE_LABEL, botSource } from "@/lib/botOrigin";
+import { countBots, BOT_SOURCE_HINT, BOT_SOURCE_LABEL, botSource } from "@/lib/botOrigin";
 import { useConfirm } from "@/hooks/useConfirm";
 import { errorMessage, toastError } from "@/lib/errorHints";
 import { basename } from "@/lib/format";
@@ -71,7 +71,11 @@ export default function RecentFilesPanel({ variant = "card" }: Props) {
   // list the Bots page shows (GET /api/v1/bots?include=all). The panel's
   // main list is still the example entries it opens by name; the files are
   // an extra group so a lone test.bot is no longer invisible here.
-  const projectFiles = useBotsStore((s) => s.extraBots).filter((b) => b.origin === "file");
+  const extraBots = useBotsStore((s) => s.extraBots);
+  const projectFiles = extraBots.filter((b) => b.origin === "file");
+  const catalogBots = useBotsStore((s) => s.bots);
+  // The same total the Bots page and the Manage dialog show (countBots).
+  const botTotal = countBots(catalogBots, extraBots).total;
   const botsLoaded = useBotsStore((s) => s.bots !== null);
   const fetchBots = useBotsStore((s) => s.fetch);
   useEffect(() => {
@@ -183,7 +187,7 @@ export default function RecentFilesPanel({ variant = "card" }: Props) {
               ) : (
                 <ChevronRightIcon className="w-3 h-3" />
               )}
-              <span>Bots ({examples.length})</span>
+              <span title="Project bundles + built-in recipes — the same count as the Bots page">Bots ({botTotal > 0 ? botTotal : examples.length})</span>
             </button>
             <Button
               variant="ghost"

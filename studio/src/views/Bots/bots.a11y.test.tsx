@@ -193,4 +193,15 @@ describe("a11y / Bots gallery drag-to-assistant (#2770)", () => {
       off();
     }
   });
+
+  it("offers no 'I want to…' shortcuts and no filter message on an empty catalog", async () => {
+    // The shortcuts apply a category filter; on a catalog with no bots that
+    // filter can only answer "No bots match these filters", which is wrong
+    // when there are no bots at all.
+    useBotsStore.setState({ bots: [] });
+    mountGallery();
+    await screen.findByText("No bots discovered in this workspace");
+    expect(screen.queryByRole("group", { name: "I want to…" })).toBeNull();
+    expect(screen.queryByText(/No bots match these filters/)).toBeNull();
+  });
 });

@@ -41,6 +41,7 @@ import {
 import { useBotsStore } from "@/store/bots";
 import {
   BOT_ENABLED_HELP,
+  countBots,
   BOT_SOURCE_HINT,
   BOT_SOURCE_LABEL,
   botSource,
@@ -265,6 +266,17 @@ export default function BotsView() {
   const groups = useMemo(() => groupBotsByCategory(rows), [rows]);
   const filtering =
     query.trim() !== "" || activeCategory !== null || activeTags.length > 0;
+  // The same numbers as the Home panel and the Manage dialog (countBots).
+  const counts = countBots(bots, extraBots);
+  const catalogEmpty = bots !== null && bots.length === 0;
+  const shownBuiltin =
+    activeCategory !== null || activeTags.length > 0
+      ? 0
+      : extraBots.filter(
+          (b) =>
+            b.origin === "builtin" &&
+            (!query.trim() || `${b.name} ${b.rel_path ?? ""}`.toLowerCase().includes(query.trim().toLowerCase())),
+        ).length;
 
   return (
     <div className="flex flex-col gap-3 p-4">
@@ -299,10 +311,12 @@ export default function BotsView() {
           className="max-w-xs"
         />
         {bots !== null && (
-          <span className="text-caption text-fg-subtle">
-            {rows.length}/{bots.length} bot{bots.length === 1 ? "" : "s"}
-            {extraBots.length > 0 &&
-              ` · +${extraBots.length} built-in / project file${extraBots.length === 1 ? "" : "s"}`}
+          <span
+            className="text-caption text-fg-subtle"
+            title="Bots = project bundles + built-in recipes. Single .bot files without a manifest are counted apart as project files."
+          >
+            {rows.length + shownBuiltin}/{counts.total} bot{counts.total === 1 ? "" : "s"}
+            {counts.files > 0 && ` · ${counts.files} project file${counts.files === 1 ? "" : "s"}`}
           </span>
         )}
       </div>
@@ -338,7 +352,7 @@ export default function BotsView() {
           door). Each applies a category/tag view rather than jumping to a
           named bot, so they work in any workspace, not just ours. Shown
           only on the unfiltered view — once filtering, they are noise. */}
-      {!filtering && (
+      {!filtering && !catalogEmpty && (
         <div
           className="flex flex-wrap items-center gap-2 text-caption text-fg-subtle"
           role="group"
@@ -389,7 +403,10 @@ export default function BotsView() {
         // an empty workspace, and it must offer the way out. (Query-only
         // zero-match keeps the search branch below — Clear filters would
         // be a no-op there, since the query is not in the URL.)
-        activeCategory !== null || activeTags.length > 0 ? (
+        // Only when the catalog has bots to filter: on an empty catalog the
+        // filter matched nothing because there is nothing, and "clear the
+        // filter" would be a way out that leads nowhere.
+        !catalogEmpty && (activeCategory !== null || activeTags.length > 0) ? (
           <EmptyState
             title="No bots match these filters"
             message="Clear a tag or the category filter to widen the view."
@@ -401,7 +418,13 @@ export default function BotsView() {
           />
         ) : (
           <EmptyState
-            title={query ? "No bots match your search" : "No bots discovered in this workspace"}
+            title={
+              query
+                ? "No bots match your search"
+                : extraBots.length > 0
+                  ? "No project bots yet"
+                  : "No bots discovered in this workspace"
+            }
             message={
               query
                 ? "Try a different name or description."

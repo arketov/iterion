@@ -394,8 +394,8 @@ function AddTaskDialogContent({
             <div className="text-xs italic text-fg-subtle">Loading bots…</div>
           ) : bots.length === 0 ? (
             <div className="text-xs italic text-fg-subtle">
-              No bots discovered. Configure <code>--bots-path</code> on the
-              studio.
+              No bots available. Create or import one on the Bots page, or put a
+              bundle in the project's <code>bots/</code> folder.
             </div>
           ) : (
             <BotPicker value={botName} bots={bots} onChange={setBotName} />

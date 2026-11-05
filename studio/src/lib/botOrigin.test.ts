@@ -6,6 +6,7 @@ import {
   botPickerValue,
   botSource,
   botWorkflowPath,
+  countBots,
   groupBotsBySource,
   isManifestless,
 } from "./botOrigin";
@@ -45,5 +46,17 @@ describe("botOrigin", () => {
     ]);
     expect(groups.map((g) => g.label)).toEqual(["Project", "Built-in", "Project files"]);
     expect(groupBotsBySource([bot("p")]).length).toBe(1);
+  });
+});
+
+describe("countBots", () => {
+  it("counts catalog + built-in as bots and keeps project files apart", () => {
+    const c = countBots([bot("a", "catalog"), bot("b", "catalog")], [
+      bot("feature-dev", "builtin"),
+      bot("t", "file"),
+      bot("u", "file"),
+    ]);
+    expect(c).toEqual({ total: 3, catalog: 2, builtin: 1, files: 2 });
+    expect(countBots(null, [])).toEqual({ total: 0, catalog: 0, builtin: 0, files: 0 });
   });
 });

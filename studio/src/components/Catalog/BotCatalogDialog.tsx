@@ -13,6 +13,7 @@ import { groupBotsByCategory } from "@/lib/botTaxonomy";
 import { botVisual } from "@/lib/personas";
 import { catalogToggleToast } from "@/lib/catalogStale";
 import { useBotsStore } from "@/store/bots";
+import { countBots } from "@/lib/botOrigin";
 import { useServerInfoStore } from "@/store/serverInfo";
 import { HiddenFileInput } from "@/components/shared/HiddenFileInput";
 import { useTabsStore } from "@/store/tabs";
@@ -41,6 +42,7 @@ export function BotCatalogDialog({
 }) {
   const [, setLocation] = useLocation();
   const bots = useBotsStore((s) => s.bots);
+  const extraBots = useBotsStore((s) => s.extraBots);
   const loading = useBotsStore((s) => s.loading);
   const fetchBots = useBotsStore((s) => s.fetch);
   const refetch = useBotsStore((s) => s.refetch);
@@ -276,6 +278,14 @@ export function BotCatalogDialog({
       <div className="max-h-[60vh] overflow-y-auto">
         {loading && rows.length === 0 && (
           <p className="px-1 py-4 text-sm text-fg-subtle">Loading bots…</p>
+        )}
+        {rows.length > 0 && (
+          <p className="px-1 pb-1 text-caption text-fg-subtle">
+            {(() => {
+              const c = countBots(bots, extraBots);
+              return `${c.catalog} of ${c.total} bots can be switched on or off here (built-in recipes and single .bot files have no manifest and are always on).`;
+            })()}
+          </p>
         )}
         {!loading && rows.length === 0 && (
           <p className="px-1 py-4 text-sm text-fg-subtle">No bots discovered in this workspace.</p>
