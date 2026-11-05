@@ -124,7 +124,7 @@ describe("useBotsStore manifest-less split", () => {
     vi.mocked(listBotsWithDiagnostics).mockReset();
   });
 
-  it("keeps built-in recipes and loose files out of `bots`", async () => {
+  it("keeps loose files out of `bots` and drops a built-in entry an older server still sends", async () => {
     (listBotsWithDiagnostics as Mock).mockResolvedValueOnce({
       bots: [
         { name: "alpha", path: "/x/alpha", origin: "catalog" },
@@ -135,6 +135,6 @@ describe("useBotsStore manifest-less split", () => {
     });
     await useBotsStore.getState().refetch();
     expect(useBotsStore.getState().bots?.map((b) => b.name)).toEqual(["alpha"]);
-    expect(useBotsStore.getState().extraBots.map((b) => b.name)).toEqual(["feature-dev", "test"]);
+    expect(useBotsStore.getState().extraBots.map((b) => b.name)).toEqual(["test"]);
   });
 });

@@ -3,16 +3,15 @@ package server
 import (
 	"net/http/httptest"
 	"testing"
-
-	"github.com/arketov/iterion/pkg/botregistry"
 )
 
 func TestParseBotInclude(t *testing.T) {
 	cases := map[string]botInclude{
 		"/x":                       {},
-		"/x?include=all":           {builtin: true, files: true},
-		"/x?include=builtin":       {builtin: true},
-		"/x?include=files,builtin": {builtin: true, files: true},
+		"/x?include=all":           {files: true},
+		"/x?include=files":         {files: true},
+		"/x?include=builtin":       {},
+		"/x?include=files,builtin": {files: true},
 		"/x?include=nope":          {},
 	}
 	for url, want := range cases {
@@ -30,22 +29,16 @@ func TestAppendManifestlessBotsDefaultUnchanged(t *testing.T) {
 	}
 }
 
-func TestAppendManifestlessBotsBuiltinsAndShadowing(t *testing.T) {
+// The embedded recipes are not a listed bot source: even a client that still
+// asks for them with ?include=all gets no origin=builtin entry.
+func TestNoBuiltinBotIsEverListed(t *testing.T) {
 	s := &Server{}
-	// A project bundle named like an embedded recipe wins.
-	in := []botEntryView{{EntryWithSchema: botregistry.EntryWithSchema{Entry: botregistry.Entry{Name: "feature-dev"}}, Origin: "catalog"}}
-	out := s.appendManifestlessBots(in, botInclude{builtin: true})
-	seen := map[string]int{}
-	for _, e := range out {
-		seen[e.Name]++
-		if e.Origin == botregistry.OriginBuiltin && (!e.Enabled || e.Editable) {
-			t.Errorf("builtin %s must be enabled and read-only", e.Name)
+	for _, q := range []string{"/x?include=all", "/x?include=builtin", "/x?include=files,builtin"} {
+		inc := parseBotInclude(httptest.NewRequest("GET", q, nil))
+		for _, e := range s.appendManifestlessBots(nil, inc) {
+			if e.Origin == "builtin" {
+				t.Errorf("%s listed builtin bot %q", q, e.Name)
+			}
 		}
-	}
-	if seen["feature-dev"] != 1 {
-		t.Fatalf("feature-dev listed %d times", seen["feature-dev"])
-	}
-	if seen["branch-improve-loop"] != 1 {
-		t.Fatalf("embedded recipes missing: %v", seen)
 	}
 }

@@ -1,18 +1,9 @@
 {
   "mcpServers": {
     "engine": {
-      "command": "iterion",
-      "args": ["mcp"]
-    },
-    "sentry": {
-      "command": "npx",
+      "command": "C:\\Users\\Shket\\OneDrive\\Рабочий стол\\itterion-test\\bin\\iterion.exe",
       "args": [
-        "-y",
-        "@sentry/mcp-server@latest",
-        "--access-token=${SENTRY_ACCESS_TOKEN}",
-        "--host=sentry2.fabrique.social.gouv.fr",
-        "--organization-slug=incubateur",
-        "--project-slug=iterion"
+        "mcp"
       ]
     }
   }

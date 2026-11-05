@@ -283,8 +283,8 @@ export function BotCatalogDialog({
           <p className="px-1 pb-1 text-caption text-fg-subtle">
             {(() => {
               const c = countBots(bots, extraBots);
-              return c.total > c.catalog || c.files > 0
-                ? `${c.catalog} of ${c.total} bots can be switched on or off here (built-in recipes and single .bot files have no manifest and are always on).`
+              return c.files > 0
+                ? `${c.catalog} bot${c.catalog === 1 ? "" : "s"} can be switched on or off here (the ${c.files} single .bot file${c.files === 1 ? "" : "s"} have no manifest and are always on).`
                 : `${c.catalog} bot${c.catalog === 1 ? "" : "s"}.`;
             })()}
           </p>
