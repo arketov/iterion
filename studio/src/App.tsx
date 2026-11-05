@@ -656,12 +656,15 @@ function AuthedApp() {
   }, [pickAndAddProject, isDesktop, serverInfo?.mode]);
 
   useEffect(() => {
-    // Ctrl/Cmd+P opens the ProjectSwitcher — a folder concept that only
-    // exists in local/desktop. Skipping the shortcut in cloud avoids the
-    // silent no-op where the dialog isn't mounted.
+    // Ctrl/Cmd+P opens the ProjectSwitcher — desktop only. There a switch
+    // re-attaches the window to the other project's own server and reloads
+    // it, so every view follows. A browser studio serves ONE project; a
+    // hot-swap there moved only part of the state (files, not bots / board /
+    // dispatcher), so it is not offered — open another tab or window with its
+    // own server instead. Cloud has no folder concept at all.
     const isCloud = serverInfo?.mode === "cloud";
     const onKey = (e: KeyboardEvent) => {
-      if (!isCloud && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "p") {
+      if (!isCloud && isDesktop && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "p") {
         e.preventDefault();
         setSwitcherOpen(true);
       }
@@ -673,7 +676,7 @@ function AuthedApp() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [serverInfo?.mode]);
+  }, [serverInfo?.mode, isDesktop]);
 
   if (!ready) {
     return (
@@ -1002,7 +1005,7 @@ function AuthedApp() {
             cloud has no work_dir concept and the Ctrl+P shortcut plus every
             open-switcher dispatch are gated on non-cloud, so the dialog
             never needs to mount there. */}
-        {serverInfo?.mode !== "cloud" && (
+        {serverInfo?.mode !== "cloud" && isDesktop && (
           <ProjectSwitcher open={switcherOpen} onClose={() => setSwitcherOpen(false)} />
         )}
         <CloudReloginModal

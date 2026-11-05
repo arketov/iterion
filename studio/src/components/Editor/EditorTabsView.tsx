@@ -7,6 +7,7 @@ import { useShallow } from "zustand/react/shallow";
 import EditorTabHost from "@/components/shared/EditorTabHost";
 import InnerTabBar from "@/components/shared/InnerTabBar";
 import RecentFilesPanel from "@/components/Home/RecentFilesPanel";
+import ProjectFilesPanel from "./ProjectFilesPanel";
 import {
   selectEditorTabs,
   useTabsStore,
@@ -200,10 +201,11 @@ export default function EditorTabsView() {
               </h2>
               <p className="text-xs text-fg-muted mt-1">
                 Build on the canvas or edit the <code className="font-mono">.bot</code> source
-                directly — both stay in sync. Pick an existing file, fork an example, or start
-                with a blank canvas; each opens in its own tab.
+                directly — both stay in sync. Open a file from this project or from disk, fork
+                an example, or start with a blank canvas; each opens in its own tab.
               </p>
             </div>
+            <ProjectFilesPanel />
             <RecentFilesPanel variant="plain" />
           </div>
         </div>

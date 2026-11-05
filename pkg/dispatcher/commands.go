@@ -867,6 +867,14 @@ func (c *Dispatcher) releaseClaimSess(ctx context.Context, issueID, identifier s
 // dispatcher's pre-run WorkspacePath so the operator still gets a
 // useful path to inspect.
 func (c *Dispatcher) stampLastRun(issueID string, r *runningEntry) {
+	// A run that never reached the runner (a lifecycle hook failed first) does
+	// not exist: no run.json, no console page. Stamping its id would put a
+	// phantom row in the card's run history with a dead link and a diff button.
+	// The failure is carried by the retry/skip surfaces instead.
+	if r.neverStarted.Load() {
+		c.logger.Info("dispatcher: %s run %s never started (a lifecycle hook failed first) — not recorded in the card's run history", r.Identifier, r.RunID)
+		return
+	}
 	setter, ok := c.tracker.(interface {
 		SetLastRun(id, runID, workdir string) error
 	})

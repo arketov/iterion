@@ -567,9 +567,39 @@ Sharper prompts up front would have cut that in half.
 
 ## Shell portability for tool nodes
 
-A `.bot` `tool` node's `command:` string runs via `bash -c`
-(`pkg/backend/model/executor_tool.go`, `toolNodeCommand`), on the host and
-inside a sandbox alike — bash is pinned precisely because `/bin/sh` is dash
+**Which shell runs what.** One rule, in one place
+(`pkg/internal/hostshell`), covers every command iterion starts on the host —
+tool-node `command:`, `script:` without a `language:`, dispatcher and schedule
+hooks, plugin lifecycle commands, `.claude/settings.json` command hooks:
+
+| Host                    | Default shell                                              |
+| ----------------------- | ---------------------------------------------------------- |
+| Linux, macOS            | `bash -c` for a `command:`, `sh` for hooks and `script:` — as before |
+| Windows                 | PowerShell: `pwsh` if on PATH, else built-in `powershell.exe`; Git for Windows is not needed |
+
+`ITERION_SHELL` (a name or a path) overrides the default; a dispatcher hook
+also takes `shell:`. Commands that run **inside a sandbox container** keep
+`bash`/`sh` — the container is Linux whatever the host is. If no shell is
+found the error names what was searched and what to install.
+
+**Portability rule.** A body is written for the shell that will run it. A
+workflow that must run on both Linux and Windows hosts keeps its bodies to
+the common subset (`git ...`, `iterion ...`, plain program calls with simple
+arguments, `$ITERION_*` read as `$env:ITERION_*` in PowerShell — which is not
+the same text, so the portable choice is to put the logic in a `script:` with
+an explicit `language:` per host, or in a program/`iterion` subcommand both
+shells just call). The sh forms that do not survive PowerShell: `[ -d x ]`,
+`$(...)`, `&&` chains (fine in `pwsh` 7, not in `powershell.exe` 5.1),
+`export X=1`, `X=1 cmd`, `>/dev/null 2>&1`, here-documents. `script:` with
+`language: powershell` (aliases `pwsh`, `ps1`) runs a `.ps1` file under
+PowerShell; `language: sh`/`bash` on Windows needs that shell on PATH and says
+so if it is missing. On Windows `iterion` does not parse-check tool bodies
+(`iterion` dry-run reports them unchecked), since the `bash -n` check does not
+apply to PowerShell.
+
+A `.bot` `tool` node's `command:` string runs via `bash -c` on Linux and macOS
+(`pkg/backend/model/executor_tool.go`, `toolNodeCommand`) and inside a sandbox
+alike — bash is pinned precisely because `/bin/sh` is dash
 on Debian-derived images. A `script:` node is different: it runs the
 interpreter its `language:` names, and `language: sh` (the default) is
 whatever binary `sh` points at in the runtime PATH — *not* a fixed

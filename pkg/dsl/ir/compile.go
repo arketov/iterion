@@ -1608,10 +1608,10 @@ func (c *compiler) compileTools() {
 		// Validate language token if provided.
 		if t.Language != "" {
 			switch t.Language {
-			case "js", "node", "py", "python", "python3", "sh", "bash":
+			case "js", "node", "py", "python", "python3", "sh", "bash", "powershell", "pwsh", "ps1":
 				// known
 			default:
-				c.errorfAt(DiagBadTemplateRef, t.Name, "", "tool %q: unsupported language %q (want one of: js, node, py, python, python3, sh, bash)", t.Name, t.Language)
+				c.errorfAt(DiagBadTemplateRef, t.Name, "", "tool %q: unsupported language %q (want one of: js, node, py, python, python3, sh, bash, powershell, pwsh, ps1)", t.Name, t.Language)
 			}
 		}
 
