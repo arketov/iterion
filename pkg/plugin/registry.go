@@ -164,6 +164,11 @@ type Registry struct {
 	// is safe) must treat a non-empty list as "the enumeration is
 	// partial", not as "nothing enabled".
 	loadSkips []string
+	// brokenDirs maps the directory name of each installed plugin whose
+	// manifest could not be read or parsed (the loadSkips of that kind) to its
+	// directory, so `plugin uninstall` can remove a plugin the registry never
+	// loaded: without it the operator told to uninstall one gets "not found".
+	brokenDirs map[string]string
 	// homeOperatorChosen is true when `home` is the iterion home the
 	// OPERATOR chose — the one named by the inherited environment — as
 	// opposed to one a project `.env` selected. It answers
@@ -291,11 +296,13 @@ func (r *Registry) loadInstalled() {
 		data, err := os.ReadFile(filepath.Join(dir, ManifestFile))
 		if err != nil {
 			r.loadSkips = append(r.loadSkips, fmt.Sprintf("%s: read %s: %v", e.Name(), ManifestFile, err))
+			r.noteBrokenDir(e.Name(), dir)
 			continue
 		}
 		m, err := ParseManifest(data)
 		if err != nil {
 			r.loadSkips = append(r.loadSkips, fmt.Sprintf("%s: parse %s: %v", e.Name(), ManifestFile, err))
+			r.noteBrokenDir(e.Name(), dir)
 			continue
 		}
 		if have[m.Name] {
@@ -491,6 +498,17 @@ func (r *Registry) saveState() error {
 func (r *Registry) Remove(name string) error {
 	p, ok := r.Get(name)
 	if !ok {
+		// An installed plugin whose manifest never loaded is not in the
+		// list, but it is on disk and it is what the "skipped while
+		// loading" warning tells the operator to remove.
+		if dir, broken := r.brokenDirs[name]; broken {
+			if err := os.RemoveAll(dir); err != nil {
+				return fmt.Errorf("plugin: remove %q: %w", name, err)
+			}
+			delete(r.brokenDirs, name)
+			delete(r.state, name)
+			return r.saveState()
+		}
 		return fmt.Errorf("plugin %q not found", name)
 	}
 	if p.Builtin {
@@ -509,6 +527,13 @@ func (r *Registry) Remove(name string) error {
 	}
 	r.plugins = out
 	return r.saveState()
+}
+
+func (r *Registry) noteBrokenDir(name, dir string) {
+	if r.brokenDirs == nil {
+		r.brokenDirs = map[string]string{}
+	}
+	r.brokenDirs[name] = dir
 }
 
 // InstallDir returns the directory an installed plugin lives in (or would).

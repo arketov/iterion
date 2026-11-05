@@ -21,8 +21,9 @@ Subcommands:
   list     List issues (with filters)
   show     Show one issue
   move     Move an issue to a new state
-  update   Update title/body/labels/priority/assignee/fields
+  update   Update title/body/labels/priority/assignee/fields/bot
   close    Move an issue to the first terminal state
+  delete   Permanently delete an issue (asks for confirmation)
   board    Show or initialize the kanban board
   import   Import a forge repo's issues into the board
 `,
@@ -147,6 +148,9 @@ var (
 	issueUpdateFields       []string
 	issueUpdateClearField   []string
 	issueUpdateClearLastRun bool
+	issueUpdateBot          string
+	issueUpdateBotArgs      []string
+	issueUpdateClearBotArg  []string
 )
 
 var issueUpdateCmd = &cobra.Command{
@@ -160,6 +164,8 @@ var issueUpdateCmd = &cobra.Command{
 			Fields:             issueUpdateFields,
 			ClearField:         issueUpdateClearField,
 			ClearLastRun:       issueUpdateClearLastRun,
+			BotArgs:            issueUpdateBotArgs,
+			ClearBotArg:        issueUpdateClearBotArg,
 		}
 		if cmd.Flags().Changed("title") {
 			opts.Title = &issueUpdateTitle
@@ -179,6 +185,9 @@ var issueUpdateCmd = &cobra.Command{
 		if cmd.Flags().Changed("blockers") {
 			opts.Blockers = &issueUpdateBlockers
 		}
+		if cmd.Flags().Changed("bot") {
+			opts.Bot = &issueUpdateBot
+		}
 		return cli.RunIssueUpdate(newPrinter(), opts)
 	},
 }
@@ -195,6 +204,28 @@ var issueCloseCmd = &cobra.Command{
 		return cli.RunIssueClose(newPrinter(), cli.IssueRefOptions{
 			IssueCommonOptions: cli.IssueCommonOptions{StoreDir: issueStoreDir},
 			IDOrPrefix:         args[0],
+		})
+	},
+}
+
+// ---------------------------------------------------------------------------
+// delete
+// ---------------------------------------------------------------------------
+
+var issueDeleteYes bool
+var issueDeleteCmd = &cobra.Command{
+	Use:   "delete <id-or-prefix>",
+	Short: "Permanently delete an issue (asks for confirmation)",
+	Long: `Permanently remove a card from the native board. Unlike ` + "`issue close`" + `,
+which moves the card to a terminal state and keeps it, delete cannot be undone.
+Asks for confirmation on a terminal; pass --yes to skip it (required when
+stdin is not a terminal).`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cli.RunIssueDelete(newPrinter(), cli.IssueDeleteOptions{
+			IssueCommonOptions: cli.IssueCommonOptions{StoreDir: issueStoreDir},
+			IDOrPrefix:         args[0],
+			Yes:                issueDeleteYes,
 		})
 	},
 }
@@ -272,6 +303,13 @@ func init() {
 	issueUpdateCmd.Flags().BoolVar(&issueUpdateClearLastRun, "clear-last-run", false,
 		"Forget the last run: the next dispatch starts fresh instead of resuming it (run history is kept)")
 
+	issueUpdateCmd.Flags().StringVar(&issueUpdateBot, "bot", "", "Set the typed bot override the dispatcher routes to (empty string clears it)")
+	issueUpdateCmd.Flags().StringArrayVar(&issueUpdateBotArgs, "bot-arg", nil, "Set a typed dispatcher var as key=value, merged over the card's existing bot args (repeatable; values kept verbatim incl. commas)")
+	issueUpdateCmd.Flags().StringArrayVar(&issueUpdateClearBotArg, "clear-bot-arg", nil, "Remove one bot arg by key (repeatable; applied before --bot-arg)")
+
+	// delete
+	issueDeleteCmd.Flags().BoolVarP(&issueDeleteYes, "yes", "y", false, "Skip the confirmation prompt")
+
 	// board
 	issueBoardInitCmd.Flags().StringVar(&issueBoardInitFrom, "from", "", "Load board.json from this file (default: built-in starter board)")
 	issueBoardInitCmd.Flags().BoolVar(&issueBoardInitForce, "force", false, "Overwrite existing board without prompt")
@@ -289,6 +327,6 @@ func init() {
 	issueBoardCmd.AddCommand(issueBoardShowCmd)
 	issueBoardCmd.AddCommand(issueBoardInitCmd)
 
-	issueCmd.AddCommand(issueCreateCmd, issueListCmd, issueShowCmd, issueMoveCmd, issueUpdateCmd, issueCloseCmd, issueBoardCmd, issueImportCmd)
+	issueCmd.AddCommand(issueCreateCmd, issueListCmd, issueShowCmd, issueMoveCmd, issueUpdateCmd, issueCloseCmd, issueDeleteCmd, issueBoardCmd, issueImportCmd)
 	rootCmd.AddCommand(issueCmd)
 }

@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -262,6 +264,16 @@ type IssueUpdateOptions struct {
 	Blockers   *[]string
 	Fields     []string // key=value (set or replace)
 	ClearField []string
+	// Bot sets the per-ticket bot override; an empty string clears it.
+	Bot *string
+	// BotArgs are --bot-arg key=value pairs MERGED over the card's existing
+	// bot args (unlike the store's wholesale patch, a terminal user typing one
+	// --bot-arg does not expect the others to vanish). ClearBotArg removes
+	// single keys, applied before BotArgs. The server-owned classes (publish
+	// grant, reserved launch context) are never writable from here — same
+	// filter as `issue create` and the HTTP patch.
+	BotArgs     []string
+	ClearBotArg []string
 	// ClearLastRun drops the issue's last_run pointer (Store.SetLastRun with
 	// empty strings — the clear its own contract documents). It is the
 	// operator's way back to a FRESH launch: while the pointer names a
@@ -292,6 +304,32 @@ func RunIssueUpdate(p *Printer, opts IssueUpdateOptions) error {
 		}
 		fields[k] = nil
 	}
+	botArgs, err := parseBotArgs(opts.BotArgs)
+	if err != nil {
+		return err
+	}
+	var botArgsPatch *map[string]string
+	if len(botArgs) > 0 || len(opts.ClearBotArg) > 0 {
+		current, err := s.Get(id)
+		if err != nil {
+			return err
+		}
+		merged := make(map[string]string, len(current.BotArgs)+len(botArgs))
+		for k, v := range current.BotArgs {
+			merged[k] = v
+		}
+		for _, k := range opts.ClearBotArg {
+			k = strings.TrimSpace(k)
+			if native.IsReservedLaunchArg(k) {
+				return fmt.Errorf("issue update: --clear-bot-arg %q is a dispatcher-owned launch variable and cannot be cleared", k)
+			}
+			delete(merged, k)
+		}
+		for k, v := range native.DropServerMintedLaunchVars(botArgs) {
+			merged[k] = v
+		}
+		botArgsPatch = &merged
+	}
 	// Before the patch: refusing after it would apply --title and then error,
 	// leaving the operator with a half-done command they did not ask for.
 	if opts.ClearLastRun {
@@ -311,6 +349,8 @@ func RunIssueUpdate(p *Printer, opts IssueUpdateOptions) error {
 		Assignee: opts.Assignee,
 		Blockers: opts.Blockers,
 		Fields:   fields,
+		Bot:      opts.Bot,
+		BotArgs:  botArgsPatch,
 	}
 	iss, err := s.Update(id, patch)
 	if err != nil {
@@ -348,12 +388,25 @@ func RunIssueUpdate(p *Printer, opts IssueUpdateOptions) error {
 // terminal-vs-not. A run that cannot be read is not protected: it is already
 // gone as far as the dispatcher is concerned.
 func refuseClearWhileRunAlive(opts IssueCommonOptions, runID string) error {
+	run := liveRunOf(opts, runID)
+	if run == nil {
+		return nil
+	}
+	return fmt.Errorf(
+		"issue update: run %s is still %s — clearing the pointer now would let the next dispatch start a SECOND run on this ticket; stop or answer it first (`iterion inspect --run-id %s`)",
+		shortID(runID), run.Status, runID)
+}
+
+// liveRunOf returns the run when it exists and is still alive (running, queued
+// or paused), nil otherwise — including when the store cannot be read: a run
+// that cannot be established is not protected.
+func liveRunOf(opts IssueCommonOptions, runID string) *store.Run {
 	if strings.TrimSpace(runID) == "" {
 		return nil
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
-		return err
+		return nil
 	}
 	rs, err := store.New(store.ResolveStoreDir(cwd, opts.StoreDir))
 	if err != nil {
@@ -368,9 +421,7 @@ func refuseClearWhileRunAlive(opts IssueCommonOptions, runID string) error {
 	switch run.Status {
 	case store.RunStatusRunning, store.RunStatusQueued,
 		store.RunStatusPausedWaitingHuman, store.RunStatusPausedOperator:
-		return fmt.Errorf(
-			"issue update: run %s is still %s — clearing the pointer now would let the next dispatch start a SECOND run on this ticket; stop or answer it first (`iterion inspect --run-id %s`)",
-			shortID(runID), run.Status, runID)
+		return run
 	}
 	return nil
 }
@@ -429,6 +480,72 @@ func RunIssueClose(p *Printer, opts IssueRefOptions) error {
 		return nil
 	}
 	p.Line("Closed %s → %s", shortID(iss.ID), iss.State)
+	return nil
+}
+
+// IssueDeleteOptions captures the flags for `iterion issue delete`.
+type IssueDeleteOptions struct {
+	IssueCommonOptions
+	IDOrPrefix string
+	// Yes skips the confirmation prompt (required when stdin is not a terminal).
+	Yes bool
+	// Stdin overrides where the confirmation is read from (tests); nil means
+	// os.Stdin, and then a non-terminal stdin without Yes is refused.
+	Stdin io.Reader
+}
+
+// RunIssueDelete permanently removes a card from the native board. `close`
+// keeps the card (terminal state); delete does not — so it asks first.
+func RunIssueDelete(p *Printer, opts IssueDeleteOptions) error {
+	s, _, err := openNativeStore(opts.IssueCommonOptions)
+	if err != nil {
+		return err
+	}
+	// An empty reference would prefix-match every card, and on a board with
+	// one card delete it: refuse before Resolve, for an irreversible command.
+	if strings.TrimSpace(opts.IDOrPrefix) == "" {
+		return errors.New("issue delete: an issue id or prefix is required")
+	}
+	id, err := s.Resolve(opts.IDOrPrefix)
+	if err != nil {
+		return err
+	}
+	iss, err := s.Get(id)
+	if err != nil {
+		return err
+	}
+	// The studio's pipeline-board delete answers 409 while the card's run is
+	// alive; deleting under it would leave the dispatcher writing to a card
+	// that no longer exists. Cancel or finish the run first.
+	if run := liveRunOf(opts.IssueCommonOptions, iss.LastRunID); run != nil {
+		return fmt.Errorf("issue delete: run %s is still %s — cancel or finish it first (`iterion inspect --run-id %s`)",
+			shortID(iss.LastRunID), run.Status, iss.LastRunID)
+	}
+	if !opts.Yes {
+		in := opts.Stdin
+		if in == nil {
+			if !IsTTY() {
+				return errors.New("issue delete: refusing to delete without confirmation on a non-interactive stdin — pass --yes")
+			}
+			in = os.Stdin
+		}
+		// stderr so `--json` stdout stays a single document.
+		fmt.Fprintf(os.Stderr, "Permanently delete %s %q? This cannot be undone (use `issue close` to keep it). [y/N]: ", shortID(id), iss.Title)
+		line, _ := bufio.NewReader(in).ReadString('\n')
+		switch strings.ToLower(strings.TrimSpace(line)) {
+		case "y", "yes":
+		default:
+			return errors.New("issue delete: aborted, nothing was deleted")
+		}
+	}
+	if err := s.Delete(id); err != nil {
+		return err
+	}
+	if p.Format == OutputJSON {
+		p.JSON(map[string]any{"deleted": id})
+		return nil
+	}
+	p.Line("Deleted %s", shortID(id))
 	return nil
 }
 
