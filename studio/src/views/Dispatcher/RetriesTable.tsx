@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Tooltip } from "@/components/ui";
 import { Table, THead, Th, TBody, Tr, Td } from "@/components/ui/Table";
 import { clickableRowProps } from "@/lib/a11y";
 import type { DispatcherSnapshot } from "@/api/dispatcher";
+
+import { hookFailureLabel, logHint } from "@/lib/retryError";
 
 import { relTime } from "./format";
 
@@ -39,6 +41,8 @@ function formatRetryDue(dueIso: string, nowMs: number): string {
 
 export interface RetriesTableProps {
   rows: DispatcherSnapshot["retries"];
+  // Host log file (DispatcherSnapshot.log_path), when known.
+  logPath?: string;
   canPollDispatches: boolean;
   pollTitle: string;
   onFocusIssue: (issueID: string) => void;
@@ -47,6 +51,7 @@ export interface RetriesTableProps {
 
 export default function RetriesTable({
   rows,
+  logPath,
   canPollDispatches,
   pollTitle,
   onFocusIssue,
@@ -60,6 +65,15 @@ export default function RetriesTable({
     return Number.isFinite(due) && due - Date.now() < 5 * 60_000;
   });
   const now = useTick(1000, needsTick);
+  // Issue ids whose full last-error is unfolded.
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggle = (id: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   return (
     <section className="rounded-[var(--radius-lg)] border border-border-default bg-surface-1 shadow-[var(--shadow-sm)] overflow-hidden">
       <header className="px-4 py-2 border-b border-border-default text-title font-semibold flex items-center justify-between gap-2">
@@ -91,9 +105,11 @@ export default function RetriesTable({
             {rows!.map((r) => {
               const dueLabel = formatRetryDue(r.due_at, now);
               const isDue = dueLabel === "due";
+              const hookLabel = hookFailureLabel(r);
+              const expanded = open.has(r.issue_id);
               return (
+              <Fragment key={r.issue_id}>
               <Tr
-                key={r.issue_id}
                 className={`cursor-pointer focus-visible:bg-surface-2/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent ${
                   isDue ? "bg-warning-soft" : ""
                 }`}
@@ -106,10 +122,48 @@ export default function RetriesTable({
                     {dueLabel || relTime(r.due_at)}
                   </span>
                 </Td>
-                <Td className="text-danger-fg truncate max-w-[24rem]">
-                  {r.error}
+                <Td className="text-danger-fg max-w-[24rem]">
+                  {hookLabel && (
+                    <div className="text-caption font-semibold">{hookLabel}</div>
+                  )}
+                  <div className={expanded ? "whitespace-pre-wrap break-words" : "truncate"}>
+                    {r.error}
+                  </div>
+                  {r.error && (
+                    <button
+                      type="button"
+                      className="text-caption text-accent underline"
+                      aria-expanded={expanded}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggle(r.issue_id);
+                      }}
+                    >
+                      {expanded ? "Hide full error" : "Show full error"}
+                    </button>
+                  )}
                 </Td>
               </Tr>
+              {expanded && (
+                <Tr>
+                  <Td colSpan={4} className="bg-surface-2/40">
+                    <pre className="whitespace-pre-wrap break-words text-xs text-danger-fg">
+                      {r.error}
+                    </pre>
+                    {r.hook_stderr && (
+                      <pre className="mt-1 whitespace-pre-wrap break-words text-xs text-fg-muted">
+                        {r.hook_stderr}
+                      </pre>
+                    )}
+                    {logHint(logPath) && (
+                      <div className="mt-1 text-caption text-fg-muted font-mono break-all">
+                        {logHint(logPath)}
+                      </div>
+                    )}
+                  </Td>
+                </Tr>
+              )}
+              </Fragment>
               );
             })}
           </TBody>

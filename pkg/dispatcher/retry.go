@@ -84,8 +84,13 @@ func (c *Dispatcher) scheduleRetry(issueID string, prev *runningEntry, runErr er
 		}
 	})
 	errStr := ""
+	hookName, hookExit, hookStderr := "", 0, ""
 	if runErr != nil {
 		errStr = runErr.Error()
+		var he *HookError
+		if errors.As(runErr, &he) {
+			hookName, hookExit, hookStderr = he.Hook, he.ExitCode, he.Stderr
+		}
 	}
 	prevRunID := c.resumableRunID(prev.RunID)
 	// Source-changed is parked in finishRun (keep last_run, no sibling).
@@ -93,13 +98,16 @@ func (c *Dispatcher) scheduleRetry(issueID string, prev *runningEntry, runErr er
 	// planner from entry is worse than retrying a doomed resume.
 	// lastRunForbidsFresh still refuses GenerateRunID.
 	c.state.retries[issueID] = &retryEntry{
-		IssueID:    issueID,
-		Identifier: prev.Identifier,
-		Attempt:    attempt,
-		DueAt:      due,
-		LastError:  errStr,
-		Timer:      timer,
-		PrevRunID:  prevRunID,
+		IssueID:        issueID,
+		Identifier:     prev.Identifier,
+		Attempt:        attempt,
+		DueAt:          due,
+		LastError:      errStr,
+		LastHook:       hookName,
+		LastHookExit:   hookExit,
+		LastHookStderr: hookStderr,
+		Timer:          timer,
+		PrevRunID:      prevRunID,
 	}
 	switch {
 	case parked:

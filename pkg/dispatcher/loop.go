@@ -380,6 +380,12 @@ func (c *Dispatcher) dispatch(ctx context.Context, iss tracker.Issue) {
 		iss.Bot = bot
 	}
 
+	if cfg.RequireAssignee && iss.Bot == "" && iss.Assignee == "" {
+		c.recordDispatchSkipKind(iss, DispatchSkipNoAssignee,
+			"no assignee: assign a bot to this card to run it (the dispatcher does not fall back to the default bot)")
+		return
+	}
+
 	if !c.resolveExplicitBot(cfg, iss) {
 		return
 	}
@@ -1238,6 +1244,12 @@ func (c *Dispatcher) declaredVarsFor(routeKey string) map[string]struct{} {
 // eligible ticket is idle. Runs on the actor goroutine; pruned in tick() once
 // the issue stops being a candidate and cleared in dispatch() once it claims.
 func (c *Dispatcher) recordDispatchSkip(iss tracker.Issue, reason string) {
+	c.recordDispatchSkipKind(iss, "", reason)
+}
+
+// recordDispatchSkipKind is recordDispatchSkip with a classification the UI
+// keys its dedicated state off (see DispatchSkipNoAssignee).
+func (c *Dispatcher) recordDispatchSkipKind(iss tracker.Issue, kind, reason string) {
 	if c.state.dispatchSkips == nil {
 		c.state.dispatchSkips = map[string]DispatchSkipView{}
 	}
@@ -1246,6 +1258,7 @@ func (c *Dispatcher) recordDispatchSkip(iss tracker.Issue, reason string) {
 		Identifier: iss.Identifier,
 		Bot:        iss.Bot,
 		Reason:     reason,
+		Kind:       kind,
 	}
 }
 
@@ -1267,11 +1280,13 @@ func (c *Dispatcher) runWorker(ctx context.Context, entry *runningEntry, created
 
 	if created && hooks.AfterCreate != nil {
 		if err := hooks.AfterCreate.Run(ctx, c.logger, "after_create", entry.WorkspacePath, env); err != nil {
+			entry.neverStarted.Store(true)
 			c.postFinished(entry.IssueID, fmt.Errorf("after_create hook: %w", err))
 			return
 		}
 	}
 	if err := hooks.BeforeRun.Run(ctx, c.logger, "before_run", entry.WorkspacePath, env); err != nil {
+		entry.neverStarted.Store(true)
 		c.postFinished(entry.IssueID, fmt.Errorf("before_run hook: %w", err))
 		return
 	}

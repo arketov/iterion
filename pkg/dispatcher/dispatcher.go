@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -644,6 +645,7 @@ func (c *Dispatcher) buildSnapshot() Snapshot {
 		LastTrackerError:   c.state.lastTrackerErr,
 		LastTrackerErrorAt: c.state.lastTrackerErrAt,
 		CostCap:            c.state.costCap,
+		LogPath:            os.Getenv(DaemonLogEnv),
 		Slots: SlotsView{
 			GlobalMax:    cfg.Agent.MaxConcurrent,
 			GlobalUsed:   len(c.state.running),
@@ -677,13 +679,20 @@ func (c *Dispatcher) buildSnapshot() Snapshot {
 	sort.Strings(rids)
 	for _, id := range rids {
 		e := c.state.retries[id]
-		snap.Retries = append(snap.Retries, RetryView{
+		rv := RetryView{
 			IssueID:    e.IssueID,
 			Identifier: e.Identifier,
 			Attempt:    e.Attempt,
 			DueAt:      e.DueAt,
 			Error:      e.LastError,
-		})
+			Hook:       e.LastHook,
+			HookStderr: e.LastHookStderr,
+		}
+		if e.LastHook != "" {
+			code := e.LastHookExit
+			rv.HookExitCode = &code
+		}
+		snap.Retries = append(snap.Retries, rv)
 	}
 	skids := make([]string, 0, len(c.state.dispatchSkips))
 	for id := range c.state.dispatchSkips {
