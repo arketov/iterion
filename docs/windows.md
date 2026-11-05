@@ -16,7 +16,7 @@ macOS, and the known gaps with their workarounds.
 | Piece | Windows status |
 |---|---|
 | Desktop app | Portable `.exe` and a per-user installer, x64 and arm64; V1 builds are unsigned, so SmartScreen warns once. See [desktop](desktop.md). |
-| CLI | A native `iterion.exe` (amd64). See [install](install.md#cli). |
+| CLI | A native `iterion.exe` (amd64 and arm64). See [install](install.md#cli). |
 | Studio, runs, board, dispatcher | The same code as on Linux. |
 | Tool nodes, hooks, plugin commands | Run under PowerShell by default — see below. |
 | Sandbox | Needs Docker on the host; the commands that run *inside* the container stay `sh`/`bash`, because the container is Linux. |
@@ -44,11 +44,12 @@ dispatcher and schedule hooks, plugin lifecycle commands and
   empty `language:` follows the platform shell above.
 - **Nothing found:** the error lists what was searched and suggests
   `winget install Microsoft.PowerShell`.
-- **Output:** the engine turns PowerShell's CRLF line ends into LF, switches off
-  colours and progress records, and keeps the exit code of the last native
-  program, so a variable built from a tool node's stdout reads as it would from
-  `sh`.
-- **Dry run:** there is no syntax check for PowerShell bodies. When a body would run under PowerShell, the dry run lists it as unchecked instead of reporting it valid.
+- **Output:** the engine turns PowerShell's CRLF line ends into LF, so a
+  variable built from a tool node's stdout reads as it would from `sh`; the
+  rest of what it normalises is in the portability rule below.
+- **Dry run:** there is no syntax check for PowerShell bodies. When a body
+  would run under PowerShell, the dry run lists it as unchecked instead of
+  reporting it valid.
 - **Long scripts:** a body of more than about 12000 characters is streamed to
   PowerShell on stdin rather than passed on the command line.
 
@@ -61,10 +62,10 @@ in a `script:` with an explicit `language:`.
 
 | What you see | Why | What to do |
 |---|---|---|
-| Updating a bot's dependencies from the studio answers 400, "dependency transactions require filesystem identity checks on this platform". | The transaction needs a filesystem identity check that is built for Linux and macOS only (`pkg/server/assistant_dependency_rename_other.go`). | No workaround on Windows yet; update the pin on a Linux or macOS host. Tracked as a bug. |
+| Updating a bot's dependencies from the studio answers 400, "dependency transactions require filesystem identity checks on this platform". | The transaction needs a filesystem identity check that is built for Linux and macOS only (`pkg/server/assistant_dependency_rename_other.go`). |  No workaround on Windows yet; update the pin on a Linux or macOS host. |
 | A node with `permission: deny` on the `grok` or `kimi` backend is refused on Windows. | The gate hook is quoted for a POSIX shell and the backend's home is linked with symlinks, which an unprivileged Windows process cannot create. Running such a node ungated would fail open, so iterion refuses. | Use `permission: off`, or the `claude_code` or `claw` backend, which gate in-process. |
 | Cancelling a run can leave a child of a tool node running. | Windows has no process-group signal; cancellation kills the direct child only (`pkg/internal/proc`). | End leftover processes in Task Manager, or `taskkill /F /T /PID <pid>`. |
-| `iterion schedule install` fails. | It writes the managed block into the host `crontab`, which Windows does not have. `schedule install --print` shows the block without needing one. | Point Windows Task Scheduler at `iterion schedule run <name>`, the command a cron line would call (not tried here). The manifest commands (`add`, `list`, `remove`) do not need `crontab`. See [scheduling](scheduling.md). |
+| `iterion schedule install` fails. | It writes the managed block into the host `crontab`, which Windows does not have. `schedule install --print` shows the block without needing one. | Point Windows Task Scheduler at `iterion schedule run <name>`, the command a cron line calls (`schedule install --print` shows the exact line; not tried here). The manifest commands (`add`, `list`, `remove`) do not need `crontab`. See [scheduling](scheduling.md). |
 | Non-ASCII text in a `language: powershell` body comes out garbled on Windows PowerShell 5.1. | The script file is written as UTF-8 without a BOM, and 5.1 reads a BOM-less file in the legacy code page. PowerShell 7 reads it as UTF-8. | Install PowerShell 7 (iterion prefers `pwsh`), or keep the body ASCII and read non-ASCII data from a file with an explicit `-Encoding UTF8`. |
 | A quote inside an argument to a program is lost: `node -e "…" 'say "hi"'` receives `say hi`. | Before PowerShell 7.3 (so in 5.1), embedded double quotes are stripped when calling a native program. | Use PowerShell 7.3 or later, or pass such values through an environment variable or a file. |
 | "Access is denied" when deleting, renaming or saving a file in a folder synced by OneDrive. | The sync client or an antivirus scanner briefly holds the file open without delete sharing. Iterion reads its board's card files with delete sharing, but cannot control a handle another program holds. | Keep the project, its worktrees and the store outside OneDrive-synced folders, or pause syncing while a run is active. |
@@ -107,7 +108,9 @@ Taskfile's `LDFLAGS`.
 
 ## Where your data lives
 
-Runs, the board, settings and the desktop's project list are kept in a store
-outside the project folder, by default under `%USERPROFILE%\.iterion\`. Which folder, how iterion chooses it and
-how to move it are on [where iterion keeps data](where-iterion-keeps-data.md);
+Runs, the board and secrets are kept in a store outside the project folder, by
+default under `%USERPROFILE%\.iterion\` (`ITERION_HOME` moves it); the desktop
+app's own settings and project list are in `%APPDATA%\Iterion\`. How iterion
+chooses the store and how to move it are on
+[where iterion keeps data](where-iterion-keeps-data.md);
 the desktop app itself is described in [desktop](desktop.md).
