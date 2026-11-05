@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/arketov/iterion/pkg/botregistry"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // defaultListFilesLimit caps GET /api/files. A project folder can hold
@@ -38,9 +39,6 @@ func isNestedRepo(dir string) bool {
 	return err == nil
 }
 
-// manifestFileName marks a directory as one bot bundle (see botregistry).
-const manifestFileName = "manifest.yaml"
-
 // Kinds of a listed file. A bundle is one row however many files it has: its
 // main.bot. A file is a single-file bot.
 const (
@@ -51,7 +49,7 @@ const (
 // listWorkflowFiles lists the bots the editor can open for this project, from
 // the same places the bot catalog looks in (botregistry.DefaultPaths: bots/,
 // examples/, .botz/) plus the single .bot files directly in the project root
-// (no recursion there). A bundle — a directory with a manifest.yaml — is one
+// (no recursion there). A bundle — a directory bundle.DirClaim claims (an iterion manifest, skills/ or presets/) — is one
 // row, its main.bot; the rest of its files (lib/, skills, …) are parts of it,
 // not bots. Nested git checkouts (a directory holding .git: clone, submodule,
 // linked worktree) and hidden directories are never entered. The list stops
@@ -107,9 +105,10 @@ func listWorkflowFiles(workDir string, limit int) (files []fileEntry, truncated 
 				if path != root && (isSkippedDir(d.Name()) || isNestedRepo(path)) {
 					return filepath.SkipDir
 				}
-				if _, err := os.Stat(filepath.Join(path, manifestFileName)); err == nil {
+				// The one definition of a bundle directory the catalog uses.
+				if claimed, _, _ := bundle.DirClaim(path); claimed {
 					// One bundle: its entry file, not its parts.
-					if !add(filepath.Join(path, "main.bot"), fileKindBundle) {
+					if !add(filepath.Join(path, bundle.MainBotFile), fileKindBundle) {
 						stop = true
 						return fs.SkipAll
 					}

@@ -13,7 +13,11 @@ func writeListFixture(t *testing.T, root, rel string) {
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(p, []byte("workflow w:\n"), 0o644); err != nil {
+	body := "workflow w:\n"
+	if filepath.Base(p) == "manifest.yaml" {
+		body = "" // an empty manifest is still a manifest of ours
+	}
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

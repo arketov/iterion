@@ -223,6 +223,15 @@ export default function ProjectFilesPanel() {
   );
 }
 
+// A bundle's entry file is always main.bot: name the row after its directory.
+function displayName(f: FileEntry): string {
+  if (f.kind === "bundle") {
+    const dir = f.name.split("/").slice(0, -1);
+    if (dir.length > 0) return dir[dir.length - 1];
+  }
+  return basename(f.name);
+}
+
 function FileGroup({
   title,
   files,
@@ -245,8 +254,8 @@ function FileGroup({
               title={f.name}
             >
               <FileIcon className="w-3.5 h-3.5 text-fg-subtle shrink-0" />
-              <ClampText className="font-medium min-w-0" text={basename(f.name)} focusable={false} />
-              {basename(f.name) !== f.name && (
+              <ClampText className="font-medium min-w-0" text={displayName(f)} focusable={false} />
+              {displayName(f) !== f.name && (
                 <ClampText className="text-fg-subtle text-caption min-w-0" text={f.name} focusable={false} />
               )}
             </button>
