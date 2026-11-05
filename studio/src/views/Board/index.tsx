@@ -253,7 +253,7 @@ export default function BoardView() {
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-full min-h-0 w-full min-w-0 flex flex-col overflow-clip">
       {dispatcherEnabled && (
         <DispatcherControlBar onOpenSettings={() => setSettingsOpen(true)} />
       )}

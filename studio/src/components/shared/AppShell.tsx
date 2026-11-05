@@ -53,7 +53,7 @@ export default function AppShell({ children }: AppShellProps) {
 
   return (
     <div
-      className="h-screen w-screen flex bg-surface-0 text-fg-default overflow-hidden"
+      className="h-screen w-full flex bg-surface-0 text-fg-default overflow-clip"
       style={dockedWidth ? { paddingRight: dockedWidth } : undefined}
     >
       <a
@@ -65,7 +65,7 @@ export default function AppShell({ children }: AppShellProps) {
       <Sidebar />
       <div className="flex-1 min-w-0 flex flex-col">
         <ContextualHeaderBar />
-        <main id="main-content" className="flex-1 min-h-0 overflow-hidden">
+        <main id="main-content" className="flex-1 min-h-0 min-w-0 overflow-clip">
           <div key={viewKey} className="h-full min-h-0 animate-fade-in-opacity">
             <Suspense fallback={<MainSpinner />}>{children}</Suspense>
           </div>

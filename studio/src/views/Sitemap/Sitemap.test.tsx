@@ -4,9 +4,22 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { useServerInfoStore } from "@/store/serverInfo";
+
 import Sitemap from "./index";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  useServerInfoStore.setState({ info: null });
+});
+
+function setInfo(info: Record<string, unknown>) {
+  useServerInfoStore.setState({ info: info as never, loading: false });
+}
+
+function hrefs(): string[] {
+  return screen.getAllByRole("link").map((a) => a.getAttribute("href") ?? "");
+}
 
 // RGAA 12.1 (#2531): a second navigation system — the plan-du-site page
 // generated from the same registry the sidebar renders.
@@ -22,6 +35,47 @@ describe("the sitemap page", () => {
         `the sitemap links ${href}`,
       ).toBe(true);
     }
+  });
+
+  it("is titled in English", () => {
+    render(<Sitemap />);
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Sitemap" }),
+    ).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/plan du site/i);
+  });
+
+  it("lists only what a local server without optional features answers", () => {
+    setInfo({ mode: "local" });
+    render(<Sitemap />);
+    const links = hrefs();
+    for (const gone of [
+      "/board",
+      "/dispatcher",
+      "/triggers",
+      "/marketplace",
+      "/secrets",
+      "/skills",
+      "/integrations",
+      "/config-editor",
+    ]) {
+      expect(links, `${gone} is not available here`).not.toContain(gone);
+    }
+    expect(links).toContain("/insights");
+    // No cloud admin console in local mode.
+    expect(links.some((h) => h.startsWith("/admin"))).toBe(false);
+    expect(screen.queryByText("Admin console")).toBeNull();
+  });
+
+  it("lists a gated page once its server_info flag is on", () => {
+    setInfo({ mode: "local", native_tracker_enabled: true, skills_enabled: true });
+    render(<Sitemap />);
+    const links = hrefs();
+    expect(links).toContain("/board");
+    expect(links).toContain("/pipelines");
+    expect(links).toContain("/skills");
+    // The sitemap names the page the way the sidebar does.
+    expect(screen.queryByText("Triggers")).toBeNull();
   });
 
   it("covers the App.tsx route literals (the technical routes allowlisted)", () => {
