@@ -2077,6 +2077,12 @@
           "last_workdir": {
             "type": "string"
           },
+          "launch_failures": {
+            "items": {
+              "$ref": "#/components/schemas/LaunchFailure"
+            },
+            "type": "array"
+          },
           "launch_refusal": {
             "$ref": "#/components/schemas/LaunchRefusal"
           },
@@ -2116,6 +2122,40 @@
           "state",
           "created_at",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "LaunchFailure": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          },
+          "exit_code": {
+            "type": "integer"
+          },
+          "hook": {
+            "type": "string"
+          },
+          "log_path": {
+            "type": "string"
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "stderr": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "error"
         ],
         "type": "object"
       },

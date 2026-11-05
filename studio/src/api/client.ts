@@ -1092,9 +1092,12 @@ export async function loadExample(
 
 // File management
 
+export async function listFilesPage(): Promise<ListFilesResponse> {
+  return request<ListFilesResponse>("/files");
+}
+
 export async function listFiles(): Promise<FileEntry[]> {
-  const res = await request<ListFilesResponse>("/files");
-  return res.files;
+  return (await listFilesPage()).files;
 }
 
 // BOTSOURCE_SCHEME marks a virtual editor path that resolves to a team-authored

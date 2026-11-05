@@ -28,7 +28,7 @@ runtime. External edges address an instance's nodes via the dotted reference
 ```iter fragment
 group review_block(target, max_fix):
   judge check:
-    model: "anthropic/claude-sonnet-4-6"
+    model: "anthropic/claude-sonnet-5-5"
     output: verdict
   tool fix:
     command: "echo fixing {{params.target}}"

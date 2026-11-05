@@ -343,6 +343,16 @@ func (a *Adapter) SetAwaitingInput(id string, v bool) error {
 	return a.store.SetAwaitingInput(id, v)
 }
 
+// RecordLaunchFailure passes through to the underlying store when it can
+// persist the attempt (both shipped twins can); a store that cannot is not an
+// error for the dispatcher — the failure stays in the retry queue only.
+func (a *Adapter) RecordLaunchFailure(id string, f LaunchFailure) error {
+	if r, ok := a.store.(LaunchFailureRecorder); ok {
+		return r.RecordLaunchFailure(id, f)
+	}
+	return tracker.ErrNotSupported
+}
+
 // SetGaveUp passes through to the underlying store so the dispatcher's
 // optional-interface type assertion (setGaveUp in commands.go) resolves —
 // same seam, and same silent-fall-through trap, as SetAwaitingInput above.

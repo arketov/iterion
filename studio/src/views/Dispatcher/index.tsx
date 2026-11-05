@@ -25,6 +25,7 @@ import {
   type ManagerStatus,
 } from "@/api/dispatcher";
 import SettingsDrawer from "@/components/Dispatcher/SettingsDrawer";
+import { LaunchFailuresPanel } from "@/components/shared/LaunchFailuresPanel";
 import TrackerErrorBanner from "@/components/shared/TrackerErrorBanner";
 import CostCapBanner from "@/components/shared/CostCapBanner";
 import { dispatcherActionState } from "./dispatcherActionState";
@@ -295,6 +296,8 @@ export default function DispatcherView() {
           issues won't be picked up. In-flight runs continue. Resume from the toolbar above.
         </InlineBanner>
       )}
+
+      <LaunchFailuresPanel className="mx-4 mt-4 max-w-4xl" />
 
       {idleStub ? (
         <EmptyState
