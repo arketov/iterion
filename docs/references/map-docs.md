@@ -377,6 +377,8 @@ One row per page under `docs/`, ADRs included. An ADR's **status** is the column
 | [`docs/gitops-warden-rollout.md`](../gitops-warden-rollout.md) | gitops-warden — binding, calibrating, and flipping a repo to enforce | The runbook for [gitops-warden](https://github.com/SocialGouv/iterion/tree/main/bots/gitops-warden) | — |
 | [`docs/grammar/V1_SCOPE.md`](../grammar/V1_SCOPE.md) | Current scope of the V1 grammar and AST | The filename and grammar version remain `V1` for compatibility: Iterion has | — |
 | [`docs/groups-iteration-subbots.md`](../groups-iteration-subbots.md) | Reuse & iteration: groups, foreach, subbots | This page documents the composition + iteration constructs added on top of the | — |
+| [`docs/howto-board-bot.md`](../howto-board-bot.md) | Your own bot on the board | From a bot you wrote to a run started by a card on the studio board: the | — |
+| [`docs/howto-mcp-node.md`](../howto-mcp-node.md) | Give a node an MCP server | How a node of a `.bot` gets the tools of an MCP server, with the | — |
 | [`docs/human-in-the-loop.md`](../human-in-the-loop.md) | Human in the loop | Most iterion nodes run unattended. | — |
 | [`docs/import.md`](../import.md) | `iterion import` — workflow scripts (.js) → draft .bot | `iterion import` converts a Claude-Code **workflow script** | — |
 | [`docs/improvement-ratchet.md`](../improvement-ratchet.md) | The ratchet | open. | — |
@@ -473,6 +475,7 @@ One row per page under `docs/`, ADRs included. An ADR's **status** is the column
 | [`docs/where-iterion-keeps-data.md`](../where-iterion-keeps-data.md) | Where iterion keeps data | against `pkg/store/storedir.go`, `pkg/cli/studio.go`, `pkg/skilllib`, | — |
 | [`docs/why-iterion.md`](../why-iterion.md) | Why Iterion? | Organisations are about to run **fleets of AI agents** — reviewing code, shipping | — |
 | [`docs/why-not-prompt-orchestration.md`](../why-not-prompt-orchestration.md) | Why not just prompt-orchestration? | A recurring question when someone first sees Iterion is: *"why a DSL? Can't I get the same thing with a single Claude Code session that… | — |
+| [`docs/windows.md`](../windows.md) | Iterion on Windows | and its callers; the PowerShell 5.1 behaviours in the limitations table were | — |
 | [`docs/workflow-reliability-1006.md`](../workflow-reliability-1006.md) | Workflow reliability rollout (#1006) | This document is the compatibility ledger for the reliability work. | — |
 | [`docs/workflow_authoring_pitfalls.md`](../workflow_authoring_pitfalls.md) | Workflow Authoring Pitfalls | Hard-won lessons for authoring `.bot` workflows where LLM agents do real work | — |
 | [`docs/workspace-versioning.md`](../workspace-versioning.md) | 🗂️ Workspace versioning | A node's real work is often not in its output. | — |

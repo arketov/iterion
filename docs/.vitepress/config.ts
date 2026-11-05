@@ -243,6 +243,7 @@ const sidebar = [
     text: 'Desktop',
     items: [
       { text: 'Desktop app', link: '/desktop' },
+      { text: 'Iterion on Windows', link: '/windows' },
       { text: 'Desktop architecture', link: '/desktop-architecture' },
       { text: 'Desktop build', link: '/desktop-build' },
       { text: 'Desktop distribution', link: '/desktop-distribution' },

@@ -151,6 +151,7 @@ Start with the [Iterion Cloud overview](cloud-overview.md) for the event → que
 | Page | Topic |
 |---|---|
 | [desktop.md](desktop.md) | End-user desktop application. |
+| [windows.md](windows.md) | What runs on Windows, which shell runs commands there, known limitations and workarounds, building on Windows. |
 | [desktop-architecture.md](desktop-architecture.md) | Wails/AssetServer proxy architecture. |
 | [desktop-build.md](desktop-build.md) | Local and reproducible desktop builds. |
 | [desktop-distribution.md](desktop-distribution.md) | Signing and distribution. |

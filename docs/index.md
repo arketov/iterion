@@ -225,7 +225,7 @@ kept there by a guard — the Mongo data model, the access-control matrix, and
 - ⚙️ **Run and operate locally** — [resume](resume.md), the [sandbox](sandbox.md), [scheduling](scheduling.md), the [dispatcher](dispatcher.md), [merge policy](merge-policy.md), [config share](config-share.md), [observability](observability/README.md).
 - 🤖 **Bots & security automation** — the [fleet](examples.md), the [security bots](security-bots.md) and their [distributed](security-bots-distributed.md) and [patcher](security-patcher.md) variants.
 - ☁️ **Cloud control plane** — the [overview](cloud-overview.md) and [architecture](cloud-architecture.md), the [REST API](cloud-rest-api.md), [webhooks](webhooks.md), [BYOK](byok.md), the [admin guide](cloud-admin-guide.md), [deployment](cloud-deployment.md).
-- 🖥️ **Desktop** — the [app](desktop.md), its [architecture](desktop-architecture.md), [build](desktop-build.md) and [distribution](desktop-distribution.md).
+- 🖥️ **Desktop** — the [app](desktop.md), its [architecture](desktop-architecture.md), [build](desktop-build.md) and [distribution](desktop-distribution.md); on Windows, what is supported and the known limits: [iterion on Windows](windows.md).
 - 🧭 **Reference & history** — the [CLI reference](cli-reference.md), [comparisons](comparisons/), the [ADRs](adr/), [architecture & contribution](architecture.md), the [ratchet](improvement-ratchet.md).
 
 </div>

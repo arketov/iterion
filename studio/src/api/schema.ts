@@ -7093,9 +7093,9 @@ export interface components {
             updated_at: string;
         };
         LaunchFailure: {
-            attempt?: number;
             /** Format: date-time */
             at: string;
+            attempt?: number;
             error: string;
             exit_code?: number;
             hook?: string;

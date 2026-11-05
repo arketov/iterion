@@ -68,7 +68,7 @@ in a `script:` with an explicit `language:`.
 | Non-ASCII text in a `language: powershell` body comes out garbled on Windows PowerShell 5.1. | The script file is written as UTF-8 without a BOM, and 5.1 reads a BOM-less file in the legacy code page. PowerShell 7 reads it as UTF-8. | Install PowerShell 7 (iterion prefers `pwsh`), or keep the body ASCII and read non-ASCII data from a file with an explicit `-Encoding UTF8`. |
 | A quote inside an argument to a program is lost: `node -e "…" 'say "hi"'` receives `say hi`. | Before PowerShell 7.3 (so in 5.1), embedded double quotes are stripped when calling a native program. | Use PowerShell 7.3 or later, or pass such values through an environment variable or a file. |
 | "Access is denied" when deleting, renaming or saving a file in a folder synced by OneDrive. | The sync client or an antivirus scanner briefly holds the file open without delete sharing. Iterion reads its board's card files with delete sharing, but cannot control a handle another program holds. | Keep the project, its worktrees and the store outside OneDrive-synced folders, or pause syncing while a run is active. |
-| `git` fails with "Filename too long" in a working copy. | A deep tree, a long OneDrive folder name and a worktree path pass 260 characters, which git on Windows refuses by default. | `git config --global core.longpaths true`, or per repository without `--global`. Run workspaces (`worktree: auto`) are git worktrees of the project's repository, so the repository's setting covers them. |
+| `git` fails with "Filename too long" in a working copy. | A deep tree, a long OneDrive folder name and a worktree path pass 260 characters, which git on Windows refuses by default. | `git config --global core.longpaths true`, or per repository without `--global`. A run's workspace (`worktree: auto`) is a git worktree kept in the project's store, in a folder named after the project's whole path, so a deep project path lengthens every path inside it; the repository's setting covers those worktrees too. |
 
 ## Working on iterion itself
 
@@ -108,6 +108,6 @@ Taskfile's `LDFLAGS`.
 ## Where your data lives
 
 Runs, the board, settings and the desktop's project list are kept in a store
-outside the project folder, not in it. Which folder, how iterion chooses it and
+outside the project folder, by default under `%USERPROFILE%\.iterion\`. Which folder, how iterion chooses it and
 how to move it are on [where iterion keeps data](where-iterion-keeps-data.md);
 the desktop app itself is described in [desktop](desktop.md).
