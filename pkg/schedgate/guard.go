@@ -98,7 +98,7 @@ func RunGuard(parentCtx context.Context, spec GuardSpec) GuardResult {
 		return GuardResult{Kind: GuardError, ExitCode: -1, Err: fmt.Errorf("schedgate: empty guard command")}
 	}
 
-	cmd, shErr := hostshell.Command(cctx, hostshell.Request{}, spec.Command, true)
+	cmd, shErr := hostshell.Command(cctx, hostshell.Request{Script: spec.Command}, spec.Command, true)
 	if shErr != nil {
 		return GuardResult{Kind: GuardError, ExitCode: -1, Err: shErr}
 	}

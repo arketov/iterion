@@ -48,7 +48,7 @@ func RunLifecycle(ctx context.Context, reg *Registry, name, phase, workspace str
 	if cdErr := os.MkdirAll(reg.CacheDir(name), 0o755); cdErr != nil {
 		return cdErr
 	}
-	c, shErr := hostshell.Command(ctx, hostshell.Request{}, expanded, false)
+	c, shErr := hostshell.Command(ctx, hostshell.Request{Script: expanded}, expanded, false)
 	if shErr != nil {
 		return shErr
 	}

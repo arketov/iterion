@@ -228,6 +228,7 @@ func newWorkspaceProjectServer(opts StudioOptions, project projects.Project, log
 				DefaultsFn: func() (*dispatcher.Config, error) {
 					return BuildDefaultConfig(project.StoreDir, project.Dir)
 				},
+				MigrateConfig: MigrateLegacySeedHook,
 			})
 			if managerErr != nil {
 				logger.Warn("workspace: dispatcher disabled for %s: %v", project.Name, managerErr)

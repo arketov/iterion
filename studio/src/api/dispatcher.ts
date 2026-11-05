@@ -54,8 +54,14 @@ export function resume(): Promise<ManagerStatus> {
 // (caller should DELETE or PUT to overwrite first), 501 if the
 // running binary was built without the defaults closure wired (out-
 // of-process dispatch mode), 400 if the embedded catalogue is empty.
-export function applyDefaults(): Promise<ManagerStatus> {
-  return request("/defaults/apply", { method: "POST" });
+//
+// `replace: true` is the operator's explicit "back to the default
+// settings": the server overwrites the saved config (and live-reloads a
+// running dispatcher) instead of answering 409.
+export function applyDefaults(opts?: { replace?: boolean }): Promise<ManagerStatus> {
+  return request(opts?.replace ? "/defaults/apply?replace=1" : "/defaults/apply", {
+    method: "POST",
+  });
 }
 
 // ---------------------------------------------------------------------------

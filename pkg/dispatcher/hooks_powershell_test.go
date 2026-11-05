@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -57,5 +58,24 @@ func TestHookRun_ExplicitShellFieldWins(t *testing.T) {
 	var he *HookError
 	if err == nil || errors.As(err, &he) && he.ExitCode == 3 {
 		t.Fatalf("shell: must beat ITERION_SHELL; got %v", err)
+	}
+}
+
+// A hook saved before the host shell followed the OS is sh text with no
+// `shell:`. On a PowerShell host with no sh it fails naming the remedy,
+// before any process starts — never PowerShell reading `set -e` as a cmdlet.
+func TestHookRun_ShScriptWithoutShellOnAPowerShellHostIsRefusedClearly(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("the PowerShell default host is Windows")
+	}
+	hostshelltest.UsePowerShell(t)
+	t.Setenv("PATH", t.TempDir()) // neither sh nor bash on PATH
+	// UsePowerShell names the shell through ITERION_SHELL, which is an
+	// explicit choice; this test is about the unset default.
+	t.Setenv("ITERION_SHELL", "")
+	h := &Hook{Script: "set -e\necho hi"}
+	err := h.Run(context.Background(), newTestLogger(), "after_create", t.TempDir(), nil)
+	if err == nil || !strings.Contains(err.Error(), "written for sh") || !strings.Contains(err.Error(), "shell:") {
+		t.Fatalf("want a clear sh-on-PowerShell error, got %v", err)
 	}
 }

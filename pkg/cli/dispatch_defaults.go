@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/arketov/iterion/pkg/botregistry"
@@ -180,10 +181,14 @@ if ($LASTEXITCODE -eq 0) {
 `
 }
 
-// seedScriptForHost picks the seed script in the dialect of the shell the
+// seedHookForHost picks the seed script in the dialect of the shell the
 // after_create hook will run under (hostshell: PowerShell on Windows, sh
-// elsewhere, or what ITERION_SHELL names).
-func seedScriptForHost(projectDir string) string {
+// elsewhere, or what ITERION_SHELL names), and, when that is PowerShell,
+// the `shell:` to save with it: the dialect and the shell travel together in
+// the persisted config, so a later change of the host default cannot hand a
+// PowerShell script to sh or the reverse. On POSIX shell stays empty (the
+// platform default is the dialect).
+func seedHookForHost(projectDir string) (script, shell string) {
 	sh, err := hostshell.Resolve(hostshell.Request{})
 	powershell := sh.Kind == hostshell.KindPowerShell
 	if err != nil {
@@ -191,10 +196,62 @@ func seedScriptForHost(projectDir string) string {
 		// one the platform default would have used.
 		powershell = hostshell.IsWindowsHost()
 	}
-	if powershell {
-		return workspaceSeedPowerShell(projectDir)
+	if !powershell {
+		return workspaceSeedScript(projectDir), ""
 	}
-	return workspaceSeedScript(projectDir)
+	if err != nil {
+		// No PowerShell found: nothing to name. The preset is still the
+		// platform's, and the hook reports the missing shell when it runs.
+		return workspaceSeedPowerShell(projectDir), ""
+	}
+	shell = "powershell"
+	if base := strings.ToLower(strings.TrimSuffix(filepath.Base(sh.Path), ".exe")); base == "pwsh" {
+		shell = "pwsh"
+	}
+	return workspaceSeedPowerShell(projectDir), shell
+}
+
+// legacySeedProjectDir reports whether script is the sh seed preset
+// (workspaceSeedScript) a config saved before the host shell followed the OS
+// carries, and for which project directory it was written.
+func legacySeedProjectDir(script string) (string, bool) {
+	script = strings.ReplaceAll(script, "\r\n", "\n")
+	pre, post, ok := strings.Cut(workspaceSeedScript(""), `PROJECT_DIR=""`)
+	if !ok {
+		return "", false
+	}
+	if !strings.HasPrefix(script, pre+"PROJECT_DIR=") || !strings.HasSuffix(script, post) {
+		return "", false
+	}
+	quoted := strings.TrimSuffix(strings.TrimPrefix(script, pre+"PROJECT_DIR="), post)
+	dir, err := strconv.Unquote(quoted)
+	if err != nil || dir == "" {
+		return "", false
+	}
+	return dir, true
+}
+
+// MigrateLegacySeedHook rewrites, in place, a saved dispatcher config whose
+// after_create hook is the old sh seed preset with no `shell:` into the preset
+// for this host's shell, with `shell:` saved explicitly. It changes nothing
+// where the host shell is a POSIX one (the old text is right there), and
+// leaves any hook the operator wrote or edited alone — those are handled when
+// they run (hostshell.Request.Script). Reports whether cfg changed.
+func MigrateLegacySeedHook(cfg *dispatcher.Config) bool {
+	if cfg == nil || cfg.Hooks.AfterCreate == nil || cfg.Hooks.AfterCreate.Shell != "" {
+		return false
+	}
+	dir, ok := legacySeedProjectDir(cfg.Hooks.AfterCreate.Script)
+	if !ok {
+		return false
+	}
+	script, shell := seedHookForHost(dir)
+	if shell == "" {
+		return false
+	}
+	cfg.Hooks.AfterCreate.Script = script
+	cfg.Hooks.AfterCreate.Shell = shell
+	return true
 }
 
 // BuildDefaultConfig returns the in-memory dispatcher configuration
@@ -248,8 +305,10 @@ func BuildDefaultConfig(storeDir, projectDir string) (*dispatcher.Config, error)
 		// (or copies the tree when projectDir is not a git repo)
 		// so the bot's workspace_dir input lands on a real
 		// checkout matching the host state at dispatch time.
+		seedScript, seedShell := seedHookForHost(projectDir)
 		hooks.AfterCreate = &dispatcher.Hook{
-			Script:    seedScriptForHost(projectDir),
+			Script:    seedScript,
+			Shell:     seedShell,
 			TimeoutMS: 120_000,
 		}
 		// No destructive before_remove default: after removing an owned,

@@ -306,7 +306,7 @@ func runCommandHook(ctx context.Context, event string, hctx hooks.Context, h set
 	defer cancel()
 
 	inputJSON, _ := json.Marshal(hctx.ToolInput)
-	c, shErr := hostshell.Command(cctx, hostshell.Request{}, h.Command, false)
+	c, shErr := hostshell.Command(cctx, hostshell.Request{Script: h.Command}, h.Command, false)
 	if shErr != nil {
 		if logger != nil {
 			logger.Warn("settings hook %s: %v", event, shErr)
