@@ -23,9 +23,11 @@ type PrunedRunRefs struct {
 // reached the disk yet). exists must answer "does this run exist in the store",
 // and must be conservative — returning true for anything it cannot tell.
 //
-// When LastRunID is pruned the pointer falls back to the newest surviving
-// history entry, or clears when none survives; the outcome tuple of the dead
-// pointer is dropped with it (it described a run that never was).
+// When LastRunID is pruned the pointer is CLEARED (history kept), the same as
+// "Retry from zero": the dispatcher's next dispatch mints a fresh run, exactly
+// what a phantom pointer already caused, instead of silently resuming an older
+// failed run the card had moved past. The outcome tuple of the dead pointer is
+// dropped with it (it described a run that never was).
 func (s *Store) PruneRunRefs(exists func(runID string) bool, grace time.Duration) (pruned []PrunedRunRefs, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -62,30 +64,29 @@ func (s *Store) PruneRunRefs(exists func(runID string) bool, grace time.Duration
 			continue
 		}
 		iss.Runs = kept
+		pointerChanged := false
 		if alreadyPruned(gone, iss.LastRunID) || pointerGone {
 			iss.LastRunStatus, iss.LastRunError, iss.LastRunErrorCode, iss.LastRunAt = "", "", "", nil
 			iss.AwaitingInput = false
-			if n := len(kept); n > 0 {
-				iss.LastRunID, iss.LastWorkdir = kept[n-1].RunID, kept[n-1].Workdir
-			} else {
-				iss.LastRunID, iss.LastWorkdir = "", ""
-			}
+			iss.LastRunID, iss.LastWorkdir = "", ""
+			pointerChanged = true
 		}
 		if len(iss.Runs) == 0 {
 			iss.Runs = nil
 		}
-		iss.UpdatedAt = time.Now().UTC()
+		// UpdatedAt is left alone: it orders the dispatch queue and the board,
+		// and a housekeeping rewrite is not an edit of the card.
 		if werr := s.writeIssueLocked(iss); werr != nil {
 			return pruned, werr
 		}
 		s.setIndexLocked(iss.ID, cloneIssue(iss))
 		pruned = append(pruned, PrunedRunRefs{IssueID: iss.ID, RunIDs: gone})
-		if eerr := s.emitPostCommitEvent(Event{
-			Type:    EvtIssueLastRun,
-			IssueID: iss.ID,
-			Payload: map[string]any{"run_id": iss.LastRunID, "workdir": iss.LastWorkdir},
-		}); eerr != nil {
-			return pruned, eerr
+		if pointerChanged {
+			_ = s.emitPostCommitEvent(Event{
+				Type:    EvtIssueLastRun,
+				IssueID: iss.ID,
+				Payload: map[string]any{"run_id": iss.LastRunID, "workdir": iss.LastWorkdir},
+			})
 		}
 	}
 	return pruned, nil

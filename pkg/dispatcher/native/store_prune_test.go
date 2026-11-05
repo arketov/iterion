@@ -48,9 +48,9 @@ func TestPruneRunRefs(t *testing.T) {
 	if len(got.Runs) != 2 || got.Runs[0].RunID != "real-1" || got.Runs[1].RunID != "ghost-young" {
 		t.Fatalf("Runs = %+v, want real-1 + the young entry", got.Runs)
 	}
-	// The pointer named a pruned run: falls back to the newest survivor and
-	// the dead pointer's outcome is dropped.
-	if got.LastRunID != "ghost-young" || got.LastRunStatus != "" {
+	// The pointer named a pruned run: cleared (next dispatch is fresh, not a
+	// resume of an older run) and the dead pointer's outcome is dropped.
+	if got.LastRunID != "" || got.LastRunStatus != "" {
 		t.Fatalf("pointer = %q status=%q", got.LastRunID, got.LastRunStatus)
 	}
 }

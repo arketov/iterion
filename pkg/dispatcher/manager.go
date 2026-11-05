@@ -202,8 +202,12 @@ func (m *Manager) pruneGhostRunsAtBoot() {
 		m.logger.Warn("manager: boot-time ghost-run cleanup failed: %v", err)
 		return
 	}
-	for _, p := range pruned {
-		m.logger.Info("manager: removed %d run(s) that never started from the history of %s: %v", len(p.RunIDs), p.IssueID, p.RunIDs)
+	if len(pruned) > 0 {
+		total := 0
+		for _, p := range pruned {
+			total += len(p.RunIDs)
+		}
+		m.logger.Info("manager: removed %d run(s) that never started from the history of %d card(s)", total, len(pruned))
 	}
 }
 
