@@ -51,7 +51,7 @@ func PluginServersUnavailable() error {
 		// plugin directory into a warning about servers that never existed
 		// — on the surface every operator reads.
 		return fmt.Errorf("mcp: %d installed plugin(s) were skipped while loading; any MCP server they "+
-			"contribute is absent from this run: %s", len(skips), strings.Join(skips, "; "))
+			"contribute is absent from this run: %s%s", len(skips), strings.Join(skips, "; "), skippedPluginRemedy(skips))
 	}
 	return nil
 }
@@ -106,4 +106,22 @@ func loadPluginServers(workspace string, logger *iterlog.Logger) map[string]*Ser
 		}
 	}
 	return out
+}
+
+// skippedPluginRemedy is the sentence that tells an operator how to make the
+// "plugin(s) were skipped" message stop: it names a plugin and the two
+// commands that take a broken one out of the load. A skip reads
+// "<plugin>: <reason>" (Registry.loadInstalled), so the name is what precedes
+// the first ": ". Empty when no skip carries a plugin name.
+func skippedPluginRemedy(skips []string) string {
+	for _, s := range skips {
+		name, _, ok := strings.Cut(s, ": ")
+		if !ok || name == "" || strings.ContainsAny(name, " \t") {
+			continue
+		}
+		return fmt.Sprintf(" — restore the plugin's manifest (<plugins-dir>/%[1]s/plugin.yaml), or remove the broken "+
+			"plugin with `iterion plugin uninstall %[1]s` (`plugin disable` does not help: the manifest is read "+
+			"before the enabled state is consulted)", name)
+	}
+	return ""
 }

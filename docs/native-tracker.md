@@ -180,8 +180,11 @@ iterion issue move     <id-or-prefix>  --to <state>
 iterion issue update   <id-or-prefix>  [--title T] [--body B] [--labels L1,L2]
                                        [--priority N] [--assignee A] [--blockers B1,B2]
                                        [--field k=v]+ [--clear-field K]+
+                                       [--bot NAME] [--bot-arg key=value]+
+                                       [--clear-bot-arg KEY]+
                                        [--clear-last-run]
 iterion issue close    <id-or-prefix>          # → first terminal state
+iterion issue delete   <id-or-prefix> [--yes]  # permanently removes the card
 
 iterion issue board show
 iterion issue board init [--from <board.json>] [--force]
@@ -194,6 +197,12 @@ shown in `list`).
 `--field key=value` infers the type from the value: `true`/`false` →
 bool, integers / floats → number, everything else → string. Use
 `--clear-field key` to unset a value.
+
+`iterion issue delete` removes the card file for good (the same operation as
+`DELETE /api/v1/native/issues/{id}` and the studio's delete). Unlike `close`,
+which keeps the card in a terminal state, it cannot be undone, so it asks
+`[y/N]` first; `--yes` / `-y` skips the question and is required when stdin is
+not a terminal (a script or pipe without it is refused, nothing is deleted).
 
 `--clear-last-run` drops the card's `last_run` pointer. While that pointer
 names a resumable run the dispatcher **resumes** it on the next dispatch
@@ -232,8 +241,20 @@ iterion issue create --title "Ship X" --state ready \
 ```
 
 (`--field key=value` is different: it lands in the freeform `Fields`
-map, NOT in `BotArgs`.) `iterion issue update` does not expose the
-two flags yet — to change routing on an EXISTING card use one of:
+map, NOT in `BotArgs`.) To change routing on an EXISTING card, `iterion issue update`
+takes the same two flags:
+
+```bash
+iterion issue update 1a2b3c4d --bot docs-refresh   --bot-arg doc_globs="README.md,docs/**/*.md" --clear-bot-arg old_var
+```
+
+`--bot ""` clears the override. `--bot-arg key=value` (repeatable, values kept
+verbatim including commas) is **merged over** the card's existing bot args —
+other keys stay — and `--clear-bot-arg key` removes one key (applied first).
+That differs from the REST `PATCH`, which replaces `bot_args` wholesale. As
+everywhere else, the publish grant and the dispatcher-owned launch context
+(`__iterion_*`) are not writable from the command line. Other ways to change
+routing on an existing card:
 
 - the REST API (`PATCH /api/v1/native/issues/{id}` with
   `{ "bot": "feature_dev", "bot_args": { "feature_prompt": "…" } }`),
