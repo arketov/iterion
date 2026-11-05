@@ -228,7 +228,7 @@ export default function RecentFilesPanel({ variant = "card" }: Props) {
                           <span
                             className={`truncate font-medium text-xs ${identity.color}`}
                           >
-                            {ex.display_name || ex.name}
+                            {ex.display_name || techName}
                           </span>
                           {ex.display_name && (
                             <span className="font-mono text-fg-subtle text-caption truncate shrink-0">

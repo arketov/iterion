@@ -269,6 +269,14 @@ export default function BotsView() {
   // The same numbers as the Home panel and the Manage dialog (countBots).
   const counts = countBots(bots, extraBots);
   const catalogEmpty = bots !== null && bots.length === 0;
+  // A category/tag left in the URL cannot match anything on an empty catalog
+  // and would hide the built-in list too: drop it, so the page shows what
+  // there is instead of a filter with no way out.
+  const staleFilter = catalogEmpty && (activeCategory !== null || activeTags.length > 0);
+  useEffect(() => {
+    if (staleFilter) applyFilters(null, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staleFilter]);
   const shownBuiltin =
     activeCategory !== null || activeTags.length > 0
       ? 0
