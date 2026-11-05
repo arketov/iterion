@@ -868,7 +868,7 @@ so a new id-addressed route cannot land unclassified:
 | `/api/auth/…`, `/api/me/…`, `/api/orgs/…` | identity surfaces, user-scoped, org-scoped by path |
 | `/api/v1/native/issues/{id}…`, `/api/v1/pipeline-board/tasks/{id}…` | IN the by-id class since ADR-141: served from the issue's team (the resolver reads the id across teams; reads take a viewer, mutations a member) — self-hosted's single store stays out of the class |
 | `/api/v1/native/labels/{label}`, `/api/v1/native/board/…` | board vocabulary and config of the active team's store |
-| `/api/v1/bots/{name}…` (`GET /api/v1/bots?include=all` adds the project's single `.bot` files without a manifest, `origin: file` (the binary's embedded recipes are not listed); the default list stays catalog + platform + team) | the dispatch catalog: a tiered namespace by design (team > platform > baked), not an authored-resource id |
+| `/api/v1/bots/{name}…` (the list read and its `include` parameter: [Bot, plugin and board-card list reads](#bot-plugin-and-board-card-list-reads)) | the dispatch catalog: a tiered namespace by design (team > platform > baked), not an authored-resource id |
 | `/api/assistant-watches/{watchID}` | fixed compatibility sibling of the run-addressed `DELETE /api/runs/{id}/assistant-watches/{watchID}`: the stop resolves the watch's target run under the caller's active team |
 | `/api/v1/marketplace/…` | public marketplace family (anonymous reads, repo-coordinate installs); the browse routes serve a public view — the submitter and reviewer account ids, the review timestamp and the reject reason are only returned to the submitter and to super-admins (`marketplace.ForViewer`); the moderation queue stays whole |
 | `/api/v1/mcp/…` | per-run token over single-tenant store surfaces |
@@ -966,6 +966,27 @@ rows are registered in [pkg/server/auth_routes.go](../pkg/server/auth_routes.go)
 and handled in [pkg/server/auth_admin.go](../pkg/server/auth_admin.go) +
 [pkg/server/admin_users_routes.go](../pkg/server/admin_users_routes.go), the
 audit row in [pkg/server/audit_helper.go](../pkg/server/audit_helper.go).
+
+## Bot, plugin and board-card list reads
+
+Three list reads whose behaviour hangs on a query parameter or a response
+field a client cannot guess. `GET /api/v1/bots` and `GET /api/v1/plugins` are
+in [openapi.json](../openapi.json), with the `include` parameter and the
+`load_skips` field declared; `GET /api/v1/native/issues` is not, because the
+`/api/v1/native` sub-tree bypasses the route recorder (see the note at the top
+of this page), so its `refresh` parameter lives here and in
+[native-tracker.md](native-tracker.md).
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| `GET` | `/api/v1/bots` | session | The discovered bots with their vars schema, as `{bots, discovery_errors?}`. The default list is catalog + platform + team bots. `?include=all` (or `files`) also lists the project's single `.bot` files that have no manifest: `origin: file`, reported enabled and not editable, and a file already covered by a catalog entry's path is not listed twice. Several tokens may be comma-separated; `builtin` is accepted and ignored (the binary's embedded recipes are not a listed bot source). A team-scoped caller never gets the file scan: `include` is ignored for them |
+| `GET` | `/api/v1/plugins` | session | The loaded plugin registry as `{plugins, load_skips}`. `load_skips` carries one `"<name>: <reason>"` per installed plugin that could not be loaded, and is always present (an empty array when none was skipped), so a plugin missing from `plugins` can be told from one that was never installed — see [plugins.md](plugins.md) |
+| `GET` | `/api/v1/native/issues` | session | The native board's cards, filtered by `state` and `label` (both repeatable) and `assignee`. Every list compares the card directory with the index; `?refresh=1` (also `true` or `yes`) first re-reads every card from disk, which is what the Board's refresh button sends, and a failure of that forced re-read is answered `500` instead of being ignored |
+
+Sources: [pkg/server/bots_routes.go](../pkg/server/bots_routes.go) and
+[pkg/server/bots_sources.go](../pkg/server/bots_sources.go),
+[pkg/server/plugins.go](../pkg/server/plugins.go),
+[pkg/dispatcher/native/http.go](../pkg/dispatcher/native/http.go).
 
 ## Server info + health
 

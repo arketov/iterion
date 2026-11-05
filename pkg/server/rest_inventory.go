@@ -293,7 +293,11 @@ func GenerateRESTInventoryAnnex(root string) ([]byte, error) {
 	if problems := specGhostCheck(routes, spec); len(problems) > 0 {
 		return nil, fmt.Errorf("openapi.json publishes routes no pkg/server registration owns (run `task gen` to regenerate both):\n  %s", strings.Join(problems, "\n  "))
 	}
-	return []byte(renderRESTInventoryAnnex(routes)), nil
+	queries, err := readSpecQueryParams(filepath.Join(root, "openapi.json"))
+	if err != nil {
+		return nil, err
+	}
+	return []byte(renderRESTInventoryAnnex(routes, queries)), nil
 }
 
 // specPair is one (method, path) the committed spec publishes. The
@@ -329,6 +333,49 @@ func readSpecPairs(path string) (map[specPair]bool, error) {
 	}
 	if len(out) < 380 {
 		return nil, fmt.Errorf("openapi.json carries %d operation(s), floor 380 — the parse went blind and the cross-check would pass on nothing", len(out))
+	}
+	return out, nil
+}
+
+// readSpecQueryParams extracts the query parameters each operation of a
+// committed OpenAPI document declares (names only, in declaration order). A
+// route's parameter is declared once, in routeSchemas, and this is how the
+// annex learns it: a parameter the spec carries cannot be missing from the
+// annex, and one the spec lacks cannot appear in it.
+func readSpecQueryParams(path string) (map[specPair][]string, error) {
+	raw, err := os.ReadFile(path) // #nosec G304 -- the committed spec at the repository root
+	if err != nil {
+		return nil, fmt.Errorf("read openapi.json: %w", err)
+	}
+	var doc struct {
+		Paths map[string]map[string]json.RawMessage `json:"paths"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, fmt.Errorf("parse openapi.json: %w", err)
+	}
+	type paramList struct {
+		Parameters []struct {
+			Name string `json:"name"`
+			In   string `json:"in"`
+		} `json:"parameters"`
+	}
+	out := map[specPair][]string{}
+	for p, item := range doc.Paths {
+		for key, op := range item {
+			if key == "parameters" {
+				continue
+			}
+			var pl paramList
+			if err := json.Unmarshal(op, &pl); err != nil {
+				return nil, fmt.Errorf("parse openapi.json operation %s %s: %w", strings.ToUpper(key), p, err)
+			}
+			for _, prm := range pl.Parameters {
+				if prm.In == "query" {
+					pair := specPair{strings.ToUpper(key), p}
+					out[pair] = append(out[pair], prm.Name)
+				}
+			}
+		}
 	}
 	return out, nil
 }
@@ -387,7 +434,7 @@ func specGhostCheck(routes []InventoryRoute, spec map[specPair]bool) []string {
 // renderRESTInventoryAnnex renders the annex: one section per family (the
 // spec's own grouping), rows sorted by pattern then verb so two route
 // additions never collide on a summary line — the body carries no counts.
-func renderRESTInventoryAnnex(routes []InventoryRoute) string {
+func renderRESTInventoryAnnex(routes []InventoryRoute, queries map[specPair][]string) string {
 	sorted := make([]InventoryRoute, len(routes))
 	copy(sorted, routes)
 	sort.Slice(sorted, func(i, j int) bool {
@@ -465,7 +512,37 @@ registered by ` + noSpecRegistrars(routes) + `.
 			fmt.Fprintf(&b, "| `%s` | `%s` | %s | %s |\n", method, r.Pattern, r.Rung, spec)
 		}
 	}
+	b.WriteString(renderQueryParamSection(sorted, queries))
 	return b.String()
+}
+
+// renderQueryParamSection lists, per route, the query parameters the
+// published spec declares. Names only: the type and the meaning of each are in
+// openapi.json, and what a value does is the curated page's prose. Empty when
+// the spec declares none.
+func renderQueryParamSection(sorted []InventoryRoute, queries map[specPair][]string) string {
+	var rows strings.Builder
+	for _, r := range sorted {
+		for _, pair := range specPairsOf(r) {
+			names := queries[pair]
+			if len(names) == 0 {
+				continue
+			}
+			quoted := make([]string, len(names))
+			for i, n := range names {
+				quoted[i] = "`" + n + "`"
+			}
+			fmt.Fprintf(&rows, "| `%s` | `%s` | %s |\n", pair.method, r.Pattern, strings.Join(quoted, ", "))
+		}
+	}
+	if rows.Len() == 0 {
+		return ""
+	}
+	return "\n## Declared query parameters\n\n" +
+		"The published [`openapi.json`](../openapi.json) declares these query parameters per operation " +
+		"(names only; the type and the meaning of each are in the spec, the effect in the curated page). " +
+		"A route can read a query token the spec does not declare, so absence here does not prove the route reads none.\n\n" +
+		"| Method | Path | Query parameters |\n|---|---|---|\n" + rows.String()
 }
 
 // noSpecRegistrars names the registrar files that carry the rows the spec

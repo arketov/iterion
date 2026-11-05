@@ -889,6 +889,38 @@
         ],
         "type": "object"
       },
+      "ConfigField": {
+        "properties": {
+          "default": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "type": "object"
+      },
       "ContextRef": {
         "properties": {
           "id": {
@@ -3981,6 +4013,59 @@
         ],
         "type": "object"
       },
+      "View": {
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "builtin": {
+            "type": "boolean"
+          },
+          "config_schema": {
+            "items": {
+              "$ref": "#/components/schemas/ConfigField"
+            },
+            "type": "array"
+          },
+          "config_secret_set": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "config_values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "kinds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "enabled",
+          "builtin",
+          "kinds"
+        ],
+        "type": "object"
+      },
       "WatcherCursor": {
         "properties": {
           "consecutive_no_progress": {
@@ -6186,6 +6271,27 @@
           "keys_first_effective",
           "facade_default_effective",
           "routing_effective_scope"
+        ],
+        "type": "object"
+      },
+      "pluginsListResponse": {
+        "properties": {
+          "load_skips": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "plugins": {
+            "items": {
+              "$ref": "#/components/schemas/View"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "plugins",
+          "load_skips"
         ],
         "type": "object"
       },
@@ -16051,7 +16157,19 @@
     },
     "/api/v1/bots": {
       "get": {
+        "description": "The discovered bots with their vars schema. Without ?include the list is catalog + platform + tenant bots. With ?include=all (or files) it also lists the project's single .bot files that have no manifest (origin \"file\", reported enabled and not editable). A team-scoped caller never gets the file scan.",
         "operationId": "getV1Bots",
+        "parameters": [
+          {
+            "description": "Extra bot sources to list: all or files (the project's single .bot files without a manifest). Comma-separated tokens are accepted; builtin is accepted and ignored (the embedded recipes are not a listed bot source). Ignored for a team-scoped caller.",
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "default": {
             "description": "Response"
@@ -16847,10 +16965,18 @@
     },
     "/api/v1/plugins": {
       "get": {
+        "description": "The loaded plugin registry (embedded builtins plus the installed plugins) with each plugin's enable state. load_skips lists, one \"\u003cname\u003e: \u003creason\u003e\" per entry, the installed plugins that could not be loaded; it is an empty array when none was skipped.",
         "operationId": "getV1Plugins",
         "responses": {
-          "default": {
-            "description": "Response"
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/pluginsListResponse"
+                }
+              }
+            },
+            "description": "OK"
           }
         },
         "summary": "GET /api/v1/plugins",

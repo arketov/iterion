@@ -457,3 +457,16 @@ func TestTheSpecGhostCheckBites(t *testing.T) {
 		t.Fatal("a method-less registration whose POST the spec lacks must read as out of spec")
 	}
 }
+
+// The annex learns a query parameter from the published spec, so a parameter
+// declared in routeSchemas (GET /api/v1/bots reads ?include) is listed in the
+// generated annex and cannot drift from it.
+func TestTheAnnexListsTheQueryParametersTheSpecDeclares(t *testing.T) {
+	rendered, err := GenerateRESTInventoryAnnex("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(rendered), "| `GET` | `/api/v1/bots` | `include` |") {
+		t.Fatal("the annex does not list the include query parameter of GET /api/v1/bots")
+	}
+}

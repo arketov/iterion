@@ -8,6 +8,16 @@ import (
 	"github.com/arketov/iterion/pkg/plugin"
 )
 
+// pluginsListResponse is the body of GET /api/v1/plugins: the loaded plugins and
+// one reason per installed plugin that could not be loaded. The route's OpenAPI
+// entry references this type, so the spec cannot drift from the handler.
+type pluginsListResponse struct {
+	Plugins []plugin.View `json:"plugins"`
+	// LoadSkips holds one "<name>: <reason>" per installed plugin that failed to
+	// load. Always present, an empty array when nothing was skipped.
+	LoadSkips []string `json:"load_skips"`
+}
+
 // handlePluginsList answers GET /api/v1/plugins — the loaded plugin registry
 // (embedded builtins + ~/.iterion/plugins) with each plugin's enable state and
 // contribution kinds. Backs the studio Plugins management view.
@@ -24,7 +34,7 @@ func (s *Server) handlePluginsList(w http.ResponseWriter, r *http.Request) {
 	if skips == nil {
 		skips = []string{}
 	}
-	s.writeJSONFor(w, r, map[string]any{"plugins": reg.Views(), "load_skips": skips})
+	s.writeJSONFor(w, r, pluginsListResponse{Plugins: reg.Views(), LoadSkips: skips})
 }
 
 // handlePluginEnable answers POST /api/v1/plugins/{name}/enable and

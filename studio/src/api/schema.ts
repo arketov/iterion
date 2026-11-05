@@ -5383,7 +5383,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** GET /api/v1/bots */
+        /**
+         * GET /api/v1/bots
+         * @description The discovered bots with their vars schema. Without ?include the list is catalog + platform + tenant bots. With ?include=all (or files) it also lists the project's single .bot files that have no manifest (origin "file", reported enabled and not editable). A team-scoped caller never gets the file scan.
+         */
         get: operations["getV1Bots"];
         put?: never;
         /** POST /api/v1/bots */
@@ -5963,7 +5966,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** GET /api/v1/plugins */
+        /**
+         * GET /api/v1/plugins
+         * @description The loaded plugin registry (embedded builtins plus the installed plugins) with each plugin's enable state. load_skips lists, one "<name>: <reason>" per entry, the installed plugins that could not be loaded; it is an empty array when none was skipped.
+         */
         get: operations["getV1Plugins"];
         put?: never;
         post?: never;
@@ -6721,6 +6727,15 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             id: string;
+        };
+        ConfigField: {
+            default?: string;
+            description?: string;
+            key: string;
+            label?: string;
+            options?: string[];
+            required?: boolean;
+            type?: string;
         };
         ContextRef: {
             id: string;
@@ -7660,6 +7675,20 @@ export interface components {
             status: string;
             updated_at?: string;
         };
+        View: {
+            author?: string;
+            builtin: boolean;
+            config_schema?: components["schemas"]["ConfigField"][];
+            config_secret_set?: string[];
+            config_values?: {
+                [key: string]: string;
+            };
+            description?: string;
+            enabled: boolean;
+            kinds: string[];
+            name: string;
+            version?: string;
+        };
         WatcherCursor: {
             consecutive_no_progress?: number;
             intervention_sequence?: number;
@@ -8296,6 +8325,10 @@ export interface components {
             routing_effective?: components["schemas"]["RunLLMRoutePolicy"];
             routing_effective_scope: string;
             stored?: components["schemas"]["PlatformCredentials"];
+        };
+        pluginsListResponse: {
+            load_skips: string[];
+            plugins: components["schemas"]["View"][];
         };
         previewBackendOption: {
             unavailable_reason?: string;
@@ -17223,7 +17256,10 @@ export interface operations {
     };
     getV1Bots: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Extra bot sources to list: all or files (the project's single .bot files without a manifest). Comma-separated tokens are accepted; builtin is accepted and ignored (the embedded recipes are not a listed bot source). Ignored for a team-scoped caller. */
+                include?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -17964,12 +18000,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Response */
-            default: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["pluginsListResponse"];
+                };
             };
         };
     };

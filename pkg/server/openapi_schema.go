@@ -405,6 +405,25 @@ func routeSchemas() map[string]routeOp {
 			response: previewCostResponse{},
 		},
 
+		// The plugin registry: load_skips names every installed plugin that was
+		// dropped at load and why, so an absent plugin is told apart from one that
+		// was never installed.
+		"GET /api/v1/plugins": {
+			response:    pluginsListResponse{},
+			description: "The loaded plugin registry (embedded builtins plus the installed plugins) with each plugin's enable state. load_skips lists, one \"<name>: <reason>\" per entry, the installed plugins that could not be loaded; it is an empty array when none was skipped.",
+		},
+		// The bot list: the default is catalog + platform + tenant bots; ?include
+		// adds the manifest-less project .bot files the studio's list and picker
+		// screens show (parseBotInclude). Declared because a client that does not
+		// know it silently gets the weaker list.
+		"GET /api/v1/bots": {
+			description: "The discovered bots with their vars schema. Without ?include the list is catalog + platform + tenant bots. With ?include=all (or files) it also lists the project's single .bot files that have no manifest (origin \"file\", reported enabled and not editable). A team-scoped caller never gets the file scan.",
+			query: []queryParam{{
+				name:        "include",
+				description: "Extra bot sources to list: all or files (the project's single .bot files without a manifest). Comma-separated tokens are accepted; builtin is accepted and ignored (the embedded recipes are not a listed bot source). Ignored for a team-scoped caller.",
+				schemaType:  "string",
+			}},
+		},
 		// Model registry — known x usable x capabilities x pricing. Typed so
 		// the studio's picker (and every LaunchView node row) reads the same
 		// shape the CLI prints.
