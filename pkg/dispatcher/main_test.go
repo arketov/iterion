@@ -6,6 +6,7 @@ import (
 
 	"github.com/arketov/iterion/internal/hometest"
 	"github.com/arketov/iterion/internal/proctest"
+	"github.com/arketov/iterion/pkg/internal/hostshelltest"
 )
 
 // The subbot fixtures here park a child on a sentinel file, so a dispatch
@@ -19,6 +20,7 @@ import (
 // held — the next login shell waits on it for up to 60s, a hook's whole
 // default timeout (#2231).
 func TestMain(m *testing.M) {
+	hostshelltest.PreferPosix() // sh fixtures; PowerShell is the Windows default
 	os.Exit(hometest.IsolateUserHome(func() int {
 		return hometest.Isolate(func() int { return proctest.NoProcessLeaks(m.Run) })
 	}))

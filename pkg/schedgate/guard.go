@@ -113,8 +113,8 @@ func RunGuard(parentCtx context.Context, spec GuardSpec) GuardResult {
 	cmd.Env = append(os.Environ(), spec.Env...)
 
 	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	cmd.Stdout = hostshell.OutputFor(cmd, &stdout)
+	cmd.Stderr = hostshell.OutputFor(cmd, &stderr)
 
 	start := time.Now()
 	err := cmd.Run()

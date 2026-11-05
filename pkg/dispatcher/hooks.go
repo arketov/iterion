@@ -113,8 +113,8 @@ func (h *Hook) Run(ctx context.Context, logger *iterlog.Logger, name, workspace 
 	cmd.Env = append(os.Environ(), env...)
 
 	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	cmd.Stdout = hostshell.OutputFor(cmd, &stdout)
+	cmd.Stderr = hostshell.OutputFor(cmd, &stderr)
 
 	logger.Info("dispatcher: hook %s starting (cwd=%s timeout=%s)", name, workspace, timeout)
 	start := time.Now()

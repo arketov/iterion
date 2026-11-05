@@ -780,8 +780,8 @@ const toolNodeDrainBound = 2 * time.Second
 // The bound travels back so whoever reports names the bound that RAN, never
 // this site's default, which a tightened override would make a lie.
 func runWithSeparateStreams(cmd *exec.Cmd) ([]byte, string, time.Duration, error) {
-	var stderrBuf bytes.Buffer
-	cmd.Stderr = &stderrBuf
+	var stderrBuf, stdoutBuf bytes.Buffer
+	cmd.Stderr = hostshell.OutputFor(cmd, &stderrBuf)
 	// Before Start, which Output performs — Start reads the field to decide
 	// whether to arm the context watcher — and only when no layer below chose
 	// a bound of its own: a sandbox driver that bounded the client it built
@@ -791,10 +791,12 @@ func runWithSeparateStreams(cmd *exec.Cmd) ([]byte, string, time.Duration, error
 	if drainBound == 0 {
 		drainBound = proc.SetWaitDelay(cmd, toolNodeDrainBound)
 	}
-	stdoutBytes, runErr := cmd.Output()
-	// exec.ExitError carries stderr it captured before we set ours; the
-	// buffer we provided is still the source of truth in our path.
-	return stdoutBytes, stderrBuf.String(), drainBound, runErr
+	// Not cmd.Output(): a PowerShell-run command's stdout goes through the
+	// CRLF-to-LF writer (hostshell.OutputFor), and Output refuses a Stdout
+	// that is already set. Same Start/Wait, same buffers.
+	cmd.Stdout = hostshell.OutputFor(cmd, &stdoutBuf)
+	runErr := cmd.Run()
+	return stdoutBuf.Bytes(), stderrBuf.String(), drainBound, runErr
 }
 
 // toolNodeDrainCutKey marks a tool node's output as possibly SHORT of the

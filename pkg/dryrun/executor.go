@@ -11,6 +11,7 @@ import (
 	"github.com/arketov/iterion/pkg/backend/model"
 	"github.com/arketov/iterion/pkg/dsl/expr"
 	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/internal/hostshell"
 	"github.com/arketov/iterion/pkg/runtime"
 	"github.com/arketov/iterion/pkg/subbotcontracts"
 )
@@ -664,6 +665,13 @@ func (x *Executor) genericUnresolved(id, where, ref string) Finding {
 func (x *Executor) shellCheck(id, where, interpreter, text string, reads []ir.BracedEnvRead) {
 	if x.shell == nil {
 		x.add(Finding{Node: id, Kind: KindUnchecked, Where: where, Detail: "shell syntax not checked: no checker"})
+		return
+	}
+	if hostRunsPowerShell(where, interpreter) {
+		// What would run is PowerShell (the Windows default, pkg/internal/
+		// hostshell): `bash -n` has no say on it, and a parse-only check for
+		// PowerShell is not wired — said, never guessed.
+		x.add(Finding{Node: id, Kind: KindUnchecked, Where: where, Detail: "PowerShell: no syntax check for this interpreter (on this host the body runs under PowerShell)"})
 		return
 	}
 	err := x.shell.Check(interpreter, text)
@@ -1499,3 +1507,22 @@ var (
 	_ runtime.EffectiveFallbackResolver    = (*Executor)(nil)
 	_ runtime.UndecidedRouteReporter       = (*Executor)(nil)
 )
+
+// hostRunsPowerShell reports whether a body of this kind is run by PowerShell
+// on this host: a `command:` or `postcondition:` when the host shell is
+// PowerShell, and a `script:` with no `language:` likewise. The explicit
+// languages (`bash`, `sh`, `js`, `py`) are their own interpreters.
+func hostRunsPowerShell(where, interpreter string) bool {
+	switch where {
+	case "command", "postcondition":
+		sh, err := hostshell.Resolve(hostshell.Request{PosixDefault: hostshell.KindBash})
+		return err == nil && sh.Kind == hostshell.KindPowerShell
+	case "script":
+		if interpreter != "" {
+			return false
+		}
+		sh, err := hostshell.Resolve(hostshell.Request{})
+		return err == nil && sh.Kind == hostshell.KindPowerShell
+	}
+	return false
+}

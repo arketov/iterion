@@ -94,19 +94,38 @@ func TestExplicitNameAndEnvOverride(t *testing.T) {
 	}
 }
 
-func TestPowerShellArgvEncodesAndStreamsLongScripts(t *testing.T) {
+func TestPowerShellArgvInlineAndStreamsLongScripts(t *testing.T) {
 	sh := Shell{Kind: KindPowerShell, Path: "pwsh"}
 	argv, stdin := sh.Argv("Write-Output 'é'", true)
-	if stdin != nil || argv[len(argv)-2] != "-EncodedCommand" {
+	if stdin != nil || argv[len(argv)-2] != "-Command" || !strings.Contains(argv[len(argv)-1], "Write-Output 'é'") {
 		t.Fatalf("argv = %q", argv)
 	}
-	if strings.Contains(strings.Join(argv, " "), "Write-Output") {
-		t.Fatal("script must not appear in clear on the command line")
+	if strings.Contains(strings.Join(argv, " "), "-EncodedCommand") {
+		t.Fatal("-EncodedCommand makes powershell.exe 5.1 write CLIXML to stderr")
 	}
 	long := strings.Repeat("a", psInlineLimit)
 	argv, stdin = sh.Argv(long, false)
 	if stdin == nil || argv[len(argv)-2] != "-Command" || argv[len(argv)-1] != "-" {
 		t.Fatalf("long script not streamed: %q", argv)
+	}
+}
+
+func TestOutputForNormalisesCRLFOnlyForPowerShell(t *testing.T) {
+	ps := exec.Command("pwsh", "-NoLogo", "-NoProfile")
+	var got strings.Builder
+	w := OutputFor(ps, &got)
+	// A CR split from its LF by a Write boundary, a lone CR, and a CRLF.
+	for _, chunk := range []string{"a\r", "\nb\r\nc\rd"} {
+		if n, err := w.Write([]byte(chunk)); err != nil || n != len(chunk) {
+			t.Fatalf("Write(%q) = %d, %v", chunk, n, err)
+		}
+	}
+	if got.String() != "a\nb\nc\rd" {
+		t.Fatalf("got %q", got.String())
+	}
+	var plain strings.Builder
+	if OutputFor(exec.Command("sh", "-c", "x"), &plain) != any(&plain) {
+		t.Fatal("a non-PowerShell stream must be passed through untouched")
 	}
 }
 
