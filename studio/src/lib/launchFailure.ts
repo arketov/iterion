@@ -22,11 +22,19 @@ export function latestLaunchFailure(
   return fs && fs.length > 0 ? fs[fs.length - 1] : undefined;
 }
 
-// issuesWithLaunchFailures keeps the cards that carry at least one recorded
-// failed attempt, the most recently failed first.
+// A card in one of these states was dealt with by a person; its old failed
+// attempts are history, not something the "did not start" lists should keep
+// raising (the Ticket tab still shows them). "blocked" is NOT settled: it is
+// where the dispatcher files a card it gave up on after repeated failures.
+const SETTLED_STATES: ReadonlySet<string> = new Set(["done", "merged", "cancelled"]);
+
+// issuesWithLaunchFailures keeps the open cards that carry at least one
+// recorded failed attempt, the most recently failed first.
 export function issuesWithLaunchFailures(issues: NativeIssue[]): NativeIssue[] {
   return issues
-    .filter((i) => (i.launch_failures?.length ?? 0) > 0)
+    .filter(
+      (i) => (i.launch_failures?.length ?? 0) > 0 && !SETTLED_STATES.has(i.state),
+    )
     .sort(
       (a, b) =>
         Date.parse(latestLaunchFailure(b)!.at) -

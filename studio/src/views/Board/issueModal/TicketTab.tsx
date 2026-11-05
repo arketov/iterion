@@ -148,7 +148,7 @@ export function TicketTab({
           </div>
           {[...initial.launch_failures!].reverse().map((f, i) => (
             <div
-              key={`${f.at}-${i}`}
+              key={`${f.at}-${f.run_id ?? ""}`}
               className={i > 0 ? "border-t border-danger/20 pt-2" : undefined}
             >
               <LaunchFailureDetails failure={f} />

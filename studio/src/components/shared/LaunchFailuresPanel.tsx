@@ -41,7 +41,7 @@ export function LaunchFailuresPanel({ className = "" }: { className?: string }) 
           reason is kept on the card until its next successful launch
         </span>
       </header>
-      <ul className="divide-y divide-danger/20">
+      <ul className="divide-y divide-danger/20 max-h-72 overflow-auto">
         {data.map((iss) => {
           const f = latestLaunchFailure(iss)!;
           return (
