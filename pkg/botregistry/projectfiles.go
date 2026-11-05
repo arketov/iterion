@@ -12,11 +12,9 @@ import (
 
 // Bot origins surfaced by the studio's unified bot list. "catalog" is a
 // bundle found under the project's discovery roots (bots/, examples/,
-// .botz/); the others are the two kinds of bot that have no manifest and
-// therefore never come out of List.
+// .botz/); "file" is the kind of bot that has no manifest and therefore
+// never comes out of List.
 const (
-	// OriginBuiltin is a recipe embedded in the iterion binary.
-	OriginBuiltin = "builtin"
 	// OriginFile is a single .bot file in the project that is not part of a
 	// manifest bundle ("project files" group in the studio).
 	OriginFile = "file"

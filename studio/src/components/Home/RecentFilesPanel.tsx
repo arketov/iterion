@@ -187,7 +187,7 @@ export default function RecentFilesPanel({ variant = "card" }: Props) {
               ) : (
                 <ChevronRightIcon className="w-3 h-3" />
               )}
-              <span title="Project bundles + built-in recipes — the same count as the Bots page">Bots ({botTotal > 0 ? botTotal : examples.length})</span>
+              <span title="Project bundles — the same count as the Bots page">Bots ({botTotal > 0 ? botTotal : examples.length})</span>
             </button>
             <Button
               variant="ghost"
@@ -233,14 +233,6 @@ export default function RecentFilesPanel({ variant = "card" }: Props) {
                           {ex.display_name && (
                             <span className="font-mono text-fg-subtle text-caption truncate shrink-0">
                               {techName}
-                            </span>
-                          )}
-                          {ex.origin && (
-                            <span
-                              className="text-fg-subtle text-micro shrink-0"
-                              title={BOT_SOURCE_HINT[botSource({ origin: ex.origin === "builtin" ? "builtin" : "catalog" })]}
-                            >
-                              {BOT_SOURCE_LABEL[botSource({ origin: ex.origin === "builtin" ? "builtin" : "catalog" })]}
                             </span>
                           )}
                         </span>

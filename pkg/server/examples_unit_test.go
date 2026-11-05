@@ -132,17 +132,15 @@ func TestListExamplesNamesNoFragment(t *testing.T) {
 	if code, body := getExampleJSON(t, hs.URL+"/api/examples", &entries); code != http.StatusOK {
 		t.Fatalf("status %d: %s", code, body)
 	}
-	seenMain := false
 	for _, e := range entries {
 		if strings.Contains(e.Name, "/"+unit.FragmentDir+"/") {
 			t.Errorf("a fragment is listed as a recipe: %s", e.Name)
 		}
-		if e.Name == "feature-dev/main.bot" {
-			seenMain = true
+		// The binary's embedded recipes are not a listed bot (owner decision
+		// 2026-11-05); they stay openable by name, never listed.
+		if e.Origin == "builtin" || e.Name == "feature-dev/main.bot" {
+			t.Errorf("an embedded recipe is listed as a bot: %s", e.Name)
 		}
-	}
-	if !seenMain {
-		t.Fatal("feature-dev/main.bot is not listed")
 	}
 }
 

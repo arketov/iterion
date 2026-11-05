@@ -18,9 +18,8 @@ import {
 // toggle re-renders every surface.
 interface BotsState {
   bots: BotEntryWithSchema[] | null;
-  /** Manifest-less bots from the same response: the embedded built-in
-   *  recipes (origin "builtin") and the project's single .bot files
-   *  (origin "file"). Kept apart from `bots` on purpose: integrations,
+  /** Manifest-less bots from the same response: the project's single
+   *  .bot files (origin "file"). Kept apart from `bots` on purpose: integrations,
    *  launch forms and routing only deal in catalog bots, while the Bots
    *  page, Home panel and pickers show `bots` + `extraBots` — one list. */
   extraBots: BotEntryWithSchema[];
@@ -53,8 +52,12 @@ async function load(set: (partial: Partial<BotsState>) => void): Promise<void> {
   const seq = ++loadSeq;
   set({ loading: true, error: null });
   try {
-    const { bots, discoveryErrors } = await listBotsWithDiagnostics();
+    const { bots: listed, discoveryErrors } = await listBotsWithDiagnostics();
     if (seq !== loadSeq) return; // superseded (e.g. project switch)
+    // The built-in catalogue is not a listed bot (owner decision
+    // 2026-11-05): an older server that still sends origin "builtin" entries
+    // is filtered here so no screen shows them.
+    const bots = listed.filter((b) => (b.origin as string) !== "builtin");
     set({
       bots: bots.filter((b) => !isManifestless(b)),
       extraBots: bots.filter(isManifestless),
