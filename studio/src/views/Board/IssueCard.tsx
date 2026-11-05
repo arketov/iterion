@@ -4,6 +4,7 @@ import { GitBranch } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { formatRelative } from "@/lib/format";
 import { runOutcomeFailed } from "@/components/shared/LastRunOutcome";
+import { hookFailureLabel } from "@/lib/retryError";
 import type { DispatchSkipView, RetryView, RunningView } from "@/api/dispatcher";
 import type { NativeIssue } from "@/api/native";
 
@@ -327,9 +328,15 @@ export function IssueCard({
           title={retrying.error ? `Last error: ${retrying.error}` : undefined}
         >
           ⏳ retrying (attempt {retrying.attempt})
-          {retrying.error && (
-            <span className="ml-1 text-warning-fg truncate">— {retrying.error}</span>
+          {hookFailureLabel(retrying) && (
+            <span className="ml-1 font-semibold">— {hookFailureLabel(retrying)}</span>
           )}
+          {retrying.error && (
+            <span className="block text-warning-fg break-words line-clamp-3">
+              {retrying.error}
+            </span>
+          )}
+          <span className="block text-fg-muted">click for details</span>
         </button>
       )}
       {!running && retrying && TERMINAL_BOARD_STATES.has(iss.state) && (
@@ -348,10 +355,14 @@ export function IssueCard({
             e.stopPropagation();
             onOpen();
           }}
-          title={`The dispatcher refuses to run this issue: ${skip.reason}. Fix the bot in the issue editor or add it to assignee_workflows.`}
+          title={
+            skip.kind === "no_assignee"
+              ? "This card is ready but has no assignee, so the dispatcher will not start a run. Assign a bot in the issue editor."
+              : `The dispatcher refuses to run this issue: ${skip.reason}. Fix the bot in the issue editor or add it to assignee_workflows.`
+          }
         >
-          ⚠ won&apos;t dispatch
-          <span className="ml-1 text-danger-fg truncate">— {skip.reason}</span>
+          {skip.kind === "no_assignee" ? "⚠ no assignee — won't start" : "⚠ won't dispatch"}
+          <span className="ml-1 text-danger-fg break-words">— {skip.reason}</span>
         </button>
       )}
     </div>

@@ -142,10 +142,52 @@ func (h *Hook) Run(ctx context.Context, logger *iterlog.Logger, name, workspace 
 	}
 	if err != nil {
 		if errors.Is(cctx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("hook %s: timeout after %s", name, timeout)
+			return &HookError{Hook: name, ExitCode: -1, TimedOut: true, Timeout: timeout, Stderr: tailOutput(stderr.String()), Err: err}
 		}
-		return fmt.Errorf("hook %s: %w (after %s)", name, err, dur)
+		he := &HookError{Hook: name, ExitCode: -1, Duration: dur, Stderr: tailOutput(stderr.String()), Err: err}
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			he.ExitCode = exitErr.ExitCode()
+		}
+		return he
 	}
 	logger.Info("dispatcher: hook %s ok (%s)", name, dur)
 	return nil
+}
+
+// HookError is the structured failure of a lifecycle hook. It keeps the
+// historical message text ("hook <name>: <cause> (after <dur>)") so existing
+// log greps keep working, and additionally carries WHICH hook failed and with
+// WHAT exit code, so the dispatcher snapshot and the board can show them
+// without parsing the string. ExitCode is -1 when the hook never produced an
+// exit status (it could not start — e.g. the shell is missing — or it timed out).
+type HookError struct {
+	Hook     string
+	ExitCode int
+	TimedOut bool
+	Timeout  time.Duration
+	Duration time.Duration
+	// Stderr is the tail of the hook's stderr, the line that usually names the cause.
+	Stderr string
+	Err    error
+}
+
+func (e *HookError) Error() string {
+	if e.TimedOut {
+		return fmt.Sprintf("hook %s: timeout after %s", e.Hook, e.Timeout)
+	}
+	return fmt.Sprintf("hook %s: %v (after %s)", e.Hook, e.Err, e.Duration)
+}
+
+func (e *HookError) Unwrap() error { return e.Err }
+
+// hookErrorTailBytes bounds the stderr tail kept on a HookError.
+const hookErrorTailBytes = 2048
+
+func tailOutput(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) > hookErrorTailBytes {
+		s = "…" + s[len(s)-hookErrorTailBytes:]
+	}
+	return s
 }

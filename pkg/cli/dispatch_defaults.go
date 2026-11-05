@@ -281,8 +281,12 @@ func BuildDefaultConfig(storeDir, projectDir string) (*dispatcher.Config, error)
 	cfg := &dispatcher.Config{
 		Name:     "iterion-default",
 		Workflow: filepath.Join(botsDir, "default"),
-		Tracker:  dispatcher.TrackerConfig{Kind: dispatcher.TrackerKindNative},
-		Polling:  dispatcher.PollingConfig{IntervalMS: 30_000},
+		// A card dragged to ready with no assignee must not silently start a
+		// paid run on the built-in default bot: it waits, flagged "no
+		// assignee", until someone picks a bot.
+		RequireAssignee: true,
+		Tracker:         dispatcher.TrackerConfig{Kind: dispatcher.TrackerKindNative},
+		Polling:         dispatcher.PollingConfig{IntervalMS: 30_000},
 		Agent: dispatcher.AgentConfig{
 			MaxConcurrent: defaultDispatchMaxConcurrent,
 			// Move claimed issues to `in_progress` so the kanban
