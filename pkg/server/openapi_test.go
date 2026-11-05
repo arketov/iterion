@@ -266,3 +266,46 @@ func TestTheSpecTypesTheSSOLinkList(t *testing.T) {
 		t.Fatalf("ssoLinkView.session_linked = %+v, want a boolean property", vprops["session_linked"])
 	}
 }
+
+// TestTheSpecDeclaresTheBotListIncludeParameter: GET /api/v1/bots reads
+// ?include (parseBotInclude), so the spec declares it — a client built from a
+// spec that hides it silently gets the catalog-only list.
+func TestTheSpecDeclaresTheBotListIncludeParameter(t *testing.T) {
+	s := &Server{mux: newRecordingMux()}
+	s.mux.Handle("GET /api/v1/bots", http.NotFoundHandler())
+	doc := s.buildOpenAPI()
+	get := doc["paths"].(map[string]any)["/api/v1/bots"].(map[string]any)["get"].(map[string]any)
+	params, _ := get["parameters"].([]any)
+	if len(params) != 1 {
+		t.Fatalf("GET /api/v1/bots declares %d parameter(s), want the include query parameter: %+v", len(params), get["parameters"])
+	}
+	p := params[0].(map[string]any)
+	if p["name"] != "include" || p["in"] != "query" || p["required"] != false {
+		t.Fatalf("the declared parameter = %+v, want an optional query parameter named include", p)
+	}
+}
+
+// TestTheSpecTypesThePluginListWithLoadSkips: GET /api/v1/plugins answers the
+// plugins and load_skips — the reason an installed plugin was dropped at load —
+// so a client can tell a skipped plugin from one never installed.
+func TestTheSpecTypesThePluginListWithLoadSkips(t *testing.T) {
+	s := &Server{mux: newRecordingMux()}
+	s.mux.Handle("GET /api/v1/plugins", http.NotFoundHandler())
+	doc := s.buildOpenAPI()
+	get := doc["paths"].(map[string]any)["/api/v1/plugins"].(map[string]any)["get"].(map[string]any)
+	resp200, ok := get["responses"].(map[string]any)["200"].(map[string]any)
+	if !ok {
+		t.Fatalf("the plugin list carries no 200 response: %+v", get["responses"])
+	}
+	schema := resp200["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)
+	if ref, _ := schema["$ref"].(string); ref != "" {
+		name := strings.TrimPrefix(ref, "#/components/schemas/")
+		schema = doc["components"].(map[string]any)["schemas"].(map[string]any)[name].(map[string]any)
+	}
+	props, _ := schema["properties"].(map[string]any)
+	for _, field := range []string{"plugins", "load_skips"} {
+		if _, ok := props[field]; !ok {
+			t.Fatalf("the plugin list response schema has no %q property: %+v", field, schema)
+		}
+	}
+}

@@ -710,3 +710,18 @@ registered by `board_forge.go`, `local_secrets_routes.go`, `notifications_routes
 | `GET` | `/api/ws/runs/{id}` | session | yes |
 | `GET` | `/api/ws/runs/{id}/shell` | session | yes |
 | `POST` | `/api/ws/ticket` | session | yes |
+
+## Declared query parameters
+
+The published [`openapi.json`](../openapi.json) declares these query parameters per operation (names only; the type and the meaning of each are in the spec, the effect in the curated page). A route can read a query token the spec does not declare, so absence here does not prove the route reads none.
+
+| Method | Path | Query parameters |
+|---|---|---|
+| `DELETE` | `/api/admin/bots/{slug}` | `version`, `bot_id` |
+| `DELETE` | `/api/admin/bots/{slug}/files/{path...}` | `version`, `bot_id` |
+| `GET` | `/api/admin/runs` | `org_id`, `team_id`, `status`, `since`, `limit`, `cursor` |
+| `GET` | `/api/runs/{id}/workflow` | `attempt` |
+| `DELETE` | `/api/teams/{id}/bot-sources/{slug}` | `version`, `bot_id` |
+| `DELETE` | `/api/teams/{id}/bot-sources/{slug}/files/{path...}` | `version`, `bot_id` |
+| `GET` | `/api/teams/{id}/connections` | `connector` |
+| `GET` | `/api/v1/bots` | `include` |

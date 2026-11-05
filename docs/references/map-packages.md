@@ -139,7 +139,7 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `pkg/deeplink` | builds the URLs that point a human at a page of the studio. | — |
 | `pkg/dispatcher` | implements iterion's long-running dispatcher. | `ManagedRunner`, `RunLauncher`, `Runner` |
 | `pkg/dispatcher/boardmongo` | the Mongo-backed implementation of native.BoardStore — the cloud counterpart of the filesystem pkg/dispatcher/native.Store. | `TriggerCoordinator`, `TriggerStore` |
-| `pkg/dispatcher/native` | implements iterion's first-class issue/kanban tracker. | `BoardAdmin`, `BoardStore`, `IssueGetter`, `LaunchClaimer`, `StateReasoner`, `UniqueTitleCreator` |
+| `pkg/dispatcher/native` | implements iterion's first-class issue/kanban tracker. | `BoardAdmin`, `BoardStore`, `IndexRefresher`, `IssueGetter`, `LaunchClaimer`, `LaunchFailureRecorder`, `StateReasoner`, `UniqueTitleCreator` |
 | `pkg/dispatcher/native/boardops` | contains the capability-gated operations that the __mcp-board MCP server and the /api/v1/mcp/board HTTP handler share. | — |
 | `pkg/dispatcher/tracker` | defines the issue-tracker abstraction used by the dispatcher (`iterion dispatch`). | `ClaimLeaser`, `ClaimReaper`, `LaunchStateLister`, `Tracker` |
 | `pkg/dryrun` | executes a compiled workflow without the world: a NodeExecutor that renders what each node would send and answers with a schema-shaped output, an… | `ShellChecker` |
@@ -175,6 +175,8 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `pkg/identity` | owns the multitenant user/team/membership domain. | `Store` |
 | `pkg/internal/appinfo` | — | — |
 | `pkg/internal/clilocate` | centralises the host-side probe used by backends that shell out to a CLI binary (claude, codex, …). | — |
+| `pkg/internal/hostshell` | the one place that decides which shell runs a command string on the HOST machine (a dispatcher hook, a plugin lifecycle command, a schedule guard, a… | — |
+| `pkg/internal/hostshelltest` | for test binaries whose fixtures are written in sh (a hook script, a guard, a tool node's `command:`). | — |
 | `pkg/internal/jsonl` | provides a crash-safe append-only JSONL file writer. | — |
 | `pkg/internal/mongotest` | supplies the contexts the Mongo-gated test suites use. | — |
 | `pkg/internal/mongoutil` | holds tiny helpers for the Mongo driver shared across iterion's storage packages (pkg/store/mongo, pkg/identity, pkg/secrets, pkg/auth). | — |
