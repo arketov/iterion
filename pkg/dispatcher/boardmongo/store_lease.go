@@ -369,13 +369,17 @@ func (s *Store) SetLastRunOwned(id, runID, workdir string, tok tracker.ClaimToke
 	}
 	now := time.Now().UTC()
 	runs := native.AppendRunRef(iss.Runs, runID, workdir, now)
-	res, err := s.issues.UpdateOne(ctx, s.ownedFilter(id, tok), bson.M{"$set": bson.M{
+	set := bson.M{
 		"issue.lastrunid":     runID,
 		"issue.lastworkdir":   workdir,
 		"issue.runs":          runs,
 		"issue.launchrefusal": nil, // a launch happened: the retry ledger no longer describes the card
 		"issue.updatedat":     now,
-	}})
+	}
+	if runID != "" {
+		set["issue.launchfailures"] = nil // …and so do the failed attempts before it
+	}
+	res, err := s.issues.UpdateOne(ctx, s.ownedFilter(id, tok), bson.M{"$set": set})
 	if err != nil {
 		return fmt.Errorf("boardmongo: set last run owned: %w", err)
 	}

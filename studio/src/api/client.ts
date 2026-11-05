@@ -1033,8 +1033,8 @@ export interface ExampleEntry {
   display_name?: string;
   /** One-line manifest description, condensed server-side. */
   description?: string;
-  /** "project" (bundle on disk) or "builtin" (embedded in the binary). */
-  origin?: "project" | "builtin";
+  /** "project": a bundle found on disk. */
+  origin?: "project";
 }
 
 // The /examples endpoint returns the first-class bots as
@@ -1092,9 +1092,12 @@ export async function loadExample(
 
 // File management
 
+export async function listFilesPage(): Promise<ListFilesResponse> {
+  return request<ListFilesResponse>("/files");
+}
+
 export async function listFiles(): Promise<FileEntry[]> {
-  const res = await request<ListFilesResponse>("/files");
-  return res.files;
+  return (await listFilesPage()).files;
 }
 
 // BOTSOURCE_SCHEME marks a virtual editor path that resolves to a team-authored

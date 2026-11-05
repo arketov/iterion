@@ -45,7 +45,7 @@ export function BotPicker({
       (b) => b.origin !== "file" && (b.enabled !== false || botPickerValue(b) === value),
     );
     // Grouped by where the bot comes from: project bundles, team/platform,
-    // built-in recipes, then single .bot files ("Project files"). The
+    // then single .bot files ("Project files"). The
     // origin label rides in the meta column so each row says where it is
     // from; the Combobox itself has no group headers.
     return groupBotsBySource(visible).flatMap((g) =>

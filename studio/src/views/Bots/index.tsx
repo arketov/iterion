@@ -47,8 +47,6 @@ import {
   botSource,
   groupBotsBySource,
 } from "@/lib/botOrigin";
-import { openExampleIntoStore } from "@/lib/openExample";
-import { getOrCreateDocumentStore } from "@/store/document";
 import { useTabsStore } from "@/store/tabs";
 import { DiscoveryErrorBanners } from "./DiscoveryErrorBanners";
 import { useServerInfoStore } from "@/store/serverInfo";
@@ -270,21 +268,13 @@ export default function BotsView() {
   const counts = countBots(bots, extraBots);
   const catalogEmpty = bots !== null && bots.length === 0;
   // A category/tag left in the URL cannot match anything on an empty catalog
-  // and would hide the built-in list too: drop it, so the page shows what
+  // and would hide the project-file list too: drop it, so the page shows what
   // there is instead of a filter with no way out.
   const staleFilter = catalogEmpty && (activeCategory !== null || activeTags.length > 0);
   useEffect(() => {
     if (staleFilter) applyFilters(null, []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staleFilter]);
-  const shownBuiltin =
-    activeCategory !== null || activeTags.length > 0
-      ? 0
-      : extraBots.filter(
-          (b) =>
-            b.origin === "builtin" &&
-            (!query.trim() || `${b.name} ${b.rel_path ?? ""}`.toLowerCase().includes(query.trim().toLowerCase())),
-        ).length;
 
   return (
     <div className="flex flex-col gap-3 p-4">
@@ -321,9 +311,9 @@ export default function BotsView() {
         {bots !== null && (
           <span
             className="text-caption text-fg-subtle"
-            title="Bots = project bundles + built-in recipes. Single .bot files without a manifest are counted apart as project files."
+            title="Bots = project bundles. Single .bot files without a manifest are counted apart as project files."
           >
-            {rows.length + shownBuiltin}/{counts.total} bot{counts.total === 1 ? "" : "s"}
+            {rows.length}/{counts.total} bot{counts.total === 1 ? "" : "s"}
             {counts.files > 0 && ` · ${counts.files} project file${counts.files === 1 ? "" : "s"}`}
           </span>
         )}
@@ -525,13 +515,11 @@ export default function BotsView() {
 }
 
 /** ManifestlessBots lists what has no manifest and therefore no bot page: the
- *  embedded built-in recipes and the project's single .bot files, each group
- *  labelled with where it comes from. They come from the same response as the
+ *  project's single .bot files, in a group labelled with where they come from. They come from the same response as the
  *  catalog (GET /api/v1/bots?include=all), so the Home panel and the bot
  *  pickers show the identical set. */
 function ManifestlessBots({ bots, query }: { bots: BotEntryWithSchema[]; query: string }) {
   const [, setLocation] = useLocation();
-  const addToast = useUIStore((s) => s.addToast);
   const q = query.trim().toLowerCase();
   const visible = q
     ? bots.filter((b) => `${b.name} ${b.rel_path ?? ""}`.toLowerCase().includes(q))
@@ -539,21 +527,10 @@ function ManifestlessBots({ bots, query }: { bots: BotEntryWithSchema[]; query: 
   const groups = groupBotsBySource(visible);
   if (groups.length === 0) return null;
 
-  const open = async (b: BotEntryWithSchema) => {
-    if (b.origin === "file") {
-      const file = b.rel_path || b.path;
-      useTabsStore.getState().openTab("editor", { file });
-      setLocation(`/editor?file=${encodeURIComponent(file)}`);
-      return;
-    }
-    const tabId = useTabsStore.getState().newEditorTab(b.path);
-    try {
-      await openExampleIntoStore(b.path, getOrCreateDocumentStore(tabId));
-      setLocation("/editor");
-    } catch (err) {
-      useTabsStore.getState().closeTab(tabId);
-      addToast(errorMessage(err), "error");
-    }
+  const open = (b: BotEntryWithSchema) => {
+    const file = b.rel_path || b.path;
+    useTabsStore.getState().openTab("editor", { file });
+    setLocation(`/editor?file=${encodeURIComponent(file)}`);
   };
 
   return (
@@ -583,7 +560,7 @@ function ManifestlessBots({ bots, query }: { bots: BotEntryWithSchema[]; query: 
                   size="sm"
                   className="ml-auto"
                   aria-label={`Open in editor: ${b.name}`}
-                  onClick={() => void open(b)}
+                  onClick={() => open(b)}
                 >
                   Open in editor
                 </Button>

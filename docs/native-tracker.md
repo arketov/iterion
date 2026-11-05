@@ -76,6 +76,17 @@ The same tuple is on a cloud schedule ([scheduling](scheduling.md)) and on a
 trigger subscription ([cloud REST API](cloud-rest-api.md#triggers-event-driven-runs)):
 one spine writes it, one studio component renders it.
 
+**Why a dispatch did not start.** A dispatch attempt that fails before the
+engine creates the run (a lifecycle hook such as `after_create` exits non-zero)
+is recorded on the card as `launch_failures[]` — hook, `exit_code` (absent when
+the hook produced none), `error` (full text), `stderr` tail, `at`, `attempt`,
+the minted `run_id` (no run exists under it) and `log_path` (the host log, from
+`ITERION_DAEMON_LOG`). At most 20 entries, newest last; the list is cleared
+when a run is next stamped on the card. Both stores (files and Mongo) carry it,
+`UpdatedAt` is not bumped (it orders dispatching), and the studio renders it on
+the board card, in the card's Ticket tab, and in the *Did not start* panel of
+the Runs and Dispatcher pages. See [dispatcher](dispatcher.md#retry-queue).
+
 **A history entry is a run that exists.** The dispatcher stamps a run into
 `runs` / `last_run_id` only once its lifecycle hooks (`after_create`,
 `before_run`) have passed and the run is handed to the engine; a run whose

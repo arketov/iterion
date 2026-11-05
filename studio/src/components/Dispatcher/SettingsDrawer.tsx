@@ -122,7 +122,7 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
           <InlineBanner tone="info" title="No dispatcher configured yet">
             <p>
               Fill in the form below, or let iterion create a ready-made dispatcher: it uses
-              the built-in bots and the local board, and starts at once.
+              the default bots and the local board, and starts at once.
             </p>
             <Button
               variant="secondary"
@@ -373,8 +373,7 @@ const WORKFLOW_PATH_HINT =
 /** BotWorkflowSelect is the searchable replacement for a workflow-path text
  *  box: the operator picks a bot by name and the studio stores its full path.
  *  freeSolo keeps a hand-typed path possible (an explicit operator choice is
- *  never replaced). Built-in recipes have no on-disk path and are not
- *  offered; disabled catalog bots are listed but marked. */
+ *  never replaced). Disabled catalog bots are listed but marked. */
 function BotWorkflowSelect({
   value,
   onChange,
@@ -390,7 +389,6 @@ function BotWorkflowSelect({
     for (const g of groupBotsBySource(bots ?? [])) {
       for (const b of g.bots) {
         const path = botWorkflowPath(b);
-        if (!path) continue;
         const persona = b.display_name?.trim();
         const disabled = b.enabled === false;
         out.push({

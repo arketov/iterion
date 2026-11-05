@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/arketov/iterion/bots"
 	"github.com/arketov/iterion/pkg/auth"
 	"github.com/arketov/iterion/pkg/backend/mcp"
 	"github.com/arketov/iterion/pkg/botsource"
@@ -524,18 +523,13 @@ func (s *Server) mergeBotSourcePrompts(r *http.Request, f *ast.File, editorPath 
 }
 
 func (s *Server) handleListExamples(w http.ResponseWriter, _ *http.Request) {
-	// Two sources, merged + de-duplicated, surfaced as the studio Home's
-	// "Bots" quick-open panel:
-	//   1. <ExamplesDir>/<bot>/main.bot — first-class bots shipped on
-	//      disk (e.g. <repo>/bots/ when the user opens an iterion repo),
-	//      filtered to bundles whose manifest declares a display_name
-	//      persona (see isFirstClassBot).
-	//   2. The bot recipes embedded in the binary (bots/embed.go), so a
-	//      fresh project that ships none of its own still gets the
-	//      canonical built-ins (feature_dev, whole/branch_improve_loop).
-	// On-disk wins on name collision: a project that overrides an
-	// embedded recipe by placing one with the same relative name in its
-	// bots/ dir gets to override what the SPA loads.
+	// The studio Home's "Bots" quick-open panel lists the bundle bots found
+	// under <ExamplesDir>/<bot>/main.bot (e.g. <repo>/bots/ when the user
+	// opens an iterion repo; see firstClassBot). The recipes embedded in the
+	// binary (bots/embed.go) are NOT listed: the owner decided on 2026-11-05
+	// that the built-in catalogue is not wanted in any list. They are still
+	// served by name to /api/examples/{name}, so a file or a recent that
+	// points at one keeps opening.
 	seen := map[string]struct{}{}
 	var entries []exampleEntry
 
@@ -577,17 +571,6 @@ func (s *Server) handleListExamples(w http.ResponseWriter, _ *http.Request) {
 		})
 	}
 
-	for _, p := range bots.List() {
-		if _, dup := seen[p]; dup {
-			continue
-		}
-		seen[p] = struct{}{}
-		// Embedded recipes carry no manifest in the binary, so no persona
-		// here; the on-disk walk above already surfaced (with its persona)
-		// any bundle the workspace actually ships.
-		entries = append(entries, exampleEntry{Name: p, Origin: "builtin"})
-	}
-
 	// Present the bots in the curated team order (Nexie first), not the
 	// filesystem walk order.
 	sort.SliceStable(entries, func(i, j int) bool {
@@ -612,10 +595,8 @@ type exampleEntry struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"display_name,omitempty"`
 	Description string `json:"description,omitempty"`
-	// Origin is "project" for a bundle found on disk and "builtin" for a
-	// recipe embedded in the binary — the same vocabulary as the unified
-	// bot list (GET /api/v1/bots?include=all), so the Home panel can label
-	// where each row comes from.
+	// Origin is "project" for a bundle found on disk - the same vocabulary
+	// as the unified bot list (GET /api/v1/bots?include=all).
 	Origin string `json:"origin,omitempty"`
 }
 
