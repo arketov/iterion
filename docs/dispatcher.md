@@ -75,6 +75,12 @@ survive subsequent starts). Override the port via `--port`, the store
 location via `--store-dir`, or write a full YAML when you outgrow the
 defaults.
 
+In the studio the same preset is one click: the **Dispatcher** page shows *No
+dispatcher running* with a **Use default settings** button until a config
+exists. To run a bot of your own from a card, follow
+[your own bot on the board](howto-board-bot.md); for where a finished run's
+work ends up, see [where the result goes](#where-the-result-goes).
+
 ## TL;DR — explicit YAML
 
 ```bash
@@ -385,17 +391,75 @@ card stays visible after its first line.
 | Runner returned error         | `min(10s × 2^(attempt-1), agent.max_retry_backoff_ms)` |
 | Stall timeout                 | Same exponential backoff                               |
 | External state change         | Same                                                   |
-| Hook failure (`before_run`)   | Same                                                   |
+| Hook failure (`after_create` or `before_run`) | Same — see [Hook failure](#hook-failure) |
+| Sandbox setup failure (image pull, container start, `postCreate`, a broken CLI install inside the sandbox) | Fixed schedule instead: 60 s, 180 s, 300 s, then **parked** — the next retry is one hour out |
+
+The exponential row doubles from 10 s (10, 20, 40, … s) and stops growing
+at `agent.max_retry_backoff_ms` (default 300000, five minutes). The
+sandbox schedule exists because a sandbox that failed to start fails the
+same way until the host (Docker daemon, disk, memory) is fixed: retrying
+every ten seconds only piles container churn onto a struggling machine. A
+parked entry stays in the retry queue until its hour has passed; the studio
+has no button that drops a retry, so after fixing the host stop and start the
+dispatcher (or let the hour pass). The attempt counter,
+`max_attempts` and the give-up move below apply to every row.
 
 The Dispatcher page's *Retry queue* shows the **full** last error
 (*Show full error* unfolds it; the board card shows up to three lines),
-which lifecycle hook failed and with what exit code (`-1`: the hook
-produced no exit status — it could not start, or timed out), the tail of
-the hook's stderr, and — when the host process reports it through
+which lifecycle hook failed and with what exit code, the tail of the
+hook's stderr, and — when the host process reports it through
 `ITERION_DAEMON_LOG`, as the desktop app's daemon does — the path of the
 log file holding the full chronology. The snapshot fields are
 `retries[].error`, `hook`, `hook_exit_code`, `hook_stderr` and
-`log_path`.
+`log_path`. The next section says what each of them means.
+
+### Hook failure
+
+A lifecycle hook that fails or times out is not a bare error string: the
+dispatcher keeps a structured `HookError` and the studio shows its parts.
+
+| Part | What it tells you | Snapshot field |
+|---|---|---|
+| Hook name | Which hook failed: `after_create` or `before_run` (the two that can abort a dispatch) | `retries[].hook` |
+| Exit code | The hook's own exit status. **`-1` means no exit status**: the shell process could not be started or was killed by a signal, or the hook ran past its `timeout_ms` (60 s when unset) and was killed. When no shell is found at all, the hook fails before it runs: the error names what was looked for, but the row carries no hook name or exit code | `retries[].hook_exit_code` |
+| stderr | The last 2 KiB the hook wrote to stderr — usually the line that names the cause | `retries[].hook_stderr` |
+| Log path | The daemon's log file, with the complete hook output and the chronology; shown when the host process set `ITERION_DAEMON_LOG` (the desktop app's daemon does) | top-level `log_path` |
+
+In the Retry queue the row reads, for example, *after_create hook failed
+(exit code 1)*; *Show full error* unfolds the stderr tail and the log path.
+A hook that never produced an exit status reads *no exit code: could not
+start or timed out*, and a timeout's error text says `timeout after <duration>`.
+
+What a failed hook does to the card:
+
+- **The run never started.** The run id minted at claim time names nothing —
+  the engine creates the run only after the hooks have passed — so it is
+  **not** written to the card's run history; otherwise the card would offer a
+  console link and *View diff* for a run that does not exist. Ghost runs
+  recorded by older versions are removed from card histories when the studio
+  boots. The failure itself is kept on the card instead (last paragraph of this
+  section).
+- **The ticket retries.** The claim is released and the ticket enters the
+  retry queue with the backoff above; after `agent.max_attempts` the
+  dispatcher gives up, as described below.
+- **`after_create` runs once per workspace directory, not once per
+  attempt.** It fires only when the dispatcher *creates* the directory. With
+  the default `workspace.persist: keep` a failed attempt leaves that directory
+  behind (a failed dispatch always retains its workspace), so the retry finds
+  it, does not run `after_create` again, and starts the bot in whatever the
+  failed hook left — an empty or half-seeded directory. Fix the cause named in
+  the stderr tail first, then deal with the leftover directory by hand (see
+  [Workspace lifecycle](#workspace-lifecycle)). The built-in seed script skips
+  a directory that already has content, for the same reason. `before_run` has
+  no such memory: it runs before every attempt.
+- **`after_run` and `before_remove` never fail a dispatch.** Their failures
+  are logged at WARN and do not appear in the retry queue.
+
+The usual causes on Windows: a hook written for `sh` but run by PowerShell
+(the default there), `git` missing from the daemon's `PATH`, and a custom hook
+that assumes `/dev/null` or `cp -a`. Name the shell with `shell:` or
+`ITERION_SHELL`, or write the hook in the dialect of the shell that runs it —
+see [Hooks](#hooks).
 
 The queue itself lives in memory, so stopping the dispatcher or restarting
 the studio empties it. A failed dispatch that never became a run (a
@@ -510,6 +574,86 @@ These dispatcher workspaces are **distinct** from the engine's per-run
 mechanism and lives **inside** the dispatcher workspace. Both layers
 keep their independent lifetimes.
 
+## Where the result goes
+
+You dragged a card to `ready`, the dispatcher ran a bot with `worktree: auto`
+(the scaffold of `iterion bots create` has it; so do most bots that change
+code), and the card moved to `review`. Where is the work?
+
+Status: read from the code (`finalizeWorktree`, `workspaceSeedScript`, the
+studio's Commits tab); not re-observed on a live run for this page.
+
+**Two checkouts, neither of them yours.** Your project folder is left alone.
+The dispatcher seeds a per-issue workspace from it with
+`git worktree add --detach <workspace> HEAD` (a PowerShell variant of the same
+script on Windows; a recursive copy when the project is not a git repository),
+and the run's own `worktree: auto` checkout is cut from that workspace under
+`<store-dir>/worktrees/<run-id>`. The bot edits and commits in the second one.
+The two git worktrees share one object store and one set of branch names with
+your project, so what the run commits is visible from your project with plain
+git.
+
+**What the run leaves, in order** ([finalization](agents/engine/worktree-finalization.md)):
+
+1. Uncommitted output is banked as a `wip(iterion): auto-banked uncommitted run
+   output` commit.
+2. A persistent branch **`iterion/run/<run-id>`** is created on the final commit
+   (a numeric suffix is added on a name collision). It is the only thing that
+   keeps the commits from garbage collection.
+3. The merge into "the current branch" is **skipped**. The workspace the run
+   started from is a detached HEAD, so the run has no branch to merge into; the
+   run record says `merge_status: skipped`, and the dispatcher does not ask for
+   an automatic merge in any case. The studio's run header reads *merge skipped
+   — branch iterion/run/… preserved*.
+4. The run's worktree directory is removed. The branch stays.
+
+So **nothing reaches the branch checked out in your project by itself.** The
+result is a branch you can look at, and the card shows a *Run* row for it.
+
+| Where | What you see |
+|---|---|
+| Card → **Ticket** tab → *Run* row | The run id (opens the run console, with the *From ticket* header) and **View diff**: the run's whole branch diff, without leaving the board |
+| Card → *Worktree* row | The directory the run executed in. For a `worktree: auto` run it is removed when the run ends cleanly; the branch is what remains |
+| Run console → header | Branch name, `merge_status`, the final commit |
+| Your project, `git branch --list "iterion/run/*"` | The branch itself |
+
+**Accept it.** Open the run console and the **Commits** tab. For a finished
+run with a storage branch the tab offers the merge even though the automatic
+one was skipped: choose *Squash and merge* (one commit; the message is
+editable) or *Merge commit (preserve history)* and confirm. The commits land on
+the branch **checked out in the project folder right now**; there is no choice
+of target. The second option is a fast-forward, not a merge commit: it is
+refused as non-fast-forward when that branch has moved on since the run
+started. Either merge is refused (409, nothing changes) when the checkout has
+uncommitted changes, so commit or stash first. A content conflict is left in the project checkout and the same
+tab walks you through resolving it. A merge from the studio is also what moves
+the card on: `agent.merged_state` (default `done`) — see
+[terminal-state keys](#terminal-state-keys).
+
+**Reject it.** Do not merge; nothing in your project changed. To drop the work
+for good, delete the branch from the project folder, with the id from the run
+header:
+
+```bash
+git branch -D iterion/run/<run-id>
+```
+
+and move the card by hand (the dispatcher will not run a ticket that is no
+longer in an eligible state). A change that was already merged is undone with
+git as usual — `git revert <merged-commit>`; the run header shows the commit.
+
+**Branches pile up.** Every finished run that committed something leaves its own
+`iterion/run/<run-id>` branch in your project, merged or not, and nothing
+deletes them: remove the ones you will not merge.
+
+**A bot with `worktree: none`** (an unset `worktree:` means `auto`) writes
+straight into the dispatcher workspace, a detached HEAD, with no finalization
+at all: no branch, no run header merge line. Whatever it commits is reachable
+only from that detached HEAD. Under `cleanup_on_done` the dispatcher refuses to
+delete a workspace with uncommitted changes and says so in its log (see
+[Workspace lifecycle](#workspace-lifecycle)); committed work is still only in
+the workspace. Leave `worktree:` at its default unless the bot is read-only.
+
 ## Hooks
 
 ```yaml
@@ -553,7 +697,7 @@ invoking the hook:
 | `ITERION_STORE_DIR`          | the run store directory, when the dispatch carries one |
 
 A failed `after_create` or `before_run` aborts the dispatch and feeds
-the retry queue. The run never started, so its id is **not** recorded in
+the retry queue (what the studio shows for it: [Hook failure](#hook-failure)). The run never started, so its id is **not** recorded in
 the card's run history (it would open to a 404 and offer a diff of
 nothing); the failure is visible in the retry queue instead. Failed `after_run` / `before_remove` are logged at
 WARN.

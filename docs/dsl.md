@@ -351,7 +351,7 @@ A declaration reaches `{{vars.<name>}}` (the `vars:` block), the node's own `{{i
 agent reviewer:
   description: "Read-only branch reviewer"
   backend: "claude_code"
-  model: "anthropic/claude-sonnet-4-6"
+  model: "anthropic/claude-sonnet-5-5"
   provider: "anthropic,zai"
   input: review_request
   output: review_result
@@ -453,7 +453,7 @@ router alternate:
 
 router smart:
   mode: llm
-  model: "anthropic/claude-sonnet-4-6"
+  model: "anthropic/claude-sonnet-5-5"
   system: routing_prompt
   multi: true
 ```
@@ -556,7 +556,7 @@ tool deploy:
   recovery:
     max_repair_attempts: 2
     max_agent_attempts: 1
-    model: "anthropic/claude-sonnet-4-6"
+    model: "anthropic/claude-sonnet-5-5"
     agent_tools: [read_file, bash]
 ```
 
@@ -803,7 +803,7 @@ prompt inspect_prompt:
 
 group check(rule):
   agent inspect:
-    model: "anthropic/claude-sonnet-4-6"
+    model: "anthropic/claude-sonnet-5-5"
     user: inspect_prompt
 
 use check as security with {
@@ -877,7 +877,7 @@ prompt build_user:
   Implement {{vars.goal}} and report the pull request URL.
 
 agent build:
-  model: "anthropic/claude-sonnet-4-6"
+  model: "anthropic/claude-sonnet-5-5"
   user: build_user
   output: report
 
@@ -935,7 +935,7 @@ cursor rigor:
 
 supervisor guard:
   watches: [worker]
-  model: "anthropic/claude-sonnet-4-6"
+  model: "anthropic/claude-sonnet-5-5"
   system: supervision_policy
   cooldown: "30s"
   max_evals: 20
@@ -1442,7 +1442,7 @@ prompts:
   ask: Review the change and say whether it is ready to merge.
 nodes:
   - agent: reviewer
-    model: anthropic/claude-sonnet-4-6
+    model: anthropic/claude-sonnet-5-5
     output: verdict
     system: ask
 workflow:
@@ -1479,11 +1479,11 @@ prompts:
   check: Is this summary complete? {{input.summary}}
 nodes:
   - agent: writer
-    model: anthropic/claude-sonnet-4-6
+    model: anthropic/claude-sonnet-5-5
     output: summary
     system: ask
   - judge: reader
-    model: anthropic/claude-sonnet-4-6
+    model: anthropic/claude-sonnet-5-5
     output: verdict
     system: check
 workflow:

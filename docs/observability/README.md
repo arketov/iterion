@@ -68,7 +68,7 @@ The dashboard expects the OTLP exporter to set these attributes /
 metrics on each event:
 
 - `node_id` (string) — workflow node ID
-- `model` (string) — full model spec (e.g. `anthropic/claude-sonnet-4-6`)
+- `model` (string) — full model spec (e.g. `anthropic/claude-sonnet-5-5`)
 - `run_id` (string) — iterion run identifier
 - `tool` (string) — tool name on `tool_call` events
 - Counter metrics: `iterion_node_cost_usd_total`, `iterion_node_tokens_total`,
