@@ -29,6 +29,9 @@ const BotHomeView = lazy(() => import("@/views/Bots/BotHome"));
 const BotBuilderView = lazy(() => import("@/views/Bots/BotBuilder"));
 const BoardView = lazy(() => import("@/views/Board"));
 const PipelineBoardView = lazy(() => import("@/views/PipelineBoard"));
+const PipelineCardPageView = lazy(
+  () => import("@/views/PipelineBoard/PipelineCardPage"),
+);
 const LabelsView = lazy(() => import("@/views/Board/Labels"));
 const FieldsView = lazy(() => import("@/views/Board/Fields"));
 const RunsAnalyticsView = lazy(() => import("@/views/RunsAnalytics"));
@@ -859,6 +862,13 @@ function AuthedApp() {
               />
             </Route>
           )}
+          {/* The dedicated card page every pipeline card click and the
+              assistant's "Open pipeline" link navigate to. */}
+          <Route path="/pipelines/cards/:kind/:id">
+            <ErrorBoundary area="Pipeline card view">
+              <PipelineCardPageView />
+            </ErrorBoundary>
+          </Route>
           {serverInfo?.native_tracker_enabled ? (
             <Route path="/pipelines">
               <ErrorBoundary area="Pipeline board view">
