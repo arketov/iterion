@@ -109,6 +109,13 @@ the provider, so a revoked or over-quota key still reads as usable until a run
 fails. Models that are *not* reachable are listed rather than hidden — seeing
 that a model exists but wants a credential is what tells you which key to set.
 
+A name the registry has never heard of is **not** reported unusable. Ask about
+`anthropic/claude-sonnet-9-9` and the row says `curated` (not `aggregator`), has
+no context window, no price — and still lists `claude_code` as usable, because a
+credential for the provider exists. Read the source, the context window and
+`price_known`, not the last column alone; the recipe is in
+[the quickstart](quickstart.md#name-a-model-and-check-the-name).
+
 A zero price means **no published price**, never free. The `price_known` flag
 (`—` in the CLI, in the picker) is what distinguishes the two.
 

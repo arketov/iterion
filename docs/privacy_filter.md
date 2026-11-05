@@ -114,7 +114,7 @@ router gate:
   mode: condition
 
 judge review:
-  model: "anthropic/claude-sonnet-4-6"
+  model: "anthropic/claude-sonnet-5-5"
   input: diff_text
   output: review_verdict
 
@@ -155,7 +155,7 @@ tool sanitize:
   output: redacted
 
 agent classify:
-  model: "anthropic/claude-sonnet-4-6"
+  model: "anthropic/claude-sonnet-5-5"
   input: redacted
   output: triage
   user: triage_prompt
@@ -222,7 +222,7 @@ tool redact_email:
   output: clean_email
 
 agent draft_reply:
-  model: "anthropic/claude-sonnet-4-6"
+  model: "anthropic/claude-sonnet-5-5"
   input: clean_email
   output: draft
   user: draft_reply_prompt

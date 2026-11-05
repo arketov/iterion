@@ -44,7 +44,7 @@ A cursor declares **either** `values:` (enum) **or** `bands:`
 
 ```iter fragment
 agent reviewer:
-  model: "anthropic/claude-sonnet-4-6"
+  model: "anthropic/claude-sonnet-5-5"
   system: review_system
   user: review_user
   cursors:
