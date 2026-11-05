@@ -89,6 +89,11 @@ type Store struct {
 	// tick of a net that runs every two seconds.
 	unreadableFP string
 
+	// unreadableIDs is the same set as unreadableFP, as ids: cards whose file
+	// is on disk and will not read. indexDrifted must not read their absence
+	// from the index as drift, or every list would run a full scan.
+	unreadableIDs map[string]struct{}
+
 	// closed is set by Close under mu — once, and never cleared: a store
 	// does not reopen. A watch lost after that arms no net, the rescan net
 	// ends on it, and every later scan is refused with ErrStoreClosed.
@@ -323,6 +328,7 @@ func (s *Store) populateIndex() error {
 	for id, iss := range fresh {
 		s.setIndexLocked(id, iss)
 	}
+	s.unreadableIDs = idSet(unreadable)
 	s.mu.Unlock()
 	if len(unreadable) > 0 && s.logger != nil {
 		for id, err := range unreadable {

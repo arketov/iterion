@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -30,6 +30,9 @@ export interface UseBoardDataResult {
   error: string | null;
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   refresh: () => Promise<void>;
+  // The explicit "Refresh" gesture: like refresh(), but the server re-reads
+  // every card from disk first.
+  forceRefresh: () => Promise<void>;
 }
 
 // Owns the board + issues fetch. Exposes a refresh() imperative so
@@ -39,10 +42,17 @@ export interface UseBoardDataResult {
 // without going through the round-trip.
 export function useBoardData(): UseBoardDataResult {
   const queryClient = useQueryClient();
+  // Set by forceRefresh() for exactly one fetch: the server then re-reads every
+  // card from disk instead of trusting its in-memory index, so cards written
+  // by another process (CLI, MCP) show up even when the server missed the
+  // filesystem event.
+  const forceRescanRef = useRef(false);
   const query = useQuery<BoardData>({
     queryKey: BOARD_DATA_KEY,
     queryFn: async () => {
-      const [b, i] = await Promise.all([getBoard(), listIssues()]);
+      const refresh = forceRescanRef.current;
+      forceRescanRef.current = false;
+      const [b, i] = await Promise.all([getBoard(), listIssues({ refresh })]);
       return { board: b, issues: i ?? [] };
     },
   });
@@ -72,6 +82,12 @@ export function useBoardData(): UseBoardDataResult {
     await refetch();
   }, [refetch]);
 
+  const forceRefresh = useCallback(async () => {
+    setActionError(null);
+    forceRescanRef.current = true;
+    await refetch();
+  }, [refetch]);
+
   return {
     board: query.data?.board ?? null,
     issues: query.data?.issues ?? EMPTY_ISSUES,
@@ -80,5 +96,6 @@ export function useBoardData(): UseBoardDataResult {
     error: actionError ?? (query.error ? errorMessage(query.error) : null),
     setError: setActionError,
     refresh,
+    forceRefresh,
   };
 }

@@ -20,6 +20,14 @@ export function BoardHeaderActions({
 }) {
   return (
     <>
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={onRefresh}
+        title="Re-read every card from disk (cards created or changed by the CLI or MCP)"
+      >
+        Refresh
+      </Button>
       <DropdownMenu
         trigger={
           <Button variant="secondary" size="sm">
@@ -31,7 +39,6 @@ export function BoardHeaderActions({
         <DropdownMenuItem onSelect={onManageLabels}>Labels…</DropdownMenuItem>
         <DropdownMenuItem onSelect={onManageFields}>Fields…</DropdownMenuItem>
         <DropdownMenuItem onSelect={onAddColumn}>Add column…</DropdownMenuItem>
-        <DropdownMenuItem onSelect={onRefresh}>Refresh</DropdownMenuItem>
       </DropdownMenu>
       <Button variant="primary" size="sm" onClick={onNewIssue}>
         + New issue

@@ -175,6 +175,21 @@ func (h *BoardAPI) handleListIssues(w http.ResponseWriter, r *http.Request) {
 	if a := r.URL.Query().Get("assignee"); a != "" {
 		filter.Assignee = a
 	}
+	// Out-of-process writers (the CLI, `iterion mcp`) reach the index through
+	// a lossy filesystem watch. Every list compares the directory with the
+	// index (cheap); ?refresh=1 — the Board's refresh button — re-reads every
+	// card, and a failure there is the operator's to see.
+	if rs, ok := s.(IndexRefresher); ok {
+		force := false
+		switch strings.ToLower(r.URL.Query().Get("refresh")) {
+		case "1", "true", "yes":
+			force = true
+		}
+		if err := rs.RefreshIndex(force); err != nil && force {
+			writeErr(w, http.StatusInternalServerError, err)
+			return
+		}
+	}
 	issues, err := s.List(filter)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err)

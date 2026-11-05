@@ -321,6 +321,7 @@ var operatorInfraNames = map[string]bool{
 	"ITERION_SCHEDULER_INTERVAL":        true,
 	"ITERION_SERVER_URL":                true,
 	"ITERION_NATIVE_INDEX_RESCAN":       true,
+	"ITERION_NATIVE_INDEX_VERIFY":       true,
 	"ITERION_ORPHAN_RECONCILE_INTERVAL": true,
 	"ITERION_WEBHOOK_SYNC_DEBOUNCE":     true,
 	// The forge publish's read-back budget (pkg/forge/gitlab), and the

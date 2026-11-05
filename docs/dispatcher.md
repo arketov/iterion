@@ -1066,6 +1066,27 @@ whose file is present but momentarily unreadable is kept as last seen,
 never dropped; a vanished `issues/` directory is an error that leaves the
 index as it was, never an empty board.
 
+**The verification net behind an armed watch (`ITERION_NATIVE_INDEX_VERIFY`).**
+A watch that IS armed loses events too, and on Windows it does so routinely:
+the atomic write of a card (temp file, then rename over it) reaches the
+watcher as `REMOVE` of the card then `CREATE`, and a re-read that races the
+writer's still-open handle fails. The watcher used to drop the card on the
+`REMOVE` alone and give up on a failed read, so a card the CLI
+(`iterion issue update/move`) or `iterion mcp` changed vanished from the
+studio Board (`GET /api/v1/native/issues/<id>` answered 404) or never
+appeared. Three things now hold. The op of an event is not trusted: disk is
+asked, a file that exists is indexed, a gone file is dropped, and a file that
+will not read is retried (20, 50, 120, 250 ms) before the watcher logs
+`changed on disk but could not be read` and keeps the last copy. A full
+reconcile runs every `ITERION_NATIVE_INDEX_VERIFY` (same spellings as
+`ITERION_NATIVE_INDEX_RESCAN`, default `10s`, `off`/`0` disables). And the
+reads that matter ask the disk themselves: a by-id lookup or a prefix
+resolve that misses re-reads the file or compares `issues/` with the index
+(`Store.Get`, `Store.Resolve`), and every `GET /api/v1/native/issues`
+compares the directory listing with the index and reconciles on a
+difference. `GET /api/v1/native/issues?refresh=1` — the Board's **Refresh**
+button — re-reads every card and answers `500` if that scan fails.
+
 **The un-leased horizon (cloud board).** A claim a mixed-fleet write
 stripped of its lease is only reclaimable once nothing has touched the
 card for `ITERION_BOARD_UNLEASED_CLAIM_HORIZON` (default `24h`): an

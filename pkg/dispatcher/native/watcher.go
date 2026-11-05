@@ -1,6 +1,7 @@
 package native
 
 import (
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"strings"
@@ -11,7 +12,6 @@ import (
 	"github.com/fsnotify/fsnotify"
 
 	"github.com/arketov/iterion/internal/fswatch"
-	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 )
 
 // newFSWatcher is the seam through which a test can make the host refuse
@@ -47,8 +47,11 @@ func fsWatcherCtor() func() (*fsnotify.Watcher, error) {
 // dispatcher poller) still saw the stale state.
 //
 // Reload strategy is intentionally simple: any Create / Write /
-// Rename / Remove event under issues/ re-reads the affected file
-// (or drops it from the index on Remove) under the store's mutex.
+// Rename / Remove event under issues/ re-reads the affected file under
+// the store's mutex and indexes it, or drops it when the file is really
+// gone (the op is not trusted — see applyEvent). A periodic full
+// reconcile (verifyInterval) backs the events up, because a watch loses
+// events on every host.
 // The daemon's own writes also fire fsnotify; the resulting re-read
 // is wasteful but idempotent — much simpler than tracking "expected"
 // vs "unexpected" events. With the current sub-1k-issue working set
@@ -155,10 +158,21 @@ func (iw *indexWatcher) loop(s *Store, issuesPath string) {
 	check := time.NewTicker(watchCheckInterval())
 	defer check.Stop()
 	misses := 0 // consecutive empty watch lists: two before the watch is declared lost
+	// The verification net behind an armed watch: a full reconcile every
+	// verifyInterval, off this goroutine (rebuildAsync) so the event channel
+	// keeps draining. A nil channel never fires — the net is off.
+	var verifyC <-chan time.Time
+	if d := verifyInterval(); d > 0 {
+		verify := time.NewTicker(d)
+		defer verify.Stop()
+		verifyC = verify.C
+	}
 	for {
 		select {
 		case <-iw.stop:
 			return
+		case <-verifyC:
+			s.rebuildAsync("periodic verification")
 		case <-check.C:
 			// Two consecutive empty answers before the hand-over: on Linux
 			// the list empties only when the kernel dropped the watch, and
@@ -185,7 +199,7 @@ func (iw *indexWatcher) loop(s *Store, issuesPath string) {
 			if id == "" {
 				continue
 			}
-			applyEvent(s, id, ev.Op)
+			applyEventUntil(s, id, iw.stop)
 		case err, ok := <-iw.w.Errors:
 			if !ok {
 				iw.lost(s)
@@ -255,6 +269,16 @@ func idFromIssuePath(eventPath, issuesPath string) string {
 	return decodeID(encoded)
 }
 
+// eventReadRetries are the pauses between attempts to re-read a card an
+// event announced and whose file would not read. On Windows the writer's
+// handle on the freshly renamed file (or a scanner's) can outlive the event
+// by a few milliseconds and the read fails with a sharing violation; the
+// first version of this watcher gave up on that error and left the card
+// dropped (REMOVE of the replaced name arrives before the CREATE) or
+// missing for good. The total wait is bounded well under a second so the
+// loop keeps draining the event channel.
+var eventReadRetries = []time.Duration{20 * time.Millisecond, 50 * time.Millisecond, 120 * time.Millisecond, 250 * time.Millisecond}
+
 // applyEvent reconciles s.index with disk for one issue id. The
 // store mutex serialises this against the parent process's own
 // mutators so a watcher-driven reload can never race with a mutator
@@ -262,31 +286,46 @@ func idFromIssuePath(eventPath, issuesPath string) string {
 // otherwise a local mutator that runs between the read and the
 // index update would have its newer state overwritten by the older
 // snapshot we read pre-lock.
+//
+// The event's op is deliberately NOT trusted: an atomic replace of a card
+// reaches us as REMOVE (the replaced name) then CREATE, and dropping the
+// card on the REMOVE alone made it vanish whenever the following re-read
+// failed. Whatever the op, disk is asked: a file that exists is indexed, a
+// file that is gone is dropped, a file that exists but will not read is
+// retried a few times and then left to the periodic verification pass
+// (verifyInterval), which re-reads everything.
 func applyEvent(s *Store, id string, op fsnotify.Op) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	// Every mutation here is marked dirty like an in-process write: an
-	// overflow-triggered rebuild scans the disk with the mutex released
-	// while this loop keeps draining the backlog, and its swap must not
-	// revert what the events applied after the scan read those files.
-	if op&fsnotify.Remove == fsnotify.Remove {
-		s.dropIndexLocked(id)
-		return
-	}
-	iss, err := s.readIssueFromDisk(id)
-	if err != nil {
-		// File was removed between the event and our read, or the
-		// JSON is malformed (concurrent half-write we didn't filter
-		// out, or someone hand-edited it). Drop the cached entry
-		// on ErrNotFound; leave it alone on other errors so the
-		// stale-but-readable cached value beats a forced 404.
-		// readIssueFromDisk maps a missing file to tracker.ErrNotFound,
-		// which does not wrap fs.ErrNotExist — matching on the latter
-		// never fires and leaves the tombstone in the index.
-		if errors.Is(err, tracker.ErrNotFound) {
-			s.dropIndexLocked(id)
+	_ = op
+	applyEventUntil(s, id, nil)
+}
+
+// applyEventUntil is applyEvent that stops waiting between retries when stop
+// closes (the watcher is being closed). A nil stop never fires.
+func applyEventUntil(s *Store, id string, stop <-chan struct{}) {
+	var err error
+	for attempt := 0; ; attempt++ {
+		// Every mutation is marked dirty like an in-process write: an
+		// overflow-triggered rebuild scans the disk with the mutex released
+		// while this loop keeps draining the backlog, and its swap must not
+		// revert what the events applied after the scan read those files.
+		if err = s.syncIssueFromDisk(id); err == nil {
+			return
 		}
-		return
+		limit := len(eventReadRetries)
+		var syn *json.SyntaxError
+		if errors.As(err, &syn) && limit > 2 {
+			// A half-written card heals within a tick or two; a corrupt one
+			// never does and must not hold the event loop for the full budget.
+			limit = 2
+		}
+		if attempt >= limit {
+			break
+		}
+		select {
+		case <-stop:
+			return
+		case <-time.After(eventReadRetries[attempt]):
+		}
 	}
-	s.setIndexLocked(id, iss)
+	s.getLogger().Warn("native index watcher: card %s changed on disk but could not be read (%v) — keeping the last indexed copy; the periodic verification will retry", id, err)
 }
