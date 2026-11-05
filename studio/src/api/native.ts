@@ -63,6 +63,10 @@ export interface NativeIssue {
    *  last_run_id/last_workdir remain the single-pointer back-compat view.
    *  Absent on records written before run history was tracked. */
   runs?: RunRef[];
+  /** Dispatch attempts that never became a run (a lifecycle hook failed
+   *  first), newest-last, kept on the card until its next successful launch
+   *  — so the reason outlives the dispatcher's in-memory retry queue. */
+  launch_failures?: LaunchFailure[];
   /** Typed forge linkage (mirrors Go's `external`). Present once a card is
    *  pushed to / synced from a forge. This is the canonical source of truth
    *  for the card's PR/CI panel + push semantics (replaces the legacy
@@ -70,6 +74,20 @@ export interface NativeIssue {
   external?: ExternalLink;
   created_at: string;
   updated_at: string;
+}
+
+// LaunchFailure mirrors Go's native.LaunchFailure: one dispatch attempt that
+// never became a run. No run exists under run_id.
+export interface LaunchFailure {
+  at: string;
+  attempt?: number;
+  run_id?: string;
+  hook?: string;
+  /** Absent when the hook produced no exit code (could not start / timeout). */
+  exit_code?: number;
+  error: string;
+  stderr?: string;
+  log_path?: string;
 }
 
 // RunRef is one entry in an issue's run history (mirrors Go's native.RunRef).

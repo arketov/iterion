@@ -2,6 +2,7 @@ import {
   type NativeBoard,
   type NativeIssue,
 } from "@/api/native";
+import { LaunchFailureDetails } from "@/components/shared/LaunchFailureDetails";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Combobox } from "@/components/ui/Combobox";
 import { Input } from "@/components/ui/Input";
@@ -136,6 +137,25 @@ export function TicketTab({
       </div>
 
       {repositoryField}
+
+      {initial && (initial.launch_failures?.length ?? 0) > 0 && (
+        <div
+          className="rounded border border-danger/40 bg-danger-soft p-2 space-y-2"
+          data-testid="launch-failures-section"
+        >
+          <div className="text-micro uppercase tracking-wide text-danger-fg">
+            Did not start
+          </div>
+          {[...initial.launch_failures!].reverse().map((f, i) => (
+            <div
+              key={`${f.at}-${i}`}
+              className={i > 0 ? "border-t border-danger/20 pt-2" : undefined}
+            >
+              <LaunchFailureDetails failure={f} />
+            </div>
+          ))}
+        </div>
+      )}
 
       {initial &&
         (initial.runs?.length || initial.last_run_id || initial.last_workdir) && (
