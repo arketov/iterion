@@ -7,11 +7,11 @@ package hostshelltest
 
 import (
 	"os"
-	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/arketov/iterion/internal/envtrust"
 	"github.com/arketov/iterion/pkg/internal/hostshell"
 )
 
@@ -26,7 +26,7 @@ func PreferPosix() {
 		return
 	}
 	for _, name := range []string{"sh", "bash"} {
-		path, err := exec.LookPath(name)
+		path, err := envtrust.LookPath(name)
 		if err != nil {
 			continue
 		}
@@ -51,7 +51,7 @@ func UsePowerShell(t testing.TB) {
 		names = []string{only}
 	}
 	for _, name := range names {
-		if _, err := exec.LookPath(name); err == nil {
+		if _, err := envtrust.LookPath(name); err == nil {
 			t.Setenv(hostshell.EnvVar, name)
 			return
 		}
