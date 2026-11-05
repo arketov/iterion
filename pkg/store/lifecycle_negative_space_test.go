@@ -291,7 +291,7 @@ var negativeSpaceAllowlist = map[string]allowEntry{
 	"pkg/dispatcher/parked.go :: PausedOperator+PausedWaitingHuman":                                         {[]string{"isDispatcherPausedRun"}, "IsPaused twin + dispatcher-source check (kept literal beside its source predicate)"},
 
 	// -- pkg/cli.
-	"pkg/cli/issue.go :: PausedOperator+PausedWaitingHuman+Queued+Running": {[]string{"refuseClearWhileRunAlive"}, "--clear-last-run guard: refuse while any live-or-parked-on-human shape holds the pointer"},
+	"pkg/cli/issue.go :: PausedOperator+PausedWaitingHuman+Queued+Running": {[]string{"liveRunOf"}, "live-run guard shared by `issue update --clear-last-run` and `issue delete`: the run is alive (or parked on a human) while it holds the pointer"},
 	"pkg/cli/runs_prune.go :: Cancelled+Failed+FailedResumable+Finished":   {[]string{"<pkg-level>"}, "prune name map: the statuses --status accepts"},
 	"pkg/cli/runs_prune.go :: Cancelled+Failed+Finished":                   {[]string{"validatePruneStatuses"}, "prune DEFAULT set: failed_resumable deliberately excluded"},
 	"pkg/cli/remote_runs.go :: Cancelled+Failed+FailedResumable+Finished":  {[]string{"followRemoteRun"}, "--follow stop set over the WIRE statuses (strings): IsTerminal's set; the paused non-exit is the known bug #3 follow-up card"},

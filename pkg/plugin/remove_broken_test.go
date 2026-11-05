@@ -12,7 +12,7 @@ import (
 // answer "not found".
 func TestRemoveDeletesAPluginWhoseManifestNeverLoaded(t *testing.T) {
 	home := t.TempDir()
-	dir := filepath.Join(home, pluginsSubdir, "repo-falcon")
+	dir := filepath.Join(home, pluginsSubdir, "broken-demo")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +26,7 @@ func TestRemoveDeletesAPluginWhoseManifestNeverLoaded(t *testing.T) {
 	if len(reg.LoadSkips()) != 1 {
 		t.Fatalf("setup: want one skip, got %v", reg.LoadSkips())
 	}
-	if err := reg.Remove("repo-falcon"); err != nil {
+	if err := reg.Remove("broken-demo"); err != nil {
 		t.Fatalf("Remove of a skipped plugin: %v", err)
 	}
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
