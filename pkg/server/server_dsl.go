@@ -536,7 +536,7 @@ func (s *Server) handleListExamples(w http.ResponseWriter, _ *http.Request) {
 				return nil
 			}
 			seen[rel] = struct{}{}
-			entries = append(entries, exampleEntry{Name: rel, DisplayName: persona, Description: desc})
+			entries = append(entries, exampleEntry{Name: rel, DisplayName: persona, Description: desc, Origin: "project"})
 			return nil
 		})
 	}
@@ -549,7 +549,7 @@ func (s *Server) handleListExamples(w http.ResponseWriter, _ *http.Request) {
 		// Embedded recipes carry no manifest in the binary, so no persona
 		// here; the on-disk walk above already surfaced (with its persona)
 		// any bundle the workspace actually ships.
-		entries = append(entries, exampleEntry{Name: p})
+		entries = append(entries, exampleEntry{Name: p, Origin: "builtin"})
 	}
 
 	// Present the bots in the curated team order (Nexie first), not the
@@ -576,6 +576,11 @@ type exampleEntry struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"display_name,omitempty"`
 	Description string `json:"description,omitempty"`
+	// Origin is "project" for a bundle found on disk and "builtin" for a
+	// recipe embedded in the binary — the same vocabulary as the unified
+	// bot list (GET /api/v1/bots?include=all), so the Home panel can label
+	// where each row comes from.
+	Origin string `json:"origin,omitempty"`
 }
 
 // firstClassBot returns the persona + a one-line description of the bot

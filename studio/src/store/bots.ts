@@ -1,4 +1,6 @@
 import { errorMessage } from "@/lib/errorHints";
+import { isManifestless } from "@/lib/botOrigin";
+import { useMemo } from "react";
 import { create } from "zustand";
 
 import {
@@ -16,6 +18,12 @@ import {
 // toggle re-renders every surface.
 interface BotsState {
   bots: BotEntryWithSchema[] | null;
+  /** Manifest-less bots from the same response: the embedded built-in
+   *  recipes (origin "builtin") and the project's single .bot files
+   *  (origin "file"). Kept apart from `bots` on purpose: integrations,
+   *  launch forms and routing only deal in catalog bots, while the Bots
+   *  page, Home panel and pickers show `bots` + `extraBots` — one list. */
+  extraBots: BotEntryWithSchema[];
   loading: boolean;
   error: string | null;
   /** One entry per bundle the registry SKIPPED as malformed — the bot
@@ -47,7 +55,12 @@ async function load(set: (partial: Partial<BotsState>) => void): Promise<void> {
   try {
     const { bots, discoveryErrors } = await listBotsWithDiagnostics();
     if (seq !== loadSeq) return; // superseded (e.g. project switch)
-    set({ bots, discoveryErrors, loading: false });
+    set({
+      bots: bots.filter((b) => !isManifestless(b)),
+      extraBots: bots.filter(isManifestless),
+      discoveryErrors,
+      loading: false,
+    });
   } catch (e) {
     if (seq !== loadSeq) return;
     // The failed request may belong to a newly selected project. Do not keep
@@ -58,6 +71,7 @@ async function load(set: (partial: Partial<BotsState>) => void): Promise<void> {
 
 export const useBotsStore = create<BotsState>((set, get) => ({
   bots: null,
+  extraBots: [],
   loading: false,
   error: null,
   discoveryErrors: [],
@@ -94,4 +108,12 @@ function mergeEntry(
   const next = bots.slice();
   next[i] = updated;
   return next;
+}
+
+/** useAllBots is the one list every picker and list screen reads: catalog
+ *  bots followed by the manifest-less ones. null until the first load. */
+export function useAllBots(): BotEntryWithSchema[] | null {
+  const bots = useBotsStore((s) => s.bots);
+  const extra = useBotsStore((s) => s.extraBots);
+  return useMemo(() => (bots === null ? null : [...bots, ...extra]), [bots, extra]);
 }

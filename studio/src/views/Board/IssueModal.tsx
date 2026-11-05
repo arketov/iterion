@@ -16,7 +16,7 @@ import { defaultStringFor } from "@/components/shared/VarFieldInput";
 import { useActiveRepo } from "@/hooks/useActiveRepo";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { isVarMissing } from "@/lib/varValidation";
-import { useBotsStore } from "@/store/bots";
+import { useAllBots, useBotsStore } from "@/store/bots";
 
 import { ApproveTriageBanner } from "./ApproveTriage";
 import { BotTab } from "./issueModal/BotTab";
@@ -97,7 +97,9 @@ export default function IssueModal({ board, initial, onSubmit, onClose, onDelete
   // Bots catalog. Shared zustand store — fetched once across all consumers
   // (Home, BotPicker, Inspector, Catalog manager). Loading + error
   // surface separately so the Bot tab degrades gracefully.
-  const bots = useBotsStore((s) => s.bots);
+  // One list for the picker: catalog bots + built-in recipes + single
+  // .bot files (origin shown per row).
+  const bots = useAllBots();
   const botsError = useBotsStore((s) => s.error);
   const fetchBots = useBotsStore((s) => s.fetch);
   useEffect(() => {
@@ -124,9 +126,21 @@ export default function IssueModal({ board, initial, onSubmit, onClose, onDelete
     setFields(out);
   }, [initial, board, initialRepoKey]);
 
+  // Assignee suggestions: people already on the board plus every enabled
+  // catalog bot — the dispatcher routes an assignee named like a bot to
+  // that bot, so the operator picks it from the list instead of typing a
+  // name from memory (a typo only shows as a card nobody takes).
+  const assigneeOptions = useMemo(() => {
+    const names = new Set(allAssignees);
+    for (const b of bots ?? []) {
+      if (b.origin !== "file" && b.enabled !== false) names.add(b.name);
+    }
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }, [allAssignees, bots]);
+
   const selectedBot: BotEntryWithSchema | null = useMemo(() => {
     if (!bot || !bots) return null;
-    return bots.find((b) => b.name === bot) ?? null;
+    return bots.find((b) => b.name === bot || b.path === bot) ?? null;
   }, [bot, bots]);
 
   // A card is "synced from forge" once the server has stamped a number or a
@@ -281,7 +295,7 @@ export default function IssueModal({ board, initial, onSubmit, onClose, onDelete
                   setLabels={setLabels}
                   assignee={assignee}
                   setAssignee={setAssignee}
-                  allAssignees={allAssignees}
+                  allAssignees={assigneeOptions}
                   fields={fields}
                   setFields={setFields}
                   repositoryField={repositoryField}

@@ -77,6 +77,7 @@ func (s *Server) handleBotsList(w http.ResponseWriter, r *http.Request) {
 		s.httpErrorFor(w, r, http.StatusInternalServerError, "bots: %v", err)
 		return
 	}
+	entries = s.appendManifestlessBots(entries, parseBotInclude(r))
 	resp := map[string]any{"bots": entries}
 	if len(diags) > 0 {
 		diags = redactAbsoluteDiscoveryPaths(diags)

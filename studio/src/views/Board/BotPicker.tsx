@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import type { BotEntry } from "@/api/bots";
 import { Combobox, type ComboboxOption } from "@/components/ui/Combobox";
 import { botIdentity } from "@/lib/personas";
+import { BOT_SOURCE_LABEL, botPickerValue, botSource, groupBotsBySource } from "@/lib/botOrigin";
 
 interface Props {
   value: string;
@@ -33,14 +34,17 @@ export function BotPicker({
   disabled,
   metaFor = defaultMeta,
 }: Props) {
-  const options = useMemo<ComboboxOption<string>[]>(
-    () =>
-      // Disabled bots (catalog toggle off) aren't routable, so they don't
-      // belong in the ticket assignment picker. The current value is kept
-      // even if disabled (below) so an existing assignment still renders.
-      bots
-        .filter((b) => b.enabled !== false || b.name === value)
-        .map((b) => {
+  const options = useMemo<ComboboxOption<string>[]>(() => {
+    // Disabled bots (catalog toggle off) aren't routable, so they don't
+    // belong in the ticket assignment picker. The current value is kept
+    // even if disabled so an existing assignment still renders.
+    const visible = bots.filter((b) => b.enabled !== false || botPickerValue(b) === value);
+    // Grouped by where the bot comes from: project bundles, team/platform,
+    // built-in recipes, then single .bot files ("Project files"). The
+    // origin label rides in the meta column so each row says where it is
+    // from; the Combobox itself has no group headers.
+    return groupBotsBySource(visible).flatMap((g) =>
+      g.bots.map((b) => {
         // The manifest persona (display_name) leads, with the emoji
         // avatar; the technical name moves into the description and stays
         // in the search haystack so operators can still type "feature_dev".
@@ -49,17 +53,23 @@ export function BotPicker({
         const label = persona ? `${emoji} ${persona}` : b.name;
         const description = persona
           ? `${b.name}${b.description ? ` — ${b.description}` : ""}`
-          : b.description;
+          : b.origin === "file"
+            ? b.rel_path || b.path
+            : b.description;
+        const source = botSource(b);
+        const meta = [source === "project" ? "" : BOT_SOURCE_LABEL[source], metaFor(b)]
+          .filter(Boolean)
+          .join(" · ");
         return {
-          value: b.name,
+          value: botPickerValue(b),
           label,
           description,
-          meta: metaFor(b) || undefined,
-          searchHaystack: `${persona ?? ""} ${b.name} ${b.description ?? ""} ${(b.triggers ?? []).join(" ")} ${(b.capabilities ?? []).join(" ")}`,
+          meta: meta || undefined,
+          searchHaystack: `${persona ?? ""} ${b.name} ${b.description ?? ""} ${b.rel_path ?? ""} ${BOT_SOURCE_LABEL[source]} ${(b.triggers ?? []).join(" ")} ${(b.capabilities ?? []).join(" ")}`,
         };
       }),
-    [bots, metaFor, value],
-  );
+    );
+  }, [bots, metaFor, value]);
 
   return (
     <Combobox<string>

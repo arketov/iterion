@@ -306,7 +306,7 @@ export interface BotEntryWithSchema extends BotEntry {
   /** "tenant" for a team-authored bot, "platform" for a deployment-wide
    *  override (super-admin-pushed — see /admin/bots), "catalog" for a
    *  baked one. */
-  origin?: "tenant" | "platform" | "catalog";
+  origin?: "tenant" | "platform" | "catalog" | "builtin" | "file";
   /** True for a package installed into the workspace's .botz/ (bots
    *  install, the marketplace, an upload). Its manifest is the package's —
    *  an update replaces it whole — so the server refuses its manifest edit
@@ -373,7 +373,11 @@ export async function listBotsWithDiagnostics(): Promise<{
   bots: BotEntryWithSchema[];
   discoveryErrors: BotDiscoveryError[];
 }> {
-  const r = await apiRequest<ListResponse>(BASE);
+  // include=all adds the manifest-less sources — the embedded built-in
+  // recipes (origin "builtin") and the project's single .bot files
+  // (origin "file") — so every screen lists one and the same set. The
+  // bots store splits them back out (see store/bots.ts).
+  const r = await apiRequest<ListResponse>(`${BASE}?include=all`);
   return { bots: r.bots ?? [], discoveryErrors: r.discovery_errors ?? [] };
 }
 

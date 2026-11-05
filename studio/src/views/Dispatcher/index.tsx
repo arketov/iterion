@@ -13,6 +13,7 @@ import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useConfirm } from "@/hooks/useConfirm";
 import { errorMessage } from "@/lib/errorHints";
 import {
+  applyDefaults,
   cancelIssue,
   getState,
   getStatus,
@@ -299,6 +300,22 @@ export default function DispatcherView() {
         <EmptyState
           className="flex-1"
           title="No dispatcher running"
+          // POST /dispatcher/defaults/apply builds the zero-config dispatcher
+          // (embedded bot catalogue, native board) and starts it. The server
+          // answers 409 when a config already exists, so the button is only
+          // offered while there is none.
+          action={
+            status && !status.has_config ? (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => void actionRun(async () => { setStatus(await applyDefaults()); })}
+                title="Create a default dispatcher from the built-in bots and start it"
+              >
+                Use default settings
+              </Button>
+            ) : undefined
+          }
           message={
             <>
               Configure and start one from the toolbar above (Settings, then

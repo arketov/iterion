@@ -598,6 +598,15 @@ reused across dispatches — the same lifecycle as the default
 file (same convention as `workflow:`). Missing files fail
 `iterion dispatch` startup with a precise error.
 
+In the studio, **Dispatcher settings** edits this map as *Per-assignee bots*,
+and the *Workflow path* field is a searchable bot list (the same list the Bots
+page shows): pick a bot by name and the studio writes its full path. A path
+typed by hand is still accepted; if it is relative it is resolved against the
+dispatcher config folder (`~/.iterion/projects/<key>/dispatcher/`), **not**
+against the project root — write it absolute. With no dispatcher configured
+yet the drawer and the *No dispatcher running* page offer **Use default
+settings**, which calls `POST /api/v1/dispatcher/defaults/apply`.
+
 This is what makes whats-next.bot's kanban output auto-pilot: the
 bot stamps each issue with `--assignee feature_dev` (or any
 catalogued bot), and the dispatcher — with the mapping above —
