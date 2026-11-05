@@ -35,12 +35,12 @@ the pages *your* server answers.
 |---|---|---|
 | — | **Home** | The start page: a *What's Next* entry, tiles for the other pages your server has, your project's `.bot` files and recent runs. |
 | — | **What's Next** | A conversation with the `whats-next` bot ("Nexie"): it surveys the repo and the board, proposes what to do next and can create and dispatch cards. The same session is available from the assistant dock on every page ([assistant dock](assistant-dock.md)). A dot on the entry means it is waiting for your answer. |
-| — | **Editor** | Author a bot: canvas, node inspector, source view and live diagnostics. Its start page lists the project's `.bot` files, **Open…**, **Import copy…** and your recent files. Open tabs fold under the entry. |
+| — | **Editor** | Author a bot: canvas, node inspector, source view and live diagnostics. Its start page lists the project's `.bot` files (built from the same places as the catalog, one row per bundle, capped at 500), **Open…**, **Import copy…** and your recent files. Open tabs fold under the entry. |
 | — | **Runs** | Every run of this project, live and past: status, cost, duration, filters; open one for the run console (live graph, event log, diffs, commits, cost report). A badge counts runs paused for your input. **Analytics** (button on this page, `/insights`) shows cost over time and per-workflow run counts, failure rates and durations. |
 | — | **Bots** | The catalog: every bot you can launch, with its origin and *enabled* flag; **New bot** opens the guided builder. |
 | Operate | **Board** | The project's kanban of cards. Cards become runs when a bot is assigned and the card is in a ready column. **Refresh** re-reads every card from disk. |
 | Operate | **Pipelines** | A control-center view of *root* runs across all bots in four lanes (Opened, In progress, Needs attention, Closed); pending human reviews can be answered from a card there. Shares the Board's store. |
-| Operate | **Dispatcher** | The loop that turns ready cards into runs: its settings, running issues, retry queue and the *Won't dispatch* table. Start, pause and stop it here. |
+| Operate | **Dispatcher** | The loop that turns ready cards into runs: its settings, running issues, retry queue and the *Won't dispatch* table. Start, pause and stop it here. A *Did not start* panel lists cards whose launch failed before a run existed (for example a failing `after_create` hook). |
 | Operate | **Automations** | Schedules, webhooks and triggers that launch runs without you. |
 | Extend | **Marketplace** | Browse, install and publish `.botz` bundles and plugins. |
 | Extend | **Plugins** | Installed plugins (rewriters, MCP servers, skills), enable/disable, and load failures ([plugins](plugins.md)). |
@@ -57,8 +57,8 @@ server that has them. The sidebar's **Preferences** button opens the Settings di
 They overlap on purpose, and show different things:
 
 - **Bots** is the *catalog*: bundles with a manifest from `bots/`, `examples/` and
-  `.botz/`, recipes built into the binary, and single `.bot` files. Each row has
-  an origin badge (Project, Built-in, Project file). Use it to *launch*, to read
+  `.botz/`, and single `.bot` files. Each row has
+  an origin badge (Project, Project file). Use it to *launch*, to read
   a bot's page, or to open its source.
 - The **Editor** lists *files*: it opens a path, edits it and saves it back.
   A **Project file** from the catalog has no bot page; it opens here.
@@ -115,6 +115,8 @@ Goal: hand a task to a bot through the Board and let the dispatcher run it.
 6. When the run ends the card moves on and keeps a *Last run* record (status,
    error, a link to the run). A run that pauses for a human parks the card in
    *Awaiting input* until you answer.
+
+If the card shows *did not start* instead, the launch failed before a run existed (a lifecycle hook such as `after_create` exited non-zero): the card's Ticket tab and the *Did not start* panel of the Runs and Dispatcher pages show the full error, and there is no run console for it.
 
 If a card created from the CLI or by an assistant does not show up, press
 **Refresh**. Mechanics and settings: [dispatcher](dispatcher.md),
