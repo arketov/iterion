@@ -5,30 +5,109 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
-func TestDecodeWindowsProjectKey(t *testing.T) {
-	existing := map[string]bool{`C:\Users\me\proj`: true, `D:\`: true}
-	exists := func(p string) bool { return existing[p] }
-	cases := []struct{ key, want string }{
-		{"-C--Users-me-proj", `C:\Users\me\proj`},
-		{"-C--Users-me-missing", ""}, // decoded dir does not exist
-		{"-C--Users-me-my-proj", ""}, // dash in a folder name: not found, no guess
-		{"-home-user-proj", ""},      // unix-shaped key
-		{"-C-Users", ""},             // no drive separator
-		{"--server-share", ""},       // UNC shape
-		{"-1--x", ""},                // not a drive letter
-		{"-C--Users--me-proj", ""},   // empty segment
-		{"-C--Users-me-proj-", ""},   // trailing separator
-		{"-C--", ""},                 // bare drive root
-		{"", ""},
-	}
-	for _, c := range cases {
-		if got := decodeWindowsProjectKey(c.key, exists); got != c.want {
-			t.Errorf("decodeWindowsProjectKey(%q) = %q, want %q", c.key, got, c.want)
+func TestDecodeWindowsProjectKeyRejectsOtherShapes(t *testing.T) {
+	anyDir := func(string) bool { return true }
+	for _, key := range []string{
+		"-home-user-proj", // unix-shaped key
+		"-C-Users",        // no drive separator
+		"--server-share",  // UNC shape
+		"-1--x",           // not a drive letter
+		"-C--",            // bare drive root
+		"",
+	} {
+		if got := decodeWindowsProjectKey(key, anyDir); got != "" {
+			t.Errorf("decodeWindowsProjectKey(%q) = %q, want empty", key, got)
 		}
 	}
+}
+
+func TestDecodeWindowsProjectKeyWalksFromDrive(t *testing.T) {
+	// Only the drive-root join is Windows-specific; the walk itself is
+	// covered by TestResolveKeyPath on a real temp tree.
+	seen := ""
+	got := decodeWindowsProjectKey("-C--a", func(p string) bool { seen = p; return false })
+	if got != "" {
+		t.Errorf("got %q, want empty when nothing exists", got)
+	}
+	if seen == "" {
+		t.Error("isDir was never consulted")
+	}
+}
+
+func TestResolveKeyPath(t *testing.T) {
+	mk := func(root string, parts ...string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(append([]string{root}, parts...)...), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Run("dash in folder name", func(t *testing.T) {
+		root := t.TempDir()
+		mk(root, "work", "my-proj")
+		want := filepath.Join(root, "work", "my-proj")
+		if got := resolveKeyPath(root, "work-my-proj", dirExists); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+	t.Run("dash as separator", func(t *testing.T) {
+		root := t.TempDir()
+		mk(root, "a", "b")
+		want := filepath.Join(root, "a", "b")
+		if got := resolveKeyPath(root, "a-b", dirExists); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+	t.Run("ambiguous a-b and a/b", func(t *testing.T) {
+		root := t.TempDir()
+		mk(root, "a-b")
+		mk(root, "a", "b")
+		if got := resolveKeyPath(root, "a-b", dirExists); got != "" {
+			t.Errorf("got %q, want empty for ambiguous key", got)
+		}
+	})
+	t.Run("mixed dashes", func(t *testing.T) {
+		root := t.TempDir()
+		mk(root, "itterion-test", "iterion")
+		want := filepath.Join(root, "itterion-test", "iterion")
+		if got := resolveKeyPath(root, "itterion-test-iterion", dirExists); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+	t.Run("nothing exists", func(t *testing.T) {
+		if got := resolveKeyPath(t.TempDir(), "x-y", dirExists); got != "" {
+			t.Errorf("got %q, want empty", got)
+		}
+	})
+	t.Run("regular file is not a directory", func(t *testing.T) {
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, "f"), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if got := resolveKeyPath(root, "f", dirExists); got != "" {
+			t.Errorf("got %q, want empty", got)
+		}
+	})
+	t.Run("probe budget bounds long keys", func(t *testing.T) {
+		probes := 0
+		onlyAs := func(p string) bool {
+			probes++
+			return !strings.ContainsAny(filepath.Base(p), "xyz")
+		}
+		// The dead end in the last token makes the search exponential;
+		// the budget must stop it and the result must not be trusted.
+		key := strings.Repeat("a-", 40) + "xyz"
+		if got := resolveKeyPath(t.TempDir(), key, onlyAs); got != "" {
+			t.Errorf("got %q, want empty", got)
+		}
+		if probes > maxKeyProbes {
+			t.Errorf("probes = %d, exceeds budget %d", probes, maxKeyProbes)
+		}
+	})
 }
 
 func TestDecodeUnixProjectKey(t *testing.T) {

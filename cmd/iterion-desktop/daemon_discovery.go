@@ -304,10 +304,11 @@ func projectKeyForStorePath(storePath string) (string, bool) {
 // lossy in principle (a literal "-" in the original path becomes "-",
 // indistinguishable from a separator), so the result is only a hint.
 //
-// On Windows a key like "-C--Users-me-proj" decodes to C:\Users\me\proj,
-// and the hint is returned only when that directory exists; otherwise the
-// result is "" so the caller stays on its current daemon instead of
-// spawning one for a nonexistent directory.
+// On Windows a key like "-C--Users-me-proj" is resolved against the disk
+// (a dash may be a separator or part of a folder name); the hint is returned
+// only when exactly one existing directory matches, otherwise "" so the
+// caller stays on its current daemon instead of spawning one for a
+// nonexistent directory.
 func projectDirFromKey(key string) string {
 	if runtime.GOOS == "windows" {
 		return decodeWindowsProjectKey(key, dirExists)
@@ -322,10 +323,17 @@ func decodeUnixProjectKey(key string) string {
 	return "/" + strings.ReplaceAll(strings.TrimPrefix(key, "-"), "-", "/")
 }
 
-// decodeWindowsProjectKey decodes "-<drive>--<a>-<b>" into `<drive>:\a\b`
-// and returns it only when exists reports the directory. Keys of any other
-// shape (UNC paths, no drive letter) yield "".
-func decodeWindowsProjectKey(key string, exists func(string) bool) string {
+// maxKeyProbes caps the filesystem probes one key decode may spend, so a
+// long key with many dashes cannot make the decoder explode.
+const maxKeyProbes = 4096
+
+// decodeWindowsProjectKey decodes "-<drive>--<a>-<b>" into a directory under
+// `<drive>:\` by walking the filesystem: every "-" is either a path
+// separator or a literal dash in a folder name, and only the disk can tell
+// which. It returns the single existing directory the key can denote, or ""
+// when there is none, more than one, or the key has another shape (UNC path,
+// no drive letter).
+func decodeWindowsProjectKey(key string, isDir func(string) bool) string {
 	if len(key) < 4 || key[0] != '-' || key[2] != '-' || key[3] != '-' {
 		return ""
 	}
@@ -334,16 +342,60 @@ func decodeWindowsProjectKey(key string, exists func(string) bool) string {
 		return ""
 	}
 	rest := key[4:]
-	// Empty path segments ("--", leading/trailing "-", or a bare drive) are
-	// not something encodeProjectDirKey produces for a normal directory.
-	if rest == "" || strings.HasPrefix(rest, "-") || strings.HasSuffix(rest, "-") || strings.Contains(rest, "--") {
+	if rest == "" {
 		return ""
 	}
-	dir := string(drive) + `:\` + strings.ReplaceAll(rest, "-", `\`)
-	if exists(dir) {
-		return dir
+	return resolveKeyPath(string(drive)+`:\`, rest, isDir)
+}
+
+// resolveKeyPath resolves the dash-encoded relative path rest under root,
+// trying at each step every way of grouping the next dash-separated tokens
+// into one folder name that exists. Returns the path only if exactly one
+// complete interpretation exists on disk.
+func resolveKeyPath(root, rest string, isDir func(string) bool) string {
+	budget := maxKeyProbes
+	exhausted := false
+	var found []string
+	var walk func(cur string, tokens []string)
+	walk = func(cur string, tokens []string) {
+		if len(found) > 1 {
+			return
+		}
+		if len(tokens) == 0 {
+			found = append(found, cur)
+			return
+		}
+		name := ""
+		for j := 1; j <= len(tokens); j++ {
+			if j == 1 {
+				name = tokens[0]
+			} else {
+				name += "-" + tokens[j-1]
+			}
+			if budget <= 0 {
+				// Not every interpretation was examined, so a lone hit
+				// cannot be called unique.
+				exhausted = true
+				return
+			}
+			budget--
+			if name == "" || name == "." || name == ".." {
+				continue
+			}
+			cand := filepath.Join(cur, name)
+			if isDir(cand) {
+				walk(cand, tokens[j:])
+				if len(found) > 1 {
+					return
+				}
+			}
+		}
 	}
-	return ""
+	walk(root, strings.Split(rest, "-"))
+	if exhausted || len(found) != 1 {
+		return ""
+	}
+	return found[0]
 }
 
 func dirExists(p string) bool {
