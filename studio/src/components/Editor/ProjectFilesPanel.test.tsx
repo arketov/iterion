@@ -14,10 +14,12 @@ vi.mock("@/api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/client")>();
   return {
     ...actual,
-    listFiles: vi.fn(async () => [
-      { name: "dev-flow.bot", size: 10 },
-      { name: "bots/review.bot", size: 20 },
-    ]),
+    listFilesPage: vi.fn(async () => ({
+      files: [
+        { name: "dev-flow.bot", size: 10 },
+        { name: "bots/review.bot", size: 20 },
+      ],
+    })),
   };
 });
 
@@ -83,7 +85,7 @@ describe("ProjectFilesPanel", () => {
   });
 
   it("shows an error banner when the file list cannot load", async () => {
-    vi.mocked(client.listFiles).mockRejectedValueOnce(new Error("boom"));
+    vi.mocked(client.listFilesPage).mockRejectedValueOnce(new Error("boom"));
     renderPanel();
     expect(await screen.findByText("Could not list project files")).toBeTruthy();
   });
@@ -99,5 +101,14 @@ describe("ProjectFilesPanel", () => {
       expect(useUIStore.getState().toasts.map((t) => t.message).join(" ")).toContain("Only .bot files");
     });
     expect(useTabsStore.getState().tabs.length).toBe(before);
+  });
+
+  it("says so when the server cut the list at its cap", async () => {
+    vi.mocked(client.listFilesPage).mockResolvedValueOnce({
+      files: [{ name: "a.bot", size: 1 }],
+      truncated: true,
+    });
+    renderPanel();
+    expect(await screen.findByText(/Showing the first 1 files/)).toBeTruthy();
   });
 });
