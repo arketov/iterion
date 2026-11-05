@@ -26,7 +26,7 @@ import {
 import { useActiveRepo } from "@/hooks/useActiveRepo";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { isVarMissing, isVarRequired, RequiredPill } from "@/lib/varValidation";
-import { useBotsStore } from "@/store/bots";
+import { useAllBots, useBotsStore } from "@/store/bots";
 import { BotPicker } from "@/views/Board/BotPicker";
 import { RepositoryField } from "@/views/Board/issueModal/RepositoryField";
 
@@ -191,7 +191,9 @@ function AddTaskDialogContent({
 
   // Shared bot catalog store — fetched once across all consumers. The board
   // is global, so the operator picks which bot runs this task here.
-  const bots = useBotsStore((s) => s.bots);
+  // One list for the picker: catalog bots + built-in recipes + single
+  // .bot files (origin shown per row).
+  const bots = useAllBots();
   const botsError = useBotsStore((s) => s.error);
   const fetchBots = useBotsStore((s) => s.fetch);
   useEffect(() => {
@@ -200,7 +202,7 @@ function AddTaskDialogContent({
 
   const selectedBot: BotEntryWithSchema | null = useMemo(() => {
     if (!botName || !bots) return null;
-    return bots.find((b) => b.name === botName) ?? null;
+    return bots.find((b) => b.name === botName || b.path === botName) ?? null;
   }, [botName, bots]);
 
   const botEnabled = selectedBot?.enabled !== false;

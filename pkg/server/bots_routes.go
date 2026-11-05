@@ -77,6 +77,13 @@ func (s *Server) handleBotsList(w http.ResponseWriter, r *http.Request) {
 		s.httpErrorFor(w, r, http.StatusInternalServerError, "bots: %v", err)
 		return
 	}
+	inc := parseBotInclude(r)
+	// A team-scoped caller (cloud) must not see the server's own working
+	// tree: the project-file scan is a local-workspace feature.
+	if id, _ := auth.FromContext(r.Context()); id.TeamID != "" {
+		inc.files = false
+	}
+	entries = s.appendManifestlessBots(entries, inc)
 	resp := map[string]any{"bots": entries}
 	if len(diags) > 0 {
 		diags = redactAbsoluteDiscoveryPaths(diags)

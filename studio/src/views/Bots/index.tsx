@@ -39,6 +39,16 @@ import {
   type BotCategory,
 } from "@/lib/botTaxonomy";
 import { useBotsStore } from "@/store/bots";
+import {
+  BOT_ENABLED_HELP,
+  BOT_SOURCE_HINT,
+  BOT_SOURCE_LABEL,
+  botSource,
+  groupBotsBySource,
+} from "@/lib/botOrigin";
+import { openExampleIntoStore } from "@/lib/openExample";
+import { getOrCreateDocumentStore } from "@/store/document";
+import { useTabsStore } from "@/store/tabs";
 import { DiscoveryErrorBanners } from "./DiscoveryErrorBanners";
 import { useServerInfoStore } from "@/store/serverInfo";
 import { useUIStore } from "@/store/ui";
@@ -62,6 +72,7 @@ const WANT_TO: { label: string; emoji: string; category?: string; tag?: string }
 export default function BotsView() {
   const [, setLocation] = useLocation();
   const bots = useBotsStore((s) => s.bots);
+  const extraBots = useBotsStore((s) => s.extraBots);
   const loading = useBotsStore((s) => s.loading);
   const botsError = useBotsStore((s) => s.error);
   const discoveryErrors = useBotsStore((s) => s.discoveryErrors);
@@ -290,6 +301,8 @@ export default function BotsView() {
         {bots !== null && (
           <span className="text-caption text-fg-subtle">
             {rows.length}/{bots.length} bot{bots.length === 1 ? "" : "s"}
+            {extraBots.length > 0 &&
+              ` · +${extraBots.length} built-in / project file${extraBots.length === 1 ? "" : "s"}`}
           </span>
         )}
       </div>
@@ -345,6 +358,13 @@ export default function BotsView() {
             </button>
           ))}
         </div>
+      )}
+
+      {!filtering && bots !== null && bots.length > 0 && (
+        <p className="text-caption text-fg-subtle">
+          <strong className="font-medium text-fg-muted">Enabled / Disabled.</strong>{" "}
+          {BOT_ENABLED_HELP}
+        </p>
       )}
 
       {botsError && (
@@ -452,6 +472,10 @@ export default function BotsView() {
           ))
       )}
 
+      {bots !== null && activeCategory === null && activeTags.length === 0 && (
+        <ManifestlessBots bots={extraBots} query={query} />
+      )}
+
       <RepoImportDialog
         open={repoDialogOpen}
         onOpenChange={setRepoDialogOpen}
@@ -466,6 +490,77 @@ export default function BotsView() {
         />
       )}
     </div>
+  );
+}
+
+/** ManifestlessBots lists what has no manifest and therefore no bot page: the
+ *  embedded built-in recipes and the project's single .bot files, each group
+ *  labelled with where it comes from. They come from the same response as the
+ *  catalog (GET /api/v1/bots?include=all), so the Home panel and the bot
+ *  pickers show the identical set. */
+function ManifestlessBots({ bots, query }: { bots: BotEntryWithSchema[]; query: string }) {
+  const [, setLocation] = useLocation();
+  const addToast = useUIStore((s) => s.addToast);
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? bots.filter((b) => `${b.name} ${b.rel_path ?? ""}`.toLowerCase().includes(q))
+    : bots;
+  const groups = groupBotsBySource(visible);
+  if (groups.length === 0) return null;
+
+  const open = async (b: BotEntryWithSchema) => {
+    if (b.origin === "file") {
+      const file = b.rel_path || b.path;
+      useTabsStore.getState().openTab("editor", { file });
+      setLocation(`/editor?file=${encodeURIComponent(file)}`);
+      return;
+    }
+    const tabId = useTabsStore.getState().newEditorTab(b.path);
+    try {
+      await openExampleIntoStore(b.path, getOrCreateDocumentStore(tabId));
+      setLocation("/editor");
+    } catch (err) {
+      useTabsStore.getState().closeTab(tabId);
+      addToast(errorMessage(err), "error");
+    }
+  };
+
+  return (
+    <>
+      {groups.map((g) => (
+        <section key={g.source} className="flex flex-col gap-2" aria-label={g.label}>
+          <h2 className="self-start text-sm font-medium text-fg-default">
+            {g.label}
+            <span className="font-normal text-caption text-fg-subtle">
+              {" "}— {BOT_SOURCE_HINT[g.source]} · {g.bots.length}
+            </span>
+          </h2>
+          <ul className="flex flex-col gap-1">
+            {g.bots.map((b) => (
+              <li
+                key={`${b.origin}:${b.path}`}
+                className="flex items-center gap-2 rounded border border-border-default bg-surface-1 px-3 py-1.5 text-xs"
+              >
+                <span className="font-medium text-fg-default">{b.name}</span>
+                {b.rel_path && (
+                  <span className="min-w-0 truncate font-mono text-caption text-fg-subtle">
+                    {b.rel_path}
+                  </span>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto"
+                  onClick={() => void open(b)}
+                >
+                  Open in editor
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </>
   );
 }
 
@@ -539,7 +634,7 @@ function BotCard({
               focusable={false}
             />
           )}
-          <span className="ml-auto shrink-0">
+          <span className="ml-auto shrink-0" title={BOT_ENABLED_HELP}>
             <Badge variant={enabled ? "success" : "neutral"}>
               {enabled ? "Enabled" : "Disabled"}
             </Badge>
@@ -586,6 +681,9 @@ function BotCard({
           {bot.origin === "platform" && (
             <Badge variant="warning">platform override</Badge>
           )}
+          <span title={BOT_SOURCE_HINT[botSource(bot)]}>
+            <Badge>{BOT_SOURCE_LABEL[botSource(bot)]}</Badge>
+          </span>
           {!bot.is_bundle && <Badge>single file</Badge>}
         </span>
       </button>
