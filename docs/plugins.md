@@ -408,6 +408,14 @@ load, and `iterion validate` says so (`mcp: N installed plugin(s) were skipped
 loaded. `plugin disable` does not silence the message: the manifest is read
 before the enabled state is consulted.
 
+That message is a real fault only for a directory with no builtin behind its
+name. A builtin plugin keeps its `{{plugin.cache}}` under
+`<iterion-home>/plugins/<name>/`, so a manifest-less directory named like a
+builtin (for example `repo-falcon/` holding only `cache/`) is that builtin's
+scratch space and is not reported. Installed plugins that could not be loaded
+come back as `load_skips` on `GET /api/v1/plugins`, and the studio Plugins page
+shows them in a warning banner with the reason.
+
 ## Marketplace
 
 Marketplace entries carry a `kind` (`bot` | `plugin`, defaulting to `bot` for

@@ -16,6 +16,8 @@ import { openExampleIntoStore } from "@/lib/openExample";
 import { useRecentsStore } from "@/store/recents";
 import { useTabsStore } from "@/store/tabs";
 import { useUIStore } from "@/store/ui";
+import { useBotsStore } from "@/store/bots";
+import { BOT_SOURCE_HINT, BOT_SOURCE_LABEL, botSource } from "@/lib/botOrigin";
 import { useConfirm } from "@/hooks/useConfirm";
 import { errorMessage, toastError } from "@/lib/errorHints";
 import { basename } from "@/lib/format";
@@ -65,6 +67,16 @@ export default function RecentFilesPanel({ variant = "card" }: Props) {
     staleTime: Infinity,
   });
   const examples = examplesQuery.data ?? EMPTY_EXAMPLES;
+  // Single .bot files without a manifest come from the same unified bot
+  // list the Bots page shows (GET /api/v1/bots?include=all). The panel's
+  // main list is still the example entries it opens by name; the files are
+  // an extra group so a lone test.bot is no longer invisible here.
+  const projectFiles = useBotsStore((s) => s.extraBots).filter((b) => b.origin === "file");
+  const botsLoaded = useBotsStore((s) => s.bots !== null);
+  const fetchBots = useBotsStore((s) => s.fetch);
+  useEffect(() => {
+    if (!botsLoaded) void fetchBots();
+  }, [botsLoaded, fetchBots]);
   // Quietly degrade on error — the examples list is only one of three
   // entry points (recents + new blank stay reachable). The inline banner
   // below tells the operator the bot catalog couldn't load.
@@ -219,6 +231,14 @@ export default function RecentFilesPanel({ variant = "card" }: Props) {
                               {techName}
                             </span>
                           )}
+                          {ex.origin && (
+                            <span
+                              className="text-fg-subtle text-micro shrink-0"
+                              title={BOT_SOURCE_HINT[botSource({ origin: ex.origin === "builtin" ? "builtin" : "catalog" })]}
+                            >
+                              {BOT_SOURCE_LABEL[botSource({ origin: ex.origin === "builtin" ? "builtin" : "catalog" })]}
+                            </span>
+                          )}
                         </span>
                         {ex.description && (
                           // The example button is the one tab stop; its
@@ -237,6 +257,33 @@ export default function RecentFilesPanel({ variant = "card" }: Props) {
               })}
             </ul>
           )}
+        </div>
+      )}
+
+      {projectFiles.length > 0 && (
+        <div>
+          <span
+            className="px-1 text-xs font-medium text-fg-muted"
+            title={BOT_SOURCE_HINT.file}
+          >
+            Project files ({projectFiles.length})
+          </span>
+          <ul className="mt-1 space-y-0.5">
+            {projectFiles.map((f) => (
+              <li key={f.path}>
+                <button
+                  type="button"
+                  onClick={() => handleOpenRecent(f.rel_path || f.path)}
+                  disabled={busy}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-surface-2 text-left text-xs disabled:opacity-50 focus-visible:ring-1 focus-visible:ring-accent"
+                  title={f.path}
+                >
+                  <FileIcon className="w-3.5 h-3.5 text-fg-subtle shrink-0" />
+                  <span className="font-medium truncate">{f.name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

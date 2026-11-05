@@ -117,3 +117,24 @@ describe("useBotsStore load sequencing", () => {
     expect(useBotsStore.getState().discoveryErrors).toEqual([]);
   });
 });
+
+describe("useBotsStore manifest-less split", () => {
+  beforeEach(() => {
+    useBotsStore.setState({ bots: null, extraBots: [], loading: false, error: null, discoveryErrors: [] });
+    vi.mocked(listBotsWithDiagnostics).mockReset();
+  });
+
+  it("keeps built-in recipes and loose files out of `bots`", async () => {
+    (listBotsWithDiagnostics as Mock).mockResolvedValueOnce({
+      bots: [
+        { name: "alpha", path: "/x/alpha", origin: "catalog" },
+        { name: "feature-dev", path: "feature-dev/main.bot", origin: "builtin" },
+        { name: "test", path: "/w/test.bot", origin: "file" },
+      ],
+      discoveryErrors: [],
+    });
+    await useBotsStore.getState().refetch();
+    expect(useBotsStore.getState().bots?.map((b) => b.name)).toEqual(["alpha"]);
+    expect(useBotsStore.getState().extraBots.map((b) => b.name)).toEqual(["feature-dev", "test"]);
+  });
+});

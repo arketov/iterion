@@ -3,6 +3,7 @@ package plugin
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -295,6 +296,15 @@ func (r *Registry) loadInstalled() {
 		dir := filepath.Join(base, e.Name())
 		data, err := os.ReadFile(filepath.Join(dir, ManifestFile))
 		if err != nil {
+			// A directory named like a builtin plugin that holds no manifest
+			// is not an installed copy of it: it is the builtin's own scratch
+			// space (its {{plugin.cache}} lives under <home>/plugins/<name>/).
+			// The builtin owns the name, so there is nothing to load and
+			// nothing broken to report — reporting it printed "plugin
+			// skipped" on every validate and run of a healthy host.
+			if errors.Is(err, fs.ErrNotExist) && have[e.Name()] {
+				continue
+			}
 			r.loadSkips = append(r.loadSkips, fmt.Sprintf("%s: read %s: %v", e.Name(), ManifestFile, err))
 			r.noteBrokenDir(e.Name(), dir)
 			continue

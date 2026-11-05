@@ -220,3 +220,27 @@ func TestPluginLifecycleInvalidPhase(t *testing.T) {
 		t.Errorf("body = %s", rec.Body.String())
 	}
 }
+
+// GET /api/v1/plugins names the installed plugins it could not load, so the
+// Plugins page can say why one is missing.
+func TestPluginsListReportsLoadSkips(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("ITERION_HOME", home)
+	if err := os.MkdirAll(filepath.Join(home, "plugins", "broken-demo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	srv := newPluginServer(t, t.TempDir(), "")
+	rec := doJSON(t, srv, "GET", "/api/v1/plugins", "")
+	if rec.Code != 200 {
+		t.Fatalf("list: code = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		LoadSkips []string `json:"load_skips"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v: %s", err, rec.Body.String())
+	}
+	if len(body.LoadSkips) != 1 || !strings.HasPrefix(body.LoadSkips[0], "broken-demo: ") {
+		t.Fatalf("load_skips = %v", body.LoadSkips)
+	}
+}

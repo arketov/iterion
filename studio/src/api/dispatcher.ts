@@ -146,6 +146,10 @@ export interface ServerConfig {
 export interface DispatcherConfig {
   name?: string;
   workflow: string;
+  /** assignee name → workflow path: a card assigned to that name runs the
+   *  given workflow instead of `workflow`. Relative paths are resolved
+   *  against the dispatcher config folder, like `workflow`. */
+  assignee_workflows?: Record<string, string>;
   tracker: TrackerConfig;
   dispatch?: DispatchConfig;
   polling?: PollingConfig;
