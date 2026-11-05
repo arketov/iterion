@@ -385,7 +385,7 @@ func (s *Store) watchLost(iw *indexWatcher) {
 // populate the cache from the authoritative on-disk files. Post-init
 // reads should go through the index via readIssueLocked.
 func (s *Store) readIssueFromDisk(id string) (*Issue, error) {
-	data, err := os.ReadFile(s.issuePath(id))
+	data, err := readFileShared(s.issuePath(id))
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, tracker.ErrNotFound
 	}
