@@ -37,6 +37,12 @@ dispatcher and schedule hooks, plugin lifecycle commands and
   `shell:` wins over `ITERION_SHELL`. Both are described in
   [dispatcher](dispatcher.md#hooks) and
   [environment variables](environment-variables.md).
+- **A saved `sh` hook:** the dispatcher's default `after_create` hook has a
+  PowerShell variant, and the studio migrates the old default of an older saved
+  config. A hook you wrote yourself that is plainly `sh` and has no `shell:` is
+  not rewritten: it runs under `sh` or `bash` when one is on `PATH`, and
+  otherwise fails before starting with a message to add `shell:` or rewrite it.
+  The details are in [dispatcher](dispatcher.md#hooks).
 - **A script's interpreter:** `language: powershell` (aliases `pwsh`, `ps1`) runs
   the body as a `.ps1` file with `-ExecutionPolicy Bypass`. `language: sh` or
   `bash` runs that shell wherever it is found; on Windows it must be on `PATH`,
