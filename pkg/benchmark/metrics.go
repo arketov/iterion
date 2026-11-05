@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // RunMetrics holds the aggregated metrics for a single recipe run.

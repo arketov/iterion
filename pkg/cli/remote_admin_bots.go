@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/botsource"
+	"github.com/arketov/iterion/pkg/botsource"
 )
 
 // remote admin bots — platform bot overrides (super-admin): the DB-backed

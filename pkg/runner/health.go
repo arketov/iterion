@@ -5,8 +5,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/httpx"
-	"github.com/SocialGouv/iterion/pkg/internal/appinfo"
+	"github.com/arketov/iterion/internal/httpx"
+	"github.com/arketov/iterion/pkg/internal/appinfo"
 )
 
 const (

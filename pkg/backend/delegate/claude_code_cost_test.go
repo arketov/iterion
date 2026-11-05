@@ -3,7 +3,7 @@ package delegate
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
+	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
 )
 
 func fptr(v float64) *float64 { return &v }

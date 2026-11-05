@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/permission"
 )
 
 // The defect this covers: a grant lived only in the node input of the

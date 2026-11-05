@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // countingEmitter is the store sink reduced to what these hooks need: the

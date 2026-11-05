@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Run.ArtifactIndex is a map, so "the first final_answer found" is not a

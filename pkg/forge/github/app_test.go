@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 func testKeyPEM(t *testing.T) (string, *rsa.PublicKey) {

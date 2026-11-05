@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/SocialGouv/iterion/pkg/identity"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/identity"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // MigrateOrgsResult summarizes a teams→orgs backfill (or its reversal).

@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/model"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The ORG tier: an organization's own shared credentials, lent to the teams

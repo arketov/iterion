@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
-	"github.com/SocialGouv/iterion/pkg/backend/tooldisplay"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/tooldisplay"
 )
 
 // notNativeRoster names every tool iterion renders a header for that is NOT

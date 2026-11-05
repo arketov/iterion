@@ -5,11 +5,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/fswatch"
+	"github.com/arketov/iterion/internal/fswatch"
 	"github.com/fsnotify/fsnotify"
 
-	"github.com/SocialGouv/iterion/pkg/errtrack"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/errtrack"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // configDebounce coalesces bursts of fsnotify events (most editors

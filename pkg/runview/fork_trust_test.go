@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // A forked child of a repo-targeted run clones the SAME tree as its parent —

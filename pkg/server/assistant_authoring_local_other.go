@@ -5,7 +5,7 @@ package server
 import (
 	"os"
 
-	"github.com/SocialGouv/iterion/pkg/authoringlock"
+	"github.com/arketov/iterion/pkg/authoringlock"
 )
 
 // errAuthoringPlatform is the lock's own refusal, reused by the publication

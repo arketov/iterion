@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/schedgate"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/schedgate"
 )
 
 // EffectWorker drains an EffectOutbox: claim → execute → mark, with bounded

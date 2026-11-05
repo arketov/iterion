@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // addNoteRequest is the POST /api/runs/{id}/notes body. author is

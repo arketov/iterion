@@ -19,7 +19,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 	"maps"
 	"os"
 	"os/exec"
@@ -28,9 +28,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
-	"github.com/SocialGouv/iterion/pkg/internal/shellquote"
-	"github.com/SocialGouv/iterion/pkg/plugin"
+	"github.com/arketov/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/internal/shellquote"
+	"github.com/arketov/iterion/pkg/plugin"
 )
 
 // ModeEnv sets the process-wide default compression mode (on|ultra|off) used

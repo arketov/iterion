@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	iterruntime "github.com/SocialGouv/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	iterruntime "github.com/arketov/iterion/pkg/runtime"
 )
 
 // depHeuristicOut mirrors the heuristic_output schema: {packages, errors}.

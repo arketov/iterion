@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // `iterion inspect --json` dumps the whole run record — one run, or every

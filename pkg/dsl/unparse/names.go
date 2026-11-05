@@ -3,7 +3,7 @@ package unparse
 import (
 	"fmt"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 
 // checkNames reports the first name the writer would put down bare that

@@ -1,13 +1,13 @@
 package unit
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // fileOf is the unit's entry for one relative path.

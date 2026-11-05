@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store/blob"
+	"github.com/arketov/iterion/pkg/store/blob"
 )
 
 // The IRBlobStore's BLOB-layer contract, exercised on a bare *Store with

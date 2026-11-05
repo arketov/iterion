@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/authoringlock"
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/authoringlock"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // ErrInstallTargetLocked is the cause of an install that stopped because a

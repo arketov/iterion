@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // HostHasDocker reports the runtime binary a driver would spawn, so it

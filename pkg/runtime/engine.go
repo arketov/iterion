@@ -16,23 +16,23 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/model"
-	"github.com/SocialGouv/iterion/pkg/backend/recipe"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/deeplink"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/internal/appinfo"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/workspacetrack"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/backend/recipe"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/deeplink"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/internal/appinfo"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/workspacetrack"
 )
 
 // tracerName is the OTel instrumentation name for runtime spans. The
 // global tracer is a no-op until cmd/iterion configures a provider, so
 // instrumentation here costs nothing in local mode and unit tests.
-const tracerName = "github.com/SocialGouv/iterion/pkg/runtime"
+const tracerName = "github.com/arketov/iterion/pkg/runtime"
 
 // EnvOutputCorrectionBudget is the process-wide default for bounded schema
 // correction. Launch surfaces can still override it with the engine option.

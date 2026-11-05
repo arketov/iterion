@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // TestRunStatus_QueuedString validates the new lifecycle state added for

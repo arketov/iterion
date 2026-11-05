@@ -11,8 +11,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 func resourceBundle(t *testing.T, body string) *bundle.Bundle {

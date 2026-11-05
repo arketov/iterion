@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 )
 
 func ghCallsOf(fake *fakeGH, first, second string) [][]string {

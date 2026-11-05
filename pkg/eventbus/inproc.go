@@ -6,8 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 // subscriberBufferSize is the per-subscriber channel buffer. A consumer that

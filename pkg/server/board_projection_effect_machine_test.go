@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 )
 
 // TestBoardProjection_DoesNotReflectAMachineTransition (#798): the fast path

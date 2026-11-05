@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/audit"
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/botsource"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/audit"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/botsource"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Platform bot overrides: the super-admin surface that makes the baked bot

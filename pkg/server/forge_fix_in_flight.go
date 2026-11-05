@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // A FIXER run holds no required check, so while it rewrites a branch NOTHING on

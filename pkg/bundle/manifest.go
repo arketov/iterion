@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/yamlx"
+	"github.com/arketov/iterion/internal/yamlx"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
-	"github.com/SocialGouv/iterion/pkg/llmroute"
-	"github.com/SocialGouv/iterion/pkg/retrypolicy"
+	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/llmroute"
+	"github.com/arketov/iterion/pkg/retrypolicy"
 )
 
 // CurrentManifestSchema is the manifest schema version this build understands.

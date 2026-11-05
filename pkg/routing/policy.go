@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dsl/expr"
+	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Decision is what the policy says about a terminal run. It is a

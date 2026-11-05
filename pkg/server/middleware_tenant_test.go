@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // A team-less authenticated identity used to sail through requireAuth

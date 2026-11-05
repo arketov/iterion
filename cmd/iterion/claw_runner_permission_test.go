@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/permission"
 )
 
 // driveClawRunner runs runClawRunner against piped stdio, sends the

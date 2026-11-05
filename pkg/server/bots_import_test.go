@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 const importScriptJS = `export const meta = { name: 'hello-flow' }

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
 )
 
 // zipEpoch is the fixed modification time stamped on every ZIP entry so

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/SocialGouv/iterion/internal/mdcode"
-	"github.com/SocialGouv/iterion/pkg/repograph"
+	"github.com/arketov/iterion/internal/mdcode"
+	"github.com/arketov/iterion/pkg/repograph"
 )
 
 // fixture writes a tiny module: two packages, one calling the other and

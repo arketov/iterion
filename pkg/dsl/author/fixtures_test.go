@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // The fixtures of the author schema (pkg/dsl/spec/testdata/author) are the

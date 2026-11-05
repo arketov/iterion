@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/cloudsched"
-	"github.com/SocialGouv/iterion/pkg/configshare"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/cloudsched"
+	"github.com/arketov/iterion/pkg/configshare"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // registerConfigEditorRoutes wires the AUTHENTICATED (session) config-editor

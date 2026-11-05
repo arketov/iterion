@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // gateChildBot parks on a human gate the test deliberately never answers —

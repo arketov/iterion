@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // parallelGateWorkflow: a fan-out whose one branch pauses on a human gate.

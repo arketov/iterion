@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/hometest"
+	"github.com/arketov/iterion/internal/hometest"
 )
 
 // Under go test the registry's config dir is the test process's own

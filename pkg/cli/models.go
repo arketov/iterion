@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/modelcatalog"
+	"github.com/arketov/iterion/pkg/modelcatalog"
 )
 
 // ModelsOptions configures the `iterion models` command.

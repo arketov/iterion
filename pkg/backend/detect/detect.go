@@ -17,11 +17,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
-	"github.com/SocialGouv/iterion/pkg/backend/compatgw"
-	"github.com/SocialGouv/iterion/pkg/backend/modelroute"
-	"github.com/SocialGouv/iterion/pkg/internal/clilocate"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/compatgw"
+	"github.com/arketov/iterion/pkg/backend/modelroute"
+	"github.com/arketov/iterion/pkg/internal/clilocate"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // Backend names come from the shared leaf without importing the execution stack.

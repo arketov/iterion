@@ -21,8 +21,8 @@ import (
 	clawmoonshot "github.com/SocialGouv/claw-code-go/pkg/api/providers/moonshot"
 	clawopenai "github.com/SocialGouv/claw-code-go/pkg/api/providers/openai"
 
-	"github.com/SocialGouv/iterion/pkg/backend/secretguard"
-	"github.com/SocialGouv/iterion/pkg/sandbox/netproxy"
+	"github.com/arketov/iterion/pkg/backend/secretguard"
+	"github.com/arketov/iterion/pkg/sandbox/netproxy"
 )
 
 // childPlaceholderEnv switches the test binary into the child that runs the

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 func TestMoonshotBaseURL_DefaultAndOverride(t *testing.T) {

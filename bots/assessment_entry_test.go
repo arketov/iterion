@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/gittest"
 )
 
 // The two entry preconditions, and both are NAMED refusals rather than

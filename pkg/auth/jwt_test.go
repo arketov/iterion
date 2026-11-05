@@ -10,7 +10,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // randomKey returns a 32-byte base64-encoded secret suitable for HS256.

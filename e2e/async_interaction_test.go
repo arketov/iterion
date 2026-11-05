@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Async human interaction (ADR-081): the await_answers node is the

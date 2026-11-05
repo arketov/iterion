@@ -7,7 +7,7 @@ import (
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // A human node has no user-prompt field at all, so the stand-in model of an

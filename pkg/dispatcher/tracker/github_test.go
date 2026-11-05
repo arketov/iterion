@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 )
 
 // fakeGH is a Command stub that returns canned JSON per gh subcommand.

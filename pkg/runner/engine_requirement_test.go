@@ -3,18 +3,18 @@ package runner
 import (
 	"context"
 	"errors"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/botsource"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/queue"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/botsource"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/queue"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The production incident this file guards: a bot pushed as a platform

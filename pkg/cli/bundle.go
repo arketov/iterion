@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // BundlePackResult is the JSON shape emitted by `iterion bundle pack --json`.

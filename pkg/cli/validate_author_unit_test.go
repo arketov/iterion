@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/cli"
 )
 
 // A finding of a document's unit — a fragment its imports name that cannot

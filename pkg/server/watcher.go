@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/fswatch"
+	"github.com/arketov/iterion/internal/fswatch"
 	"github.com/fsnotify/fsnotify"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 const (

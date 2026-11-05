@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 	"io/fs"
 	"path"
 	"regexp"
@@ -12,10 +12,10 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // The gallery shapes: one directory per shape under templates/gallery/,

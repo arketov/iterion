@@ -3,8 +3,8 @@ package runtime
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // WorkflowSandboxActive must reflect the RESOLVED sandbox decision, not the

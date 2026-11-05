@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 )
 
 // The board issues' by-id class (ADR-141): an id-addressed issue is served

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // planPhaseBots are the campaign bots carrying the cross-model plan

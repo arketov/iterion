@@ -17,12 +17,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/compatgw"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/sandbox/netproxy"
-	"github.com/SocialGouv/iterion/pkg/sandbox/noop"
-	"github.com/SocialGouv/iterion/pkg/secure/httpdial"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/backend/compatgw"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox/netproxy"
+	"github.com/arketov/iterion/pkg/sandbox/noop"
+	"github.com/arketov/iterion/pkg/secure/httpdial"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // gatewayPinChildEnv switches the test binary into the child that runs the

@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/internal/shellquote"
+	"github.com/arketov/iterion/pkg/internal/shellquote"
 )
 
 // validateEnvVar mirrors the discipline applied on the docker driver

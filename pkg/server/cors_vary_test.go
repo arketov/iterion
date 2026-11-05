@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/httpx"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/internal/httpx"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // The CORS branches own one Vary token, "Origin". Writing it with Set discarded

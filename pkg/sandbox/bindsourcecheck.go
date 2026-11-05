@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/SocialGouv/iterion/internal/safepath"
+	"github.com/arketov/iterion/internal/safepath"
 )
 
 // AnswerBindSourceCheck re-asks one recorded check: is the source still the

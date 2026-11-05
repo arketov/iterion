@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/orgusage"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/orgusage"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 // The fork review lane and the ordinary lanes are DISJOINT subscriptions, and

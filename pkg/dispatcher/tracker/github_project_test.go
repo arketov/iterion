@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // Board mode: the GitHub tracker takes its workflow state from a Projects v2

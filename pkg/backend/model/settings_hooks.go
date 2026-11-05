@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"github.com/SocialGouv/claw-code-go/pkg/api/hooks"
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/internal/proc"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // settingsHookEvents are the .claude/settings.json hook events the claw backend

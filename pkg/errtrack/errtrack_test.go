@@ -11,7 +11,7 @@ import (
 
 	sentry "github.com/getsentry/sentry-go"
 
-	"github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/log"
 )
 
 // memTransport is the in-memory sentry.Transport every test installs:

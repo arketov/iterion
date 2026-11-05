@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Plan-phase tests: prove the two switches the campaign bots share and

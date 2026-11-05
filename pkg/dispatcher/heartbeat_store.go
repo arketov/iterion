@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // heartbeatStore wraps a store.RunStore so the dispatcher's OnEvent

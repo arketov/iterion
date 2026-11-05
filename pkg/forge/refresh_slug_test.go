@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // slugRefresher is a refresher that, like the GitHub App one, also reports

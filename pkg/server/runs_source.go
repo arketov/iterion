@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/bots"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/bots"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // resolveWorkflowPath returns the absolute path the engine should

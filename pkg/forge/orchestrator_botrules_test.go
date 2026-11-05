@@ -5,8 +5,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 func ruleFor(t *testing.T, rules []webhooks.BotRule, botID string) webhooks.BotRule {

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 const resourceDrainTimeout = 5 * time.Second

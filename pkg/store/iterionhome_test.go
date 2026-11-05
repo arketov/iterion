@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // tempDirEnvName is the variable os.TempDir reads on this platform: TMP on

@@ -19,7 +19,7 @@ import (
 	"github.com/SocialGouv/claw-code-go/pkg/apikit"
 	"github.com/SocialGouv/claw-code-go/pkg/apikit/telemetry/otlpgrpc"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // OTLPGRPCExporter wraps an upstream OTLP/gRPC exporter and translates

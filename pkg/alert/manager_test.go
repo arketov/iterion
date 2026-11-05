@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // captureSink records every alert it receives.

@@ -7,8 +7,8 @@ import (
 
 	yamlv2 "go.yaml.in/yaml/v2"
 
-	"github.com/SocialGouv/iterion/internal/floortest"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/internal/floortest"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // What the key reader answers is the DECLARATION, not the decoded value: a

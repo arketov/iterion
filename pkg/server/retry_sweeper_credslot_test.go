@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/server/cloudpublisher"
-	"github.com/SocialGouv/iterion/pkg/store"
-	mongostore "github.com/SocialGouv/iterion/pkg/store/mongo"
+	"github.com/arketov/iterion/pkg/server/cloudpublisher"
+	"github.com/arketov/iterion/pkg/store"
+	mongostore "github.com/arketov/iterion/pkg/store/mongo"
 )
 
 // A run parked on a credential's hard concurrency cap asks for a slot again

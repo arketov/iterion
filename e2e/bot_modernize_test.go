@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // modernizeStubs registers the deterministic shape of one modernize lot for

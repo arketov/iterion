@@ -3,7 +3,7 @@ package cloudpublisher
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // audienceWithholdings remembers the keys an audience kept out of a run's

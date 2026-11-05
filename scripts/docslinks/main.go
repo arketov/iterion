@@ -21,8 +21,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/docsguard"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/internal/docsguard"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 func main() {

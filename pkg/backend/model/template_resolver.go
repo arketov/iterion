@@ -3,8 +3,8 @@ package model
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/secretsink"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/secretsink"
 )
 
 // SecretRefResolver resolves `{{secrets.<name>}}` to what a node may see —

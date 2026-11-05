@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 func securityReadMap(t *testing.T, sealer secrets.Sealer, st secrets.GenericSecretStore, tenant string) map[string]string {

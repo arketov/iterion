@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // validPackage is the smallest package that passes the COMPLETE check. Each

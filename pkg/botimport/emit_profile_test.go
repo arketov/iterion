@@ -1,10 +1,10 @@
 package botimport
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 func TestImportDraftUsesProfileTwoAndKeepsParagraphs(t *testing.T) {

@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/internal/storekit"
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/trigger"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/internal/storekit"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 // A credential pin validated at write can outlive the record it names: the

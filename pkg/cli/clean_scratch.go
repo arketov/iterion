@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/memory"
-	iterruntime "github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/memory"
+	iterruntime "github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // CleanedScratch is one out-of-tree working directory the sweep reclaimed

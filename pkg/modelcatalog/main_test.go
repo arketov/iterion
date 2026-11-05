@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/hometest"
+	"github.com/arketov/iterion/internal/hometest"
 )
 
 // The model-specs cache this catalog fetches lands in the iterion home; hometest keeps it off the operator's and removes it at exit.

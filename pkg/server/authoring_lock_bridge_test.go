@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/authoringlock"
+	"github.com/arketov/iterion/pkg/authoringlock"
 )
 
 // bridgeLockFile is a stored file in a directory the test owns, with no

@@ -1,7 +1,7 @@
 package author
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"strings"
 	"testing"
 )

@@ -5,10 +5,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/modelroute"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/modelroute"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // OverrideEntry is the neutral shape every model-override folder passes

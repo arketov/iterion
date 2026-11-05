@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/audit"
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/audit"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // mintShareReq builds an operator (admin) create-share request. Past the

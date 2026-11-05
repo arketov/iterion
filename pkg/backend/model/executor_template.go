@@ -8,11 +8,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
-	"github.com/SocialGouv/iterion/pkg/backend/secretguard"
-	"github.com/SocialGouv/iterion/pkg/backend/tool/privacy"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/secretguard"
+	"github.com/arketov/iterion/pkg/backend/tool/privacy"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // ---------------------------------------------------------------------------

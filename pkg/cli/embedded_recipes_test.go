@@ -2,13 +2,13 @@ package cli
 
 import (
 	"bytes"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit/unittest"
+	"github.com/arketov/iterion/pkg/dsl/unit/unittest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 
 // An embedded bot named by its basename from a directory that does not

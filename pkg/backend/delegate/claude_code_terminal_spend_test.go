@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // A delegation that ends badly still SPENT. The caps, the fallback chain's

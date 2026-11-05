@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/SocialGouv/iterion/internal/fswatch"
+	"github.com/arketov/iterion/internal/fswatch"
 	"github.com/fsnotify/fsnotify"
 )
 

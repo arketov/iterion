@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/usagecap"
+	"github.com/arketov/iterion/pkg/usagecap"
 )
 
 // localUsageStore is the process-local record of what this machine has

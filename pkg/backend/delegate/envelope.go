@@ -8,7 +8,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/permission"
 )
 
 // EnvelopeType discriminates the payload carried over the multiplexed

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // ParseRun walks events for a single run and produces a RunSeries scoring

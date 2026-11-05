@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // ErrNoChecker says an interpreter has no syntax checker here: the text is

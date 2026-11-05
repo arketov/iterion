@@ -7,10 +7,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/retrypolicy"
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/retrypolicy"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // `iterion run --auto-resume N` turns the operator's manual "resume it again"

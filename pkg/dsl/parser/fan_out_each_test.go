@@ -3,8 +3,8 @@ package parser_test
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // fan_out_each router with the full data-driven + DAG surface parses into the

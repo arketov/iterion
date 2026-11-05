@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // kubectlCaptureShim puts a fake `kubectl` first on PATH that records every

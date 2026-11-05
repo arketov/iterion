@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/lease"
-	"github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/lease"
+	"github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // mongoMustNotBeReached is deferred by the tests whose Purger has a nil DB:

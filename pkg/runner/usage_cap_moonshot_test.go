@@ -8,11 +8,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/model"
-	"github.com/SocialGouv/iterion/pkg/queue"
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/usagecap"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/queue"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/usagecap"
 )
 
 // facadeSource renders the routing label the delegate stamps on a reading

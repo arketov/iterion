@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/connector/exec"
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/secretsink"
+	"github.com/arketov/iterion/pkg/connector/exec"
+	"github.com/arketov/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/secretsink"
 )
 
 // Connector-action execution (ADR-098) — the third `tool` recipe.

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/worktreepool"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/worktreepool"
 )
 
 // boundWorktreePool keeps `<store>/worktrees/` from growing without end.

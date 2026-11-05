@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/auth/oidc"
-	"github.com/SocialGouv/iterion/pkg/deeplink"
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/auth/oidc"
+	"github.com/arketov/iterion/pkg/deeplink"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // registerForgeGitHubOrgsRoutes wires a read:org OAuth that lists the signed-in

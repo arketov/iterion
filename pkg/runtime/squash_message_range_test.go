@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/gittest"
 )
 
 // A run's squash message must describe the RUN, and the range that bounds it

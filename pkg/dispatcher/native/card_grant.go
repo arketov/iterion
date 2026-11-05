@@ -1,6 +1,6 @@
 package native
 
-import "github.com/SocialGouv/iterion/pkg/store"
+import "github.com/arketov/iterion/pkg/store"
 
 // The publish grant a server mints for one run never belongs on a board card:
 // the mint happens at launch (applyPRLaunchContext), the card-launch lanes drop

@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/botregistry"
-	"github.com/SocialGouv/iterion/pkg/dispatcher"
+	"github.com/arketov/iterion/pkg/botregistry"
+	"github.com/arketov/iterion/pkg/dispatcher"
 )
 
 // defaultBotsFS is the embedded catalogue of bots exposed as assignees

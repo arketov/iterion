@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // Lending a metered API key is the case where the pool moves REAL money:

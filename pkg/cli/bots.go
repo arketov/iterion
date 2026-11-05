@@ -9,9 +9,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/mdcode"
-	"github.com/SocialGouv/iterion/pkg/botregistry"
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/internal/mdcode"
+	"github.com/arketov/iterion/pkg/botregistry"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // BotEntry is an alias of botregistry.Entry so existing CLI callers and

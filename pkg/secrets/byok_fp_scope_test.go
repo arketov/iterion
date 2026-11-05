@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // #659 — MarkFingerprintUsed's scope comes from the context. Two tenants

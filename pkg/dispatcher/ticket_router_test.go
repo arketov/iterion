@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // prRouterTracker wraps the plain fakeTracker and implements the OPTIONAL

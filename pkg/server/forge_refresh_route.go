@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	forgegithub "github.com/SocialGouv/iterion/pkg/forge/github"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/forge"
+	forgegithub "github.com/arketov/iterion/pkg/forge/github"
 )
 
 // handleForgeConnectionRefresh re-probes a GitHub-App connection's live state

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // countingCloser records how many times Close was called and returns a fixed

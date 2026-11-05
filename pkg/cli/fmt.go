@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/canon"
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/dsl/canon"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
 )
 
 // FmtOptions drive `iterion fmt`.

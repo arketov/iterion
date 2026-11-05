@@ -8,7 +8,7 @@ import (
 
 	"github.com/SocialGouv/claw-code-go/pkg/apikit/telemetry/otlpgrpc"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 func TestNewOTLPGRPCExporter_RejectsEmptyEndpoint(t *testing.T) {

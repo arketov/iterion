@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/model"
-	"github.com/SocialGouv/iterion/pkg/cloud/metrics"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/cloud/metrics"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // openRouterPi answers like pi on OpenRouter: the reported model is

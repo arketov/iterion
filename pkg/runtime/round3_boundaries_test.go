@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/stdiotest"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/retrypolicy"
+	"github.com/arketov/iterion/internal/stdiotest"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/retrypolicy"
 )
 
 func TestR3ConvergencePreservesChildBudgetHint(t *testing.T) {

@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 )
 
 // defaultRescanInterval is how often a Store whose watch the host refused

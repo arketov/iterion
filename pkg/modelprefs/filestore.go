@@ -10,8 +10,8 @@ import (
 	"sort"
 	"sync"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // FileStore is the local/desktop Store: one small JSON file under the run

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // runEvents is the run-scoped reliable event registry backing the emit/wait

@@ -17,10 +17,10 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/auth/wsticket"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/auth/wsticket"
+	"github.com/arketov/iterion/pkg/identity"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // wsTicketGate is the in-memory WS-ticket store with a one-shot failure of

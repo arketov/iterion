@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/gittest"
 )
 
 // modernizeMarkDoneOut is the subset of mark_done's output the tests read.

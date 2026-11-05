@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/storekit"
+	"github.com/arketov/iterion/pkg/internal/storekit"
 )
 
 // MemorySubscriptionStore is the in-memory SubscriptionStore for tests and

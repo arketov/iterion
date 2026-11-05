@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // storeRunSourcePath and studioSourceMetaPath are the two halves of the

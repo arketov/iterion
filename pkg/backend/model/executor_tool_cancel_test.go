@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // grandchildRecipe returns a shell snippet that backgrounds a heartbeat

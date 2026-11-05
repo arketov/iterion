@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/gittest"
 )
 
 // product-docs (Prody) ships four deterministic nodes that decide the run:

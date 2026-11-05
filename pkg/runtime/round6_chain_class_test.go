@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/model"
 )
 
 // A route whose answer stayed off its schema condemns that route, not the

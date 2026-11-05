@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // forgeMergeOps bundles the three merge-gate gesture capabilities one

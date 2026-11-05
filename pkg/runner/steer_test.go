@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/runview"
 )
 
 // steerRunnerFixture wires a Runner with the ack transport stubbed and

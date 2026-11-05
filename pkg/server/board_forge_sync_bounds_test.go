@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/forge"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // What BOUNDS the incremental issue read, and what the bounds cost.

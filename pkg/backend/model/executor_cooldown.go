@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // routeCooldownModeEnv is the operator kill switch for reactive route

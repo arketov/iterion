@@ -16,13 +16,13 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	"github.com/SocialGouv/iterion/pkg/lease"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
-	mongostore "github.com/SocialGouv/iterion/pkg/store/mongo"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/lease"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
+	mongostore "github.com/arketov/iterion/pkg/store/mongo"
 )
 
 // waitForCond polls pred until it holds or the budget runs out: every wait in

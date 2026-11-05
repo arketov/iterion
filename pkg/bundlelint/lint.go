@@ -25,13 +25,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
-	"github.com/SocialGouv/iterion/pkg/backend/model"
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // Code identifies a bundle-consistency diagnostic (C2xx family).

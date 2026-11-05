@@ -41,7 +41,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // Pin is one floor the registry carries, resolved to the file declaring it.

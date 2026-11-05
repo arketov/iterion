@@ -11,15 +11,15 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/errtrack"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/runview/runstream"
-	"github.com/SocialGouv/iterion/pkg/server/cloudpublisher"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/errtrack"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/runview/runstream"
+	"github.com/arketov/iterion/pkg/server/cloudpublisher"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // runWSEnvelope is the wire shape for every WS message in either direction.

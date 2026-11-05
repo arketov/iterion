@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 
 // The ticket's sequence at the default budget (r3a P11): main.bot opened as

@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/runwatch"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/runwatch"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 // This adapter models Mongo's fail-closed query boundary. Only candidate

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/permission"
 )
 
 func TestEnvelopeRoundTripAllTypes(t *testing.T) {

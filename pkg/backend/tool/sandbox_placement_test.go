@@ -9,12 +9,12 @@ import (
 
 	clawtools "github.com/SocialGouv/claw-code-go/pkg/api/tools"
 
-	"github.com/SocialGouv/iterion/pkg/backend/tool/privacy"
-	"github.com/SocialGouv/iterion/pkg/backend/tool/privacy/detector"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native/boardops"
-	"github.com/SocialGouv/iterion/pkg/runops"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/backend/tool/privacy"
+	"github.com/arketov/iterion/pkg/backend/tool/privacy/detector"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/native/boardops"
+	"github.com/arketov/iterion/pkg/runops"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // buildFullClawRegistry builds the registry a host wires for a run, with every

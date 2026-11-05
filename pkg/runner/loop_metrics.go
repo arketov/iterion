@@ -7,16 +7,16 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/SocialGouv/iterion/pkg/backend/cost"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/model"
-	"github.com/SocialGouv/iterion/pkg/backend/modelroute"
-	"github.com/SocialGouv/iterion/pkg/cloud/metrics"
-	"github.com/SocialGouv/iterion/pkg/credpool"
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/supervise"
+	"github.com/arketov/iterion/pkg/backend/cost"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/backend/modelroute"
+	"github.com/arketov/iterion/pkg/cloud/metrics"
+	"github.com/arketov/iterion/pkg/credpool"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/supervise"
 )
 
 // metricsEmitter wraps a model.EventEmitter and taps llm_step_finished

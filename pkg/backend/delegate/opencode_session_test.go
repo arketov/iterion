@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // TestOpenCodeSessionArgv pins how a resume and a fork reach opencode: the

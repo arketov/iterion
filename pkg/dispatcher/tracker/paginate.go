@@ -1,7 +1,7 @@
 package tracker
 
 import (
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // paginateUntilShort drives the ListCandidates pattern shared by the

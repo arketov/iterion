@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/types"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/types"
 )
 
 // TestCatalogHumanLLMModelSpecsCarryAProvider pins a seam that only fails at

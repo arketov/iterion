@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // memberOrgRowGate fails the read of one member's org row — the read the

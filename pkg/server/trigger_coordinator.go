@@ -5,13 +5,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/eventbus"
-	"github.com/SocialGouv/iterion/pkg/internal/jsonl"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/schedgate"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/eventbus"
+	"github.com/arketov/iterion/pkg/internal/jsonl"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/schedgate"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 // defaultSchedulerTickInterval is the in-process scheduler's tick

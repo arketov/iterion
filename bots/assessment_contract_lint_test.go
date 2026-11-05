@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/gittest"
 )
 
 // contract_lint walks EVERY lot of the contract the assessment drafted. The

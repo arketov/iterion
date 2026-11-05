@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/treenoise"
+	"github.com/arketov/iterion/pkg/treenoise"
 )
 
 // The tree-noise env rides the executor field pattern (plan review F1, #1464):

@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/botscaffold"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/botscaffold"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/runview"
 )
 
 // recordingLauncher is a RunLauncher that records the LaunchSpec it was

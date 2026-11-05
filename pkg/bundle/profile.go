@@ -8,10 +8,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 
 // sourceState is what a reader could do with a subbot child's source.

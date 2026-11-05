@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	forgegithub "github.com/SocialGouv/iterion/pkg/forge/github"
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/secure/httpdial"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/forge"
+	forgegithub "github.com/arketov/iterion/pkg/forge/github"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secure/httpdial"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // ---- handlers ----

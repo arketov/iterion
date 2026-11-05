@@ -12,7 +12,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/appinfo"
+	"github.com/arketov/iterion/pkg/internal/appinfo"
 )
 
 // ---------------------------------------------------------------------------

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/deeplink"
+	"github.com/arketov/iterion/pkg/deeplink"
 )
 
 // newLegacyRedirectMux wires ONLY what the redirect needs, so a failure names

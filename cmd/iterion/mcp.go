@@ -6,8 +6,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/SocialGouv/iterion/pkg/operatormcp"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/operatormcp"
+	"github.com/arketov/iterion/pkg/store"
 	"github.com/spf13/cobra"
 )
 

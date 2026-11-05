@@ -18,8 +18,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/botsource"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/botsource"
 )
 
 const everyFileSkill = "# skill\nDo the thing.\n"

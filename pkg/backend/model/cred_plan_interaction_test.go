@@ -8,7 +8,7 @@ import (
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // interactionWorkflow is an agent whose `interaction: llm` answers the

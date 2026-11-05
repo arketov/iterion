@@ -12,14 +12,14 @@ import (
 	"github.com/SocialGouv/claw-code-go/pkg/api"
 	clawrt "github.com/SocialGouv/claw-code-go/pkg/runtime"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/pkg/backend/compatgw"
-	"github.com/SocialGouv/iterion/pkg/backend/modelspecs"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/backend/compatgw"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
+	"github.com/arketov/iterion/pkg/secrets"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/modelroute"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/modelroute"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // clearGatewayEnv pins the gateway variables to empty for a test: the host

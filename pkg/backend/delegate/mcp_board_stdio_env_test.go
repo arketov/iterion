@@ -11,9 +11,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native/boardops"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
+	"github.com/arketov/iterion/pkg/dispatcher/native/boardops"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // The stdio board server has no grant of its own: it lists and answers what

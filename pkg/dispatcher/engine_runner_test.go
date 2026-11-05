@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // TestEngineRunnerAcceptsBundleDir verifies that an unpacked bundle

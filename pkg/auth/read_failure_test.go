@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // The tests in this file pin one rule across the service: a read that FAILED

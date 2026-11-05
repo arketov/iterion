@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // mintedGrantSentinel stands in for the bearer a server mints at launch: a

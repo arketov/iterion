@@ -3,8 +3,8 @@ package model
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // The credential plan (#2288): the launch-frozen answer to "which sealed

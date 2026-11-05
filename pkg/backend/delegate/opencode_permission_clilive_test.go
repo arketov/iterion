@@ -43,7 +43,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/git"
 )
 
 // TestCLILiveOpenCodeConfigContentDeny re-measures on the 2.x line what

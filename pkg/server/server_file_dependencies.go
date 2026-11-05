@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/SocialGouv/iterion/pkg/botlock"
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/botlock"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 type fileDependencyRequest struct {

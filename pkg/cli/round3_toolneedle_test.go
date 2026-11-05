@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/retrypolicy"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/retrypolicy"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // A tool node (no provider involved) whose command fails and whose stderr

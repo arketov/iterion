@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/connector/gen"
-	"github.com/SocialGouv/iterion/pkg/connector/overlay"
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/gen"
+	"github.com/arketov/iterion/pkg/connector/overlay"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // The fixture is GitHub's shape in miniature: an otherwise excellent

@@ -7,10 +7,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // The connector endpoint is the engine's to give only when the host MCP

@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	iserver "github.com/SocialGouv/iterion/pkg/server"
+	iserver "github.com/arketov/iterion/pkg/server"
 )
 
 // sessionRenewalUnavailable is the body of the answer the tunnel gives a

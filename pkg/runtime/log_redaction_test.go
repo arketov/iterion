@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/model"
-	"github.com/SocialGouv/iterion/pkg/backend/recipe"
-	"github.com/SocialGouv/iterion/pkg/backend/secretguard"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/workspacetrack"
+	"github.com/arketov/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/backend/recipe"
+	"github.com/arketov/iterion/pkg/backend/secretguard"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/workspacetrack"
 )
 
 // A tool node that prints a declared secret, with a node boundary behind it:

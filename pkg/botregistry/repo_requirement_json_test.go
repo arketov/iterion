@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // TestRepoRequirementJSONWireShape locks the /api/v1/bots wire shape of

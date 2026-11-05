@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/pat"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/identity"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/pat"
 )
 
 // outageStore fails exactly one call — GetTeam — and passes everything

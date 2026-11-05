@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Ticket-level actions on the pipeline board that go beyond the ready-state

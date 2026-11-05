@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // #2486: a personal access token pinned to one team used to reach every team

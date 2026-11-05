@@ -12,8 +12,8 @@ import (
 
 	wp "github.com/SherClockHolmes/webpush-go"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/usernotify"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/usernotify"
 )
 
 // pushTTL is how long a push service holds an undelivered message for an

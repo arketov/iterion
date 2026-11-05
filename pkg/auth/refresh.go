@@ -15,8 +15,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 
-	"github.com/SocialGouv/iterion/pkg/internal/mongoutil"
-	"github.com/SocialGouv/iterion/pkg/lease"
+	"github.com/arketov/iterion/pkg/internal/mongoutil"
+	"github.com/arketov/iterion/pkg/lease"
 )
 
 // Session is a stored refresh token. The plaintext token is never

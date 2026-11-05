@@ -9,15 +9,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/botsource"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/cloudsched"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/trigger"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/botsource"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/cloudsched"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 // A team's own bot row serves EVERY launch surface of that team, not only

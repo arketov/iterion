@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Platform runs view (super-admin, #2148): one listing of every org's

@@ -15,10 +15,10 @@ import (
 	"time"
 
 	clawapi "github.com/SocialGouv/claw-code-go/pkg/api"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/usagecap"
+	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/usagecap"
 )
 
 // TestIsAuthErrorResult guards the auth-failure classifier that keeps a dead

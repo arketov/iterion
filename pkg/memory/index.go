@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/pkg/knowledge"
 )
 
 // frontmatterPeekBytes caps how much of each .md file BuildIndex

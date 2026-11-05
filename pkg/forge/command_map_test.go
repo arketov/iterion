@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/cloudsched"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/cloudsched"
 )
 
 func invLookup(m map[string][]bundle.Invocation) BotInvocationsLookup {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // admitRun is the single runtime admission gate. It runs after the run

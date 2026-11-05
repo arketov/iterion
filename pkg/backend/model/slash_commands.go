@@ -9,8 +9,8 @@ import (
 
 	clawcmds "github.com/SocialGouv/claw-code-go/pkg/api/commands"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // SlashCommandsEnv turns the workspace slash-command expansion off for

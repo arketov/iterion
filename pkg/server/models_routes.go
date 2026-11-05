@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/backend/detect"
-	"github.com/SocialGouv/iterion/pkg/backend/model"
-	"github.com/SocialGouv/iterion/pkg/modelcatalog"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/backend/detect"
+	"github.com/arketov/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/modelcatalog"
 )
 
 // handleModels serves the model registry: every model iterion knows about,

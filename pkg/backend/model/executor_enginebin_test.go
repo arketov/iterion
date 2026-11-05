@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // canaryEngineBin installs an executable file and points ITERION_BIN at it,

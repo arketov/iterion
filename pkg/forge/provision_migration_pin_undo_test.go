@@ -6,9 +6,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 // #2644, the migration carry's re-check beside the provision's undo. A

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/usagecap"
+	"github.com/arketov/iterion/pkg/usagecap"
 )
 
 // apiErrorResultStatusRe extracts the HTTP-ish status code the claude CLI

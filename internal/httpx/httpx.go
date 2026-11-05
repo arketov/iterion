@@ -12,7 +12,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/errtrack"
+	"github.com/arketov/iterion/pkg/errtrack"
 )
 
 // InternalServerError is the public message for every server-side failure.

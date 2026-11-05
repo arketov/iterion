@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/SocialGouv/iterion/pkg/botregistry"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/botregistry"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // RoutingRunner dispatches workflow runs based on the issue's

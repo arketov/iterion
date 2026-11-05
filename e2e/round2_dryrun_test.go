@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dryrun"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dryrun"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 
 // `iterion validate --exec` on catalog bots: the dry run answers every node

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // The stream-silence watchdog knobs cross as the host's own planted-as-unset

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native/boardops"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/native/boardops"
 )
 
 // BoardResolver resolves the board store one token-authenticated call

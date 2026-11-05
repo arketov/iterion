@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // flakyOAuthApps answers Get with a store failure while it is armed.

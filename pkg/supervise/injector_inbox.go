@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // inboxSessionKey is the synthetic run id used when a raw Claude Code

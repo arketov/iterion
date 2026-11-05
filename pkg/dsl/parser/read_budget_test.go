@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/stdiotest"
+	"github.com/arketov/iterion/internal/stdiotest"
 )
 
 // readBudgetEnv is the operator's hatch, spelled as the documentation spells

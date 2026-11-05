@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The #2028 gateway live layer: a tool-using structured node whose model is

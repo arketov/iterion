@@ -10,8 +10,8 @@ import (
 
 	"github.com/nats-io/nats.go"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 // DefaultSubjectPrefix is the NATS subject namespace the bus publishes under.

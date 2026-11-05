@@ -4,17 +4,17 @@ package unit_test
 // pkg/bundle and the unit loader — a cycle for an in-package test.
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit/unittest"
-	"github.com/SocialGouv/iterion/pkg/dsl/unparse"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/unit/unittest"
+	"github.com/arketov/iterion/pkg/dsl/unparse"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 
 const pinnedModel = "anthropic/claude-opus-4-8"

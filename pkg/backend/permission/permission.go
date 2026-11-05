@@ -32,7 +32,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
 )
 
 // Mode is the top-level permission posture, mirroring Claude Code's

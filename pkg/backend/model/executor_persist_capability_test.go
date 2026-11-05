@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // TestSessionResumeCapabilityHasAPacker: `session: persist` carries a

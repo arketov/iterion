@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/schedgate"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/schedgate"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 type round4ScheduleLauncher struct {

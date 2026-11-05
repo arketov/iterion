@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // Both stores answer the same questions, so both run the same contract. The

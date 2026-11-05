@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
 )
 
 // Provider-routing diagnostics.

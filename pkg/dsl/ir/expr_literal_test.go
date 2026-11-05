@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/dsl/expr"
 )
 
 // The fixture family for the collection-literal static checks (#1525): one

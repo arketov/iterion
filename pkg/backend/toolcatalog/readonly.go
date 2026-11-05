@@ -4,7 +4,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
 )
 
 // ReadonlyWithholdsDurableWrite reports whether a node's `readonly: true`

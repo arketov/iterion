@@ -112,7 +112,7 @@ rule.
 The first reading of this page claimed "verified 2026-10-23 over 903
 internal import pairs: zero violations". It was not a verdict: the guard
 compared `go list`'s full import path
-(`github.com/SocialGouv/iterion/pkg/dsl/ir`) to the bare prefixes above
+(`github.com/arketov/iterion/pkg/dsl/ir`) to the bare prefixes above
 (`pkg/dsl/ir`), so no rule ever bound a package, nothing was checked, and
 the test passed over a tree that held twelve violations
 ([#2829](https://github.com/SocialGouv/iterion/issues/2829)). The module

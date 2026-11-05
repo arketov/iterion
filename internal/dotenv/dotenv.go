@@ -20,7 +20,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // Entry is one assignment the file spells, in file order — later entries

@@ -7,7 +7,7 @@ import (
 	"errors"
 	"sort"
 
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // RefusalReason names why a sign-in was refused, for the audit log. The

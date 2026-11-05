@@ -2,11 +2,11 @@ package cli
 
 import (
 	"errors"
-	"github.com/SocialGouv/iterion/pkg/retrypolicy"
+	"github.com/arketov/iterion/pkg/retrypolicy"
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/runtime"
 )
 
 func TestResolveAutoResume(t *testing.T) {

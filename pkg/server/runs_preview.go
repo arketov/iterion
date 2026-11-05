@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/secure/httpdial"
+	"github.com/arketov/iterion/pkg/secure/httpdial"
 )
 
 // previewProxyMaxBytes caps how much upstream body the proxy will

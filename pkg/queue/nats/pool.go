@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/queue"
+	"github.com/arketov/iterion/pkg/queue"
 	"github.com/nats-io/nats.go/jetstream"
 )
 

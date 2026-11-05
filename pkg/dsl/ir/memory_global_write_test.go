@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 )
 
 // TestValidateMemory_GlobalWriteIsWarned pins C319: a node declaring

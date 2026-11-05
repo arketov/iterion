@@ -14,10 +14,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/clilocate"
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/internal/clilocate"
+	"github.com/arketov/iterion/pkg/internal/proc"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // maxTurnsCeiling caps the per-call max-turns the claude CLI is asked

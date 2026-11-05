@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/gittest"
 )
 
 // scripts/brew-tap-pr.sh against a real remote, through brew_tap_test.go's

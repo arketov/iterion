@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit/unittest"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dsl/unit/unittest"
+	"github.com/arketov/iterion/pkg/store"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,10 +13,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/botsource"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/botsource"
+	"github.com/arketov/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 
 const subbotFixtureMain = "import \"lib/nodes.bot\"\n\nworkflow w:\n  entry: worker\n  worker -> kid\n  kid -> done\n"

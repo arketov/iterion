@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // The executor half of the pinned skill mode (iterion#1719): armed by the

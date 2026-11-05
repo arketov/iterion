@@ -9,10 +9,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 func workflowHasFileSecrets(wf *ir.Workflow) bool {

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // The loop gate hands ONE string to the next pass: `fail_log`. In the four bots

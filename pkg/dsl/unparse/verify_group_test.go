@@ -3,7 +3,7 @@ package unparse
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 
 // A declaration the canvas created and did not fill in yet — a schema

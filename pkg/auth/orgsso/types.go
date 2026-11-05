@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // Kind discriminates the two provider shapes stored in the unified collection.

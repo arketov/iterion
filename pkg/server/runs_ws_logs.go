@@ -3,8 +3,8 @@ package server
 import (
 	"encoding/json"
 
-	"github.com/SocialGouv/iterion/pkg/errtrack"
-	"github.com/SocialGouv/iterion/pkg/runview/runstream"
+	"github.com/arketov/iterion/pkg/errtrack"
+	"github.com/arketov/iterion/pkg/runview/runstream"
 )
 
 // handleSubscribeLogs registers a per-run log subscription. Mirrors

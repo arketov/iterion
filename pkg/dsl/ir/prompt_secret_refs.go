@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
-	"github.com/SocialGouv/iterion/pkg/dsl/secretsink"
+	"github.com/arketov/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/dsl/secretsink"
 )
 
 // secretRefVerdict judges one `{{secrets.X}}` reference against the

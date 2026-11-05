@@ -11,10 +11,10 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/queue"
-	natsq "github.com/SocialGouv/iterion/pkg/queue/nats"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/queue"
+	natsq "github.com/arketov/iterion/pkg/queue/nats"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // TestDLQPark_aParkedRunIsResumedNotReplayed, against a real JetStream: a

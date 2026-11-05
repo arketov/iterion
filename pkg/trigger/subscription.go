@@ -8,10 +8,10 @@ import (
 
 	"github.com/robfig/cron/v3"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/llmroute"
-	"github.com/SocialGouv/iterion/pkg/retrypolicy"
-	"github.com/SocialGouv/iterion/pkg/schedgate"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/llmroute"
+	"github.com/arketov/iterion/pkg/retrypolicy"
+	"github.com/arketov/iterion/pkg/schedgate"
 )
 
 // Matcher is the declarative filter on an Event. It is the union of the four

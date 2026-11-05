@@ -13,8 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/botlock"
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/botlock"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // Kind identifies how a resolved subbot source is supplied.

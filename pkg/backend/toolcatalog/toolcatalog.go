@@ -21,7 +21,7 @@ package toolcatalog
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
 )
 
 // ClawBackend aliases the in-process backend name from the shared leaf.

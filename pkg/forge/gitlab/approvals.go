@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // approveEligibility is the remedy text for an approval the forge refused on

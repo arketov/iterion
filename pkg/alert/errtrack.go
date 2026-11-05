@@ -6,7 +6,7 @@ import (
 
 	sentry "github.com/getsentry/sentry-go"
 
-	"github.com/SocialGouv/iterion/pkg/errtrack"
+	"github.com/arketov/iterion/pkg/errtrack"
 )
 
 // TrackerSink forwards alerts to the error tracker so a run that fails,

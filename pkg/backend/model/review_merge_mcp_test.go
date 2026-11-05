@@ -9,15 +9,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/mcp"
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native/boardops"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit/unittest"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/mcp"
+	"github.com/arketov/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/native/boardops"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/unit/unittest"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // The production GPT reviewer completed, then its merger failed resolving

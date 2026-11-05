@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/mcp"
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/mcp"
+	"github.com/arketov/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // A workflow's `mcp_server:` blocks have to reach EVERY backend that consumes

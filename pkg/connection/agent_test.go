@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/connection"
 )
 
 // The `agent` capability is WIRED (#2758): the MCP facade exists, so the

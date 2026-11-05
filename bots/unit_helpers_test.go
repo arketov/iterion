@@ -2,13 +2,13 @@ package bots
 
 import (
 	"bytes"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit/unittest"
+	"github.com/arketov/iterion/pkg/dsl/unit/unittest"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 
 // parseBotUnit parses a catalog bot as its UNIT — the file and the fragments

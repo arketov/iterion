@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // RunGitMeta is the persisted snapshot of a run's git activity — the

@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/usagecap"
+	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/usagecap"
 )
 
 func ptrF(v float64) *float64 { return &v }

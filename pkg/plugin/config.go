@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // EffectiveConfig returns the named plugin's config as it is actually used:

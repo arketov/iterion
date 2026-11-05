@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // manifestEnv extracts the workload container's env as a name→value map

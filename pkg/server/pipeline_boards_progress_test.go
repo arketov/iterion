@@ -3,8 +3,8 @@ package server
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // A recovery fork EXECUTING for the ticket occupies the slot its dead

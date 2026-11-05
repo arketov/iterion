@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/deeplink"
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/deeplink"
+	"github.com/arketov/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // budgetedWorkflow is a one-node workflow carrying every enforceable cap,

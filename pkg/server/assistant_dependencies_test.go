@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/botlock"
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/botlock"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 func TestAssistantDependencyBotsUpdateCommitsOnlyLock(t *testing.T) {

@@ -26,9 +26,9 @@ import (
 	"sort"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/secure/httpdial"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/secure/httpdial"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // PayloadVersion is the schema version of CompletionPayload. Bumped on

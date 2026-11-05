@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/SocialGouv/iterion/pkg/backend/modelroute"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/backend/modelroute"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // ErrPoolContentRefused is the typed refusal (sovereign pools, D12): a

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // Where the OUTPUT is the answer, a cut drain is not a success. git exits 0

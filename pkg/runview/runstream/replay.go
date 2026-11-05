@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // This file holds the small building blocks every backend shares:

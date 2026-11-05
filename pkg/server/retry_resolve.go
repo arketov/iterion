@@ -3,8 +3,8 @@ package server
 import (
 	"context"
 
-	"github.com/SocialGouv/iterion/pkg/retrypolicy"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/retrypolicy"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Launch-time resolution of a run's retry policy.

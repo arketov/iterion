@@ -9,10 +9,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/mdcode"
-	"github.com/SocialGouv/iterion/internal/treeskip"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/skilllib"
+	"github.com/arketov/iterion/internal/mdcode"
+	"github.com/arketov/iterion/internal/treeskip"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/skilllib"
 )
 
 // botBundles maps the catalog: one row per bundle, and one per skill.

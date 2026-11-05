@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/jsonl"
-	"github.com/SocialGouv/iterion/pkg/schedgate"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/internal/jsonl"
+	"github.com/arketov/iterion/pkg/schedgate"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // gateFixture wires a manifest + store + runRunFn stub for RunScheduleRun

@@ -15,24 +15,24 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/botregistry"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	"github.com/SocialGouv/iterion/pkg/llmroute"
-	"github.com/SocialGouv/iterion/pkg/routing"
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/server/cloudpublisher"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/botregistry"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/llmroute"
+	"github.com/arketov/iterion/pkg/routing"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/server/cloudpublisher"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // tracerName is the OTel instrumentation name for server spans. Both
 // the launch and resume handlers create root spans here so the runner
 // pod can hang per-node spans off of them via NATS trace propagation.
-const tracerName = "github.com/SocialGouv/iterion/pkg/server"
+const tracerName = "github.com/arketov/iterion/pkg/server"
 
 // workflowSourceChangedErrorCode is the stable wire code consumed by the
 // studio's force-resume affordance. Keep human prose in "error" for display,

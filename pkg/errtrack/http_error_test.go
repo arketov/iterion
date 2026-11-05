@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/log"
 	sentry "github.com/getsentry/sentry-go"
 )
 

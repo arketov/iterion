@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // AdminListFilter scopes ListAcrossTenants. Empty fields mean no

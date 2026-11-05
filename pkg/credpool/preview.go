@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // PreviewCandidate describes one attempted donation without materializing it.

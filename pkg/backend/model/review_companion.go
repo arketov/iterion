@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 const maxReviewCompanionMessageChars = 800

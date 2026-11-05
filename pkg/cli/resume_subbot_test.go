@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	cli "github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/store"
+	cli "github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // TestResume_RunWithSubbot is the regression for the resume path missing the

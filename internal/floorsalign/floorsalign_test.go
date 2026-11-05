@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // cutChangelog is what release-it has rendered when the hook runs a patch

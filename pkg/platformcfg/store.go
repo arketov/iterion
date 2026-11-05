@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"github.com/SocialGouv/iterion/pkg/budgetfloor"
+	"github.com/arketov/iterion/pkg/budgetfloor"
 )
 
 // colPlatformSettings is the shared one-doc-per-family collection —

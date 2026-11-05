@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	api "github.com/SocialGouv/claw-code-go/pkg/api"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // The adaptive-routing ladder's same-backend rung (ADR-121 §2, the F1

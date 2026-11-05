@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/internal/mdcode"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/mdcode"
 )
 
 // A bundle's own text — its persona, its description, its version — is

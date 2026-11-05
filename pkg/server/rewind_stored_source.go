@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/botsource"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/botsource"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // BotSourcePinFallbackEnv is the deployment dial for the pinned-version

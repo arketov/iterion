@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // A sub-bot child inherits its parent's queue message wholesale (the runner

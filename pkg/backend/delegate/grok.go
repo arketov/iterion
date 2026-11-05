@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // BackendGrok is the registration name for the xAI Grok Build CLI backend

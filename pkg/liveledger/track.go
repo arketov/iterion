@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/git"
 )
 
 // EnvTarget names the env var each Taskfile target sets to identify the

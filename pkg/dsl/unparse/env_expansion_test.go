@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
-	"github.com/SocialGouv/iterion/pkg/dsl/unparse"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/unparse"
 )
 
 // `env_expansion:` must survive the .bot round trip the unparser owns —

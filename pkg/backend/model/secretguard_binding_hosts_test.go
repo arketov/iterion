@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // TestEffectiveSecretHosts pins the bot-secret-binding egress semantics:

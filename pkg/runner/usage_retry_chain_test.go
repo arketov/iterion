@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/retrypolicy"
-	"github.com/SocialGouv/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/retrypolicy"
+	"github.com/arketov/iterion/pkg/runtime"
 )
 
 // The production error text, verbatim from run 019fea23-9636 (2026-08-10):

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth/oidc"
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/auth/oidc"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // A credential change — a password change, a reset confirm, the forced

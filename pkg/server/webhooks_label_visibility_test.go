@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/webhooks"
-	"github.com/SocialGouv/iterion/pkg/webhooks/gitlab"
+	"github.com/arketov/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/webhooks/gitlab"
 )
 
 // The label door's visibility gate (#2676): a label starts a bot the

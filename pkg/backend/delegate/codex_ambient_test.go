@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/ambient"
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/backend/ambient"
+	"github.com/arketov/iterion/pkg/internal/proc"
 	codexsdk "github.com/ethpandaops/codex-agent-sdk-go"
 )
 

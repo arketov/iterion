@@ -6,8 +6,8 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
-	"github.com/SocialGouv/iterion/pkg/store"
-	mongostore "github.com/SocialGouv/iterion/pkg/store/mongo"
+	"github.com/arketov/iterion/pkg/store"
+	mongostore "github.com/arketov/iterion/pkg/store/mongo"
 )
 
 // mongoDecoded round-trips an event through the cloud store's exact

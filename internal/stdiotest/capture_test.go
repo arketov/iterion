@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/stdiotest"
+	"github.com/arketov/iterion/internal/stdiotest"
 )
 
 // A full pipe must not stop the operation being observed. The subprocess is

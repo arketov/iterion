@@ -3,7 +3,7 @@ package boardops
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/boardcaps"
+	"github.com/arketov/iterion/pkg/boardcaps"
 )
 
 // The vocabulary lives in pkg/boardcaps so the DSL compiler can read it

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // runWrapped runs c.Wrap(argv) here, with the session variable in the

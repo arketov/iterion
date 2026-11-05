@@ -11,12 +11,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/ambient"
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
-	"github.com/SocialGouv/iterion/pkg/backend/modelroute"
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
-	"github.com/SocialGouv/iterion/pkg/knowledge"
-	"github.com/SocialGouv/iterion/pkg/sandbox/imageclass"
+	"github.com/arketov/iterion/pkg/backend/ambient"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/modelroute"
+	"github.com/arketov/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/pkg/sandbox/imageclass"
 )
 
 // validateEvents cross-checks emit/wait event names (ADR-051): a wait on an

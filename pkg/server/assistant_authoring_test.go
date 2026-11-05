@@ -11,12 +11,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/botsource"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/botsource"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 func authoringFixture(t *testing.T) (*Server, string) {

@@ -3,7 +3,7 @@ package config
 import (
 	"io"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // ResolveLevel maps the validated level string onto a pkg/log level.

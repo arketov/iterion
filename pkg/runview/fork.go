@@ -12,10 +12,10 @@ import (
 	"sort"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // ForkSpec describes a fork request — a "create-an-alternative-future"

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // TestReviewPrClaudeSlotFallsBackToGlmOnASpentForfait pins the claude slot's

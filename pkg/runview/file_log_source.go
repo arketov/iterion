@@ -3,7 +3,7 @@ package runview
 import (
 	"path/filepath"
 
-	"github.com/SocialGouv/iterion/pkg/runview/runstream"
+	"github.com/arketov/iterion/pkg/runview/runstream"
 )
 
 // startLogSource spawns a goroutine that tails the run's run.log (via

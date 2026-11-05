@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // A prompt body the lexer settles otherwise than written reads without an

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/sandbox/noop"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox/noop"
 )
 
 // noopRun builds a host-passthrough Run so WriteFileExec's sh pipeline

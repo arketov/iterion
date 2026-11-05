@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/connector/exec"
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/secure/httpdial"
+	"github.com/arketov/iterion/pkg/connector/exec"
+	"github.com/arketov/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secure/httpdial"
 )
 
 // The LOCAL tier: how a laptop, a desktop app or a CLI run gets a resolver.

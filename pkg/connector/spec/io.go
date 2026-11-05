@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/yamlx"
+	"github.com/arketov/iterion/internal/yamlx"
 	yaml "gopkg.in/yaml.v3"
 )
 

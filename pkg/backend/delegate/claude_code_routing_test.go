@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // The sh program a sandboxed spawn runs must write the very object the Go

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/repograph"
-	"github.com/SocialGouv/iterion/pkg/repomap"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/repograph"
+	"github.com/arketov/iterion/pkg/repomap"
 	"github.com/spf13/cobra"
 )
 

@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // BackendOpenCode is the registration name for the opencode backend

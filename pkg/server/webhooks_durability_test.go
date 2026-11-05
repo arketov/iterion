@@ -18,11 +18,11 @@ import (
 
 	"golang.org/x/net/http2"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
-	"github.com/SocialGouv/iterion/pkg/webhooks/prforge"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/webhooks/prforge"
 )
 
 func waitWebhookWorkers(t *testing.T, s *Server) {

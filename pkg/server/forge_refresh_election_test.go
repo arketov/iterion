@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/lease"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/lease"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // spyLeaseStore records every successful Acquire on the store it wraps, so a

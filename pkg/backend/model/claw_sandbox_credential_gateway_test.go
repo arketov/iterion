@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/compatgw"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/compatgw"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // gatewayEnvClearer clears every env entry the claw predicate reads, so a

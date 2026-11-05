@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 // refusingAdmin is a forge whose hook writes answer the way a GitLab answers

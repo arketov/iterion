@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/llmtypes"
+	"github.com/arketov/iterion/pkg/backend/llmtypes"
 )
 
 // noop is a no-op execute function for testing.

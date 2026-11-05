@@ -15,8 +15,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/safepath"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/internal/safepath"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // The read-back drain (ADR-143 §3): the driver streams a declared

@@ -15,12 +15,12 @@ import (
 	"testing"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 
-	"github.com/SocialGouv/iterion/pkg/backend/ambient"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/pisdk"
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/backend/ambient"
+	"github.com/arketov/iterion/pkg/backend/delegate/pisdk"
+	"github.com/arketov/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 func TestPiResolveModel(t *testing.T) {

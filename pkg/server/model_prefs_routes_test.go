@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/modelprefs"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/modelprefs"
 )
 
 func newPrefsServer(t *testing.T, store modelprefs.Store) *Server {

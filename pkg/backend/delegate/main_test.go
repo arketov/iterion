@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/hometest"
-	"github.com/SocialGouv/iterion/internal/pricingtest"
+	"github.com/arketov/iterion/internal/hometest"
+	"github.com/arketov/iterion/internal/pricingtest"
 )
 
 // hometest isolates per-user state. pricingtest prevents live price lookups

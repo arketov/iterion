@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // TestSweepRecoversMissedPause simulates the lossy-bus gap: a run paused

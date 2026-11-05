@@ -1,6 +1,6 @@
 package ir
 
-import "github.com/SocialGouv/iterion/pkg/backend/backendcaps"
+import "github.com/arketov/iterion/pkg/backend/backendcaps"
 
 // Per-node CLI-command diagnostics.
 const (

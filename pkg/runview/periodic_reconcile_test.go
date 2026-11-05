@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // TestPeriodicReconcileFlipsLateOrphan proves the TICK (not the boot

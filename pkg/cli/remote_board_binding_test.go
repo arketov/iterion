@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // The `--status-map` flag is the operator's escape hatch from the shipped

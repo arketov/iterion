@@ -13,10 +13,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/SocialGouv/iterion/pkg/auth/orgsso"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/mail"
+	"github.com/arketov/iterion/pkg/auth/orgsso"
+	"github.com/arketov/iterion/pkg/identity"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/mail"
 )
 
 // Sentinel errors raised by Service. Handlers map them to HTTP

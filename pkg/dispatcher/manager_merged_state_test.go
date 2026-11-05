@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
 )
 
 // TransitionMergedIssue covers the studio's "auto-move ticket on merge"

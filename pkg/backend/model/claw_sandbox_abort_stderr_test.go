@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // A crossing that aborts between cmd.Start and the task envelope has already

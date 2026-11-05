@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 
 // ---- shared helpers ----

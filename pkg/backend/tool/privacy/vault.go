@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // vaultVersion is the on-disk schema version. A mismatch on read

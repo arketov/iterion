@@ -1,6 +1,6 @@
 package retrypolicy
 
-import "github.com/SocialGouv/iterion/pkg/store"
+import "github.com/arketov/iterion/pkg/store"
 
 // ---------------------------------------------------------------------------
 // The automatic-resume classification.

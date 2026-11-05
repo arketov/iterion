@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // A sandboxed tool command whose end is unknown and whose sweep could not

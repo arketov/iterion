@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/secretguard"
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/queue"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/backend/secretguard"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/queue"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The runner's own lines ride the per-run logger it tees into the

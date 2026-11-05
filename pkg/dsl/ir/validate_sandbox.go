@@ -1,6 +1,6 @@
 package ir
 
-import "github.com/SocialGouv/iterion/pkg/dsl/ast"
+import "github.com/arketov/iterion/pkg/dsl/ast"
 
 // Sandbox opt-out diagnostic. Sandboxing is the DEFAULT: a workflow
 // with no sandbox: block runs as `sandbox: auto`. An explicit

@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/SocialGouv/iterion/pkg/legal"
+	"github.com/arketov/iterion/pkg/legal"
 )
 
 // legalDocumentView is the wire body of GET /api/legal/{slug}: the document

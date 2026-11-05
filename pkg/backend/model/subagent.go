@@ -10,10 +10,10 @@ import (
 	clawhooks "github.com/SocialGouv/claw-code-go/pkg/api/hooks"
 	clawtools "github.com/SocialGouv/claw-code-go/pkg/api/tools"
 
-	"github.com/SocialGouv/iterion/pkg/backend/cost"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/backend/cost"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/tool"
 )
 
 // parentPermissionCtxKey carries the parent loop's tool-permission policy to

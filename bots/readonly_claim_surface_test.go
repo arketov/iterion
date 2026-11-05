@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // readonlyIncapacityClaims are the phrasings that tell a node what its SURFACE

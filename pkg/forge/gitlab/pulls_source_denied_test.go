@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // deniedSourceForge serves one target project (42) whose merge requests come

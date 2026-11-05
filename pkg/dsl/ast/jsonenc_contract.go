@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/spec"
+	"github.com/arketov/iterion/pkg/dsl/spec"
 )
 
 // jsonContractDecl mirrors ContractDecl (contract.go). Ports, criteria and

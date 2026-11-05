@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/llmroute"
-	"github.com/SocialGouv/iterion/pkg/orgusage"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/llmroute"
+	"github.com/arketov/iterion/pkg/orgusage"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 // The webhook lane is the integration's launch surface: the config's

@@ -18,8 +18,8 @@ import (
 	"syscall"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/secure/httpdial"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/secure/httpdial"
 )
 
 // Proxy is the iterion HTTP / HTTPS CONNECT proxy. It enforces a

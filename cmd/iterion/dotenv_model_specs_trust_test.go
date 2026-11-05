@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/pkg/backend/compatgw"
-	"github.com/SocialGouv/iterion/pkg/backend/modelspecs"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/backend/compatgw"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
 )
 
 // The whole road, from the file on disk to the record the sandbox crossing

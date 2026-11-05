@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 
 // An edge line read on its own reads as it reads inside a workflow body:

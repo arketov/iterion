@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // repoDevboxEnabled reports whether the TARGET REPO's `devbox.json` is

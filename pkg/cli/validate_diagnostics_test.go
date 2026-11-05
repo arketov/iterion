@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/cli"
 )
 
 // A workflow with one graph defect (an undeclared cycle) and one parse

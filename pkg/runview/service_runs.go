@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/runview/runstream"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/runview/runstream"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // resolveBundleName returns the bot/bundle label for display in the

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/gittest"
 )
 
 // #1577: git prints a rename's source UNQUOTED whenever the name holds no

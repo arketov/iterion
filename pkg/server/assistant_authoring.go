@@ -18,13 +18,13 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/internal/httpx"
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/botsource"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/httpx"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/botsource"
+	"github.com/arketov/iterion/pkg/bundle"
+	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 const botSourceEditorScheme = "botsource://"

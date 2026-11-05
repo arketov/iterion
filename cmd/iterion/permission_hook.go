@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/SocialGouv/iterion/pkg/backend/permissionhook"
+	"github.com/arketov/iterion/pkg/backend/permissionhook"
 	"github.com/spf13/cobra"
 )
 

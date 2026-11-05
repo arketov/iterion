@@ -12,9 +12,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/SocialGouv/iterion/pkg/botregistry"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/botregistry"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/cli"
 )
 
 // `iterion bots install` and `iterion bots sync` refresh the catalog Nexie

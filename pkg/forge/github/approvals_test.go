@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // approvals_test pins the GitHub twins of the merge-gate gestures: approval

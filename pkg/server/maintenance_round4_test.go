@@ -7,9 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/schedgate"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/webhooks/prforge"
+	"github.com/arketov/iterion/pkg/schedgate"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/webhooks/prforge"
 )
 
 // Count the persisted runs actually created by the launch seam, including

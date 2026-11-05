@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // TestSessionInherit verifies that _session_id flows through the output/input

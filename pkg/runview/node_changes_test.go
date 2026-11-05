@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/workspacetrack"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/workspacetrack"
 )
 
 // seedNodeChangesRun parks an in-place run and returns the service, its

@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/SocialGouv/claw-code-go/pkg/permissions"
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // allowingClassifier answers Allow for every call and never reads the input.

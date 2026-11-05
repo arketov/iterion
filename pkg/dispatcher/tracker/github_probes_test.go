@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 )
 
 // TestGitHubHasLinkedPR: the probe reports true only when an OPEN PR references

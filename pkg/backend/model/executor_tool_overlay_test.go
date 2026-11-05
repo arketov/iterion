@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/platformcfg"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/platformcfg"
 )
 
 // A tool command's `${ITERION_*:-default}` resolves through the bot-var

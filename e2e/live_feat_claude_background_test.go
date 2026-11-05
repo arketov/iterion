@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/liveledger"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/liveledger"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // TestLive_Feat_ClaudeCodeBackgroundWork proves, against the

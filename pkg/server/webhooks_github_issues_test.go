@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/webhooks"
-	"github.com/SocialGouv/iterion/pkg/webhooks/prforge"
+	"github.com/arketov/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/webhooks/prforge"
 )
 
 // ghLabeledIssue is the wire shape GitHub sends on an `issues` event with

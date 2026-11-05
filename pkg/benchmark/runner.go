@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/recipe"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/backend/recipe"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // RunnerConfig configures a benchmark run.

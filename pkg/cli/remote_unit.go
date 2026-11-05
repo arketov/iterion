@@ -5,12 +5,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
-	"github.com/SocialGouv/iterion/pkg/dsl/unparse"
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/unparse"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
 )
 
 // prepareUnit reads the bot at filePath as its unit — the file and the

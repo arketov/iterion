@@ -3,7 +3,7 @@ package delegate
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
+	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
 )
 
 // The CLI may stream SEVERAL assistant events for ONE API message (one

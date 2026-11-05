@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // A document whose indicators could open more values than its reader

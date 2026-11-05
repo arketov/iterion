@@ -6,9 +6,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // The per-node host-MCP token's LIFETIME.

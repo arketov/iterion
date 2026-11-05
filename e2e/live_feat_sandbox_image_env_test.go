@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // plantedImageTag is the throwaway image this arm builds and removes. The

@@ -1,11 +1,11 @@
 package bots
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/unit/unittest"
+	"github.com/arketov/iterion/pkg/dsl/unit/unittest"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 
 // executableTreeNoiseRefs returns every {{run.tree_noise}} reference a

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/SocialGouv/iterion/connectors"
-	"github.com/SocialGouv/iterion/pkg/connector/overlay"
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/connectors"
+	"github.com/arketov/iterion/pkg/connector/overlay"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // errNoSuchConnector marks the ONE catalog failure a layered lookup may fall

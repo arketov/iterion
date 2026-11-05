@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // reconcileParked sweeps cards parked in the awaiting-input column whose

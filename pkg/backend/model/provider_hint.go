@@ -9,8 +9,8 @@ import (
 	"github.com/SocialGouv/claw-code-go/pkg/api"
 	anthropicprovider "github.com/SocialGouv/claw-code-go/pkg/api/providers/anthropic"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // providerHintCtxKey carries the node's credential-routing hint (the DSL

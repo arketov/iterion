@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/authoringlock"
+	"github.com/arketov/iterion/pkg/authoringlock"
 )
 
 // installedCopy is a workspace copy an install replaces: the files the new

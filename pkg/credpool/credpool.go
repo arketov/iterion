@@ -39,8 +39,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/clock"
-	"github.com/SocialGouv/iterion/pkg/orgusage"
+	"github.com/arketov/iterion/pkg/clock"
+	"github.com/arketov/iterion/pkg/orgusage"
 )
 
 // ---------------------------------------------------------------------------

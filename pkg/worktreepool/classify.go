@@ -13,7 +13,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/SocialGouv/iterion/pkg/treenoise"
+	"github.com/arketov/iterion/pkg/treenoise"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -21,8 +21,8 @@ import (
 	"strings"
 	"time"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
-	"github.com/SocialGouv/iterion/pkg/store"
+	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 type Level string

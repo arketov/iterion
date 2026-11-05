@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // seedWatchOnlyRuntimeConn is a watch-only connection on the orchestrator's

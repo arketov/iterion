@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/skilllib"
+	"github.com/arketov/iterion/pkg/skilllib"
 )
 
 // registerLocalSkillRoutes wires the local (non-cloud) skill-library management

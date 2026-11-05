@@ -10,11 +10,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/auth/oidc"
-	"github.com/SocialGouv/iterion/pkg/deeplink"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	forgegithub "github.com/SocialGouv/iterion/pkg/forge/github"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/auth/oidc"
+	"github.com/arketov/iterion/pkg/deeplink"
+	"github.com/arketov/iterion/pkg/forge"
+	forgegithub "github.com/arketov/iterion/pkg/forge/github"
 )
 
 // registerForgeGitHubManifestRoutes wires the GitHub App-Manifest auto-create

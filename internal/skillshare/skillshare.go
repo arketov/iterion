@@ -33,7 +33,7 @@ import (
 	"sort"
 	"strings"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // GoldenPath is where the pinned reading of every declared copy lives,

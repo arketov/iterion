@@ -3,7 +3,7 @@ package server
 import (
 	"bytes"
 	"errors"
-	"github.com/SocialGouv/iterion/pkg/treenoise"
+	"github.com/arketov/iterion/pkg/treenoise"
 	"io/fs"
 	"net/http"
 	"os"
@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
-	"github.com/SocialGouv/iterion/pkg/store"
+	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // maxRunFileEditBytes caps both the read and write side of the in-run file

@@ -4,10 +4,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // validate_explain.go is the `--explain` half of the capability-drift

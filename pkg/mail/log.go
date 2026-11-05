@@ -3,7 +3,7 @@ package mail
 import (
 	"context"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // LogMailer is the no-SMTP fallback: the email is written to the

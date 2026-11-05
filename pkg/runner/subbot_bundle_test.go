@@ -5,12 +5,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/subbottest"
-	"github.com/SocialGouv/iterion/pkg/backend/model"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/queue"
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/runview"
+	"github.com/arketov/iterion/internal/subbottest"
+	"github.com/arketov/iterion/pkg/backend/model"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/queue"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/runview"
 )
 
 func TestPodSubbotBundleResourceScope(t *testing.T) {

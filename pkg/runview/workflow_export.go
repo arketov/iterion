@@ -10,10 +10,10 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // WireWorkflow is the JSON projection of an IR workflow used by the

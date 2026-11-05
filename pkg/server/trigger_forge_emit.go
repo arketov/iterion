@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/trigger"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 // forgeTriggerPayload is the event payload mirroring one inbound webhook's

@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/alert"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/trigger"
-	"github.com/SocialGouv/iterion/pkg/usernotify"
+	"github.com/arketov/iterion/pkg/alert"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/usernotify"
 )
 
 // captureSink records delivered alerts.

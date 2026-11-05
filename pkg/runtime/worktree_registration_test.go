@@ -10,8 +10,8 @@ import (
 	"testing"
 	"testing/synctest"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 type registrationResult struct {

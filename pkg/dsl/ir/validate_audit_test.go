@@ -3,7 +3,7 @@ package ir
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 
 // TestDiagnosticCodes_Unique guards against future regressions of

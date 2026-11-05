@@ -2,14 +2,14 @@ package botreplay
 
 import (
 	"fmt"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/botregistry"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/botregistry"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // repoRoot walks upward from the current working directory until it

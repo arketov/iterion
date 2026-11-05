@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // TestShapesThatNeedJqShipAPinnedDevbox: a shape whose tool commands run

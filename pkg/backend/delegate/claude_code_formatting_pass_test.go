@@ -8,8 +8,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // TestFormattingPassVerdicts drives the formatting loop through the test seam:

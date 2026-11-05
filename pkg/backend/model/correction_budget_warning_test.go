@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/stdiotest"
+	"github.com/arketov/iterion/internal/stdiotest"
 )
 
 func TestMalformedCorrectionBudgetWarns(t *testing.T) {

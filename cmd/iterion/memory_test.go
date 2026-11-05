@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/knowledge"
-	"github.com/SocialGouv/iterion/pkg/memory"
+	"github.com/arketov/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/pkg/memory"
 )
 
 // `iterion memory export|import|du` is the operator's only hands-on

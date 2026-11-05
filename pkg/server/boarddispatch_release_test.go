@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // TestBoardDispatcher_ReleaseAnnouncesItselfToTheHeartbeat: processCard's

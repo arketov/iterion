@@ -1,13 +1,13 @@
 package runview
 
 import (
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundle"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/botregistry"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/botregistry"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // resolveWorkflowPath returns the path to compile a run's workflow from,

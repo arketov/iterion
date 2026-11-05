@@ -1,6 +1,6 @@
 package native
 
-import "github.com/SocialGouv/iterion/pkg/store"
+import "github.com/arketov/iterion/pkg/store"
 
 // ReservedLaunchArgs are the reserved `__iterion_*` bot-arg keys that carry a
 // webhook-launched card's launch context: the repo to clone and its ref, the

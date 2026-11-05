@@ -11,9 +11,9 @@ import (
 	"github.com/SocialGouv/claw-code-go/pkg/api/hooks"
 	clawrt "github.com/SocialGouv/claw-code-go/pkg/runtime"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // The seam's reason to exist (#2808): tests that run in parallel cannot

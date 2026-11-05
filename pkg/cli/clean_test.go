@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/worktreepool"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/worktreepool"
 )
 
 // sameRealPath and looksLikeBareRepo let a test assert its own fixture is

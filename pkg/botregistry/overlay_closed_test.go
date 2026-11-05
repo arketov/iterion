@@ -20,8 +20,8 @@ import (
 
 	"github.com/gofrs/flock"
 
-	"github.com/SocialGouv/iterion/internal/goroutinetest"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/internal/goroutinetest"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // overlayWorkspace is a workspace holding two loose bots and an overlay

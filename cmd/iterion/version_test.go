@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/cli"
 )
 
 // stubVersionInfo pins the build metadata the command reads, so the

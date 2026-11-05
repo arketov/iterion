@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/storekit"
+	"github.com/arketov/iterion/pkg/internal/storekit"
 )
 
 // MemoryStore is the in-process PAT store for tests and local mode.

@@ -1,12 +1,12 @@
 package ast_test
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"reflect"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // The AST JSON codec is the wire format of the cloud queue: a launch

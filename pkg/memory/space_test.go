@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/pkg/knowledge"
 )
 
 func TestResolveSpaceRef(t *testing.T) {

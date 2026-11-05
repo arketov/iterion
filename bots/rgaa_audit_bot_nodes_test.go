@@ -17,10 +17,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/model"
-	"github.com/SocialGouv/iterion/pkg/dryrun"
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/dryrun"
+	"github.com/arketov/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // The rgaa-audit bot's tool nodes are JavaScript scripts that drive the

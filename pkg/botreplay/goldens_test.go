@@ -3,7 +3,7 @@ package botreplay
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // TestGoldens is the replay gate: for every wired scenario it loads the

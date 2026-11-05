@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth/oidc"
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/auth/oidc"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // TestEraseUser walks an erasure collection by collection on the memory

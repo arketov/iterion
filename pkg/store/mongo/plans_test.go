@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/mongotest"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/internal/mongotest"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // newPlanTestStore builds a Mongo store against a throwaway database, or

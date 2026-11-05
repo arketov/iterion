@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/auth"
 )
 
 func TestMemoryStore_SingleUse(t *testing.T) {

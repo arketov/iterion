@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	"github.com/SocialGouv/iterion/pkg/webhooks"
-	"github.com/SocialGouv/iterion/pkg/webhooks/prforge"
+	"github.com/arketov/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/webhooks/prforge"
 )
 
 // registerForgejoWebhookRoute wires the inbound Forgejo/Gitea delivery

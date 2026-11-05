@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // outputsRef matches an {{outputs.<node>.<field>}} reference.

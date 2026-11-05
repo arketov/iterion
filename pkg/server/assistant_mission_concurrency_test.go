@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/assistantmission"
-	"github.com/SocialGouv/iterion/pkg/runwatch"
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/assistantmission"
+	"github.com/arketov/iterion/pkg/runwatch"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 // s.assistantMission / s.assistantMissionCancel are written by

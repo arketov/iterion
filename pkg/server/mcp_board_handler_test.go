@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native/boardops"
-	runstore "github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/native/boardops"
+	runstore "github.com/arketov/iterion/pkg/store"
 )
 
 func newMCPBoardTestServer(t *testing.T) (*httptest.Server, *BoardMCPTokenRegistry, *native.Store) {

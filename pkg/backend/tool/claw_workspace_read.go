@@ -12,7 +12,7 @@ import (
 	"github.com/SocialGouv/claw-code-go/pkg/api"
 	clawtools "github.com/SocialGouv/claw-code-go/pkg/api/tools"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // Keep a read result below the 256 KiB transport/sink boundary used by a few

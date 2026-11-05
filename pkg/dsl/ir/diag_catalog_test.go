@@ -1,7 +1,7 @@
 package ir
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // irDiagConstRe matches a diagnostic-code const declared in THIS package.

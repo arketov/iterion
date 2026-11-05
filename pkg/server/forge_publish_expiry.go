@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/eventbus"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/eventbus"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 // errForgePublishGrantUnavailable marks a launch that could not be given the

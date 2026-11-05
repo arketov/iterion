@@ -12,9 +12,9 @@ import (
 
 	"github.com/robfig/cron/v3"
 
-	"github.com/SocialGouv/iterion/pkg/llmroute"
-	"github.com/SocialGouv/iterion/pkg/retrypolicy"
-	"github.com/SocialGouv/iterion/pkg/schedgate"
+	"github.com/arketov/iterion/pkg/llmroute"
+	"github.com/arketov/iterion/pkg/retrypolicy"
+	"github.com/arketov/iterion/pkg/schedgate"
 )
 
 // ScheduledBot is one cron-scheduled bot run. When RepoURL is set the cloud

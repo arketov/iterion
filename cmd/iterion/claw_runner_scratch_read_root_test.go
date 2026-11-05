@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/backend/tool"
 )
 
 // The container half of #2650 (#2874): registerSandboxLocalTools registers

@@ -3,7 +3,7 @@ package cli
 import (
 	"context"
 
-	"github.com/SocialGouv/iterion/pkg/botdeps"
+	"github.com/arketov/iterion/pkg/botdeps"
 )
 
 type BotsUpdateOptions = botdeps.UpdateOptions

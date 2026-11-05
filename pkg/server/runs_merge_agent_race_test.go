@@ -12,8 +12,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // agentModelGate is an OpenAI-compatible endpoint whose answer waits for the

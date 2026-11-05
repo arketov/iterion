@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/auth"
 )
 
 func pendingLogin(userID, lineage, team string) auth.DesktopLogin {

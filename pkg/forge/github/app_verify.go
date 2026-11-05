@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // ErrInstallationNotOwned is returned by VerifyInstallationOwnership when the

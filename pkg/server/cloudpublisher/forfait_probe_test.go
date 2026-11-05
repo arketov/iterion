@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/credpool"
-	"github.com/SocialGouv/iterion/pkg/usagecap"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/credpool"
+	"github.com/arketov/iterion/pkg/usagecap"
 )
 
 // #690 point 2 — a stale-but-suggestive reading is re-measured at the

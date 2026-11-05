@@ -24,7 +24,7 @@ import (
 	"errors"
 	"sync/atomic"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // MaxEventsPerPage caps the number of events a single replay batch (and

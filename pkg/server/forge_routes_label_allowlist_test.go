@@ -8,7 +8,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // TestForgeRepoBots_LabelAllowlistSurvivesABotSetUpdate pins the INGRESS for the

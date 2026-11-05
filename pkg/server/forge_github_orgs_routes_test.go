@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth/oidc"
+	"github.com/arketov/iterion/pkg/auth/oidc"
 )
 
 func TestGitHubOrgsFromGroups(t *testing.T) {

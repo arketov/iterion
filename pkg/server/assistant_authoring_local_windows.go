@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/SocialGouv/iterion/pkg/authoringlock"
+	"github.com/arketov/iterion/pkg/authoringlock"
 	"golang.org/x/sys/windows"
 )
 

@@ -40,10 +40,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/internal/proc"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // kubeBinaryName is the kubectl CLI iterion shells out to. Hardcoded

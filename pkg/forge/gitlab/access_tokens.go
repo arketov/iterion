@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // Project access tokens are GitLab's per-project bot identity: creating one

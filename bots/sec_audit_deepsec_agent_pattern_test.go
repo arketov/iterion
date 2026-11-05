@@ -2,13 +2,13 @@ package bots_test
 
 import (
 	"errors"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // deepsecAgentCorpus spans what an operator actually mistypes on

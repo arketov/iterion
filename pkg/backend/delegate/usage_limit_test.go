@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/usagecap"
+	"github.com/arketov/iterion/pkg/usagecap"
 )
 
 func TestClassifyRateLimit(t *testing.T) {

@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/botsource"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/botsource"
+	"github.com/arketov/iterion/pkg/store"
 
-	"github.com/SocialGouv/iterion/pkg/botregistry"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/botregistry"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 func writeBotFile(t *testing.T, path, content string) {

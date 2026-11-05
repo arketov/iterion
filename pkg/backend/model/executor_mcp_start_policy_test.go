@@ -3,8 +3,8 @@ package model
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/mcp"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/mcp"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // The launch surface's prediction is never the last word: a sandbox-by-default

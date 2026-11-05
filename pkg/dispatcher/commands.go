@@ -12,12 +12,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/retrypolicy"
-	"github.com/SocialGouv/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
+	gitlib "github.com/arketov/iterion/pkg/git"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/retrypolicy"
+	"github.com/arketov/iterion/pkg/runtime"
 )
 
 // cancelGracePeriod is how long we wait after firing the engine-level

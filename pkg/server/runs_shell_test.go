@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // seedShellRun writes a run with the given status + workdir.

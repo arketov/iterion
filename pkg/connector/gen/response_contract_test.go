@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/connector/gen"
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/gen"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // oas3Items describes ONE operation whose 200 is a component reference. The

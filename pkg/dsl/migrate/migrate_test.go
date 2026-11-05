@@ -3,11 +3,11 @@ package migrate
 import (
 	"bytes"
 	"errors"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 func mustMigrate(t *testing.T, src string) *Result {

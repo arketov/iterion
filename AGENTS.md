@@ -3,7 +3,7 @@
 iterion: build, run and orchestrate agentic AI workflows, written in a DSL —
 `.bot` files ([`pkg/dsl/workflowfile`](pkg/dsl/workflowfile/workflowfile.go)
 owns the accepted extension) and `.botz` bundles. Go module
-`github.com/SocialGouv/iterion`, MIT. This is the one instruction file every
+`github.com/arketov/iterion`, MIT. This is the one instruction file every
 session loads — Codex and pi natively, Claude Code through `CLAUDE.md`.
 Everything else is read on demand from [the tree](docs/agents/README.md): open
 the page your task names before you start. Automated bot runs follow their

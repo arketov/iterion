@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
 )
 
 // The board REST surface is a client surface: it never persists the reserved

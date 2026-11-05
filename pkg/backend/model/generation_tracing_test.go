@@ -11,8 +11,8 @@ import (
 	"github.com/SocialGouv/claw-code-go/pkg/api"
 	sentry "github.com/getsentry/sentry-go"
 
-	"github.com/SocialGouv/iterion/pkg/errtrack"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/errtrack"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // spanTransport records events in-process; nothing reaches a network.

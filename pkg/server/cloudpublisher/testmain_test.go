@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/hometest"
+	"github.com/arketov/iterion/internal/hometest"
 )
 
 // TestMain isolates ITERION_HOME across the whole cloudpublisher test suite.

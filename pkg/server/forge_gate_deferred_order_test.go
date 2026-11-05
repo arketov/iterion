@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
-	forgegithub "github.com/SocialGouv/iterion/pkg/forge/github"
-	mongostore "github.com/SocialGouv/iterion/pkg/store/mongo"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/forge"
+	forgegithub "github.com/arketov/iterion/pkg/forge/github"
+	mongostore "github.com/arketov/iterion/pkg/store/mongo"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 // liveForge is a forge that REMEMBERS: the latest status per (sha, context) is

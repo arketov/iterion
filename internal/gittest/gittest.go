@@ -33,7 +33,7 @@ import (
 	"strings"
 	"testing"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // testConfig is applied to every command on top of NoAutoMaintenance.

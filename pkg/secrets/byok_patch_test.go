@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // A patch writes exactly the fields it names — zero values included, so a

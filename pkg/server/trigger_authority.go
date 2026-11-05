@@ -3,10 +3,10 @@ package server
 import (
 	"context"
 
-	"github.com/SocialGouv/iterion/pkg/eventbus"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/eventbus"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 // The trigger bus is a relay: a run-outcome event carries a claimed

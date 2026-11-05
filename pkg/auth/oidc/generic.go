@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/secure/httpdial"
+	"github.com/arketov/iterion/pkg/secure/httpdial"
 )
 
 // GenericConnector implements Connector against any OpenID Connect-

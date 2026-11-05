@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 
 	// The loader (manifest.go) parses with yaml.v3 through the yamlx
 	// strict entry point. The writer therefore parses with gopkg.in/yaml.v3

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // resolveCursorFragments turns an agent/judge cursors block into the

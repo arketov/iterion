@@ -1,11 +1,11 @@
 package unparse_test
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/unparse"
+	"github.com/arketov/iterion/pkg/dsl/unparse"
 )
 
 // TestUnparseForeach_RoundTrip pins parse → unparse → re-parse stability for the

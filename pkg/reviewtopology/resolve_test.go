@@ -3,8 +3,8 @@ package reviewtopology
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/detect"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/detect"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 func rep(providers ...detect.ProviderStatus) detect.Report {

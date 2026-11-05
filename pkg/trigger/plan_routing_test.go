@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/llmroute"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/llmroute"
 )
 
 // The subscription's routing block must actually reach the plan through

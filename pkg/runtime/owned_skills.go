@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/bundle"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // ownedSkillsDirName is the directory under <workDir>/.claude/ holding the

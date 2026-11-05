@@ -6,13 +6,13 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/ambient"
-	"github.com/SocialGouv/iterion/pkg/backend/automemory"
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/ambient"
+	"github.com/arketov/iterion/pkg/backend/automemory"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // buildBackendOverrideOptions screens the backend names currently offered by

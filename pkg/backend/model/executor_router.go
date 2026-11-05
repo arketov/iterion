@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // ---------------------------------------------------------------------------

@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/plugin"
-	"github.com/SocialGouv/iterion/pkg/skilllib"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/plugin"
+	"github.com/arketov/iterion/pkg/skilllib"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // SkillOptions carries the shared inputs for the `iterion skill` subcommands.

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
 )
 
 // TestTheRefusedClawCatalogHoldsOnlyNamesTheRegistryServes binds the

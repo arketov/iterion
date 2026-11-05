@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/connector/exec"
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/exec"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // TestACredentialNeverAppearsInABodyTheCallerReads is the other end of

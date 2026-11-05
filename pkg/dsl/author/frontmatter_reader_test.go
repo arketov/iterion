@@ -2,12 +2,12 @@ package author
 
 import (
 	"fmt"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/unparse"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/unparse"
 )
 
 // The `catalog:` the writer gives a document is what the catalogue reads off

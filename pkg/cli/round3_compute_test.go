@@ -3,7 +3,7 @@ package cli_test
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // A compute guard whose bool field is fed a string, and whose int field is fed

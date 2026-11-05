@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/rendergate"
+	"github.com/arketov/iterion/internal/rendergate"
 )
 
 // valkeyha is the ovh-prod defect of #2012 in its exact shape: the valkey

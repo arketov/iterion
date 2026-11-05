@@ -10,8 +10,8 @@ import (
 	apikit "github.com/SocialGouv/claw-code-go/pkg/apikit"
 	codexsdk "github.com/ethpandaops/codex-agent-sdk-go"
 
-	"github.com/SocialGouv/iterion/pkg/backend/modelroute"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/modelroute"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // effortCapabilitiesResponse is the JSON shape returned by

@@ -2,7 +2,7 @@ package ir
 
 import (
 	"fmt"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"testing"
 )
 

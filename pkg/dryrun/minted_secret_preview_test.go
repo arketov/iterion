@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/secretguard"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/backend/secretguard"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // #2827: the dry run is the preview a template naming a server-minted secret

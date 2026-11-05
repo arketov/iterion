@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/schedgate"
+	"github.com/arketov/iterion/pkg/schedgate"
 )
 
 // gateTickerFixture seeds one due schedule and returns a ticker whose

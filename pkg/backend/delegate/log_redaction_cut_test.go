@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/pisdk"
-	"github.com/SocialGouv/iterion/pkg/backend/secretguard"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/delegate/pisdk"
+	"github.com/arketov/iterion/pkg/backend/secretguard"
+	iterlog "github.com/arketov/iterion/pkg/log"
 	codexsdk "github.com/ethpandaops/codex-agent-sdk-go"
 )
 

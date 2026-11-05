@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/lease"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/runwatch"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/lease"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/runwatch"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 // armFixture stands up the smallest world in which a card-watching assistant

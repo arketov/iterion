@@ -2,16 +2,16 @@ package canon
 
 import (
 	"errors"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/internal/rewrite"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
-	"github.com/SocialGouv/iterion/pkg/dsl/unparse"
+	"github.com/arketov/iterion/pkg/dsl/internal/rewrite"
+	"github.com/arketov/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/unparse"
 )
 
 // A profile-2 file whose `real` tool the render folds: the writer's

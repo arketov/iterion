@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/internal/gittest"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // stubHostDevboxInstall replaces the host-devbox seams with an install that

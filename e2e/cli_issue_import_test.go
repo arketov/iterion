@@ -14,8 +14,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
 )
 
 // `iterion issue import` mirrors a forge repo's issues onto the native

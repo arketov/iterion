@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/permission"
 )
 
 func writePolicy(t *testing.T, mode permission.Mode, allow, ask, deny []string) string {

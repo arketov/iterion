@@ -2,7 +2,7 @@ package server
 
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 
 // The C222 of /api/validate — "bundle does not open: …", a WARNING in the

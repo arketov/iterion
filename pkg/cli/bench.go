@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/benchmark/asymptote"
-	"github.com/SocialGouv/iterion/pkg/benchmark/discovery"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/benchmark/asymptote"
+	"github.com/arketov/iterion/pkg/benchmark/discovery"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // BenchAsymptoteOptions configures the `iterion bench asymptote` command.

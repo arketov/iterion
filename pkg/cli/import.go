@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/botimport"
+	"github.com/arketov/iterion/pkg/botimport"
 )
 
 // ImportOptions configures RunImport.

@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // Compile-time check: the docker driver implements [sandbox.Builder]

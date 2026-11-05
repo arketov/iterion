@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/sandbox/devcontainer"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox/devcontainer"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // EnvSandboxImageEnvAllow names the variables the image env screen must let

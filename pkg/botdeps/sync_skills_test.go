@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/botlock"
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/botlock"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 const sharedSkillBody = "---\nname: shared-playbook\ndescription: The gate the consumers used to each carry a copy of.\n---\n\nRun the gate, then report what it said.\n"

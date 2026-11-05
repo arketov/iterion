@@ -35,13 +35,13 @@
 package cost
 
 import (
-	"github.com/SocialGouv/iterion/pkg/backend/modelroute"
+	"github.com/arketov/iterion/pkg/backend/modelroute"
 	"sort"
 	"strings"
 
 	clawapi "github.com/SocialGouv/claw-code-go/pkg/api"
 
-	"github.com/SocialGouv/iterion/pkg/backend/modelspecs"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
 )
 
 // pricePerMillion is the per-million-token price (USD) for a small set of

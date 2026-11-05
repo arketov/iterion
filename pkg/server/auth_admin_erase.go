@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/audit"
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/configshare"
-	"github.com/SocialGouv/iterion/pkg/credpool"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/audit"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/configshare"
+	"github.com/arketov/iterion/pkg/credpool"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // adminEraseUserResponse answers POST /api/admin/users/{id}/erase: the row

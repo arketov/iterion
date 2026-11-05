@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // AdminClient satisfies forge.FileClient (GitHub Contents API).

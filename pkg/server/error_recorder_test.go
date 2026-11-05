@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/httpx"
-	"github.com/SocialGouv/iterion/pkg/errtrack"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/internal/httpx"
+	"github.com/arketov/iterion/pkg/errtrack"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // errorRecorder captures the real failure log of a directly called handler.

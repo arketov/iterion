@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/runview/runstream"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/runview/runstream"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 func newStreamTestService(t *testing.T) (*Service, string) {

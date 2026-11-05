@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/skilllib"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/skilllib"
 )
 
 // `iterion skill` is the operator's half of the skill library (ADR-059):

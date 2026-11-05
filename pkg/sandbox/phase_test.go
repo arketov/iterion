@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/stdiotest"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/internal/stdiotest"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // The setup-phase bound is ONE implementation shared by every driver: a

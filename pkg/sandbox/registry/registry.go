@@ -11,10 +11,10 @@
 package registry
 
 import (
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/sandbox/docker"
-	"github.com/SocialGouv/iterion/pkg/sandbox/kubernetes"
-	"github.com/SocialGouv/iterion/pkg/sandbox/noop"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox/docker"
+	"github.com/arketov/iterion/pkg/sandbox/kubernetes"
+	"github.com/arketov/iterion/pkg/sandbox/noop"
 )
 
 // Default returns the iterion-shipped sandbox-driver registry. Add

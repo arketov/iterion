@@ -1,14 +1,14 @@
 package runner
 
 import (
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/usagecap"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/usagecap"
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/queue"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/queue"
 )
 
 // The ladder's escapes: a node whose PRIMARY rides the capped wire but

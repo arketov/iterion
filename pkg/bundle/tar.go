@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/safepath"
+	"github.com/arketov/iterion/internal/safepath"
 )
 
 // defaultMaxBundleBytes is the upper bound on the total uncompressed

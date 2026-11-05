@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // errStoreUnreachable is shaped like the error a real Mongo driver returns

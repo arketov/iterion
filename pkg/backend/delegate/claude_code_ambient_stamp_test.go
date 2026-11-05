@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // The hintless half of the ambient stamp (Revi #2721, "à confirmer"): an

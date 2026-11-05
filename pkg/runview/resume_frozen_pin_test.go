@@ -29,9 +29,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/detecttest"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/detecttest"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // monoFamilyBotSource declares the opt-in var the topology reads, so the

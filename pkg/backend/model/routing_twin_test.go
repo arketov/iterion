@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // The launch-time fallback screen drills `{{vars.cfg.<path>}}` into a json

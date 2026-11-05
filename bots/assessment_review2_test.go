@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/gittest"
 )
 
 // aManifestDeclaringSkill carries the `iterion:manifests` block the floor

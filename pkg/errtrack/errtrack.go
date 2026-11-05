@@ -22,8 +22,8 @@ import (
 
 	sentry "github.com/getsentry/sentry-go"
 
-	"github.com/SocialGouv/iterion/pkg/internal/appinfo"
-	"github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/internal/appinfo"
+	"github.com/arketov/iterion/pkg/log"
 )
 
 // Environment variables read by Init. They are the SDK's own standard

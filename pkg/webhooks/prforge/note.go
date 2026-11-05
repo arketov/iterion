@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 // EventHeaderIssueComment is the X-{GitHub,Forgejo,Gitea}-Event value for an

@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/model"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // Same shape as TestR2ExecutorCorrectionAfterAndResumeRaise, but the model

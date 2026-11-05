@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // ErrCompactionUnsupported is the sentinel ClawExecutor.Compact returns

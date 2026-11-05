@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/modelroute"
+	"github.com/arketov/iterion/pkg/backend/modelroute"
 )
 
 // The OpenAI-compatible gateway diagnostics. An `openai_compatible/<id>`

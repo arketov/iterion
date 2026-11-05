@@ -14,12 +14,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/backend/model"
-	"github.com/SocialGouv/iterion/pkg/backend/modelspecs"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/modelcatalog"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/modelcatalog"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 func getModels(t *testing.T, srv *Server, query string, ctxs ...context.Context) (*httptest.ResponseRecorder, modelcatalog.Catalog) {

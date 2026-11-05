@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
 )
 
 // `iterion issue import` streams each page onto the board as it arrives, so a

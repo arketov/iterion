@@ -41,8 +41,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/backend/tool"
 )
 
 // ErrWorkspaceAgentModel refuses a delegation whose resolved agent file

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/pkg/plugin"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/plugin"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // iterion auto-loads the nearest `.env` walking up from the working

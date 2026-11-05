@@ -3,7 +3,7 @@ package ir
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/treenoise"
+	"github.com/arketov/iterion/pkg/treenoise"
 )
 
 // ---------------------------------------------------------------------------

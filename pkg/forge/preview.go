@@ -4,7 +4,7 @@ import (
 	"context"
 	"sort"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 type EnablePreviewCommand struct {

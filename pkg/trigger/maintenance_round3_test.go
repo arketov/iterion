@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
 )
 
 type failDurableConsumedOnce struct {

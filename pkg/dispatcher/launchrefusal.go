@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
 )
 
 // The launch-refusal retry policy of the cloud board dispatcher.

@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/internal/gittest"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 func saveWorkflowRequest(t *testing.T, s *Server, path, name string, createOnly bool) *httptest.ResponseRecorder {

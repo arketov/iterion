@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/internal/appinfo"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/internal/appinfo"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // A run whose IR was compiled by one build and executed by another had

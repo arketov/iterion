@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/botinstall"
-	"github.com/SocialGouv/iterion/pkg/botregistry"
-	"github.com/SocialGouv/iterion/pkg/marketplace"
-	"github.com/SocialGouv/iterion/pkg/plugin"
+	"github.com/arketov/iterion/pkg/botinstall"
+	"github.com/arketov/iterion/pkg/botregistry"
+	"github.com/arketov/iterion/pkg/marketplace"
+	"github.com/arketov/iterion/pkg/plugin"
 )
 
 // MarketplaceListOptions configures `iterion marketplace list`.

@@ -23,8 +23,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // Runtime identifies which container CLI we shell out to.

@@ -3,7 +3,7 @@ package supervise
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // TestTerminalAgreementWithRunStatus pins how the event-level terminal

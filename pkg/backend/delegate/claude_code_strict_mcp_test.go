@@ -5,8 +5,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // The MCP set iterion resolves for a node travels via --mcp-config; without

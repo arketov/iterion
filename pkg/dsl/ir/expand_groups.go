@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 
 // expandGroups instantiates every `use <group> as <prefix>` by cloning the

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/cloudsched"
-	"github.com/SocialGouv/iterion/pkg/llmroute"
+	"github.com/arketov/iterion/pkg/cloudsched"
+	"github.com/arketov/iterion/pkg/llmroute"
 )
 
 // The schedule's binding-level routing block: validated on create, and on

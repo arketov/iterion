@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
+	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
 )
 
 // A lead resume addressed by NAME. 2.1.280's Agent tool takes a `name`

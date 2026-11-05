@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/sync/semaphore"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // dslPost serves one POST against the server's mux and returns the recorder.

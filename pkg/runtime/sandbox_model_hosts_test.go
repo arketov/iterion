@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/sandbox/noop"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox/noop"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // inspectingDriver is the noop driver claiming TLS-inspection support, so

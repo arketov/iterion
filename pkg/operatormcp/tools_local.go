@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // localTools returns the local_* tool set (board tools excluded — see

@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/budgetfloor"
-	"github.com/SocialGouv/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/budgetfloor"
+	"github.com/arketov/iterion/pkg/cli"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )

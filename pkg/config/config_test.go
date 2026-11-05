@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/legal"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/legal"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // clearITERION removes any inherited ITERION_* env vars so a Load() call

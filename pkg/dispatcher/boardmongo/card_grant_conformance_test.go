@@ -3,8 +3,8 @@ package boardmongo_test
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
-	launchstore "github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
+	launchstore "github.com/arketov/iterion/pkg/store"
 )
 
 // conformanceGrantSentinel is the bearer a writer tries to put on a card.

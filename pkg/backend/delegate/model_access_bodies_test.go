@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	claudesdk "github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/pisdk"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	claudesdk "github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
+	"github.com/arketov/iterion/pkg/backend/delegate/pisdk"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 func TestModelAccessDenialAcrossCLIBackends(t *testing.T) {

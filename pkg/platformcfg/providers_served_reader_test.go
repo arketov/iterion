@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/sweepwalk"
+	"github.com/arketov/iterion/internal/sweepwalk"
 )
 
 // providersServedField is the registry field this guard holds a claim about.

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // rawRef matches the bang form `{{!vars.x}}` / `{{!input.x}}` / `{{!outputs…}}`,

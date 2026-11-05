@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-const parserPackagePath = "github.com/SocialGouv/iterion/pkg/dsl/parser"
+const parserPackagePath = "github.com/arketov/iterion/pkg/dsl/parser"
 
 // TestEveryParseCallerChoosesFileOrUnit: parser.Parse reads ONE file. A
 // surface that compiles a bot must read its unit — the file and the
@@ -127,11 +127,11 @@ func referencesParse(filename string, src []byte) (bool, error) {
 // parser's, not a same-named function of another package.
 func TestParseCallSitesAreFoundWhateverTheSpelling(t *testing.T) {
 	for name, src := range map[string]string{
-		"plain":   "package x\nimport \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\nfunc f() { parser.Parse(\"a\", \"b\") }\n",
-		"alias":   "package x\nimport p \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\nfunc f() { p.Parse(\"a\", \"b\") }\n",
-		"value":   "package x\nimport \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\nvar parse = parser.Parse\nfunc f() { parse(\"a\", \"b\") }\n",
-		"dot":     "package x\nimport . \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\nfunc f() { Parse(\"a\", \"b\") }\n",
-		"comment": "package x\nimport \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\n// parser.Parse( is prose here\nfunc f() { p := parser.Parse; _ = p }\n",
+		"plain":   "package x\nimport \"github.com/arketov/iterion/pkg/dsl/parser\"\nfunc f() { parser.Parse(\"a\", \"b\") }\n",
+		"alias":   "package x\nimport p \"github.com/arketov/iterion/pkg/dsl/parser\"\nfunc f() { p.Parse(\"a\", \"b\") }\n",
+		"value":   "package x\nimport \"github.com/arketov/iterion/pkg/dsl/parser\"\nvar parse = parser.Parse\nfunc f() { parse(\"a\", \"b\") }\n",
+		"dot":     "package x\nimport . \"github.com/arketov/iterion/pkg/dsl/parser\"\nfunc f() { Parse(\"a\", \"b\") }\n",
+		"comment": "package x\nimport \"github.com/arketov/iterion/pkg/dsl/parser\"\n// parser.Parse( is prose here\nfunc f() { p := parser.Parse; _ = p }\n",
 	} {
 		if got, err := referencesParse(name+".go", []byte(src)); err != nil || !got {
 			t.Errorf("%s: found=%v err=%v", name, got, err)
@@ -139,9 +139,9 @@ func TestParseCallSitesAreFoundWhateverTheSpelling(t *testing.T) {
 	}
 	for name, src := range map[string]string{
 		"other package":  "package x\nimport \"go/parser\"\nfunc f() { parser.ParseFile(nil, \"\", nil, 0) }\n",
-		"other function": "package x\nimport \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\nfunc f() { _ = parser.ReadPreamble(\"\") }\n",
-		"prose only":     "package x\nimport \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\n// parser.Parse( is prose\nvar _ = parser.MaxProfile\n",
-		"blank import":   "package x\nimport _ \"github.com/SocialGouv/iterion/pkg/dsl/parser\"\nfunc Parse() {}\nfunc f() { Parse() }\n",
+		"other function": "package x\nimport \"github.com/arketov/iterion/pkg/dsl/parser\"\nfunc f() { _ = parser.ReadPreamble(\"\") }\n",
+		"prose only":     "package x\nimport \"github.com/arketov/iterion/pkg/dsl/parser\"\n// parser.Parse( is prose\nvar _ = parser.MaxProfile\n",
+		"blank import":   "package x\nimport _ \"github.com/arketov/iterion/pkg/dsl/parser\"\nfunc Parse() {}\nfunc f() { Parse() }\n",
 	} {
 		if got, err := referencesParse(name+".go", []byte(src)); err != nil || got {
 			t.Errorf("%s: found=%v err=%v, want not found", name, got, err)

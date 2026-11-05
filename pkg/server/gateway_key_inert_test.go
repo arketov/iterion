@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/credpool"
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/credpool"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 func seedGatewayKey(t *testing.T, keys secrets.ApiKeyStore, sealer secrets.Sealer, tenant, user string) secrets.ApiKey {

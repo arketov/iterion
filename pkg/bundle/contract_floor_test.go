@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/floortest"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/internal/floortest"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // floorProbes asks, one per entry of the syntax-floor table, for that

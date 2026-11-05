@@ -8,9 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/marketplace"
+	"github.com/arketov/iterion/pkg/bundle"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/marketplace"
 )
 
 func TestIsPublicMarketplaceRead(t *testing.T) {

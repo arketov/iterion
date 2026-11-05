@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 const miniBot = "workflow main:\n  start -> done\n\ndone finish:\n"

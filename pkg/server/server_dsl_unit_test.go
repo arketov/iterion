@@ -3,13 +3,13 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit/unittest"
+	"github.com/arketov/iterion/pkg/dsl/unit/unittest"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 
 func postDSL(t *testing.T, handler http.HandlerFunc, path string, body any) *httptest.ResponseRecorder {

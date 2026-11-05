@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // sandboxBackoffSchedule overrides the default exponential backoff

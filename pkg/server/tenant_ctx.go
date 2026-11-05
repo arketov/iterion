@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // teamPathTenantCtx scopes the store context to the team a route names in

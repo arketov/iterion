@@ -10,13 +10,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/yamlx"
+	"github.com/arketov/iterion/internal/yamlx"
 	"github.com/gofrs/flock"
 	"gopkg.in/yaml.v3"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // overridesRelPath is the workspace-local file that overrides per-bot

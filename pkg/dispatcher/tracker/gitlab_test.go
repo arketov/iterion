@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // fakeGitLab serves canned responses for the adapter tests. It asserts

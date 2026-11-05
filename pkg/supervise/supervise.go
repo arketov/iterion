@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Defaults for the per-supervisor knobs. Cooldown bounds how often the

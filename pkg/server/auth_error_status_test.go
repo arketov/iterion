@@ -18,13 +18,13 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/auth/desktopsso"
-	"github.com/SocialGouv/iterion/pkg/auth/oidc"
-	"github.com/SocialGouv/iterion/pkg/auth/orgsso"
-	"github.com/SocialGouv/iterion/pkg/auth/wsticket"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/pat"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/auth/desktopsso"
+	"github.com/arketov/iterion/pkg/auth/oidc"
+	"github.com/arketov/iterion/pkg/auth/orgsso"
+	"github.com/arketov/iterion/pkg/auth/wsticket"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/pat"
 )
 
 // sentinelRoots are the packages behind the identity routes and requireAuth:

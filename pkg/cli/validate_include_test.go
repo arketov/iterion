@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/cli"
 )
 
 // `iterion validate main.bot` run from the bot's own directory: the include

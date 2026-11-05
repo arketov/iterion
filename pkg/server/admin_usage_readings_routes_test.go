@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/audit"
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/usagecap"
+	"github.com/arketov/iterion/pkg/audit"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/identity"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/usagecap"
 )
 
 // newAdminUsageReadingsServer boots a cloud-shaped server through the real

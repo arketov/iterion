@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/knowledge"
-	"github.com/SocialGouv/iterion/pkg/memory"
+	"github.com/arketov/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/pkg/memory"
 )
 
 // fakeStore is an in-memory MemoryStore standing in for the CLOUD adapter:

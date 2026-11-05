@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/modelspecs"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
 )
 
 func TestResolveCapabilities_CuratedSourceWhenAggregatorEmpty(t *testing.T) {

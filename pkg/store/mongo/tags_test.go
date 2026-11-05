@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/internal/mongotest"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/internal/mongotest"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // newTagsTestStore mirrors newPlanTestStore: a throwaway Mongo store, or a

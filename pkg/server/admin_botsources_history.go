@@ -4,9 +4,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/SocialGouv/iterion/pkg/botsource"
+	"github.com/arketov/iterion/pkg/botsource"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // registerAdminBotSourceHistoryRoutes wires the super-admin purge of one

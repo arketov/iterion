@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/SocialGouv/iterion/pkg/server"
+	"github.com/arketov/iterion/pkg/server"
 	"github.com/spf13/cobra"
 )
 

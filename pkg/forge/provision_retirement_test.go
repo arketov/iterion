@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/cloudsched"
+	"github.com/arketov/iterion/pkg/cloudsched"
 )
 
 type heldRetirementAdmin struct {

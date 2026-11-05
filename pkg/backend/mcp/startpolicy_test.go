@@ -16,7 +16,7 @@ import (
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/backend/tool"
 )
 
 // spawnProbe is a stdio server config whose process, if it is ever started,

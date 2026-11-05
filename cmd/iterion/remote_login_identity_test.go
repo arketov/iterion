@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/cli"
 )
 
 // TestRemoteLogin_KeepsATokenTheServerDidNotReject drives `iterion remote

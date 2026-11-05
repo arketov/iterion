@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/detect"
+	"github.com/arketov/iterion/pkg/backend/detect"
 )
 
 // fams builds an inventory whose named families are backed AND servable —

@@ -12,7 +12,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // rawControl reports the first rune of s, line by line, that a terminal would

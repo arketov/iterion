@@ -3,7 +3,7 @@ package trigger
 import (
 	"context"
 	"fmt"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 	"path/filepath"
 	"sync/atomic"
 	"testing"

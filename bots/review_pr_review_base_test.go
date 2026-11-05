@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/gittest"
 )
 
 // TestReviewPRResolvesTheBaseItActuallyReviews drives the real `diff_precheck`

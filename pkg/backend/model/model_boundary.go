@@ -9,7 +9,7 @@ import (
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // executeDelegate is the ONE seam a task crosses into a backend, and the

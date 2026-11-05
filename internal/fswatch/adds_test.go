@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/proctest"
+	"github.com/arketov/iterion/internal/proctest"
 )
 
 // The constructor inventory beside this test reads syntax trees, and its own

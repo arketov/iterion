@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // ResolveLocalCredentials resolves the named secrets from a local (file-backed)

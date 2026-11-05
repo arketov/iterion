@@ -5,13 +5,13 @@ package unit_test
 // cycle for an in-package test once the bundle walks units, not for this one.
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/unit/unittest"
+	"github.com/arketov/iterion/pkg/dsl/unit/unittest"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
-	"github.com/SocialGouv/iterion/pkg/dsl/unparse"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/unparse"
 )
 
 // The merged unit is a program: it compiles as the same file written whole

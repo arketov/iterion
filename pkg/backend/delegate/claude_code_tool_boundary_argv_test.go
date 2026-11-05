@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/permission"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // fakeClaudeArgv is a stand-in CLI that records every argv it is spawned with

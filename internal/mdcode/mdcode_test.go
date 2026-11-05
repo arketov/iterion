@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/mdcode"
+	"github.com/arketov/iterion/internal/mdcode"
 )
 
 // Mask's contract is an OFFSET contract: every caller runs its own pattern

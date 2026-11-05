@@ -12,15 +12,15 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/auth/oidc"
-	"github.com/SocialGouv/iterion/pkg/brand"
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/deeplink"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	forgegithub "github.com/SocialGouv/iterion/pkg/forge/github"
-	"github.com/SocialGouv/iterion/pkg/internal/strutil"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/auth/oidc"
+	"github.com/arketov/iterion/pkg/brand"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/deeplink"
+	"github.com/arketov/iterion/pkg/forge"
+	forgegithub "github.com/arketov/iterion/pkg/forge/github"
+	"github.com/arketov/iterion/pkg/internal/strutil"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 type forgeConnectReq struct {

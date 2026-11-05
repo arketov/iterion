@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/detect"
-	"github.com/SocialGouv/iterion/pkg/llmroute"
+	"github.com/arketov/iterion/pkg/backend/detect"
+	"github.com/arketov/iterion/pkg/llmroute"
 )
 
 // The route-level publication (#1221). A family NAME folds every credential

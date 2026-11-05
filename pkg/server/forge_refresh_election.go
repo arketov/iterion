@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/lease"
+	"github.com/arketov/iterion/pkg/lease"
 )
 
 // forgeRefreshLeasePace bounds how long a dead holder keeps the refresh down

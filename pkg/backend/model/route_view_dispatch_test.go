@@ -3,7 +3,7 @@ package model
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // The dispatch-view witnesses (ADR-129 §4): the runner-side reading answers

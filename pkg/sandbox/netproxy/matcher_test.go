@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 func TestCompileRejectsInvalidMode(t *testing.T) {

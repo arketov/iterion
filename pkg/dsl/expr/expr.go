@@ -55,7 +55,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/readbudget"
+	"github.com/arketov/iterion/pkg/dsl/readbudget"
 )
 
 // AST is the parsed form of an expression. It is opaque outside the package.

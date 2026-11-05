@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/detect"
+	"github.com/arketov/iterion/pkg/backend/detect"
 )
 
 // backendDetectTTL is how long the detect Report stays cached. Detection

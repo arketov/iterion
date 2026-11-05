@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // errorCode reads a RuntimeError's Code, and also recognises the

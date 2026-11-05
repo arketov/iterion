@@ -39,7 +39,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/SocialGouv/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/runview"
 )
 
 // perRunCostEntry is one memoized run: the cost-by-day map and the run

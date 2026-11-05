@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/secure/httpdial"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/secure/httpdial"
 )
 
 // WebhookSink POSTs alerts to a generic incoming webhook. The body is

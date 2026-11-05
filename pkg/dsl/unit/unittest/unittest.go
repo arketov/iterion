@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 
 // A binary that is no test binary and links this package refuses to start:

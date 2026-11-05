@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // GitLab runs quick actions — `/merge`, `/approve`, `/close`, `/label`,

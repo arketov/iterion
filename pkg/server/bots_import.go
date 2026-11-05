@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/SocialGouv/iterion/pkg/botimport"
+	"github.com/arketov/iterion/pkg/botimport"
 )
 
 // botImportRequest carries a Claude-Code workflow script to convert

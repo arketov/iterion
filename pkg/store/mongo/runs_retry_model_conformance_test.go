@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/retryprobetest"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/retryprobetest"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The probe's guarantee is asserted over random event sequences in pkg/runner

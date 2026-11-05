@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/permission"
 )
 
 func mustPolicy(t *testing.T, mode permission.Mode, allow, ask, deny []string) *permission.Policy {

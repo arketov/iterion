@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/botregistry"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/botregistry"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 func newBotCreateServer(t *testing.T) (*Server, string) {

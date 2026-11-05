@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	clawrt "github.com/SocialGouv/claw-code-go/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/backend/ambient"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/ambient"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // clawAmbientMaxBytes lifts claw-code-go's 48 KiB memory cap: the cap

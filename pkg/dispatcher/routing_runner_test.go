@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/botregistry"
+	"github.com/arketov/iterion/pkg/botregistry"
 )
 
 func writeDispatcherBot(t *testing.T, path, content string) {

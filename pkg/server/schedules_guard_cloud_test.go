@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/hometest"
-	"github.com/SocialGouv/iterion/pkg/cloudsched"
-	"github.com/SocialGouv/iterion/pkg/internal/shellquote"
-	"github.com/SocialGouv/iterion/pkg/schedgate"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/hometest"
+	"github.com/arketov/iterion/pkg/cloudsched"
+	"github.com/arketov/iterion/pkg/internal/shellquote"
+	"github.com/arketov/iterion/pkg/schedgate"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 func newCloudScheduleTestServer(t *testing.T) *Server {

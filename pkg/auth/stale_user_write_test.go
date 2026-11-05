@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth/oidc"
-	"github.com/SocialGouv/iterion/pkg/auth/orgsso"
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/auth/oidc"
+	"github.com/arketov/iterion/pkg/auth/orgsso"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // injectOnUserWrite commits a mutation to the stored user the moment a write

@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox/netproxy"
-	"github.com/SocialGouv/iterion/pkg/secure/httpdial"
+	"github.com/arketov/iterion/pkg/sandbox/netproxy"
+	"github.com/arketov/iterion/pkg/secure/httpdial"
 )
 
 // cloneAllowPrivate reports whether the on-prem escape hatch for internal

@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
-	mongostore "github.com/SocialGouv/iterion/pkg/store/mongo"
+	"github.com/arketov/iterion/pkg/forge"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
+	mongostore "github.com/arketov/iterion/pkg/store/mongo"
 )
 
 // hookForge runs a hook just before a status write lands: the window between

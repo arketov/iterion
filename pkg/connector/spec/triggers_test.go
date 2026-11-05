@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/connector/overlay"
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/overlay"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // writeTriggers puts a triggers.yaml beside a package written to dir.

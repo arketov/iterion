@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // One test per row of the DecideStuckCard table — the table is the

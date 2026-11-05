@@ -18,7 +18,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/trigger"
+	"github.com/arketov/iterion/pkg/trigger"
 )
 
 // DefaultSubscribeCancelBudget bounds how long the cancel returned by

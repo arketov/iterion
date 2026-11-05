@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // WHO WROTE THE CODE of the run a resolution serves, and what that buys

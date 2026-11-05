@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/dsl/expr"
 )
 
 // OpsFile is one ops/<domain>.yaml: a slice of a connector's operations,

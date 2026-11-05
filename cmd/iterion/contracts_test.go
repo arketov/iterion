@@ -6,9 +6,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/queue"
-	"github.com/SocialGouv/iterion/pkg/store"
-	mongostore "github.com/SocialGouv/iterion/pkg/store/mongo"
+	"github.com/arketov/iterion/pkg/queue"
+	"github.com/arketov/iterion/pkg/store"
+	mongostore "github.com/arketov/iterion/pkg/store/mongo"
 )
 
 func TestContracts(t *testing.T) {

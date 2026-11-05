@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // The block a hostile checkout would carry: a scanner whose command writes a

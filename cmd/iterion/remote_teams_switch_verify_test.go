@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // The browser approval `teams switch` runs through mints under the session

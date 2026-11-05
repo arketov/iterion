@@ -268,14 +268,14 @@ func TestRenderedScreenRootsReadsEveryShapeThatNamesTheRoot(t *testing.T) {
 		{
 			name: "a literal keying the probe root",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f(d string) { _, _ = runview.BuildExecutor(runview.ExecutorSpec{SandboxProbeWorkDir: d}) }`,
 			want: []string{"d"},
 		},
 		{
 			name: "a literal keying only the tool workspace",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f(d string) { _, _ = runview.BuildExecutor(runview.ExecutorSpec{WorkDir: d}) }`,
 			want: []string{"d"},
 		},
@@ -284,7 +284,7 @@ func f(d string) { _, _ = runview.BuildExecutor(runview.ExecutorSpec{WorkDir: d}
 			// repository, WorkDir the executor's tool workspace.
 			name: "a literal keying both",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f(d, p string) { _, _ = runview.BuildExecutor(runview.ExecutorSpec{WorkDir: d, SandboxProbeWorkDir: p}) }`,
 			want: []string{"p"},
 		},
@@ -294,7 +294,7 @@ func f(d, p string) { _, _ = runview.BuildExecutor(runview.ExecutorSpec{WorkDir:
 			// so an override landing in that block shipped the defect green.
 			name: "a literal assigned to a local, then overridden",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f(d, o string) {
 	spec := runview.ExecutorSpec{SandboxProbeWorkDir: d}
 	spec.SandboxProbeWorkDir = o
@@ -308,7 +308,7 @@ func f(d, o string) {
 			// ONE screen root, the probe one.
 			name: "a literal keying the tool workspace, then given a probe root",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f(d, p string) {
 	spec := runview.ExecutorSpec{WorkDir: d}
 	spec.SandboxProbeWorkDir = p
@@ -322,7 +322,7 @@ func f(d, p string) {
 			// assigned, with no need to know the local's type.
 			name: "an override on a spec a factory returned",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func mk() runview.ExecutorSpec { return runview.ExecutorSpec{} }
 func f(x string) {
 	spec := mk()
@@ -334,7 +334,7 @@ func f(x string) {
 		{
 			name: "a spec declared and filled field by field",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func f(d string) {
 	var spec runview.ExecutorSpec
 	spec.WorkDir = d
@@ -358,7 +358,7 @@ func f(c *cfg, d string) { c.WorkDir = d }`,
 			// to a field, so it names nothing rather than guessing.
 			name: "two fields assigned from one call",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/runview"
+import "github.com/arketov/iterion/pkg/runview"
 func two() (string, string) { return "", "" }
 func f() {
 	var spec runview.ExecutorSpec

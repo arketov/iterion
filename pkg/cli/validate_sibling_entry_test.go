@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/internal/appinfo"
+	"github.com/arketov/iterion/pkg/internal/appinfo"
 )
 
 // writeSiblingEntryBundle writes the golden-master shape of #1367: a

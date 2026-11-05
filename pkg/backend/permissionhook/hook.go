@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/permission"
 )
 
 const (

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/sweepwalk"
+	"github.com/arketov/iterion/internal/sweepwalk"
 )
 
 // TestEveryLiveTestRecordsToTheLedger enforces the class invariant of

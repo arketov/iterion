@@ -18,8 +18,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/pkg/secure/httpdial"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/secure/httpdial"
 )
 
 // Environment variables serving the gateway. Named for the operator's

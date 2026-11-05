@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"testing"
 
-	iserver "github.com/SocialGouv/iterion/pkg/server"
+	iserver "github.com/arketov/iterion/pkg/server"
 )
 
 // paneLogoutOf sends a pane's sign-out through the tunnel with the pane's own

@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The low-level public-unicast / host-resolution unit tests moved to

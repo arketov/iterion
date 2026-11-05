@@ -10,8 +10,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // The identity every server-mediated forge write posts with: on a

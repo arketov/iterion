@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // The provenance of an extension act: the net's subbot reports the commits it

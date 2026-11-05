@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // The two CLI doors that never reach the bundle loader refuse an author

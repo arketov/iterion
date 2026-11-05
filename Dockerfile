@@ -64,7 +64,7 @@ COPY --exclude=**/*_test.go cmd ./cmd
 COPY --exclude=**/*_test.go pkg ./pkg
 COPY --exclude=**/*_test.go internal ./internal
 # bots/ holds the productised bot bundles. pkg/cli embeds them via the
-# github.com/SocialGouv/iterion/bots package, so the source tree must be present
+# github.com/arketov/iterion/bots package, so the source tree must be present
 # for `go build` under -mod=vendor. (e2e/ and examples/ are NOT imported or
 # embedded by ./cmd/iterion, so they are deliberately not copied — keeps the build
 # layer from invalidating on test/example edits.)
@@ -83,8 +83,8 @@ ENV CGO_ENABLED=0 GOFLAGS="-mod=vendor -trimpath"
 RUN --mount=type=cache,target=/root/.cache/go-build \
     GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     -ldflags="-s -w \
-              -X github.com/SocialGouv/iterion/pkg/internal/appinfo.Version=v${VERSION#v} \
-              -X github.com/SocialGouv/iterion/pkg/internal/appinfo.Commit=${COMMIT}" \
+              -X github.com/arketov/iterion/pkg/internal/appinfo.Version=v${VERSION#v} \
+              -X github.com/arketov/iterion/pkg/internal/appinfo.Commit=${COMMIT}" \
     -o /out/iterion ./cmd/iterion
 
 # ---------------------------------------------------------------------

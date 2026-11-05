@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/workspacetrack"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/workspacetrack"
 )
 
 // pruneTestFixture seeds a fresh filesystem store with a set of runs

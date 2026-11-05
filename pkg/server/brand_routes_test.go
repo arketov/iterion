@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/brand"
+	"github.com/arketov/iterion/pkg/brand"
 )
 
 func brandGet(name, ifNoneMatch string) *httptest.ResponseRecorder {

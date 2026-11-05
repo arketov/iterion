@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // inputGatedBot declares one var and pauses on a human entry node (no LLM,

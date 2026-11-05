@@ -3,9 +3,9 @@ package bundlelint
 import (
 	"slices"
 
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
-	"github.com/SocialGouv/iterion/pkg/backend/model"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // NodeBackends returns the backends a capability check must consider for a

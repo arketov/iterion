@@ -3,7 +3,7 @@ package parser_test
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // The Verified Action quad (ADR-044) adds optional goal / postcondition /

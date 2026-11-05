@@ -25,8 +25,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/safepath"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/internal/safepath"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 const toctouRefusalPhrase = "swapped between plan and creation"

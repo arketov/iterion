@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
-	"github.com/SocialGouv/iterion/pkg/boardcaps"
-	"github.com/SocialGouv/iterion/pkg/runops"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/boardcaps"
+	"github.com/arketov/iterion/pkg/runops"
 )
 
 // C328 — a node naming an iterion host tool without the capability that

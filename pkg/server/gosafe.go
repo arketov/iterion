@@ -1,6 +1,6 @@
 package server
 
-import "github.com/SocialGouv/iterion/pkg/errtrack"
+import "github.com/arketov/iterion/pkg/errtrack"
 
 // goSafe runs fn in a goroutine with panic recovery, so a best-effort
 // background task (audit insert, last_used_at MarkUsed, invitation email)

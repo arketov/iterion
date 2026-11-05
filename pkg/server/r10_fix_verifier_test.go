@@ -14,10 +14,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/botsource"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/botsource"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // r10PlatBlipStore fails the PLATFORM tenant's reads while tripped — the

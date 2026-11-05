@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/queue"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/queue"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // ADR-123: a "dek"-stamped record whose message carries no per-run key

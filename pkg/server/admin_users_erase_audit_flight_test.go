@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/audit"
-	"github.com/SocialGouv/iterion/pkg/configshare"
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/audit"
+	"github.com/arketov/iterion/pkg/configshare"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // gatedAudit is the memory audit store whose Insert of one action parks

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/botscaffold"
+	"github.com/arketov/iterion/pkg/botscaffold"
 )
 
 // TestBotsCreate_EveryTemplateValidates walks the operator's first loop for

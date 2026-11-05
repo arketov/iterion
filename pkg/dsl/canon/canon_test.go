@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 
 const loose = "## A header the writer keeps.\n\n\nschema verdict:\n  ok: bool\n\n\n\nagent check:\n  model: \"m\"\n  output: verdict\n\nworkflow w:\n  worktree: none\n  sandbox: none\n  entry: check\n  check -> done\n"

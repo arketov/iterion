@@ -1,15 +1,15 @@
 package ir_test
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/internal/dsltest"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/internal/dsltest"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // TestCompileDoesNotMutateItsInput holds on one fixture; this holds on every

@@ -3,7 +3,7 @@ package parser_test
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // Focused unit coverage for parser_sandbox.go (extracted in 9f67d6fd).

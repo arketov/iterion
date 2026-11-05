@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/pkg/knowledge"
 )
 
 func TestExportImportRoundTrip(t *testing.T) {

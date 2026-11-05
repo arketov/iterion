@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // #659 pt 3 — the run API carries the credential audit the ceiling counts

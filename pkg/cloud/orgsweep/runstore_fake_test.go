@@ -6,7 +6,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // fakeRunStore stands in for the cloud run store on the three methods the

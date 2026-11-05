@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/llmroute"
+	"github.com/arketov/iterion/pkg/llmroute"
 )
 
 // The author's routing block: decodes from the manifest, projects onto the

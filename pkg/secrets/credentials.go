@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // Credentials carries the resolved per-run BYOK plaintext keyed by

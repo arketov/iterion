@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/secretguard"
+	"github.com/arketov/iterion/pkg/backend/secretguard"
 )
 
 // claw materialises a secret into the tool input's DECODED strings, like

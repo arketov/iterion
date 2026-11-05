@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox/netproxy"
+	"github.com/arketov/iterion/pkg/sandbox/netproxy"
 )
 
 func TestSandboxProxyFunc_SetDialsTheValidatedHostThroughTheProxy(t *testing.T) {

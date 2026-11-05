@@ -3,8 +3,8 @@ package runview
 import (
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // hookEventObservers is the single way launch AND resume build

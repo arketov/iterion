@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // dispatchBound is how long a witness waits for a sandbox dispatch it drove

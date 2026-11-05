@@ -8,11 +8,11 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
-	"github.com/SocialGouv/iterion/pkg/dsl/readbudget"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/readbudget"
 )
 
 // operands joins n copies of ref with `+`: four tokens an operand, less one,

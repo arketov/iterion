@@ -2,11 +2,11 @@ package spec_test
 
 import (
 	"fmt"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/spec"
+	"github.com/arketov/iterion/pkg/dsl/spec"
 )
 
 // witnesses are, for one Form, the values its language ACCEPTS beyond the

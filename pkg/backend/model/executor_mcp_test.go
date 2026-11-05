@@ -3,8 +3,8 @@ package model
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 func TestCheckNodeToolAccessRejectsInactiveMCPServer(t *testing.T) {

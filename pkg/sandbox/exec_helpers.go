@@ -7,8 +7,8 @@ import (
 	"io"
 	"os/exec"
 
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/internal/proc"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // ExecCmd runs a prepared [*exec.Cmd], wiring stdout/stderr per opts and

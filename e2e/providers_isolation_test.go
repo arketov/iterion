@@ -5,7 +5,7 @@ package e2e
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/detecttest"
+	"github.com/arketov/iterion/internal/detecttest"
 )
 
 // isolateProviders keeps the host's provider credentials out of the

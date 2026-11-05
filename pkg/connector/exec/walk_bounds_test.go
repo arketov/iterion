@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // A WALK had no bound of its own. `max_pages` is taken verbatim from the

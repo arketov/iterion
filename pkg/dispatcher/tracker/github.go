@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/forge"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // GitHubOptions configures the GitHub Issues adapter. The Token field

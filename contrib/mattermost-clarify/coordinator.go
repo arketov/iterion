@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/SocialGouv/iterion/pkg/notify"
+	"github.com/arketov/iterion/pkg/notify"
 )
 
 // launcher is the subset of LaunchClient the Coordinator needs, broken

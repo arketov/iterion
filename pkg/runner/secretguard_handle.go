@@ -3,7 +3,7 @@ package runner
 import (
 	"sync/atomic"
 
-	"github.com/SocialGouv/iterion/pkg/backend/secretguard"
+	"github.com/arketov/iterion/pkg/backend/secretguard"
 )
 
 // runSecretGuard is the late-bound handle between the runner's mid-run

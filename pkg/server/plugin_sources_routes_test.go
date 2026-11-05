@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/pluginsource"
+	"github.com/arketov/iterion/pkg/auth"
+	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/pluginsource"
 )
 
 // The 2026-08-26 incident: a team registered a plugin source whose plugin.yaml

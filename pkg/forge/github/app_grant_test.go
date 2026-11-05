@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // grantMintRecorder is a fake GitHub whose installation-token mint applies

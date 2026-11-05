@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
 )
 
 // TestTheWorkerFamilyIsModelDrivenNotRefused draws the line the refused list

@@ -10,8 +10,8 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
-	"github.com/SocialGouv/iterion/pkg/internal/mongotest"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/internal/mongotest"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The one eviction the cross-backend row cannot reach without a clock: a

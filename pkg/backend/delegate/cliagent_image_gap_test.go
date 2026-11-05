@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
 )
 
 // cliAbsentProtocols are the CLI-agent backends whose image-presence cell

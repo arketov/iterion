@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/usernotify"
+	"github.com/arketov/iterion/pkg/usernotify"
 )
 
 // newTestKeys mints a throwaway VAPID pair for tests.

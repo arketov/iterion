@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/queue"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/queue"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 func (r *Runner) bankPushPolicy() (int, time.Duration) {

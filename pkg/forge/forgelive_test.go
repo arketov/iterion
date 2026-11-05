@@ -21,10 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/brand"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	fgithub "github.com/SocialGouv/iterion/pkg/forge/github"
-	fgitlab "github.com/SocialGouv/iterion/pkg/forge/gitlab"
+	"github.com/arketov/iterion/pkg/brand"
+	"github.com/arketov/iterion/pkg/forge"
+	fgithub "github.com/arketov/iterion/pkg/forge/github"
+	fgitlab "github.com/arketov/iterion/pkg/forge/gitlab"
 )
 
 func envOr(key, def string) string {

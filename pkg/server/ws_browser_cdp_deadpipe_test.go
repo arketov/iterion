@@ -9,8 +9,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/SocialGouv/iterion/pkg/backend/mcp"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/backend/mcp"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // deadPipeConn is a CDP pipe whose reads fail with a fixed error: the kind

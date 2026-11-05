@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // TestOnlyAPublishedNodeLeavesAnArtifact pins the contract the run-to-run

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth/oidc"
-	"github.com/SocialGouv/iterion/pkg/auth/orgsso"
+	"github.com/arketov/iterion/pkg/auth/oidc"
+	"github.com/arketov/iterion/pkg/auth/orgsso"
 )
 
 // TestListProviders_DiscoverByEmailDomain proves the login screen can surface an

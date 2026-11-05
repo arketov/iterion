@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/cost"
-	"github.com/SocialGouv/iterion/pkg/backend/modelspecs"
+	"github.com/arketov/iterion/pkg/backend/cost"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
 )
 
 // Isolate switches both live tiers off for the whole process — claw's

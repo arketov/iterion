@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/treeskip"
-	"github.com/SocialGouv/iterion/pkg/repograph"
-	"github.com/SocialGouv/iterion/pkg/repomap"
+	"github.com/arketov/iterion/internal/treeskip"
+	"github.com/arketov/iterion/pkg/repograph"
+	"github.com/arketov/iterion/pkg/repomap"
 )
 
 // candidates are the directory names the fixture plants a canary in. It is

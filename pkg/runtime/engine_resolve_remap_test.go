@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // A `json` var's document nests: a list of objects, a list of lists. Deciding

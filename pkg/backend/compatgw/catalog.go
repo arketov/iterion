@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/pkg/backend/cost"
-	"github.com/SocialGouv/iterion/pkg/backend/modelspecs"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/backend/cost"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // The gateway catalog (ADR-118): what a `openai_compatible/<id>` model

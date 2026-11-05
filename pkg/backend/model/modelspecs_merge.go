@@ -1,7 +1,7 @@
 package model
 
 import (
-	"github.com/SocialGouv/iterion/pkg/backend/modelspecs"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
 )
 
 // Merging the dynamic aggregator over the curated table.

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/botregistry"
+	"github.com/arketov/iterion/pkg/botregistry"
 )
 
 // catalogTemplateRoot and exampleCatalogTemplateRoot are the two roots of

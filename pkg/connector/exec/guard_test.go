@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/connector/exec"
+	"github.com/arketov/iterion/pkg/connector/exec"
 )
 
 // The refusal has to land BEFORE anything is sent, and it has to be about the

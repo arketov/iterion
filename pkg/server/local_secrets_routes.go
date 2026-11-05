@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // registerLocalSecretRoutes wires the local (non-cloud) secret management

@@ -2,7 +2,7 @@ package model
 
 import (
 	"context"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // TemplateData carries runtime state needed to resolve prompt template

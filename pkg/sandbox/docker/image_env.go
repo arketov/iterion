@@ -7,7 +7,7 @@ import (
 	"maps"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // Compile-time guard: the docker driver screens the ENV its images bake in

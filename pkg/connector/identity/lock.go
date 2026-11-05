@@ -11,10 +11,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/yamlx"
+	"github.com/arketov/iterion/internal/yamlx"
 	yaml "gopkg.in/yaml.v3"
 
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 const File = "identity.lock.yaml"

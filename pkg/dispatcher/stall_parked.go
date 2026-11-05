@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // Keep the dispatcher seam while sharing the persisted oracle with alerts.

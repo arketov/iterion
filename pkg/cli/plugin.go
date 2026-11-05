@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/SocialGouv/iterion/pkg/plugin"
+	"github.com/arketov/iterion/pkg/plugin"
 )
 
 // PluginView is the listing-facing projection of a loaded plugin (an alias of

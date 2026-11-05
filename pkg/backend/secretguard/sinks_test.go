@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/secretsink"
+	"github.com/arketov/iterion/pkg/dsl/secretsink"
 )
 
 // The two sinks the compiler cannot see are the guard's: `agent` (a

@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/git"
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/sandbox/docker"
-	"github.com/SocialGouv/iterion/pkg/sandbox/kubernetes"
-	"github.com/SocialGouv/iterion/pkg/sandbox/netproxy"
-	"github.com/SocialGouv/iterion/pkg/sandbox/registry"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox/docker"
+	"github.com/arketov/iterion/pkg/sandbox/kubernetes"
+	"github.com/arketov/iterion/pkg/sandbox/netproxy"
+	"github.com/arketov/iterion/pkg/sandbox/registry"
 )
 
 // errStrictSandboxChecks is returned by the strict doctor when any check

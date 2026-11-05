@@ -3,7 +3,7 @@ package runtime
 import (
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/memory"
+	"github.com/arketov/iterion/pkg/memory"
 )
 
 // sweepScratchOnExit reclaims the workspace's out-of-tree scratch entries

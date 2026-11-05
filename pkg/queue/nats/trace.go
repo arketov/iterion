@@ -8,7 +8,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/SocialGouv/iterion/pkg/queue"
+	"github.com/arketov/iterion/pkg/queue"
 )
 
 // natsHeaderCarrier adapts nats.Header to propagation.TextMapCarrier

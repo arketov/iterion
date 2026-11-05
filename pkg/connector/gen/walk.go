@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // walker holds one generation's state while it crosses the description.

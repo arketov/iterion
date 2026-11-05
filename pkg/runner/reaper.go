@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
-	k8ssandbox "github.com/SocialGouv/iterion/pkg/sandbox/kubernetes"
-	"github.com/SocialGouv/iterion/pkg/store"
+	k8ssandbox "github.com/arketov/iterion/pkg/sandbox/kubernetes"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The k8s sandbox reaper, wired into the RUNNER (not the server). See

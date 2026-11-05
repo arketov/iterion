@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // IssueClient: Forgejo/Gitea issue read/write powering forge→board sync

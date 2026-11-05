@@ -11,11 +11,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/sweepwalk"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/secretsink"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/internal/sweepwalk"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/secretsink"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // presetBundle writes a one-preset bundle and opens it.

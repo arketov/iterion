@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/floortest"
+	"github.com/arketov/iterion/internal/floortest"
 )
 
 // A syntax floor is pinned to the release that will carry the syntax and

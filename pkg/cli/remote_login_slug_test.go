@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/cli"
 )
 
 // TestLoginWithPassword_ResolvesTheTeamSlugUnderTheLoginsJWT: `--team` takes

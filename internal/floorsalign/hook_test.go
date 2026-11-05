@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/internal/gittest"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // releaseItBin is the installed release-it, or "" when node_modules is not

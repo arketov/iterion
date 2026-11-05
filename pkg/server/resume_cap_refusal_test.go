@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/server/cloudpublisher"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/server/cloudpublisher"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // capRefusal is the error SubmitResume returns when a key the resumed run

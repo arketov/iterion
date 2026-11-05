@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // Regression tests locking in the pkg/store production-readiness hardening

@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/secure/httpdial"
+	"github.com/arketov/iterion/pkg/secure/httpdial"
 )
 
 // scriptedResolver answers the pin's lookups without DNS: the n-th lookup of

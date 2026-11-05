@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/legal"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/legal"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // The legal pages are DEPLOYMENT CONFIGURATION (ADR-160): a document the

@@ -5,8 +5,8 @@ import (
 	"regexp/syntax"
 	"slices"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/expr"
 )
 
 // ValueMatchesPattern reports whether value satisfies the RE2 pattern a var

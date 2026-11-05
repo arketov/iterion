@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/storekit"
+	"github.com/arketov/iterion/pkg/internal/storekit"
 )
 
 // MemoryConfigStore is an in-process ConfigStore for tests and local

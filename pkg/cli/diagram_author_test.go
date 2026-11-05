@@ -3,7 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"errors"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/author"
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/dsl/author"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
 )
 
 // diagramJSON runs RunDiagram in JSON mode and decodes its result.

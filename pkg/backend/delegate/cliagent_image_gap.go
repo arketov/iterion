@@ -2,11 +2,11 @@ package delegate
 
 import (
 	"fmt"
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 	"os"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
 )
 
 // ErrBackendCLIAbsent refuses the dispatch of a CLI-agent backend whose

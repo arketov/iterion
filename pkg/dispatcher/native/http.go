@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/httpx"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/internal/httpx"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 )
 
 // BoardAPI serves the kanban REST surface against a BoardStore resolved

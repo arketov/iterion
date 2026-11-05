@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/secretsink"
+	"github.com/arketov/iterion/pkg/dsl/secretsink"
 )
 
 // A placeholder that arrives through DATA (a model's output an edge carried

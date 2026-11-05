@@ -3,8 +3,8 @@ package runview
 import (
 	"path/filepath"
 
-	"github.com/SocialGouv/iterion/pkg/runview/runstream"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/runview/runstream"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // startEventSource spawns a goroutine that tails the run's events.jsonl

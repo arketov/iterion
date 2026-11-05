@@ -3,7 +3,7 @@ package server
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
 )
 
 // isSkippedDir returns true for directories that should not be walked or watched.

@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/cli"
 )
 
 // remoteTools returns the remote_* tool set: a typed core over the

@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // A floor's presence is not enough: a profile-2 bundle declaring `>= 0.0.1`

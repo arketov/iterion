@@ -10,11 +10,11 @@ import (
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
 
-	"github.com/SocialGouv/iterion/pkg/backend/secretguard"
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
-	"github.com/SocialGouv/iterion/pkg/backend/tool/privacy"
-	"github.com/SocialGouv/iterion/pkg/backend/tool/privacy/detector"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/secretguard"
+	"github.com/arketov/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/backend/tool/privacy"
+	"github.com/arketov/iterion/pkg/backend/tool/privacy/detector"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 const secretInputKey = "ghp_R3alV4lu3Fak3T0k3nAbCdEfGhIjKlMn0p"

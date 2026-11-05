@@ -9,7 +9,7 @@ import (
 
 	codexsdk "github.com/ethpandaops/codex-agent-sdk-go"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // TestEffortCapabilities_ClawOpus48 proves the endpoint returns the full

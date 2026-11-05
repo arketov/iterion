@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // TestTuringCountdown is the executable proof for ADR-050 / docs/dsl-totality-and-tc.md:

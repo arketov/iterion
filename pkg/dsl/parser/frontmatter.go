@@ -3,8 +3,8 @@ package parser
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
 )
 
 // FrontmatterBlock is the `## ---` … `## ---` block among a parsed file's

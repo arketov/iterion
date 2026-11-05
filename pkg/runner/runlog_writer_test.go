@@ -12,7 +12,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // fakeRunLogStore records appended chunks and can fail the first N

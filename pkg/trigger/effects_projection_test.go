@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // stubBindings answers the ONE question the projection arm asks of the forge

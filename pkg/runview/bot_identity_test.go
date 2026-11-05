@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // A bot's memory is keyed on its identity, and four surfaces resolve that
@@ -433,7 +433,7 @@ func isBuildExecutorCall(fun ast.Expr) bool {
 // runview package with: its alias when it has one, its default name
 // otherwise, and "." for a dot-import (which entitles the bare spelling).
 func runviewPackageIdents(file *ast.File) map[string]bool {
-	const path = `"github.com/SocialGouv/iterion/pkg/runview"`
+	const path = `"github.com/arketov/iterion/pkg/runview"`
 	out := map[string]bool{}
 	for _, imp := range file.Imports {
 		if imp.Path == nil || imp.Path.Value != path {

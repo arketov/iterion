@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	dockersandbox "github.com/SocialGouv/iterion/pkg/sandbox/docker"
-	k8ssandbox "github.com/SocialGouv/iterion/pkg/sandbox/kubernetes"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/runtime"
+	dockersandbox "github.com/arketov/iterion/pkg/sandbox/docker"
+	k8ssandbox "github.com/arketov/iterion/pkg/sandbox/kubernetes"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // reconcileSandboxContainers force-removes managed docker/podman

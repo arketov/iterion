@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/bundlelint"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundlelint"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 func find(diags []bundlelint.Diag, code bundlelint.Code) *bundlelint.Diag {

@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	clawrt "github.com/SocialGouv/claw-code-go/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/backendcaps"
 )
 
 // ModeEnv sets the process-wide default for the backends' auto-memory when

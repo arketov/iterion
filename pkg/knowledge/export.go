@@ -12,7 +12,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/tool/privacy/detector"
+	"github.com/arketov/iterion/pkg/backend/tool/privacy/detector"
 )
 
 // ExportFormat identifies the memory archive format.

@@ -3,9 +3,9 @@ package bundlelint_test
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/bundlelint"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundlelint"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // The two halves of a host-event gate live in different files: the DSL mode in

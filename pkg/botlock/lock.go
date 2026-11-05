@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/yamlx"
+	"github.com/arketov/iterion/internal/yamlx"
 )
 
 const (

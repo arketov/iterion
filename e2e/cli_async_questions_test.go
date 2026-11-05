@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The operator surface of ADR-081's async questions:

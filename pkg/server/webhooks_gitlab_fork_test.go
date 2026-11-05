@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
-	"github.com/SocialGouv/iterion/pkg/webhooks/gitlab"
+	"github.com/arketov/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/webhooks/gitlab"
 )
 
 // glForkMR is an MR opened from a fork: the payload names the source project

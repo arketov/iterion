@@ -12,7 +12,7 @@ package dryrun
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // Value is the schema-shaped value of one field: an enum's first value (its

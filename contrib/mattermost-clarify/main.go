@@ -11,7 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/SocialGouv/iterion/pkg/notify"
+	"github.com/arketov/iterion/pkg/notify"
 )
 
 // config is the adapter's runtime configuration, read from env.

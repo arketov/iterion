@@ -2,14 +2,14 @@ package ir
 
 import (
 	"fmt"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/docfences"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/docfences"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // Every ```iter fence in the repository's documentation is a program the

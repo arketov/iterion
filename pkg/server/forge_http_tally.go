@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // forgeLaneGateSweeper labels the forge requests the merge-gate sweep sends —

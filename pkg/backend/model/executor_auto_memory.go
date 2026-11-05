@@ -6,11 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/SocialGouv/iterion/pkg/backend/automemory"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/knowledge"
-	"github.com/SocialGouv/iterion/pkg/memory"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/backend/automemory"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/pkg/memory"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // autoMemoryMode is the node's effective auto-memory setting. Both the tool

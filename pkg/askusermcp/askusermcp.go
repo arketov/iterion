@@ -25,7 +25,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // AskUserToolName is the blocking ask_user tool. The async pair's

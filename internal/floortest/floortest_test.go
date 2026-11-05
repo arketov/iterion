@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // Below sits strictly under every floor the registry names — the real pins,

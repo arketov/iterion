@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/usernotify"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/usernotify"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 // seedWebhookDelivery writes a launched delivery row naming runID.

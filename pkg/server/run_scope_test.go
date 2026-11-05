@@ -13,11 +13,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/runwatch"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/runwatch"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // newRunScopeServer is a guarded run store (run-1 belongs to tenant-A) in

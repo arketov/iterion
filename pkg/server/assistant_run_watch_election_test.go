@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/lease"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/runwatch"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/lease"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/runwatch"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The fleet shape of the assistant run-watch sweep (#2636): several replicas

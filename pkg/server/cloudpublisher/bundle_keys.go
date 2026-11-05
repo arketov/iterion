@@ -1,6 +1,6 @@
 package cloudpublisher
 
-import "github.com/SocialGouv/iterion/pkg/secrets"
+import "github.com/arketov/iterion/pkg/secrets"
 
 // setAPIKey is the ONE writer of the bundle's API-key maps. Every lane that
 // seals a key — the tenant's BYOK tier, the org and platform tiers, the

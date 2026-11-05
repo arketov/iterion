@@ -12,10 +12,10 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
-	"github.com/SocialGouv/iterion/pkg/dsl/spec"
-	"github.com/SocialGouv/iterion/pkg/dsl/unparse"
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/spec"
+	"github.com/arketov/iterion/pkg/dsl/unparse"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
 )
 
 // speller turns the YAML tree into `.bot` text, one line at a time, each

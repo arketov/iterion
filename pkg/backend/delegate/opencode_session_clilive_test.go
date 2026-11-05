@@ -27,7 +27,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/git"
 )
 
 func TestCLILiveOpenCodeSessionResume(t *testing.T) {

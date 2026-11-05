@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // PullClient capability — linked PRs + CI status (current + history) for board

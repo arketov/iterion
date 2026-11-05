@@ -23,9 +23,9 @@ import (
 // pkg/store is NOT named: the IR imports pkg/knowledge and pkg/runops
 // directly, and both legitimately reach it.
 var theLeafClosureNeverLinks = []string{
-	"github.com/SocialGouv/iterion/pkg/dispatcher",
-	"github.com/SocialGouv/iterion/pkg/forge",
-	"github.com/SocialGouv/iterion/pkg/mail",
+	"github.com/arketov/iterion/pkg/dispatcher",
+	"github.com/arketov/iterion/pkg/forge",
+	"github.com/arketov/iterion/pkg/mail",
 	"github.com/SocialGouv/claw-code-go",
 }
 

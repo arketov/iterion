@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/llmroute"
+	"github.com/arketov/iterion/pkg/llmroute"
 )
 
 // routingLockPosture says whether the writing level may carry `locks:` in

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // #1473 R485b0c [HIGH] -- moving the deep scan export to a per-run subdir

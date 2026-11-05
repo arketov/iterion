@@ -3,7 +3,7 @@ package platformcfg
 import (
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/llmroute"
+	"github.com/arketov/iterion/pkg/llmroute"
 )
 
 // RoutingPolicyRecord is one TENANT level's adaptive-routing policy

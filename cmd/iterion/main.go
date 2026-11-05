@@ -16,11 +16,11 @@ import (
 	// log timestamps and time.Local then honour the operator's timezone.
 	_ "time/tzdata"
 
-	"github.com/SocialGouv/iterion/internal/dotenv"
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/errtrack"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/internal/dotenv"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/errtrack"
+	iterlog "github.com/arketov/iterion/pkg/log"
 	"github.com/spf13/cobra"
 )
 

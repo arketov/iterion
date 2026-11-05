@@ -28,8 +28,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // workspaceCheckpointInterval is how often a copy-based sandbox's work is

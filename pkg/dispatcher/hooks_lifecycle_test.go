@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // These tests prove that runWorker actually FIRES the three lifecycle

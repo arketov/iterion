@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/usagecap"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/usagecap"
 )
 
 // seedRankedKey seeds a key with an EXPLICIT CreatedAt, because the priority

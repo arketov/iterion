@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/testparallel"
+	"github.com/arketov/iterion/internal/testparallel"
 )
 
 // modelParallelCap bounds how many of this package's tests may run at once.

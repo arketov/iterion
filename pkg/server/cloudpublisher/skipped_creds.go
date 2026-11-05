@@ -3,7 +3,7 @@ package cloudpublisher
 import (
 	"sort"
 
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // The walk's memory of what it passed over, read by the restore step at the

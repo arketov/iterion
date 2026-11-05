@@ -10,7 +10,7 @@ import (
 	"testing"
 	"unicode"
 
-	"github.com/SocialGouv/iterion/internal/stdiotest"
+	"github.com/arketov/iterion/internal/stdiotest"
 )
 
 // captureStdout runs run with os.Stdout read into the returned string.

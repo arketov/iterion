@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/workspacetrack"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/workspacetrack"
 )
 
 func gitIn(t *testing.T, dir string, args ...string) string {

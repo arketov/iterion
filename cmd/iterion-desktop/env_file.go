@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/SocialGouv/iterion/internal/dotenv"
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/dotenv"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // dotenvAppliedKeys tracks which keys were set into the process env by a

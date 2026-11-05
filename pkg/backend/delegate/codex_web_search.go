@@ -13,8 +13,8 @@ import (
 
 	codexsdk "github.com/ethpandaops/codex-agent-sdk-go"
 
-	"github.com/SocialGouv/iterion/pkg/internal/clilocate"
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/internal/clilocate"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 const codexWebSearchModeLive = "live"

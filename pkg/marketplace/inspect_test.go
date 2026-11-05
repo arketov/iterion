@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/plugin"
+	"github.com/arketov/iterion/pkg/plugin"
 )
 
 // writePluginFixture writes a minimal valid plugin source: a plugin.yaml

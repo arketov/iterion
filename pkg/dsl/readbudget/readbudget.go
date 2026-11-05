@@ -17,7 +17,7 @@ import (
 	"strings"
 	"sync"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // Env names the operator's override of the read budget.

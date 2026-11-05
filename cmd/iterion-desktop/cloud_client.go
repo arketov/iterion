@@ -28,8 +28,8 @@ import (
 
 	"golang.org/x/sync/singleflight"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	iserver "github.com/SocialGouv/iterion/pkg/server"
+	"github.com/arketov/iterion/pkg/auth"
+	iserver "github.com/arketov/iterion/pkg/server"
 )
 
 const (

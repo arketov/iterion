@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // errProcessNotFound is returned by pidAlive when the probed PID no

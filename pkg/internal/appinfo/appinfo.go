@@ -21,7 +21,7 @@ const (
 //
 // Example:
 //
-//	go build -ldflags "-X github.com/SocialGouv/iterion/pkg/internal/appinfo.Version=v0.1.0 -X github.com/SocialGouv/iterion/pkg/internal/appinfo.Commit=$(git rev-parse --short HEAD)"
+//	go build -ldflags "-X github.com/arketov/iterion/pkg/internal/appinfo.Version=v0.1.0 -X github.com/arketov/iterion/pkg/internal/appinfo.Commit=$(git rev-parse --short HEAD)"
 var Version = "dev"
 
 // Commit optionally carries a VCS revision (preferably short SHA).

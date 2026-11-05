@@ -17,13 +17,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/proctest"
+	"github.com/arketov/iterion/internal/proctest"
 
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/sandbox/noop"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/internal/proc"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox/noop"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // These tests run the real Execute — and the formatting pass, and a CLI

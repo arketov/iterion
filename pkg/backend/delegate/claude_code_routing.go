@@ -14,10 +14,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/SocialGouv/iterion/pkg/internal/shellquote"
+	"github.com/arketov/iterion/pkg/internal/shellquote"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // ClaudeCodeRoutingEnv is every environment variable the Claude Code CLI reads

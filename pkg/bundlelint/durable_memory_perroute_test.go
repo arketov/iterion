@@ -3,9 +3,9 @@ package bundlelint_test
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
-	"github.com/SocialGouv/iterion/pkg/bundlelint"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/bundlelint"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // TestAGateRefusedWriterIsNotCreditedThroughAnotherRoute is the iterion#2881

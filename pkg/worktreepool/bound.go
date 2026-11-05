@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // DefaultBudget is how many worktrees a store may park before the bound

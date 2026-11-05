@@ -9,8 +9,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/store/blob"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store/blob"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )

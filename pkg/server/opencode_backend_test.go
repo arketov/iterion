@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/runview"
 )
 
 // TestOpenCodeEffortCapabilities: the compiler says opencode carries a

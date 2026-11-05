@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth/oidc"
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/auth/oidc"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // TestCheckDerivation_APersonalAccessTokenStandsOnItsRow: a personal access

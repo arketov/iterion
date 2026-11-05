@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"github.com/SocialGouv/claw-code-go/pkg/api"
-	"github.com/SocialGouv/iterion/pkg/retrypolicy"
-	"github.com/SocialGouv/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/retrypolicy"
+	"github.com/arketov/iterion/pkg/runtime"
 	"strings"
 	"testing"
 )

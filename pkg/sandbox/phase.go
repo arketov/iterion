@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // Everything between "the container/pod exists" and "the first node runs"

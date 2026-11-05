@@ -3,7 +3,7 @@ package model
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
 )
 
 // Ultracode on claw grants the subagent tool to a node that restricts its

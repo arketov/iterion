@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
-	"github.com/SocialGouv/iterion/pkg/knowledge"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
-	"github.com/SocialGouv/iterion/pkg/webhooks/prforge"
+	"github.com/arketov/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/webhooks/prforge"
 )
 
 // approveMinReplierRole is the commenter role floor for /revi approve: a

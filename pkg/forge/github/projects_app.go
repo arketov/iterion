@@ -3,7 +3,7 @@ package github
 import (
 	"context"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // AppClient's half of forge.BoardClient. Every call goes through a DEDICATED

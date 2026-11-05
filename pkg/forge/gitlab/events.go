@@ -3,7 +3,7 @@ package gitlab
 import (
 	"strconv"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // gitlabHook is the project-hook shape GitLab returns and accepts. GitLab

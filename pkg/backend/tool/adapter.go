@@ -3,8 +3,8 @@ package tool
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/llmtypes"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/llmtypes"
 )
 
 // ---------------------------------------------------------------------------

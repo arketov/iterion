@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/gittest"
 )
 
 // The three outcomes the probe may answer, and the only ones. `hold` is a

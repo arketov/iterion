@@ -11,8 +11,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/store/blob"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store/blob"
 )
 
 // WriteArtifact PUTs the body to S3 first, then inserts the

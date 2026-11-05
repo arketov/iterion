@@ -1,6 +1,6 @@
 package model
 
-import "github.com/SocialGouv/iterion/pkg/dsl/ir"
+import "github.com/arketov/iterion/pkg/dsl/ir"
 
 // RouteView is the one value every launch-time routing derivation reads —
 // the workflow under its launch-time overrides and run fallback chain, plus

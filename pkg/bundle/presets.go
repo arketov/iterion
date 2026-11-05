@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/yamlx"
+	"github.com/arketov/iterion/internal/yamlx"
 )
 
 // PresetSpec is a file-based preset parsed from a bundle's

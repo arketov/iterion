@@ -16,7 +16,7 @@ import (
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
 
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/backend/tool"
 )
 
 // parentLoopClient records what each child call was offered — the model, the

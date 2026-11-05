@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/hometest"
+	"github.com/arketov/iterion/internal/hometest"
 )
 
 // The servers these tests start resolve their run stores, installed plugins

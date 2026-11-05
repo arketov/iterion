@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/runview"
 )
 
 // TestPromotedMainBotHashesLikeItsBundleOnEverySurface: the workflow hash

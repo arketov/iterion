@@ -3,8 +3,8 @@ package runner
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // An undecided effect anywhere in the chain is the code the runner acts on,

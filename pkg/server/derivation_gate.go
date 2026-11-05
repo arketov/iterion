@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/auth"
 )
 
 // gateDerivation wraps a handler that runs behind requireAuth with the

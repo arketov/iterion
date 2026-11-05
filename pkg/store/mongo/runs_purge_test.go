@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/internal/mongotest"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/store/blob"
+	"github.com/arketov/iterion/pkg/internal/mongotest"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store/blob"
 )
 
 // The org purge's listing feeds a delete loop: without a tenant in the

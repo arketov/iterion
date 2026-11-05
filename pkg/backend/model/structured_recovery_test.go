@@ -12,9 +12,9 @@ import (
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
 
-	"github.com/SocialGouv/iterion/pkg/backend/compatgw"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/backend/modelspecs"
+	"github.com/arketov/iterion/pkg/backend/compatgw"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
 )
 
 const recoverySchema = `{"type":"object","properties":{"batch_id":{"type":"string"},"notes":{"type":"string"}},"required":["batch_id","notes"],"additionalProperties":false}`

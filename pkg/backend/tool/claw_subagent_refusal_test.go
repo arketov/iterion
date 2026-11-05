@@ -9,7 +9,7 @@ import (
 
 	clawtools "github.com/SocialGouv/claw-code-go/pkg/api/tools"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // agentCall is a well-formed `agent` tool input: claw's own executor accepts

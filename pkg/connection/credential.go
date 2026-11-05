@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // The credential half of a connection: sealed at rest, opened on ONE path.

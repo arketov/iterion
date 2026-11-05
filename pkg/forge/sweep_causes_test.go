@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/lease"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/lease"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // The two classes a leased sweep's caller tells apart: a refusal that came

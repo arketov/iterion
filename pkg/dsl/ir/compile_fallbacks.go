@@ -3,7 +3,7 @@ package ir
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/ast"
 )
 
 // compileFallbacks lowers a node's `fallbacks:` block into the IR's

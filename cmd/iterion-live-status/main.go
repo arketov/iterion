@@ -18,7 +18,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/SocialGouv/iterion/pkg/liveledger"
+	"github.com/arketov/iterion/pkg/liveledger"
 )
 
 func main() {

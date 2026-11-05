@@ -3,8 +3,8 @@ package runtime
 import (
 	"fmt"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // incomingFromEdge snapshots the identity of a workflow edge so the

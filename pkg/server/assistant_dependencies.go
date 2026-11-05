@@ -17,10 +17,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/SocialGouv/iterion/pkg/botdeps"
-	"github.com/SocialGouv/iterion/pkg/botlock"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/botdeps"
+	"github.com/arketov/iterion/pkg/botlock"
+	"github.com/arketov/iterion/pkg/bundle"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // assistantDependencyBotsUpdateRequest is purposefully not a general command

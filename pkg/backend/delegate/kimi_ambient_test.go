@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/ambient"
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/ambient"
+	"github.com/arketov/iterion/pkg/backend/permission"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // fakeKimiReportingItsHome writes a kimi stand-in that records the home it

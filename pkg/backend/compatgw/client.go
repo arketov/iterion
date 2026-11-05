@@ -12,7 +12,7 @@ import (
 	"github.com/SocialGouv/claw-code-go/pkg/api"
 	openaiprovider "github.com/SocialGouv/claw-code-go/pkg/api/providers/openai"
 
-	"github.com/SocialGouv/iterion/pkg/secure/httpdial"
+	"github.com/arketov/iterion/pkg/secure/httpdial"
 )
 
 // UserAgent is the identity the gateway client presents. claw's own honest

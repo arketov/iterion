@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native/boardops"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dispatcher/native/boardops"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // DefaultGrantTTL caps how long a run token stays alive without an explicit

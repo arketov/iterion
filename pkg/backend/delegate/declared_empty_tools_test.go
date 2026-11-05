@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
+	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
 )
 
 // The live half of #1615: a node that declares `tools: []` must lose Claude

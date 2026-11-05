@@ -3,7 +3,7 @@ package devcontainer
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // Package-level file: how the image ENV screen answers the engine's OWN

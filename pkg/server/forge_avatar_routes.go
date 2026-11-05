@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/brand"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/brand"
+	"github.com/arketov/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // forgeAvatarReq is the body of POST /api/teams/{id}/forge/connections/{conn_id}/avatar.

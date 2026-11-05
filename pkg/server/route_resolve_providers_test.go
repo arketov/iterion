@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/llmroute"
-	"github.com/SocialGouv/iterion/pkg/platformcfg"
+	"github.com/arketov/iterion/pkg/llmroute"
+	"github.com/arketov/iterion/pkg/platformcfg"
 )
 
 func TestResolveRunLLMRoutePolicy_EmptyProvidersListRefusesTheLaunch(t *testing.T) {

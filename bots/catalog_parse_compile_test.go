@@ -3,7 +3,7 @@ package bots
 import (
 	"errors"
 	"fmt"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit/unittest"
+	"github.com/arketov/iterion/pkg/dsl/unit/unittest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,11 +11,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/botregistry"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/botregistry"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/unit"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // TestCatalogBotsParseAndCompileClean is the CI floor that every shipped

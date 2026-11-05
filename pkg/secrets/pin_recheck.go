@@ -5,7 +5,7 @@ import (
 	"errors"
 	"slices"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // PinRecheck is what re-reading one record a credential pin names found. A

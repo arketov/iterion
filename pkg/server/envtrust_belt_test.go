@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // The completeness guard on the belt. Every raw os.Getenv/os.LookupEnv read

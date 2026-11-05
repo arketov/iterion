@@ -4,10 +4,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/internal/hometest"
-	"github.com/SocialGouv/iterion/internal/proctest"
-	"github.com/SocialGouv/iterion/internal/testparallel"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/internal/hometest"
+	"github.com/arketov/iterion/internal/proctest"
+	"github.com/arketov/iterion/internal/testparallel"
 )
 
 // e2eParallelCap bounds how many of this package's tests run at once.

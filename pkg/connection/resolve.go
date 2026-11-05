@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/connector/exec"
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/connector/exec"
+	"github.com/arketov/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // Resolver answers the question a `tool … action:` node asks: given an

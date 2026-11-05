@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
-	"github.com/SocialGouv/iterion/pkg/store"
+	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 func strp(s string) *string { return &s }

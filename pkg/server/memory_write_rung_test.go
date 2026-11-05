@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/docsguard"
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/internal/docsguard"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/knowledge"
 )
 
 // A team's memory space is INSTRUCTION: the engine opens it on behalf of

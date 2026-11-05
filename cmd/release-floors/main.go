@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/SocialGouv/iterion/internal/floorsalign"
+	"github.com/arketov/iterion/internal/floorsalign"
 )
 
 func main() {

@@ -14,7 +14,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/tool/privacy/detector"
+	"github.com/arketov/iterion/pkg/backend/tool/privacy/detector"
 )
 
 // memStore is a minimal in-memory MemoryStore for exercising the

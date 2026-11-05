@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/piext"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/pisdk"
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/delegate/piext"
+	"github.com/arketov/iterion/pkg/backend/delegate/pisdk"
+	"github.com/arketov/iterion/pkg/backend/permission"
 )
 
 // The control channel between the iterion pi extension and this process.

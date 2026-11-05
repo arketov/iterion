@@ -3,8 +3,8 @@ package model
 import (
 	"context"
 
-	"github.com/SocialGouv/iterion/pkg/backend/llmtypes"
-	"github.com/SocialGouv/iterion/pkg/backend/modelspecs"
+	"github.com/arketov/iterion/pkg/backend/llmtypes"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
 )
 
 // Public, operator-facing view over the capability resolver.

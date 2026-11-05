@@ -1,7 +1,7 @@
 package delegate
 
 import (
-	"github.com/SocialGouv/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/connection"
 )
 
 // The connector MCP facade's server name (#2758): the name under which

@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/assistantmission"
-	"github.com/SocialGouv/iterion/pkg/runwatch"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/assistantmission"
+	"github.com/arketov/iterion/pkg/runwatch"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 func TestAssistantMissionCreateReattachesTerminalInvocationWithoutRenewal(t *testing.T) {

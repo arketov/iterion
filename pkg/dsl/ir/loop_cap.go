@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	"github.com/SocialGouv/iterion/pkg/dsl/expr"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/expr"
 )
 
 func (c *compiler) compileLoopCap(loop *Loop, edge *ast.Edge) {

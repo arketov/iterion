@@ -10,7 +10,7 @@ import (
 
 	codexsdk "github.com/ethpandaops/codex-agent-sdk-go"
 
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/permission"
 )
 
 func TestRegistryResolve(t *testing.T) {

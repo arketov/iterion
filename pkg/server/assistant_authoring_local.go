@@ -17,7 +17,7 @@ import (
 	"github.com/gofrs/flock"
 	"github.com/google/uuid"
 
-	"github.com/SocialGouv/iterion/pkg/authoringlock"
+	"github.com/arketov/iterion/pkg/authoringlock"
 )
 
 // A lock serializes the server's participating writers across processes and

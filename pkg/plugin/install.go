@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/git"
 )
 
 // InstallOptions parameterizes InstallWith. Source is a local directory or a

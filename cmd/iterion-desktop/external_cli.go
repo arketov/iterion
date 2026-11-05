@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/detect"
+	"github.com/arketov/iterion/pkg/backend/detect"
 )
 
 // CLIStatus is the wire-format reported to the frontend for each external

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
 )
 
 // Tool-list diagnostics.

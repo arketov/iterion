@@ -3,9 +3,9 @@ package runtime
 import (
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/deeplink"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/treenoise"
+	"github.com/arketov/iterion/pkg/deeplink"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/treenoise"
 )
 
 // RunNamespaceMembers is the exhaustive `run.<member>` vocabulary, in

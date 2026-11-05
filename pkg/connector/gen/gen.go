@@ -27,7 +27,7 @@ import (
 
 	yaml "gopkg.in/yaml.v3"
 
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // Options drives one generation.

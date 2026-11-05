@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/auth"
 )
 
 // usesHostPrefix reports whether this deployment can carry __Host- cookies.

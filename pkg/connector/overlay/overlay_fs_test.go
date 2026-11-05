@@ -8,8 +8,8 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/SocialGouv/iterion/pkg/connector/overlay"
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/overlay"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // theAuthoredHalf is the minimum that makes the fixture's package usable: the

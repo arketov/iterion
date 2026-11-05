@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/mdcode"
+	"github.com/arketov/iterion/internal/mdcode"
 )
 
 func TestRenderCatalogBlock_FiltersDisabledShowsWhenToUseAndVars(t *testing.T) {

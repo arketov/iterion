@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // The RouteView witnesses (ADR-129 §4): the launch-time walk reads the

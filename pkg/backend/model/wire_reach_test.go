@@ -3,7 +3,7 @@ package model
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // The usage cap meters the Anthropic wire only (its readings come from

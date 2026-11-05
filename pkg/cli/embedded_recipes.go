@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/SocialGouv/iterion/bots"
+	"github.com/arketov/iterion/bots"
 )
 
 // ResolveRecipePath returns a real on-disk path for `path`, transparently

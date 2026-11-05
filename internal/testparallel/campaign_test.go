@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/testparallel"
+	"github.com/arketov/iterion/internal/testparallel"
 )
 
 // The guards of pkg/backend/model and of the bots modernize family both rest

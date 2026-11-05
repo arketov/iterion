@@ -10,11 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/llmtypes"
-	"github.com/SocialGouv/iterion/pkg/backend/tool"
-	"github.com/SocialGouv/iterion/pkg/internal/appinfo"
-	"github.com/SocialGouv/iterion/pkg/internal/strutil"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/backend/llmtypes"
+	"github.com/arketov/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/internal/appinfo"
+	"github.com/arketov/iterion/pkg/internal/strutil"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // ToolInfo is the MCP tool description returned by tools/list.

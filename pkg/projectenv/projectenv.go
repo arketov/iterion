@@ -40,8 +40,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/dotenv"
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/dotenv"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 var reserved = map[string]struct{}{

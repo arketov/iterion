@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // TailCap bounds the stdout/stderr tails stored on audit records. The

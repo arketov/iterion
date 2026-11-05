@@ -3,8 +3,8 @@ package bots
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // bots/evolve's gpt reviewer must hold NO tools: its model sits near a

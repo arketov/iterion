@@ -12,8 +12,8 @@ import (
 	"sync"
 	"testing"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // wantRoutingKeys is every variable each claude_code spawn must pin, spelled

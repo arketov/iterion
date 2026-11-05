@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/authoringlock"
-	"github.com/SocialGouv/iterion/pkg/botregistry"
+	"github.com/arketov/iterion/pkg/authoringlock"
+	"github.com/arketov/iterion/pkg/botregistry"
 )
 
 // catalogOwnerWorkspace vendors one bundle that owns a generated catalog,

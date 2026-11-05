@@ -3,9 +3,9 @@ package cloudpublisher
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/credpool"
-	"github.com/SocialGouv/iterion/pkg/identity"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/credpool"
+	"github.com/arketov/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // A forfait slot names the store record it was read from, so the runner can

@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/internal/appinfo"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/sessionboard"
+	"github.com/arketov/iterion/pkg/internal/appinfo"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/sessionboard"
 )
 
 // serverInfoResponse describes the running server to the SPA. Used by

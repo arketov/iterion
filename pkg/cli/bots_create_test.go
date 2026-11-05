@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/botregistry"
-	"github.com/SocialGouv/iterion/pkg/botscaffold"
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/botregistry"
+	"github.com/arketov/iterion/pkg/botscaffold"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // inTempWorkspace chdirs into a fresh temp dir for the duration of the

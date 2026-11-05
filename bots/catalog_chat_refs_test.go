@@ -6,8 +6,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // A bundle's `chat:` block names workflow nodes, vars and schema fields BY

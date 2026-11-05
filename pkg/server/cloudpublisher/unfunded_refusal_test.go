@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // The workflows the ticket's own proof runs (#2485). `free` is the

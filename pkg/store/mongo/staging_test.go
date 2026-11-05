@@ -11,8 +11,8 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
-	"github.com/SocialGouv/iterion/pkg/internal/mongotest"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/internal/mongotest"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // A staged upload belongs to the tenant that staged it: another tenant's

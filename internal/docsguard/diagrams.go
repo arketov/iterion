@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/mdcode"
+	"github.com/arketov/iterion/internal/mdcode"
 )
 
 // A drawing nothing checks is a drawing that describes the schema of some
@@ -51,7 +51,7 @@ import (
 // modulePrefix maps an import path of this module onto a directory of this
 // tree, which is how a `pkg.Const` argument is resolved to the package that
 // declares it.
-const modulePrefix = "github.com/SocialGouv/iterion/"
+const modulePrefix = "github.com/arketov/iterion/"
 
 // diagramsDir holds the pages this guard reads. The ER pages are globbed, so
 // the model may be split across as many pages as it needs.

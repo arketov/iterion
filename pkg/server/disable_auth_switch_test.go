@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/auth"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // TestDisableAuthSwitchGovernsEveryProtectedRoute locks the ITERION_DISABLE_AUTH

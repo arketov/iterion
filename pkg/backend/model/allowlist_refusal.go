@@ -3,7 +3,7 @@ package model
 import (
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // KnownRoutingProviders is the provider vocabulary every launch-time walk

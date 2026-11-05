@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/testfs"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/dsl/workflowfile"
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/testfs"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/workflowfile"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 const provenanceSource = "schema out:\n  ok: bool\n\ntool work:\n  command: `true`\n  output: out\n\nworkflow provenance:\n  entry: work\n  work -> done\n"

@@ -7,7 +7,7 @@ import (
 	"os"
 	"unicode/utf8"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/cli"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )

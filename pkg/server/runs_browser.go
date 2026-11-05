@@ -13,9 +13,9 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/SocialGouv/iterion/internal/httpx"
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/backend/mcp"
+	"github.com/arketov/iterion/internal/httpx"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/backend/mcp"
 )
 
 // browserCDPReadDeadline is the per-frame read budget on the studio →

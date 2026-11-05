@@ -6,8 +6,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/runview"
 )
 
 // Cross-process steering, runner side: the per-run NATS subscriber

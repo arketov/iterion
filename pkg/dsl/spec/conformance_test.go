@@ -2,7 +2,7 @@ package spec_test
 
 import (
 	"fmt"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser/parsertest"
+	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
 	goast "go/ast"
 	goparser "go/parser"
 	"go/token"
@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
-	"github.com/SocialGouv/iterion/pkg/dsl/spec"
+	"github.com/arketov/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/pkg/dsl/spec"
 )
 
 // probes puts `<name>: 1` in the body of each kind that has a fixed property

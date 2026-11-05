@@ -2,8 +2,8 @@ package model
 
 import (
 	"context"
-	"github.com/SocialGouv/iterion/pkg/backend/compatgw"
-	"github.com/SocialGouv/iterion/pkg/backend/modelroute"
+	"github.com/arketov/iterion/pkg/backend/compatgw"
+	"github.com/arketov/iterion/pkg/backend/modelroute"
 	"slices"
 	"strconv"
 	"strings"

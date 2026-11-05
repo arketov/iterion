@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/detect"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/backend/detect"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 func TestReportFromCloudPresence_EmptyIsNotTheHost(t *testing.T) {

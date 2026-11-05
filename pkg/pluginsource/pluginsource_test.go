@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 func validSource() PluginSource {

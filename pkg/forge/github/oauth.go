@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // DefaultScopes is the OAuth-App scope set a GitHub connection requests.

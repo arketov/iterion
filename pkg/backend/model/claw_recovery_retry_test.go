@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // #2710: a long tool loop's structured recovery on a gateway model can come

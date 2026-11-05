@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/spec"
+	"github.com/arketov/iterion/pkg/dsl/spec"
 )
 
 // ebnfProductions maps a registry kind to the EBNF production that lists

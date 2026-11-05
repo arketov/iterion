@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/floortest"
-	"github.com/SocialGouv/iterion/pkg/dsl/parser"
+	"github.com/arketov/iterion/internal/floortest"
+	"github.com/arketov/iterion/pkg/dsl/parser"
 )
 
 // collapseTarget is the newest release the registry names OTHER than the one

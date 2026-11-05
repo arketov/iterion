@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/sandbox/devcontainer"
+	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/sandbox/devcontainer"
 )
 
 // The image ENV screen's answer for the engine's OWN namespace, held to the

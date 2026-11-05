@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // engineSuppliedVarFns is the table varExpandFn dispatches through — the

@@ -11,13 +11,13 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/sandbox/docker"
-	"github.com/SocialGouv/iterion/pkg/sandbox/kubernetes"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox/docker"
+	"github.com/arketov/iterion/pkg/sandbox/kubernetes"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // sharedFakeRun is a live sandbox handle a PARENT run would own: commands

@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // TestRun_isProcessIsolated: a pod never shares the node's process

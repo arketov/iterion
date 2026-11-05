@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/SocialGouv/iterion/pkg/askusermcp"
+	"github.com/arketov/iterion/pkg/askusermcp"
 )
 
 // mcpAskUserCmd runs a minimal MCP stdio server that exposes the ask-user

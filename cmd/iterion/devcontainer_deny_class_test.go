@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/errtrack"
-	"github.com/SocialGouv/iterion/pkg/sandbox/devcontainer"
+	"github.com/arketov/iterion/pkg/errtrack"
+	"github.com/arketov/iterion/pkg/sandbox/devcontainer"
 )
 
 // This binary is its own in-container runner (`iterion __claw-runner`), and

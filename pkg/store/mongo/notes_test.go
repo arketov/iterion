@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/internal/mongotest"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/internal/mongotest"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // newNoteTestStore builds a Mongo store against a throwaway database, or

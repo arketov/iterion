@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/treenoise"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/treenoise"
 )
 
 // TestDepUpdateGuardAlignProbeReadsTheTree runs align_probe against real

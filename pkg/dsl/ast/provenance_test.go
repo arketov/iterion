@@ -2,15 +2,15 @@ package ast_test
 
 import (
 	"encoding/json"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit/unittest"
+	"github.com/arketov/iterion/pkg/dsl/unit/unittest"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ast"
-	"github.com/SocialGouv/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dsl/ast"
+	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 
 var provenanceFixture = map[string]string{

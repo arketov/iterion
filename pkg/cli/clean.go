@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	iterruntime "github.com/SocialGouv/iterion/pkg/runtime"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/worktreepool"
+	iterruntime "github.com/arketov/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/worktreepool"
 )
 
 // The classifier this command drives lives in pkg/worktreepool, because

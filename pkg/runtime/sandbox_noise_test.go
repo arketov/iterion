@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox"
-	"github.com/SocialGouv/iterion/pkg/treenoise"
+	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/treenoise"
 )
 
 // The sandbox half of the env (plan review F1): in-sandbox tool scripts read

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // The run-files listing drops the canonical tree-noise entries: they are

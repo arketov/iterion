@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/operatormcp"
+	"github.com/arketov/iterion/pkg/operatormcp"
 )
 
 // driveOperator feeds JSON-RPC requests to runOperatorMCPServer and

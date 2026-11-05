@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	iterconfig "github.com/SocialGouv/iterion/pkg/config"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store/blob"
-	mongostore "github.com/SocialGouv/iterion/pkg/store/mongo"
+	iterconfig "github.com/arketov/iterion/pkg/config"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store/blob"
+	mongostore "github.com/arketov/iterion/pkg/store/mongo"
 )
 
 // newCloudBlob builds the S3-backed blob client used by every

@@ -11,11 +11,11 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate/claudesdk"
-	"github.com/SocialGouv/iterion/pkg/backend/permission"
-	"github.com/SocialGouv/iterion/pkg/backend/rewrite"
-	"github.com/SocialGouv/iterion/pkg/backend/secretguard"
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
+	"github.com/arketov/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/rewrite"
+	"github.com/arketov/iterion/pkg/backend/secretguard"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // askUserMCPServerName is the name under which iterion registers itself as an

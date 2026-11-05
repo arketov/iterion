@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/notify"
+	"github.com/arketov/iterion/pkg/notify"
 )
 
 // fakeDriver records consent prompts and replies, and lets a test feed

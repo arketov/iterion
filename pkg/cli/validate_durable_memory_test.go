@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
 )
 
 // durableStoreTool is the name of the durable memory store's write tool, read

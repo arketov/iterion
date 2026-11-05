@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/SocialGouv/iterion/pkg/dispatcher/tracker"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // StuckAction is what the watchdog does with a card whose claim expired

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // threeActionNodes is the program the connector half of `validate` is asked

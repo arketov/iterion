@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/SocialGouv/iterion/pkg/repograph"
+	"github.com/arketov/iterion/pkg/repograph"
 )
 
 // localMapTools exposes the repository graph (pkg/repograph) to an agent

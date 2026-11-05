@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/testparallel"
+	"github.com/arketov/iterion/internal/testparallel"
 )
 
 // botsParallelCap bounds how many of this package's tests may run at once.

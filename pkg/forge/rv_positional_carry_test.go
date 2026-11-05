@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/cloudsched"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/cloudsched"
 )
 
 // The carry queue under production ids: o.id() is a random uuid, so the

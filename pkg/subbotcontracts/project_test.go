@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/subbotcontracts"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/subbotcontracts"
 )
 
 // ProjectOutput builds the parent's subbot output from the child's contract:

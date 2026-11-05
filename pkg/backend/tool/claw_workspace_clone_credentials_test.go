@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // The cloud runner writes the run's LIVE forge token, in plaintext, to

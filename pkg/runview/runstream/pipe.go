@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // pipe is the producer-side subscription helper shared by every

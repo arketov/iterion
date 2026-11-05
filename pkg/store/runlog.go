@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // TeeRunLog opens <storeRoot>/runs/<runID>/run.log and returns a new

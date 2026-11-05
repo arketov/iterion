@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"maps"
 
-	"github.com/SocialGouv/iterion/pkg/internal/storekit"
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/internal/storekit"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 // reconcileStoredPins closes the provision's half of the credential pin

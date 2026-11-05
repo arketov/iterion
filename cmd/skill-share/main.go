@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/SocialGouv/iterion/internal/skillshare"
+	"github.com/arketov/iterion/internal/skillshare"
 )
 
 func main() {

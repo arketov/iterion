@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundle"
 )
 
 func TestCheckBotTaxonomy_WarnsOnUnknownCategoryAndTags(t *testing.T) {

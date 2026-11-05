@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/spec"
+	"github.com/arketov/iterion/pkg/dsl/spec"
 )
 
 // emitWords lists the words a jsonenc enum→string map can emit, sorted.

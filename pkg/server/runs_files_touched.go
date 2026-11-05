@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // This file implements GET /api/runs/{id}/files/touched — the list of

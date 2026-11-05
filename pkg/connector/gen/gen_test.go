@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/connector/gen"
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/pkg/connector/gen"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // The two fixtures describe the SAME small API in the two formats iterion

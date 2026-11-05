@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // ErrNoDonor is returned by Acquire when no pledge could serve the request.

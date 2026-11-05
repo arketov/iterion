@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/internal/mongotest"
-	"github.com/SocialGouv/iterion/pkg/reliability"
-	"github.com/SocialGouv/iterion/pkg/store"
-	"github.com/SocialGouv/iterion/pkg/store/blob"
-	mongostore "github.com/SocialGouv/iterion/pkg/store/mongo"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/internal/mongotest"
+	"github.com/arketov/iterion/pkg/reliability"
+	"github.com/arketov/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store/blob"
+	mongostore "github.com/arketov/iterion/pkg/store/mongo"
 )
 
 // This suite exercises pkg/cli's reliability baseline over the CLOUD run

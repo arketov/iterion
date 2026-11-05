@@ -7,7 +7,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
-	"github.com/SocialGouv/iterion/pkg/internal/mongotest"
+	"github.com/arketov/iterion/pkg/internal/mongotest"
 )
 
 // pinRow is the smallest pin-bearing row: the two pin maps and the version

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 func quietLogger() *iterlog.Logger { return iterlog.New(iterlog.LevelError, &bytes.Buffer{}) }

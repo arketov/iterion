@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // A forge that answers 429 is not iterion breaking. Told 500, the operator,

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // TestStoreSink_StallEpisodeBothEdges: the persisted-twin callback gets

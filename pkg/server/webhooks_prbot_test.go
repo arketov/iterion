@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/webhooks"
+	"github.com/arketov/iterion/pkg/webhooks"
 )
 
 // TestSelectIssueLabeledBot pins the issue-labeled routing: a freshly-labeled

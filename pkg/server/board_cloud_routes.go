@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
 )
 
 // registerCloudBoardRoutes mounts the kanban board REST surface in CLOUD

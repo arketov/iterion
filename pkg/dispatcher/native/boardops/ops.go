@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/boardcaps"
-	"github.com/SocialGouv/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/boardcaps"
+	"github.com/arketov/iterion/pkg/dispatcher/native"
 )
 
 // Capability names. Use these constants instead of string literals so a

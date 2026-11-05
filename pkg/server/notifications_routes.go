@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
-	"github.com/SocialGouv/iterion/pkg/deeplink"
-	"github.com/SocialGouv/iterion/pkg/usernotify"
-	"github.com/SocialGouv/iterion/pkg/usernotify/webpush"
+	"github.com/arketov/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/deeplink"
+	"github.com/arketov/iterion/pkg/usernotify"
+	"github.com/arketov/iterion/pkg/usernotify/webpush"
 )
 
 // webPushEnabled reports whether the web-push notification stack can run:

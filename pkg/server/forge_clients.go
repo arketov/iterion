@@ -11,17 +11,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/brand"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	"github.com/SocialGouv/iterion/pkg/cloudsched"
-	"github.com/SocialGouv/iterion/pkg/connection"
-	"github.com/SocialGouv/iterion/pkg/forge"
-	forgeforgejo "github.com/SocialGouv/iterion/pkg/forge/forgejo"
-	forgegithub "github.com/SocialGouv/iterion/pkg/forge/github"
-	forgegitlab "github.com/SocialGouv/iterion/pkg/forge/gitlab"
-	"github.com/SocialGouv/iterion/pkg/secrets"
-	"github.com/SocialGouv/iterion/pkg/secure/httpdial"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/brand"
+	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/cloudsched"
+	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/forge"
+	forgeforgejo "github.com/arketov/iterion/pkg/forge/forgejo"
+	forgegithub "github.com/arketov/iterion/pkg/forge/github"
+	forgegitlab "github.com/arketov/iterion/pkg/forge/gitlab"
+	"github.com/arketov/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secure/httpdial"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // ForgeGitHubAppConfig is the global GitHub-App identity (registered once on

@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/SocialGouv/iterion/internal/mdcode"
+	"github.com/arketov/iterion/internal/mdcode"
 )
 
 // The generated regions. A committed document carries

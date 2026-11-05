@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // CommandScope is the per-generation narrowing a workspace slash command's

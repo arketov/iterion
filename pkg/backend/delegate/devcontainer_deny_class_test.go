@@ -6,8 +6,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox/devcontainer"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/sandbox/devcontainer"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // A sandboxed agent CLI reads its routing from the container's env, which a

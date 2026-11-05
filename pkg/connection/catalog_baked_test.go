@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/connection"
 )
 
 // TestTheBakedFloorServesTheShippedPackageWithNoHomeAndNoWorkspace.

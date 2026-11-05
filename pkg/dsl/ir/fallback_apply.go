@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/llmroute"
+	"github.com/arketov/iterion/pkg/llmroute"
 )
 
 // RunFallbackName is the label the operator's launch-time route is

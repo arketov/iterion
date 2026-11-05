@@ -19,8 +19,8 @@ import (
 
 	natsgo "github.com/nats-io/nats.go"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The commands ride core NATS subjects (no stream, no KV): a plain

@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/spec"
+	"github.com/arketov/iterion/pkg/dsl/spec"
 )
 
 // writableNumber is the number the lexer reads: digits, an optional

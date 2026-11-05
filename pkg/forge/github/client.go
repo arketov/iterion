@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // AdminClient talks to one GitHub instance (github.com or GHE) as one

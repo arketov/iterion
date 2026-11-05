@@ -3,8 +3,8 @@ package runview
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/reliability"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/reliability"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // TestExecutionContextPolicyFromEnvDelegatesToReliability pins the property

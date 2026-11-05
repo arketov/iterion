@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // handleNodeFailure consults the recovery dispatcher (when wired) and

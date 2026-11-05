@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/safepath"
+	"github.com/arketov/iterion/internal/safepath"
 )
 
 func TestAnswerBindSourceCheckAnswersByTheSourceShape(t *testing.T) {

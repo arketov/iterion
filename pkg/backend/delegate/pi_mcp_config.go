@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // The pi spawn's MCP catalog travels as a FILE, never inline in an

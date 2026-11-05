@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // jsonStoreFile is the on-disk filename inside the configured dir. The

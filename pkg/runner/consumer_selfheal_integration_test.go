@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	natsq "github.com/SocialGouv/iterion/pkg/queue/nats"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	natsq "github.com/arketov/iterion/pkg/queue/nats"
 )
 
 // selfHealConn builds a fully-namespaced Conn (stream, DLQ, KV buckets,

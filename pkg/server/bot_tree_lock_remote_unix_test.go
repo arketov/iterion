@@ -11,12 +11,12 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/botinstall"
-	"github.com/SocialGouv/iterion/pkg/botlock"
-	"github.com/SocialGouv/iterion/pkg/bundle"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/marketplace"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/botinstall"
+	"github.com/arketov/iterion/pkg/botlock"
+	"github.com/arketov/iterion/pkg/bundle"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/marketplace"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // programGate holds a program git runs — an upload-pack, a fake ssh, a hook —

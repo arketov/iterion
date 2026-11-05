@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // ForgejoOptions configures the Forgejo (Gitea-compatible) adapter.

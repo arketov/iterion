@@ -11,8 +11,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"github.com/SocialGouv/iterion/pkg/internal/mongotest"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/internal/mongotest"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // TestEnsureSchema_OneStaleIndexDoesNotDropTheOthers pins ensureIndexes on a

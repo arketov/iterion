@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/sandbox"
 )
 
 // The claude_code spawn's MCP catalog travels as a FILE, never inline on argv.

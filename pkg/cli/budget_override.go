@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // BudgetOverrides aliases ir.BudgetOverrides so existing CLI callers

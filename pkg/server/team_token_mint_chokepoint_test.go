@@ -15,7 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/auth"
+	"github.com/arketov/iterion/pkg/auth"
 )
 
 // The class the derivation chokepoint closes is no longer defined by a shape
@@ -134,7 +134,7 @@ const moduleRoot = "../.."
 
 // modulePath is the module's own import path, which an alias must resolve a
 // verdict stamper's package by.
-const modulePath = "github.com/SocialGouv/iterion"
+const modulePath = "github.com/arketov/iterion"
 
 // mintVerb is one primitive that fabricates a team token, in the two
 // spellings source can reach it by.
@@ -155,8 +155,8 @@ type mintVerb struct {
 }
 
 var teamTokenMintVerbs = []mintVerb{
-	{call: "webhooks.MintToken", home: "pkg/webhooks", bare: "MintToken", pkgPath: "github.com/SocialGouv/iterion/pkg/webhooks"},
-	{call: "configshare.MintToken", home: "pkg/configshare", bare: "MintToken", pkgPath: "github.com/SocialGouv/iterion/pkg/configshare"},
+	{call: "webhooks.MintToken", home: "pkg/webhooks", bare: "MintToken", pkgPath: "github.com/arketov/iterion/pkg/webhooks"},
+	{call: "configshare.MintToken", home: "pkg/configshare", bare: "MintToken", pkgPath: "github.com/arketov/iterion/pkg/configshare"},
 	{call: "CreateInvitation"},
 }
 

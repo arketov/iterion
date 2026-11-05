@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/server/cloudpublisher"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/server/cloudpublisher"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The assistant's chat gate has two doors: the operator's text, and a

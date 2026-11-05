@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/internal/storekit"
+	"github.com/arketov/iterion/pkg/internal/storekit"
 )
 
 // MemoryStore is an in-memory Store for tests + single-process use. ClaimTick

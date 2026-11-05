@@ -9,7 +9,7 @@ import (
 	"github.com/SocialGouv/claw-code-go/pkg/api"
 	clawcmds "github.com/SocialGouv/claw-code-go/pkg/api/commands"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // DefaultWorkspaceCommandMaxBytes is the built-in ceiling on a workspace

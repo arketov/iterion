@@ -6,11 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/SocialGouv/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/bundle"
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/skilllib"
+	"github.com/arketov/iterion/pkg/skilllib"
 )
 
 // BundleSkill is one entry in a bundle's skill catalog. Mirrors the

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/internal/hometest"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/internal/hometest"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 func newTestLogger() *iterlog.Logger {

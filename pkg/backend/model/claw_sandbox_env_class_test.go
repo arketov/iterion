@@ -24,8 +24,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // The in-container claw runner (`iterion __claw-runner`) is this same binary:
@@ -546,7 +546,7 @@ var envEnumerators = map[string]bool{
 }
 
 const (
-	iterionModule = "github.com/SocialGouv/iterion/"
+	iterionModule = "github.com/arketov/iterion/"
 	modelPkgPath  = iterionModule + "pkg/backend/model"
 	runnerPkgPath = iterionModule + "cmd/iterion"
 	// runnerEntry is what `iterion __claw-runner` runs.

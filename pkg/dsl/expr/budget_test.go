@@ -8,7 +8,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/readbudget"
+	"github.com/arketov/iterion/pkg/dsl/readbudget"
 )
 
 // sumOf is an expression of n operands joined by `+` — 2n-1 tokens, the

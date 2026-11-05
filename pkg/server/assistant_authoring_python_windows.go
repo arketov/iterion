@@ -5,7 +5,7 @@ package server
 import (
 	"os/exec"
 
-	"github.com/SocialGouv/iterion/pkg/internal/proc"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 func configureAuthoringPythonCommand(cmd *exec.Cmd) {

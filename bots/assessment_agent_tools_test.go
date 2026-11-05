@@ -4,8 +4,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/toolcatalog"
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // NO AGENT OF THIS BUNDLE HOLDS A SHELL. `readonly: true` is a read-only OS

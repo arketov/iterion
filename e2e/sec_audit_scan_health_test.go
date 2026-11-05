@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	iterruntime "github.com/SocialGouv/iterion/pkg/runtime"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	iterruntime "github.com/arketov/iterion/pkg/runtime"
 )
 
 func writeRaw(path, body string) error {

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	iterconfig "github.com/SocialGouv/iterion/pkg/config"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterconfig "github.com/arketov/iterion/pkg/config"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // A cloud deployment that publishes no legal document starts — the texts are

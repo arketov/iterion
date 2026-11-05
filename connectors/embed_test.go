@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/connectors"
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/connector/spec"
+	"github.com/arketov/iterion/connectors"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/connector/spec"
 )
 
 // shippedPackages lists the connector packages in this directory on disk: a

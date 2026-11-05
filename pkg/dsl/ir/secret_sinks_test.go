@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/secretsink"
+	"github.com/arketov/iterion/pkg/dsl/secretsink"
 )
 
 // The compile-time sinks of ADR-146's table, one fixture each: the body that

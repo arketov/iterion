@@ -3,7 +3,7 @@ package runtime
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // mapping compiles a `with` template the way the IR compiler does

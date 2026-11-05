@@ -17,8 +17,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/SocialGouv/iterion/internal/mdcode"
-	gitlib "github.com/SocialGouv/iterion/pkg/git"
+	"github.com/arketov/iterion/internal/mdcode"
+	gitlib "github.com/arketov/iterion/pkg/git"
 )
 
 // A markdown link is checked the way GitHub resolves it: a relative path is

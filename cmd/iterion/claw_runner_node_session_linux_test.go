@@ -16,7 +16,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // A runner whose launcher ends the node's session draws none of its own: what

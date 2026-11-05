@@ -1,4 +1,4 @@
-module github.com/SocialGouv/iterion
+module github.com/arketov/iterion
 
 go 1.26.0
 

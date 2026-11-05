@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/gittest"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	"github.com/arketov/iterion/internal/gittest"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 // runOutputPaths decides what counts as the pass's work; the tree-noise list

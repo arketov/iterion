@@ -8,7 +8,7 @@ package botregistry
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/botscaffold"
+	"github.com/arketov/iterion/pkg/botscaffold"
 )
 
 func TestTheStagingSpellingsAgree(t *testing.T) {

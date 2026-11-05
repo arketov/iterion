@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/detecttest"
-	"github.com/SocialGouv/iterion/internal/gittest"
-	"github.com/SocialGouv/iterion/pkg/cli"
-	"github.com/SocialGouv/iterion/pkg/runview"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/internal/detecttest"
+	"github.com/arketov/iterion/internal/gittest"
+	"github.com/arketov/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // `iterion resume` judges the mono_family pin its run FROZE at launch

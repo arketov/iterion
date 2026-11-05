@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // ClaudeSession identifies a raw Claude Code CLI/VSCode session to

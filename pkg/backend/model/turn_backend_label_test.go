@@ -3,7 +3,7 @@ package model
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/backend/delegate"
 )
 
 // #1053 — delegateHooksFor receives the node's RESOLVED backend and used to

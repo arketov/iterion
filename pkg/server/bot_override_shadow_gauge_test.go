@@ -14,10 +14,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/iterion/pkg/botsource"
-	cloudmetrics "github.com/SocialGouv/iterion/pkg/cloud/metrics"
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
-	"github.com/SocialGouv/iterion/pkg/store"
+	"github.com/arketov/iterion/pkg/botsource"
+	cloudmetrics "github.com/arketov/iterion/pkg/cloud/metrics"
+	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The gauges are read through the registry's own EXPOSITION, never off the

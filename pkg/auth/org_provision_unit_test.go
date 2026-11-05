@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/identity"
+	"github.com/arketov/iterion/pkg/identity"
 )
 
 // CreateOrgFor used to read AFTER its first irreversible write: it wrote the

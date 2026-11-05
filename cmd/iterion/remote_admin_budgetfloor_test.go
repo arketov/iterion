@@ -13,8 +13,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/SocialGouv/iterion/pkg/budgetfloor"
-	"github.com/SocialGouv/iterion/pkg/cli"
+	"github.com/arketov/iterion/pkg/budgetfloor"
+	"github.com/arketov/iterion/pkg/cli"
 )
 
 // The PUT replaces the WHOLE policy, so the document this CLI sends carries

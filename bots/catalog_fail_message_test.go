@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
 // A FAIL NODE'S MESSAGE IS WHAT THE OPERATOR READS, and it is the only thing

@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	cloudmetrics "github.com/SocialGouv/iterion/pkg/cloud/metrics"
-	"github.com/SocialGouv/iterion/pkg/platformcfg"
-	natsq "github.com/SocialGouv/iterion/pkg/queue/nats"
-	"github.com/SocialGouv/iterion/pkg/runner"
-	"github.com/SocialGouv/iterion/pkg/store"
-	mongostore "github.com/SocialGouv/iterion/pkg/store/mongo"
+	cloudmetrics "github.com/arketov/iterion/pkg/cloud/metrics"
+	"github.com/arketov/iterion/pkg/platformcfg"
+	natsq "github.com/arketov/iterion/pkg/queue/nats"
+	"github.com/arketov/iterion/pkg/runner"
+	"github.com/arketov/iterion/pkg/store"
+	mongostore "github.com/arketov/iterion/pkg/store/mongo"
 )
 
 type fakeStaleLister struct {

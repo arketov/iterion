@@ -9,7 +9,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
 
-	"github.com/SocialGouv/iterion/pkg/lease"
+	"github.com/arketov/iterion/pkg/lease"
 )
 
 // The lease names of the server's singleton nets (pkg/lease), in one place so

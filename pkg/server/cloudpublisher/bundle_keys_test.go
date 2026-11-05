@@ -3,7 +3,7 @@ package cloudpublisher
 import (
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/secrets"
+	"github.com/arketov/iterion/pkg/secrets"
 )
 
 // The chokepoint writes a key with what travels with it — its gateway root

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	iterlog "github.com/SocialGouv/iterion/pkg/log"
+	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
 func mkGenericSecret(t *testing.T, store *MemoryGenericSecretStore, sealer Sealer, team, user, name, value string) GenericSecret {

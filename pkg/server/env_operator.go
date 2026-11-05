@@ -3,7 +3,7 @@ package server
 import (
 	"os"
 
-	"github.com/SocialGouv/iterion/internal/envtrust"
+	"github.com/arketov/iterion/internal/envtrust"
 )
 
 // envOperator reads an operator-grade variable as the process INHERITED it:

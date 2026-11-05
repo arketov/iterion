@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/dsl/ir"
-	"github.com/SocialGouv/iterion/pkg/platformcfg"
+	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/platformcfg"
 )
 
 // The reader predicate of the C188 lint (ADR-130) is the engine's own

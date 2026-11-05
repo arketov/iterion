@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/iterion/internal/sweepwalk"
+	"github.com/arketov/iterion/internal/sweepwalk"
 )
 
 // Every Manager outside this package has to say which servers its launcher
@@ -249,19 +249,19 @@ func TestTheSweepPredicateReadsTheShapesItClaims(t *testing.T) {
 		{
 			name: "armed inline by the option",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/backend/mcp"
+import "github.com/arketov/iterion/pkg/backend/mcp"
 func f() { m := mcp.NewManager(nil, mcp.WithStartPolicy(mcp.StartAllServers)); _ = m }`,
 		},
 		{
 			name: "armed by the engine's own call",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/backend/mcp"
+import "github.com/arketov/iterion/pkg/backend/mcp"
 func f() { m := mcp.NewManager(nil); m.SetStartPolicy(mcp.StartAllServers) }`,
 		},
 		{
 			name: "a struct field armed through the same spelling",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/backend/mcp"
+import "github.com/arketov/iterion/pkg/backend/mcp"
 type h struct{ mgr *mcp.Manager }
 func (x *h) f() { x.mgr = mcp.NewManager(nil); x.mgr.SetStartPolicy(mcp.StartAllServers) }`,
 		},
@@ -269,14 +269,14 @@ func (x *h) f() { x.mgr = mcp.NewManager(nil); x.mgr.SetStartPolicy(mcp.StartAll
 			// F3: the arming cannot share the scope of a package-level var.
 			name: "a package-level var armed in init",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/backend/mcp"
+import "github.com/arketov/iterion/pkg/backend/mcp"
 var m = mcp.NewManager(nil)
 func init() { m.SetStartPolicy(mcp.StartAllServers) }`,
 		},
 		{
 			name: "not armed at all",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/backend/mcp"
+import "github.com/arketov/iterion/pkg/backend/mcp"
 func f() { m := mcp.NewManager(nil); _ = m }`,
 			missing: 1,
 		},
@@ -285,7 +285,7 @@ func f() { m := mcp.NewManager(nil); _ = m }`,
 			// share a scope, or one's arming exempts the other.
 			name: "same method name, different receivers",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/backend/mcp"
+import "github.com/arketov/iterion/pkg/backend/mcp"
 type a struct{}
 type b struct{}
 func (a) setup() { m := mcp.NewManager(nil); m.SetStartPolicy(mcp.StartAllServers) }
@@ -295,27 +295,27 @@ func (b) setup() { m := mcp.NewManager(nil); _ = m }`,
 		{
 			name: "SetStartPolicy on an unrelated receiver arms nothing",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/backend/mcp"
+import "github.com/arketov/iterion/pkg/backend/mcp"
 func f(other thing) { m := mcp.NewManager(nil); _ = m; other.SetStartPolicy(1) }`,
 			missing: 1,
 		},
 		{
 			name: "a pre-built option is given up, not accused",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/backend/mcp"
+import "github.com/arketov/iterion/pkg/backend/mcp"
 func f(opts []mcp.Option) { m := mcp.NewManager(nil, opts...); _ = m }`,
 			gaveUp: 1,
 		},
 		{
 			name: "another package's NewManager is not ours",
 			src: `package p
-import "github.com/SocialGouv/iterion/pkg/dispatcher"
+import "github.com/arketov/iterion/pkg/dispatcher"
 func f() { m := dispatcher.NewManager(nil); _ = m }`,
 		},
 		{
 			name: "an aliased import is still ours",
 			src: `package p
-import xmcp "github.com/SocialGouv/iterion/pkg/backend/mcp"
+import xmcp "github.com/arketov/iterion/pkg/backend/mcp"
 func f() { m := xmcp.NewManager(nil); _ = m }`,
 			missing: 1,
 		},
@@ -355,7 +355,7 @@ func isMCPNewManagerCall(fun ast.Expr, mcpPkg string) bool {
 // mcpImportName returns the local name under which the file imports
 // pkg/backend/mcp, or "" when it does not import it.
 func mcpImportName(file *ast.File) string {
-	const path = `"github.com/SocialGouv/iterion/pkg/backend/mcp"`
+	const path = `"github.com/arketov/iterion/pkg/backend/mcp"`
 	for _, imp := range file.Imports {
 		if imp.Path == nil || imp.Path.Value != path {
 			continue

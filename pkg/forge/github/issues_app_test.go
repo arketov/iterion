@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/forge"
 )
 
 // The App client is the PRODUCTION shape of a GitHub connection (the studio's
