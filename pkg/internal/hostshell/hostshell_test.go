@@ -150,3 +150,16 @@ func TestScriptInterpreter(t *testing.T) {
 		t.Fatalf("python: %q", argv)
 	}
 }
+
+func TestOutputsForKeepsASharedWriterShared(t *testing.T) {
+	ps := exec.Command("pwsh", "-NoLogo", "-NoProfile")
+	var shared, other strings.Builder
+	o, e := OutputsFor(ps, &shared, &shared)
+	if o != e {
+		t.Fatal("one writer for both streams must stay one wrapper: os/exec serialises only identical Stdout and Stderr")
+	}
+	o, e = OutputsFor(ps, &shared, &other)
+	if o == e {
+		t.Fatal("different writers must stay different")
+	}
+}

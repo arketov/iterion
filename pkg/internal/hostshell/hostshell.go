@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 
@@ -166,11 +167,12 @@ func named(name, platform string) (Shell, error) {
 
 // psInlineLimit is the longest script (characters, prelude and epilogue
 // included) handed to PowerShell on the command line; a Windows command line
-// is capped at 32767, so a longer script is streamed on stdin instead.
+// is capped at 32767 and Go escapes each quote and the backslashes before it
+// (worst case it doubles the script), so a longer script is streamed on stdin.
 // -EncodedCommand is deliberately not used: powershell.exe 5.1 answers it
 // with its error and warning streams serialised as CLIXML on stderr, which
 // no flag turns off, whereas a plain -Command keeps stderr text.
-const psInlineLimit = 24000
+const psInlineLimit = 12000
 
 // psPrelude makes the child's output UTF-8 whatever the console code page
 // (5.1 defaults to the OEM page), plain text (pwsh 7.2+ colours tables and
@@ -327,6 +329,26 @@ func OutputFor(cmd *exec.Cmd, w io.Writer) io.Writer {
 		return w
 	}
 	return &lfWriter{w: w}
+}
+
+// OutputsFor is OutputFor for a command's stdout and stderr together. When
+// the caller hands the same writer for both, they stay ONE writer (one
+// wrapper for both fields): os/exec serialises writes only for identical
+// Stdout and Stderr, and the caller's writer may rely on that.
+func OutputsFor(cmd *exec.Cmd, stdout, stderr io.Writer) (io.Writer, io.Writer) {
+	if sameWriter(stdout, stderr) {
+		w := OutputFor(cmd, stdout)
+		return w, w
+	}
+	return OutputFor(cmd, stdout), OutputFor(cmd, stderr)
+}
+
+func sameWriter(a, b io.Writer) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	ta, tb := reflect.TypeOf(a), reflect.TypeOf(b)
+	return ta == tb && ta.Comparable() && a == b
 }
 
 // lfWriter rewrites CRLF to LF. A CR ending one Write is held until the next

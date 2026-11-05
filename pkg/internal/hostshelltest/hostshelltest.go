@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/arketov/iterion/pkg/internal/hostshell"
@@ -25,10 +26,17 @@ func PreferPosix() {
 		return
 	}
 	for _, name := range []string{"sh", "bash"} {
-		if _, err := exec.LookPath(name); err == nil {
-			_ = os.Setenv(hostshell.EnvVar, name)
-			return
+		path, err := exec.LookPath(name)
+		if err != nil {
+			continue
 		}
+		// System32\bash.exe is the WSL launcher: it runs the fixture inside a
+		// Linux distribution with other paths, not a shell of this host.
+		if strings.Contains(strings.ToLower(path), `\system32\`) {
+			continue
+		}
+		_ = os.Setenv(hostshell.EnvVar, name)
+		return
 	}
 }
 

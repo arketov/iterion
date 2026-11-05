@@ -56,7 +56,6 @@ func RunLifecycle(ctx context.Context, reg *Registry, name, phase, workspace str
 	// Cancelling the request has to end that walk, not just stop reading it.
 	proc.TerminateGroupOnCancel(c)
 	c.Dir = workspace
-	c.Stdout = hostshell.OutputFor(c, stdout)
-	c.Stderr = hostshell.OutputFor(c, stderr)
+	c.Stdout, c.Stderr = hostshell.OutputsFor(c, stdout, stderr)
 	return c.Run()
 }
