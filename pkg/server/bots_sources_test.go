@@ -9,7 +9,7 @@ import (
 
 func TestParseBotInclude(t *testing.T) {
 	cases := map[string]botInclude{
-		"":                         {},
+		"/x":                       {},
 		"/x?include=all":           {builtin: true, files: true},
 		"/x?include=builtin":       {builtin: true},
 		"/x?include=files,builtin": {builtin: true, files: true},
