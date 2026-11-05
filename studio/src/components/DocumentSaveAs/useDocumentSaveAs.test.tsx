@@ -385,3 +385,33 @@ describe("useDocumentSaveAs", () => {
     expect(toasts[toasts.length - 1]?.message).toMatch(/isn't available in cloud/i);
   });
 });
+
+describe("useDocumentSaveAs file name", () => {
+  it("proposes the imported file's own name, not the workflow block's", async () => {
+    const store = documentStore();
+    store.getState().setCurrentFilePath(null);
+    store.getState().setImportedFileName("dev-flow.bot");
+    render(<Harness store={store} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Save As" }));
+    expect(await screen.findByDisplayValue("dev-flow.bot")).toBeTruthy();
+  });
+
+  it("forgets the imported name once the tab is bound to a path", () => {
+    const store = documentStore();
+    store.getState().setImportedFileName("dev-flow.bot");
+    store.getState().setCurrentFilePath("bots/dev-flow.bot");
+    expect(store.getState().importedFileName).toBeNull();
+  });
+
+  it("says the file is written in canonical format and never overwritten", async () => {
+    const store = documentStore();
+    api.saveFile.mockRejectedValue(new Error("API error 409: file already exists"));
+    render(<Harness store={store} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Save As" }));
+    expect((await screen.findByRole("dialog")).textContent).toMatch(/canonical format/i);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect((await screen.findByRole("alert")).textContent).toMatch(/never overwrites/i);
+  });
+});

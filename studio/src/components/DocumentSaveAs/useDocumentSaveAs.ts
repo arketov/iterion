@@ -30,9 +30,10 @@ type PendingSaveAs = DocumentSaveAsRequest;
 function suggestedFileName(store: DocumentStore): string {
   const state = store.getState();
   const fallback = state.document?.workflows?.[0]?.name || "workflow";
-  return state.currentFilePath
-    ? state.currentFilePath.split("/").pop() || `${fallback}.bot`
-    : `${fallback}.bot`;
+  // An imported file keeps its own name: the workflow block's name is only
+  // the last resort, for a document that came from no file.
+  if (state.currentFilePath) return state.currentFilePath.split("/").pop() || `${fallback}.bot`;
+  return state.importedFileName || `${fallback}.bot`;
 }
 
 export function useDocumentSaveAs() {
@@ -197,7 +198,12 @@ export function useDocumentSaveAs() {
       }
       target.onSaved?.({ path: result.path, source: result.source, clean });
     } catch (err) {
-      setError(errorMessage(err));
+      const message = errorMessage(err);
+      setError(
+        /already exists/i.test(message)
+          ? `${message} — Save As creates a new file and never overwrites. Pick another name, or open the existing file from Open recent to save over it.`
+          : message,
+      );
     } finally {
       setBusy(false);
     }
