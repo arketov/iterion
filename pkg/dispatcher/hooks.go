@@ -91,10 +91,14 @@ func (h *Hook) Run(ctx context.Context, logger *iterlog.Logger, name, workspace 
 		return fmt.Errorf("hook %s: empty command", name)
 	}
 
-	cmd, err := hostshell.Command(cctx, hostshell.Request{Name: h.Shell}, command, true)
+	sh, err := hostshell.Resolve(hostshell.Request{Name: h.Shell, Script: command})
 	if err != nil {
 		return fmt.Errorf("hook %s: %w", name, err)
 	}
+	if sh.Note != "" {
+		logger.Warn("dispatcher: hook %s: %s", name, sh.Note)
+	}
+	cmd := sh.Command(cctx, command, true)
 	// Cancellation takes the whole group: a hook's backgrounded grandchild
 	// would otherwise outlive the timeout, keep writing the workspace the
 	// next lifecycle step is about to act on, and hold the inherited

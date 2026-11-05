@@ -163,3 +163,67 @@ func TestOutputsForKeepsASharedWriterShared(t *testing.T) {
 		t.Fatal("different writers must stay different")
 	}
 }
+
+func TestLooksPosix(t *testing.T) {
+	posix := []string{
+		"set -e\necho hi",
+		"PROJECT_DIR=\"/x\"\ngit -C \"$PROJECT_DIR\" status",
+		"export FOO=1",
+		"#!/bin/sh\necho hi",
+		"if [ -d x ]; then\n  echo y\nfi",
+		"# comment first\nset -eu",
+	}
+	for _, s := range posix {
+		if !LooksPosix(s) {
+			t.Errorf("LooksPosix(%q) = false, want true", s)
+		}
+	}
+	notPosix := []string{
+		"Write-Output hi",
+		"$projectDir = 'C:/x'\ngit -C $projectDir status",
+		"git status",
+		"git add -A && git commit -m x",
+		"# just a comment",
+		"$env:FOO = '1'",
+		"set -Name x -Value 1",
+		"$h = @{\n  Name='x'\n  Other='y'\n}\nWrite-Output $h",
+		"$t = @\"\nKEY=value\nset -e\n\"@\nWrite-Output $t",
+		"",
+	}
+	for _, s := range notPosix {
+		if LooksPosix(s) {
+			t.Errorf("LooksPosix(%q) = true, want false", s)
+		}
+	}
+}
+
+func TestLegacyShScriptOnAPowerShellHost(t *testing.T) {
+	script := "set -e\necho hi"
+	// sh on PATH: the old script keeps running under it, with a note.
+	withSeams(t, fakeLook("pwsh", "sh"), "")
+	sh, err := resolve(Request{Script: script}, "windows")
+	if err != nil || sh.Kind != KindSh || sh.Note == "" {
+		t.Fatalf("got %+v, %v; want sh with a note", sh, err)
+	}
+	// A PowerShell script is not touched.
+	sh, _ = resolve(Request{Script: "Write-Output hi"}, "windows")
+	if sh.Kind != KindPowerShell || sh.Note != "" {
+		t.Fatalf("PowerShell text must stay on PowerShell: %+v", sh)
+	}
+	// An explicit shell wins over the sniffing.
+	sh, _ = resolve(Request{Name: "pwsh", Script: script}, "windows")
+	if sh.Kind != KindPowerShell {
+		t.Fatalf("explicit shell ignored: %+v", sh)
+	}
+	// No sh anywhere: a clear, typed error — not PowerShell misreading sh.
+	withSeams(t, fakeLook("pwsh"), "")
+	_, err = resolve(Request{Script: script}, "windows")
+	var pe *PosixScriptError
+	if !errors.As(err, &pe) || !strings.Contains(err.Error(), "shell:") {
+		t.Fatalf("err = %v, want *PosixScriptError naming the remedy", err)
+	}
+	// POSIX hosts are unaffected.
+	if sh, err := resolve(Request{Script: script}, "linux"); err != nil || sh.Kind != KindSh || sh.Note != "" {
+		t.Fatalf("linux: %+v, %v", sh, err)
+	}
+}

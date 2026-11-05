@@ -27,8 +27,9 @@ interface Props {
 export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
   const [cfg, setCfg] = useState<dispatcher.DispatcherConfig | null>(null);
   // True when the server has no dispatcher.json yet (GET /config returns
-  // 404): the only state in which POST /defaults/apply is accepted (409
-  // otherwise), so the "Use default settings" button shows only then.
+  // 404): the state in which "Use default settings" is offered. With a
+  // saved config the same endpoint needs ?replace=1 (409 otherwise), which
+  // is what "Reset to default settings" asks for.
   const [noConfig, setNoConfig] = useState(false);
   const defaultsAction = useAsyncAction();
   // The bot list the Workflow path / assignee pickers draw from.
@@ -82,6 +83,24 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
       onClose();
     });
 
+  // The way back when a config already exists: replaces the saved settings
+  // (hooks included) with the ready-made ones, after an explicit confirm.
+  const onResetToDefaults = () => {
+    if (
+      !window.confirm(
+        "Replace the saved dispatcher settings with the default ones? " +
+          "Your current settings, including hooks, will be overwritten and the dispatcher restarted.",
+      )
+    ) {
+      return;
+    }
+    void defaultsAction.run(async () => {
+      await dispatcher.applyDefaults({ replace: true });
+      onSaved();
+      onClose();
+    });
+  };
+
   return (
     <Drawer
       open={open}
@@ -132,6 +151,24 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
               onClick={() => void onUseDefaults()}
             >
               Use default settings
+            </Button>
+          </InlineBanner>
+        )}
+
+        {!noConfig && !loading && cfg && (
+          <InlineBanner tone="info" title="Something wrong with these settings?">
+            <p>
+              Go back to the ready-made dispatcher: the local board, the default hooks for this
+              computer, started at once. The saved settings are overwritten.
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="mt-2"
+              loading={defaultsAction.busy}
+              onClick={onResetToDefaults}
+            >
+              Reset to default settings
             </Button>
           </InlineBanner>
         )}
