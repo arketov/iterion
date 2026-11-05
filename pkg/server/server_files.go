@@ -34,6 +34,9 @@ type listFilesResponse struct {
 type fileEntry struct {
 	Name string `json:"name"`
 	Size int64  `json:"size"`
+	// Kind is "bundle" for a multi-file bot (listed once, by its entry file)
+	// or "file" for a single-file bot. Only GET /api/files sets it.
+	Kind string `json:"kind,omitempty"`
 }
 
 type openFileRequest struct {

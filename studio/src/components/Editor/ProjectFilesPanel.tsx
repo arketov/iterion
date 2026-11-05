@@ -48,6 +48,8 @@ export default function ProjectFilesPanel() {
     staleTime: 0,
   });
   const files = filesQuery.error ? EMPTY_FILES : (filesQuery.data?.files ?? EMPTY_FILES);
+  const bundles = files.filter((f) => f.kind === "bundle");
+  const singles = files.filter((f) => f.kind !== "bundle");
   const truncated = !filesQuery.error && !!filesQuery.data?.truncated;
   const filesError = filesQuery.error ? errorMessage(filesQuery.error) : null;
 
@@ -200,32 +202,16 @@ export default function ProjectFilesPanel() {
           }
         />
       ) : (
-        <ul className="mt-1 space-y-0.5">
-          {files.map((f) => (
-            <li key={f.name}>
-              <button
-                type="button"
-                onClick={() => openProjectFile(f.name)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-surface-2 text-left text-xs focus-visible:ring-1 focus-visible:ring-accent"
-                title={f.name}
-              >
-                <FileIcon className="w-3.5 h-3.5 text-fg-subtle shrink-0" />
-                <ClampText
-                  className="font-medium min-w-0"
-                  text={basename(f.name)}
-                  focusable={false}
-                />
-                {basename(f.name) !== f.name && (
-                  <ClampText
-                    className="text-fg-subtle text-caption min-w-0"
-                    text={f.name}
-                    focusable={false}
-                  />
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-1 space-y-2">
+          {bundles.length > 0 && <FileGroup title="Bot bundles" files={bundles} onOpen={openProjectFile} />}
+          {singles.length > 0 && (
+            <FileGroup
+              title={bundles.length > 0 ? "Single files" : undefined}
+              files={singles}
+              onOpen={openProjectFile}
+            />
+          )}
+        </div>
       )}
       {truncated && (
         <p className="mt-1 px-1 text-caption text-fg-subtle">
@@ -233,6 +219,40 @@ export default function ProjectFilesPanel() {
           ITERION_STUDIO_FILES_LIMIT.
         </p>
       )}
+    </div>
+  );
+}
+
+function FileGroup({
+  title,
+  files,
+  onOpen,
+}: {
+  title?: string;
+  files: FileEntry[];
+  onOpen: (path: string) => void;
+}) {
+  return (
+    <div>
+      {title && <div className="px-1 text-caption text-fg-subtle">{title}</div>}
+      <ul className="space-y-0.5">
+        {files.map((f) => (
+          <li key={f.name}>
+            <button
+              type="button"
+              onClick={() => onOpen(f.name)}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-surface-2 text-left text-xs focus-visible:ring-1 focus-visible:ring-accent"
+              title={f.name}
+            >
+              <FileIcon className="w-3.5 h-3.5 text-fg-subtle shrink-0" />
+              <ClampText className="font-medium min-w-0" text={basename(f.name)} focusable={false} />
+              {basename(f.name) !== f.name && (
+                <ClampText className="text-fg-subtle text-caption min-w-0" text={f.name} focusable={false} />
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

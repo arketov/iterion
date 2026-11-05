@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/arketov/iterion/pkg/botregistry"
 )
 
 // defaultListFilesLimit caps GET /api/files. A project folder can hold
@@ -28,24 +30,6 @@ func listFilesLimit() int {
 	return n
 }
 
-// isBundleFragment reports whether a slash-separated project-relative path
-// is a part of a multi-file bot rather than a bot of its own: anything under
-// bots/<name>/ except that bot's main.bot (lib/nodes.bot, lib/prompts.bot,
-// skills, …). A file directly under bots/ is a bot of its own.
-func isBundleFragment(rel string) bool {
-	segs := strings.Split(rel, "/")
-	for i, s := range segs {
-		if s != "bots" {
-			continue
-		}
-		rest := segs[i+1:]
-		if len(rest) >= 2 {
-			return strings.Join(rest[1:], "/") != "main.bot"
-		}
-	}
-	return false
-}
-
 // isNestedRepo reports whether dir (not the walk root) is the root of its own
 // git checkout — a clone, submodule or linked worktree, all marked by a
 // `.git` entry. Its files belong to that project, not to this one.
@@ -54,50 +38,98 @@ func isNestedRepo(dir string) bool {
 	return err == nil
 }
 
-// listWorkflowFiles walks workDir for the workflow files the editor can open
-// as bots of this project: it does not descend into nested git checkouts or
-// hidden/vendor directories, leaves out bundle fragments, and stops after
-// limit entries (limit <= 0: no cap). truncated reports that the cap cut the
-// list short.
+// manifestFileName marks a directory as one bot bundle (see botregistry).
+const manifestFileName = "manifest.yaml"
+
+// Kinds of a listed file. A bundle is one row however many files it has: its
+// main.bot. A file is a single-file bot.
+const (
+	fileKindBundle = "bundle"
+	fileKindFile   = "file"
+)
+
+// listWorkflowFiles lists the bots the editor can open for this project, from
+// the same places the bot catalog looks in (botregistry.DefaultPaths: bots/,
+// examples/, .botz/) plus the single .bot files directly in the project root
+// (no recursion there). A bundle — a directory with a manifest.yaml — is one
+// row, its main.bot; the rest of its files (lib/, skills, …) are parts of it,
+// not bots. Nested git checkouts (a directory holding .git: clone, submodule,
+// linked worktree) and hidden directories are never entered. The list stops
+// after limit entries (limit <= 0: no cap); truncated reports that.
 func listWorkflowFiles(workDir string, limit int) (files []fileEntry, truncated bool) {
 	files = []fileEntry{}
-	// Per-entry errors are handled in the callback; a root-level walk failure
-	// yields the partial (possibly empty) list, which this read-only file
-	// browser degrades to gracefully.
-	_ = filepath.WalkDir(workDir, func(path string, d fs.DirEntry, err error) error {
+	seen := map[string]struct{}{}
+	// add returns false once the cap is hit.
+	add := func(path, kind string) bool {
+		rel, err := filepath.Rel(workDir, path)
 		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			if path == workDir {
-				return nil
-			}
-			if isSkippedDir(d.Name()) || isNestedRepo(path) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !isWorkflowFile(d.Name()) {
-			return nil
-		}
-		rel, rerr := filepath.Rel(workDir, path)
-		if rerr != nil {
-			return nil
+			return true
 		}
 		rel = filepath.ToSlash(rel)
-		if isBundleFragment(rel) {
-			return nil
+		if _, dup := seen[rel]; dup {
+			return true
 		}
-		info, ierr := d.Info()
-		if ierr != nil {
-			return nil
+		info, err := os.Stat(path)
+		if err != nil || info.IsDir() {
+			return true
 		}
 		if limit > 0 && len(files) >= limit {
 			truncated = true
-			return fs.SkipAll
+			return false
 		}
-		files = append(files, fileEntry{Name: rel, Size: info.Size()})
-		return nil
-	})
+		seen[rel] = struct{}{}
+		files = append(files, fileEntry{Name: rel, Size: info.Size(), Kind: kind})
+		return true
+	}
+
+	// Single files at the project root, not below it.
+	if entries, err := os.ReadDir(workDir); err == nil {
+		for _, e := range entries {
+			if e.IsDir() || !isWorkflowFile(e.Name()) {
+				continue
+			}
+			if !add(filepath.Join(workDir, e.Name()), fileKindFile) {
+				return files, truncated
+			}
+		}
+	}
+
+	for _, root := range botregistry.DefaultPaths(workDir) {
+		stop := false
+		// Per-entry errors are handled in the callback; an absent root or a
+		// walk failure yields the partial (possibly empty) list, which this
+		// read-only file browser degrades to gracefully.
+		_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if d.IsDir() {
+				if path != root && (isSkippedDir(d.Name()) || isNestedRepo(path)) {
+					return filepath.SkipDir
+				}
+				if _, err := os.Stat(filepath.Join(path, manifestFileName)); err == nil {
+					// One bundle: its entry file, not its parts.
+					if !add(filepath.Join(path, "main.bot"), fileKindBundle) {
+						stop = true
+						return fs.SkipAll
+					}
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !isWorkflowFile(d.Name()) {
+				return nil
+			}
+			if !add(path, fileKindFile) {
+				stop = true
+				return fs.SkipAll
+			}
+			return nil
+		})
+		if stop {
+			return files, truncated
+		}
+	}
+
 	return files, truncated
 }

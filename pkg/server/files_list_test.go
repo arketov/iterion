@@ -26,53 +26,51 @@ func listedNames(es []fileEntry) []string {
 	return out
 }
 
-func TestIsBundleFragment(t *testing.T) {
-	cases := map[string]bool{
-		"dev-flow.bot":             false,
-		"bots/review.bot":          false,
-		"bots/x/main.bot":          false,
-		"bots/x/lib/nodes.bot":     true,
-		"bots/x/lib/prompts.bot":   true,
-		"bots/x/other.bot":         true,
-		"sub/bots/x/main.bot":      false,
-		"sub/bots/x/lib/nodes.bot": true,
-		"examples/a.bot":           false,
-	}
-	for rel, want := range cases {
-		if got := isBundleFragment(rel); got != want {
-			t.Errorf("isBundleFragment(%q) = %v, want %v", rel, got, want)
-		}
-	}
-}
-
-func TestListWorkflowFiles_SkipsNestedReposAndFragments(t *testing.T) {
+func TestListWorkflowFiles_Scope(t *testing.T) {
 	root := t.TempDir()
+	// Root: single files only, no recursion.
 	writeListFixture(t, root, "dev-flow.bot")
-	writeListFixture(t, root, "bots/review.bot")
+	writeListFixture(t, root, "elsewhere/deep.bot")
+	// bots/: a bundle is one row (main.bot); its lib/ parts are not rows.
+	writeListFixture(t, root, "bots/x/manifest.yaml")
 	writeListFixture(t, root, "bots/x/main.bot")
 	writeListFixture(t, root, "bots/x/lib/nodes.bot")
-	// A nested clone and a linked worktree: each has a .git entry.
-	writeListFixture(t, root, "build/src/bots/y/main.bot")
-	writeListFixture(t, root, "build/src/.git") // .git as a file, like a worktree
-	writeListFixture(t, root, "clone/a.bot")
-	if err := os.MkdirAll(filepath.Join(root, "clone", ".git"), 0o755); err != nil {
+	writeListFixture(t, root, "bots/review.bot")
+	// examples/ and .botz/ are discovery roots too.
+	writeListFixture(t, root, "examples/demo.bot")
+	writeListFixture(t, root, ".botz/packed/manifest.yaml")
+	writeListFixture(t, root, ".botz/packed/main.bot")
+	// A nested clone and a linked worktree inside a root: each holds .git.
+	writeListFixture(t, root, "bots/clone/a.bot")
+	if err := os.MkdirAll(filepath.Join(root, "bots", "clone", ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// A hidden directory is still skipped.
-	writeListFixture(t, root, ".worktree/w/a.bot")
+	writeListFixture(t, root, "examples/wt/b.bot")
+	writeListFixture(t, root, "examples/wt/.git") // .git as a file, like a worktree
+	// A nested clone of the whole project below the root is never reached.
+	writeListFixture(t, root, "build-desktop/src/bots/y/main.bot")
 
 	files, truncated := listWorkflowFiles(root, 0)
 	if truncated {
 		t.Fatal("unexpected truncation")
 	}
-	got := listedNames(files)
-	want := []string{"bots/review.bot", "bots/x/main.bot", "dev-flow.bot"}
+	got := map[string]string{}
+	for _, f := range files {
+		got[f.Name] = f.Kind
+	}
+	want := map[string]string{
+		"bots/x/main.bot":       fileKindBundle,
+		"bots/review.bot":       fileKindFile,
+		"examples/demo.bot":     fileKindFile,
+		".botz/packed/main.bot": fileKindBundle,
+		"dev-flow.bot":          fileKindFile,
+	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
 }
 
-func TestListWorkflowFiles_RootWithGitIsStillWalked(t *testing.T) {
+func TestListWorkflowFiles_ProjectRootWithGitIsStillListed(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, ".git"), 0o755); err != nil {
 		t.Fatal(err)

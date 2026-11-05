@@ -1010,6 +1010,8 @@ export type NodeKind =
 export interface FileEntry {
   name: string;
   size: number;
+  /** "bundle": a multi-file bot, listed once by its entry file; "file": a single-file bot. */
+  kind?: "bundle" | "file";
 }
 
 export interface ListFilesResponse {
