@@ -399,8 +399,9 @@ at `agent.max_retry_backoff_ms` (default 300000, five minutes). The
 sandbox schedule exists because a sandbox that failed to start fails the
 same way until the host (Docker daemon, disk, memory) is fixed: retrying
 every ten seconds only piles container churn onto a struggling machine. A
-parked entry stays in the retry queue; clear it from the studio after
-fixing the host, or let the hour pass. The attempt counter,
+parked entry stays in the retry queue until its hour has passed; the studio
+has no button that drops a retry, so after fixing the host stop and start the
+dispatcher (or let the hour pass). The attempt counter,
 `max_attempts` and the give-up move below apply to every row.
 
 The Dispatcher page's *Retry queue* shows the **full** last error
@@ -420,7 +421,7 @@ dispatcher keeps a structured `HookError` and the studio shows its parts.
 | Part | What it tells you | Snapshot field |
 |---|---|---|
 | Hook name | Which hook failed: `after_create` or `before_run` (the two that can abort a dispatch) | `retries[].hook` |
-| Exit code | The hook's own exit status. **`-1` means no exit status at all**: the shell could not be started (not found, bad path) or the hook ran past its `timeout_ms` (60 s when unset) and was killed | `retries[].hook_exit_code` |
+| Exit code | The hook's own exit status. **`-1` means no exit status**: the shell process could not be started or was killed by a signal, or the hook ran past its `timeout_ms` (60 s when unset) and was killed. When no shell is found at all, the hook fails before it runs: the error names what was looked for, but the row carries no hook name or exit code | `retries[].hook_exit_code` |
 | stderr | The last 2 KiB the hook wrote to stderr — usually the line that names the cause | `retries[].hook_stderr` |
 | Log path | The daemon's log file, with the complete hook output and the chronology; shown when the host process set `ITERION_DAEMON_LOG` (the desktop app's daemon does) | top-level `log_path` |
 
@@ -606,10 +607,12 @@ result is a branch you can look at, and the card shows a *Run* row for it.
 **Accept it.** Open the run console and the **Commits** tab. For a finished
 run with a storage branch the tab offers the merge even though the automatic
 one was skipped: choose *Squash and merge* (one commit; the message is
-editable) or *Merge commit* (keeps the history) and confirm. The commits land on
-the branch **checked out in the project folder right now**. The merge is
-refused (409, the branch is untouched) when that checkout has uncommitted
-changes, so commit or stash first. A content conflict is left in the project checkout and the same
+editable) or *Merge commit (preserve history)* and confirm. The commits land on
+the branch **checked out in the project folder right now**; there is no choice
+of target. The second option is a fast-forward, not a merge commit: it is
+refused as non-fast-forward when that branch has moved on since the run
+started. Either merge is refused (409, nothing changes) when the checkout has
+uncommitted changes, so commit or stash first. A content conflict is left in the project checkout and the same
 tab walks you through resolving it. A merge from the studio is also what moves
 the card on: `agent.merged_state` (default `done`) — see
 [terminal-state keys](#terminal-state-keys).
@@ -630,13 +633,13 @@ git as usual — `git revert <merged-commit>`; the run header shows the commit.
 `iterion/run/<run-id>` branch in your project, merged or not, and nothing
 deletes them: remove the ones you will not merge.
 
-**A bot without `worktree: auto`** writes straight into the dispatcher
-workspace, a detached HEAD, with no finalization at all: no branch, no run
-header merge line. Whatever it commits is reachable only from that detached
-HEAD. Under `cleanup_on_done` the dispatcher refuses to delete a workspace
-with uncommitted changes and says so in its log (see
+**A bot with `worktree: none`** (an unset `worktree:` means `auto`) writes
+straight into the dispatcher workspace, a detached HEAD, with no finalization
+at all: no branch, no run header merge line. Whatever it commits is reachable
+only from that detached HEAD. Under `cleanup_on_done` the dispatcher refuses to
+delete a workspace with uncommitted changes and says so in its log (see
 [Workspace lifecycle](#workspace-lifecycle)); committed work is still only in
-the workspace. Give such a bot `worktree: auto` unless it is read-only.
+the workspace. Leave `worktree:` at its default unless the bot is read-only.
 
 ## Hooks
 

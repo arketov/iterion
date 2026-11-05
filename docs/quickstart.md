@@ -196,8 +196,11 @@ MODEL                        SOURCE      CONTEXT  MAX OUT  REASON  TOOLS  TEMP  
 anthropic/claude-sonnet-5-5  aggregator  1M       128K     yes     yes    no    $2/$10        claude_code
 ```
 
-The same answer over HTTP, for a studio that is running:
+Over HTTP, for a studio that is running:
 `GET /api/models?spec=anthropic/claude-sonnet-5-5` (repeat `spec` for several).
+Unlike the CLI, which prints only the model you asked about, the answer is the
+whole catalogue with your specs added: find your entry in `models` by its
+`spec` field (and read `invalid_specs` for a malformed one).
 
 Read the row, not just the last column:
 

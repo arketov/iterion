@@ -135,8 +135,9 @@ file is clean where the server exists. It checks the **server name**, never
 that the tool exists on the server or that the server starts. The cloud studio
 does not run it (there is no per-tenant catalogue). When the host's catalogue
 cannot be built at all — for instance a server named `iterion`, a reserved name
-— validation says *MCP catalog could not be resolved, tool servers were not
-checked* and the `C332` check is skipped, so read that line.
+— the studio's `/api/validate` answers *MCP catalog could not be resolved, tool
+servers were not checked* as a warning and the `C332` check is skipped, so read
+that line; `iterion validate` treats the same failure as an error.
 
 ## Troubleshooting
 

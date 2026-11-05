@@ -51,7 +51,7 @@ to do with any partial commits.
 
 **Dispatcher runs.** The dispatcher seeds its per-issue workspace with
 `git worktree add --detach`, so the anchor checkout of a dispatched run is a
-detached HEAD: step 5 has no target, the run lands `merge_status: skipped` with
+detached HEAD: step 4 has no merge target, the run lands `merge_status: skipped` with
 its `iterion/run/<id>` branch kept, and the studio's Commits tab offers the
 merge afterwards (into the branch checked out in the project). The
 user-facing account is [where the result goes](../../dispatcher.md#where-the-result-goes).

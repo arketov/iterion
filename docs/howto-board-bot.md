@@ -37,9 +37,10 @@ iterion bots create my-helper --backend claude_code --model anthropic/claude-son
 ```
 
 or **New bot** on the studio's Bots page. Either writes `bots/my-helper/` with
-`manifest.yaml`, `main.bot`, `README.md` and empty `prompts/`, `skills/`,
-`attachments/`, `presets/`. The name must be unique across everything the
-studio discovers, and lowercase letters, digits and `-`.
+`manifest.yaml`, `main.bot`, `README.md`, a `.gitignore`, `presets/example.md`
+and empty `prompts/`, `skills/`, `attachments/`. The name must start with a
+lowercase letter, then lowercase letters, digits and `-` (2 to 64 characters),
+and be unique across everything the studio discovers.
 
 A single `.bot` file picked from the file tree can run from the Launch form but
 is **not offered on a card**: the dispatcher routes a card to a bot by its
@@ -77,14 +78,9 @@ agent campaign:
 
 (The rest of the scaffold — the `mission_report` schema, the `mission` prompt
 and the `workflow` with `worktree: auto` — stays as generated.) In
-`bots/my-helper/manifest.yaml`, add at the end:
+`bots/my-helper/manifest.yaml`, keep what the scaffold wrote and add at the end:
 
 ```yaml
-name: my-helper
-version: 0.1.0
-enabled: true
-schema_version: 1
-
 dispatch_vars:
   task: |-
     {{issue.title}}
@@ -131,9 +127,9 @@ refused (409) when a config already exists. Details:
 [quick start](dispatcher.md#quick-start-zero-config).
 
 The idle stub is not an error and the board is not broken: until a dispatcher
-runs, `ready` is only a column. The dispatcher also comes back by itself when
-the studio restarts on a project where it was running (set
-`ITERION_DISPATCHER_AUTOSTART=0` to stop that).
+runs, `ready` is only a column. A dispatcher that was running comes back by
+itself when the studio restarts on that project; press **Stop** in the toolbar
+before you quit if you do not want that.
 
 **One catch: `dispatch_vars` are read when the defaults are created.** The
 per-bot vars are copied from each discovered manifest into the saved config at
@@ -154,8 +150,10 @@ become `task`), and name the bot one of two ways:
 - **Bot tab → Bot**: a searchable list grouped by origin (project, team,
   built-in). It lists catalogue bots only, hides disabled ones, and **overrides**
   the assignee for this card. The *Arguments* below it become `bot_args`.
-- **Ticket tab → Assignee**: a free-text field with suggestions. The assignee
-  must be exactly a catalogue bot's name (case-sensitive).
+- **Ticket tab → Assignee**: a free-text field with suggestions. Write exactly
+  a catalogue bot's name. Routing forgives case and `_` for `-`, but the
+  per-bot `dispatch_vars` are looked up by the exact name: a differently spelled
+  assignee runs the bot with the *global* vars and `task` stays empty.
 
 Then move the card to `ready`. At the next poll (up to 30 s) the dispatcher
 claims it, moves it to `in_progress`, and a live chip shows the run on the card.
