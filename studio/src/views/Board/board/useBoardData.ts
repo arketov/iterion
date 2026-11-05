@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -39,10 +39,17 @@ export interface UseBoardDataResult {
 // without going through the round-trip.
 export function useBoardData(): UseBoardDataResult {
   const queryClient = useQueryClient();
+  // Set by refresh() for exactly one fetch: the server then re-reads every
+  // card from disk instead of trusting its in-memory index, so cards written
+  // by another process (CLI, MCP) show up even when the server missed the
+  // filesystem event.
+  const forceRescanRef = useRef(false);
   const query = useQuery<BoardData>({
     queryKey: BOARD_DATA_KEY,
     queryFn: async () => {
-      const [b, i] = await Promise.all([getBoard(), listIssues()]);
+      const refresh = forceRescanRef.current;
+      forceRescanRef.current = false;
+      const [b, i] = await Promise.all([getBoard(), listIssues({ refresh })]);
       return { board: b, issues: i ?? [] };
     },
   });
@@ -69,6 +76,7 @@ export function useBoardData(): UseBoardDataResult {
 
   const refresh = useCallback(async () => {
     setActionError(null);
+    forceRescanRef.current = true;
     await refetch();
   }, [refetch]);
 

@@ -57,9 +57,18 @@ func rescanInterval() (interval time.Duration, unread string) {
 	if d := rescanIntervalOverride.Load(); d != nil {
 		return *d, ""
 	}
-	raw := os.Getenv("ITERION_NATIVE_INDEX_RESCAN")
+	return intervalFromEnv("ITERION_NATIVE_INDEX_RESCAN", defaultRescanInterval)
+}
+
+// intervalFromEnv reads a cadence from the environment variable name with the
+// spelling rules rescanInterval documents: unset is def, "off" and a zero or
+// negative duration or number disable (0), a Go duration or a bare number of
+// seconds is itself, and anything else is def plus the raw text so the caller
+// can name it in a log line.
+func intervalFromEnv(name string, def time.Duration) (interval time.Duration, unread string) {
+	raw := os.Getenv(name)
 	if raw == "" {
-		return defaultRescanInterval, ""
+		return def, ""
 	}
 	if raw == "off" {
 		return 0, ""
@@ -76,7 +85,7 @@ func rescanInterval() (interval time.Duration, unread string) {
 		}
 		return time.Duration(n) * time.Second, ""
 	}
-	return defaultRescanInterval, raw
+	return def, raw
 }
 
 // reconcileScanning and reconcileScanned are test seams, unset in

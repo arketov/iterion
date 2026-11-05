@@ -145,7 +145,9 @@ func (s *Store) Get(id string) (*Issue, error) {
 	if iss, ok := s.index[id]; ok {
 		return cloneIssue(iss), nil
 	}
-	return nil, tracker.ErrNotFound
+	// A miss may be a card another process wrote whose watch event was lost
+	// (Windows replaces a card by rename; see watcher.go) — ask the disk.
+	return s.adoptFromDiskLocked(id)
 }
 
 // ListFilter constrains the result of List. Zero-value fields don't filter.
@@ -777,6 +779,19 @@ func (s *Store) Delete(id string) (err error) {
 // distinct error if multiple match. Walks the in-memory index, so
 // O(N) over distinct issues with no filesystem I/O.
 func (s *Store) Resolve(prefix string) (string, error) {
+	id, err := s.resolveIndexed(prefix)
+	if errors.Is(err, tracker.ErrNotFound) {
+		// No indexed card carries the prefix: compare the directory with the
+		// index once (a ReadDir, no reads unless they differ) in case the card
+		// was written by another process and its event lost.
+		if rerr := s.RefreshIndex(false); rerr == nil {
+			return s.resolveIndexed(prefix)
+		}
+	}
+	return id, err
+}
+
+func (s *Store) resolveIndexed(prefix string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	want := prefix

@@ -277,7 +277,7 @@ same JWT middleware as `/api/runs/*`.
 
 | Endpoint                                     | Method | Body                                |
 |----------------------------------------------|--------|-------------------------------------|
-| `/api/v1/native/issues`                      | GET    | (query: `state`, `label`, `assignee`)|
+| `/api/v1/native/issues`                      | GET    | (query: `state`, `label`, `assignee`; `refresh=1` re-reads every card from disk first) |
 | `/api/v1/native/issues`                      | POST   | `{title, body?, state?, labels?, priority?, assignee?, blockers?, fields?, bot?, bot_args?}` |
 | `/api/v1/native/issues/{id}`                 | GET    | —                                   |
 | `/api/v1/native/issues/{id}`                 | PATCH  | partial `{title?, body?, labels?, priority?, assignee?, blockers?, fields?, bot?, bot_args?}` |

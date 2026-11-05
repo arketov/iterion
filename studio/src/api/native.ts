@@ -235,6 +235,9 @@ export interface ListFilter {
   state?: string[];
   label?: string[];
   assignee?: string;
+  // Ask the server to re-read every card from disk before answering — the
+  // Board's explicit "refresh", for cards another process (CLI, MCP) wrote.
+  refresh?: boolean;
 }
 
 export function listIssues(filter: ListFilter = {}): Promise<NativeIssue[]> {
@@ -242,6 +245,7 @@ export function listIssues(filter: ListFilter = {}): Promise<NativeIssue[]> {
   for (const s of filter.state ?? []) q.append("state", s);
   for (const l of filter.label ?? []) q.append("label", l);
   if (filter.assignee) q.set("assignee", filter.assignee);
+  if (filter.refresh) q.set("refresh", "1");
   const suffix = q.toString();
   return request(`/issues${suffix ? "?" + suffix : ""}`);
 }
