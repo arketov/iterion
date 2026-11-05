@@ -27,13 +27,41 @@ export interface DocumentSaveAsRequest {
 
 type PendingSaveAs = DocumentSaveAsRequest;
 
+/** The names a new document goes by: what the author reads (the display name
+ *  of the contract the first workflow keeps, else the workflow's name) and the
+ *  DSL id behind it. Both are empty-safe: a blank document is "workflow". */
+export function documentNames(store: DocumentStore): { label: string; id: string } {
+  const doc = store.getState().document;
+  const workflow = doc?.workflows?.[0];
+  const id = workflow?.name || "workflow";
+  const contract = workflow?.contract ? doc?.contracts?.find((c) => c.name === workflow.contract) : undefined;
+  return { label: contract?.display_name?.trim() || id, id };
+}
+
+/** A file name from a human name: lower-case words joined by hyphens
+ *  ("Feature dev" → feature-dev, dev_flow → dev-flow). A DSL id cannot carry
+ *  a hyphen, a file name can, and the project's own files use them. */
+export function slugFileName(name: string, ...alternatives: string[]): string {
+  for (const candidate of [name, ...alternatives]) {
+    const slug = candidate
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    if (slug) return `${slug}.bot`;
+  }
+  return "workflow.bot";
+}
+
 function suggestedFileName(store: DocumentStore): string {
   const state = store.getState();
-  const fallback = state.document?.workflows?.[0]?.name || "workflow";
-  // An imported file keeps its own name: the workflow block's name is only
-  // the last resort, for a document that came from no file.
-  if (state.currentFilePath) return state.currentFilePath.split("/").pop() || `${fallback}.bot`;
-  return state.importedFileName || `${fallback}.bot`;
+  // A document that came from a file keeps that file's name — saved under
+  // its workflow's name instead, dev-flow.bot comes back as dev_flow.bot.
+  if (state.currentFilePath) {
+    return state.currentFilePath.split("/").pop() || slugFileName(documentNames(store).label, documentNames(store).id);
+  }
+  return state.importedFileName || slugFileName(documentNames(store).label, documentNames(store).id);
 }
 
 export function useDocumentSaveAs() {
@@ -43,6 +71,7 @@ export function useDocumentSaveAs() {
   const pending = useRef<PendingSaveAs | null>(null);
   const [open, setOpenState] = useState(false);
   const [fileName, setFileName] = useState("");
+  const [names, setNames] = useState<{ label: string; id: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,6 +118,7 @@ export function useDocumentSaveAs() {
       if (!request.store.getState().document) return false;
       pending.current = request;
       setFileName(suggestedFileName(request.store));
+      setNames(request.store.getState().currentFilePath || request.store.getState().importedFileName ? null : documentNames(request.store));
       setError(null);
       setOpenState(true);
       return true;
@@ -214,6 +244,7 @@ export function useDocumentSaveAs() {
     setOpen,
     fileName,
     setFileName,
+    names,
     busy,
     error,
     requestSaveAs,

@@ -15,7 +15,7 @@ import { useServerInfoStore } from "@/store/serverInfo";
 import { useUIStore } from "@/store/ui";
 
 import DocumentSaveAsDialog from "./DocumentSaveAsDialog";
-import { useDocumentSaveAs } from "./useDocumentSaveAs";
+import { slugFileName, useDocumentSaveAs } from "./useDocumentSaveAs";
 
 function Harness({
   store,
@@ -413,5 +413,40 @@ describe("useDocumentSaveAs file name", () => {
     expect((await screen.findByRole("dialog")).textContent).toMatch(/canonical format/i);
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect((await screen.findByRole("alert")).textContent).toMatch(/never overwrites/i);
+  });
+});
+
+describe("useDocumentSaveAs new document name", () => {
+  it("slugs a human name with hyphens", () => {
+    expect(slugFileName("Feature dev")).toBe("feature-dev.bot");
+    expect(slugFileName("dev_flow")).toBe("dev-flow.bot");
+    expect(slugFileName("  ")).toBe("workflow.bot");
+    // A name with no Latin letters falls back to the next one, the DSL id.
+    expect(slugFileName("Мой поток", "my_flow")).toBe("my-flow.bot");
+  });
+
+  it("proposes the contract's display name as the file name and shows the id beside it", async () => {
+    const store = documentStore();
+    const doc = createEmptyDocument();
+    store.getState().setDocument({
+      ...doc,
+      workflows: [{ ...(doc.workflows?.[0] ?? { entry: "" }), name: "dev_flow", contract: "dev" }],
+      contracts: [{ name: "dev", display_name: "Dev flow" }],
+    } as never);
+    render(<Harness store={store} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Save As" }));
+    expect(await screen.findByDisplayValue("dev-flow.bot")).toBeTruthy();
+    expect(screen.getByText("Dev flow")).toBeTruthy();
+    expect(screen.getByText("dev_flow").className).toMatch(/italic/);
+  });
+
+  it("falls back to the workflow's name without a contract", async () => {
+    const store = documentStore();
+    render(<Harness store={store} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open Save As" }));
+    expect(await screen.findByDisplayValue("main.bot")).toBeTruthy();
+    // Name and id are the same word: shown once.
+    expect(screen.queryAllByText("main")).toHaveLength(1);
   });
 });

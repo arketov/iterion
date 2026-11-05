@@ -37,6 +37,14 @@ export default function DocumentSaveAsDialog({
         </>
       }
     >
+      {controller.names && (
+        <p className="mb-2 text-sm text-fg-default">
+          <span className="font-medium">{controller.names.label}</span>
+          {controller.names.id !== controller.names.label && (
+            <span className="ml-2 italic text-fg-subtle">{controller.names.id}</span>
+          )}
+        </p>
+      )}
       <Input
         autoFocus
         value={controller.fileName}

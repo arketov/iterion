@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { FileIcon, UploadIcon } from "@radix-ui/react-icons";
@@ -8,7 +8,9 @@ import type { FileEntry } from "@/api/types";
 import { Button, InlineBanner } from "@/components/ui";
 import { ClampText } from "@/components/ui/ClampText";
 import { EmptyState } from "@/components/ui/EmptyState";
+import FilePicker from "@/components/FilePicker/FilePicker";
 import { HiddenFileInput } from "@/components/shared/HiddenFileInput";
+import { openExampleIntoStore } from "@/lib/openExample";
 import { errorMessage, toastError } from "@/lib/errorHints";
 import { basename } from "@/lib/format";
 import { replaceDocument } from "@/lib/replaceDocument";
@@ -23,14 +25,18 @@ const EMPTY_FILES: FileEntry[] = [];
 // ProjectFilesPanel is the "open an existing file" half of the editor home:
 // the `.bot` files of the current project (GET /api/files — including ones
 // never opened in the studio, e.g. written by hand or by a bot) and an
-// "Open file…" button for a file anywhere on disk. Both open a fresh editor
-// tab; a project file is bound to its workspace path (Save/Run work), a file
-// picked from disk is an off-disk buffer exactly like the toolbar's Open….
+// "Open…" button (Ctrl+O, the searchable picker) and an "Import copy…" button
+// for a file anywhere on disk. All open a fresh editor tab; a project file is
+// bound to its workspace path (Save/Run work), a file picked from disk is an
+// off-disk copy exactly like the toolbar's "Import copy from disk…" (Save As
+// proposes its own name). Ctrl+O is answered here while this pane is shown:
+// with no tab open there is no Toolbar to listen for it.
 export default function ProjectFilesPanel() {
   const [, setLocation] = useLocation();
   const pushRecent = useRecentsStore((s) => s.pushRecent);
   const addToast = useUIStore((s) => s.addToast);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const filesQuery = useQuery({
     queryKey: ["workspace-files"],
@@ -49,6 +55,38 @@ export default function ProjectFilesPanel() {
       setLocation(`/editor?file=${encodeURIComponent(path)}`);
     },
     [pushRecent, setLocation],
+  );
+
+  // The pane is mounted only on the editor home, so the key is this pane's
+  // while it is on screen and nobody else's (a Toolbar answers it in a tab).
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
+      if ((e.ctrlKey || e.metaKey) && e.key === "o") {
+        e.preventDefault();
+        setPickerOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  const handlePick = useCallback(
+    async (kind: "file" | "example", path: string) => {
+      if (kind === "file") {
+        openProjectFile(path);
+        return;
+      }
+      const tabId = useTabsStore.getState().newEditorTab(path);
+      const store = getOrCreateDocumentStore(tabId);
+      try {
+        if ((await openExampleIntoStore(path, store)) !== "superseded") setLocation("/editor");
+      } catch (err) {
+        useTabsStore.getState().closeTab(tabId);
+        toastError(addToast, err, "Failed to open example");
+      }
+    },
+    [openProjectFile, addToast, setLocation],
   );
 
   const handleOpenFromDisk = useCallback(
@@ -91,6 +129,8 @@ export default function ProjectFilesPanel() {
             s.setCurrentFilePath(null);
             applyParsedSource(result, store.getState());
             s.setCurrentSource(text);
+            // No path, but the file's own name: Save As proposes it.
+            s.setImportedFileName(file.name);
           },
         );
         if (outcome === "applied") {
@@ -120,16 +160,28 @@ export default function ProjectFilesPanel() {
         <span className="text-xs font-medium text-fg-muted">
           Project files{files.length > 0 ? ` (${files.length})` : ""}
         </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          leadingIcon={<UploadIcon className="w-3.5 h-3.5" />}
-          onClick={() => inputRef.current?.click()}
-          title="Open a .bot file from disk in a new tab"
-        >
-          Open file…
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            leadingIcon={<FileIcon className="w-3.5 h-3.5" />}
+            onClick={() => setPickerOpen(true)}
+            title="Open a project file or example (Ctrl+O)"
+          >
+            Open…
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            leadingIcon={<UploadIcon className="w-3.5 h-3.5" />}
+            onClick={() => inputRef.current?.click()}
+            title="Open a copy of a .bot file from disk in a new tab. Save creates a new file in the project; it does not write over the original."
+          >
+            Import copy…
+          </Button>
+        </div>
       </div>
+      <FilePicker open={pickerOpen} onOpenChange={setPickerOpen} onPick={handlePick} />
       <HiddenFileInput inputRef={inputRef} accept=".bot" onChange={handleOpenFromDisk} />
       {filesError ? (
         <InlineBanner tone="warning" layout="inline" title="Could not list project files">
@@ -141,7 +193,7 @@ export default function ProjectFilesPanel() {
           message={
             filesQuery.isLoading
               ? "Loading project files…"
-              : "No .bot files in this project yet — create a new workflow or open one from disk."
+              : "No .bot files in this project yet — create a new workflow or import one from disk."
           }
         />
       ) : (
