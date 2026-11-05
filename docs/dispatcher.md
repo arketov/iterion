@@ -397,6 +397,18 @@ log file holding the full chronology. The snapshot fields are
 `retries[].error`, `hook`, `hook_exit_code`, `hook_stderr` and
 `log_path`.
 
+The queue itself lives in memory, so stopping the dispatcher or restarting
+the studio empties it. A failed dispatch that never became a run (a
+lifecycle hook failed first) is therefore **also written on the card**
+(`launch_failures[]` in `issues/<id>.json`: hook, exit code, stderr tail, full
+error, time, attempt, the minted run id and the log path; at most 20, newest
+last) and stays there until the card's next successful launch. The board card
+shows *did not start: after_create hook, exit code 128*, the card's Ticket tab
+lists every attempt under *Did not start* with *Show full error*, and the
+*Runs* and *Dispatcher* pages list such cards in a *Did not start* panel even
+while no dispatcher is attached. The failure is not a run: nothing opens a run
+console or a diff for it.
+
 Retries are timer-driven (`time.AfterFunc` per issue, no min-heap).
 The timer callback posts `cmdRetryDue{issueID}` on the actor channel
 and the next tick reconsiders the candidate (which may by then have

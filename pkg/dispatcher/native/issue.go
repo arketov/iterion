@@ -123,9 +123,17 @@ type Issue struct {
 	// single overwritten pointer to the most-recent run for back-compat;
 	// Runs is the full history the studio renders as a list. Deduped by
 	// RunID (see AppendRunRef). Absent on records written before T4a.
-	Runs      []RunRef  `json:"runs,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Runs []RunRef `json:"runs,omitempty"`
+	// LaunchFailures records the dispatch attempts that never became a run —
+	// a lifecycle hook (after_create / before_run) failed before the engine
+	// created it — newest last, capped at MaxLaunchFailures. It is what keeps
+	// the reason on the card after the in-memory retry queue is gone (the
+	// dispatcher was stopped, the studio restarted): cleared when a run is
+	// finally stamped (SetLastRun — a launch happened), so a card shows
+	// failures only until its next successful launch.
+	LaunchFailures []LaunchFailure `json:"launch_failures,omitempty"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
 	// StateAt is when the card's COLUMN last changed — the transition time,
 	// not the record's. UpdatedAt bumps on any edit (a title, a label, a
 	// last-run stamp), so anything asking "which side moved more recently?"
@@ -233,6 +241,46 @@ type GiveUp struct {
 	Launch bool `json:"launch,omitempty"`
 	// At is when the give-up was stamped (UTC).
 	At time.Time `json:"at"`
+}
+
+// MaxLaunchFailures caps Issue.LaunchFailures (oldest dropped first): a card
+// whose hook fails every backoff must not grow its record without bound.
+const MaxLaunchFailures = 20
+
+// LaunchFailure is one dispatch attempt that never became a run.
+type LaunchFailure struct {
+	At      time.Time `json:"at"`
+	Attempt int       `json:"attempt,omitempty"`
+	// RunID is the id minted for the attempt. No run exists under it — that is
+	// the point of the record; it is kept so the attempt can be told apart and
+	// matched against the dispatcher log.
+	RunID string `json:"run_id,omitempty"`
+	// Hook is the lifecycle hook that failed; ExitCode its exit code (nil when
+	// the hook produced none — it could not start, or timed out).
+	Hook     string `json:"hook,omitempty"`
+	ExitCode *int   `json:"exit_code,omitempty"`
+	// Error is the FULL failure text; Stderr the tail of the hook's stderr.
+	Error  string `json:"error"`
+	Stderr string `json:"stderr,omitempty"`
+	// LogPath is the host process's log file holding the full chronology,
+	// when it told the dispatcher where it is (ITERION_DAEMON_LOG).
+	LogPath string `json:"log_path,omitempty"`
+}
+
+// AppendLaunchFailure appends f, dropping the oldest entries beyond
+// MaxLaunchFailures. Shared by both store twins so the cap stays identical.
+func AppendLaunchFailure(in []LaunchFailure, f LaunchFailure) []LaunchFailure {
+	out := append(append([]LaunchFailure(nil), in...), f)
+	if len(out) > MaxLaunchFailures {
+		out = out[len(out)-MaxLaunchFailures:]
+	}
+	return out
+}
+
+// LaunchFailureRecorder is the OPTIONAL store capability the dispatcher
+// type-asserts to persist a failed attempt (the Adapter passes it through).
+type LaunchFailureRecorder interface {
+	RecordLaunchFailure(id string, f LaunchFailure) error
 }
 
 // LaunchRefusal is the retry ledger of a card whose launch keeps being

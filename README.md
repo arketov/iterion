@@ -13,6 +13,8 @@ Kubernetes gave cloud workloads a declarative control plane. Iterion brings that
 
 > 📖 **New here? Read [Why Iterion?](docs/why-iterion.md)** — the origin story, the patterns we've seen work, the asymptote lens that motivated the engine, and the workflow-lab dimension. Helps you decide whether Iterion fits how you work before you install anything.
 
+> 🔤 **Confused by workflow, bot, bundle, `.botz`?** [Core concepts](docs/core-concepts.md) defines them in one page; [Studio overview](docs/studio-overview.md) shows what each studio page does, and [Where iterion keeps data](docs/where-iterion-keeps-data.md) maps projects, runs and settings on disk.
+
 > 🧭 **Want the as-built picture? Read [Current state of Iterion](docs/current-state.md)** — shipped surfaces, execution architecture, backend status, security defaults, cloud control plane, and deliberate limits, verified against `main`.
 
 ---
@@ -281,7 +283,7 @@ Run data lives under the resolved store. The example above opts into
 `$PWD/.iterion` so the CLI and `iterion studio --dir "$PWD"` share it. Without
 `--store-dir`, Iterion reuses an existing managed project `.iterion` or stores
 the run in a deterministic project slot under `~/.iterion/projects/`; reuse the
-same override when inspecting a run. See [the current storage contract](docs/current-state.md#state-and-observability).
+same override when inspecting a run. See [Where iterion keeps data](docs/where-iterion-keeps-data.md) and [the current storage contract](docs/current-state.md#state-and-observability).
 
 ---
 
@@ -349,6 +351,9 @@ The full documentation lives under [`docs/`](docs/) — start with the [document
 **Get going**
 - [docs/current-state.md](docs/current-state.md) — as-built product, runtime, control-plane, and maturity snapshot
 - [docs/install.md](docs/install.md) — every install method (CLI, desktop, Docker, Helm, SDK)
+- [docs/core-concepts.md](docs/core-concepts.md) — workflow, bot, bundle, nodes, the bot catalog
+- [docs/studio-overview.md](docs/studio-overview.md) — what each studio page does; run a file or a board card
+- [docs/where-iterion-keeps-data.md](docs/where-iterion-keeps-data.md) — project, store, `~/.iterion`, `%APPDATA%\Iterion`
 - [docs/visual-editor.md](docs/visual-editor.md) — studio (browser-based workflow editor)
 - [docs/desktop.md](docs/desktop.md) — native desktop app
 - [docs/examples.md](docs/examples.md) — workflows of increasing complexity (starter → advanced)

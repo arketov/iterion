@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { formatRelative } from "@/lib/format";
 import { runOutcomeFailed } from "@/components/shared/LastRunOutcome";
 import { hookFailureLabel } from "@/lib/retryError";
+import { describeLaunchFailure, latestLaunchFailure } from "@/lib/launchFailure";
 import type { DispatchSkipView, RetryView, RunningView } from "@/api/dispatcher";
 import type { NativeIssue } from "@/api/native";
 
@@ -316,6 +317,21 @@ export function IssueCard({
             cancel
           </button>
         </div>
+      )}
+      {!running && !retrying && latestLaunchFailure(iss) && (
+        <button
+          type="button"
+          className="mt-1 w-full text-left rounded bg-danger-soft px-1.5 py-1 text-caption text-danger-fg cursor-pointer hover:bg-danger-soft"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen();
+          }}
+          title={latestLaunchFailure(iss)!.error}
+          data-testid="launch-failure-badge"
+        >
+          ✗ {describeLaunchFailure(latestLaunchFailure(iss)!)}
+          <span className="block text-fg-muted">click for the full error</span>
+        </button>
       )}
       {!running && retrying && !TERMINAL_BOARD_STATES.has(iss.state) && (
         <button

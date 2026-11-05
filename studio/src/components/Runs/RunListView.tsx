@@ -8,6 +8,7 @@ import {
 } from "@radix-ui/react-icons";
 
 import { Button } from "@/components/ui/Button";
+import { LaunchFailuresPanel } from "@/components/shared/LaunchFailuresPanel";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { RunRepo, RunSourceKind, RunStatus } from "@/api/runs";
@@ -519,6 +520,8 @@ export default function RunListView() {
           onClear={clear}
         />
       )}
+
+      <LaunchFailuresPanel className="m-3" />
 
       <div className="flex-1 overflow-auto">{body}</div>
       {dialog}

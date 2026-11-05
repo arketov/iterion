@@ -199,6 +199,16 @@ func cloneIssue(in *Issue) *Issue {
 		c.GaveUp = &g
 	}
 	c.LaunchRefusal = in.LaunchRefusal.Clone()
+	if in.LaunchFailures != nil {
+		c.LaunchFailures = make([]LaunchFailure, len(in.LaunchFailures))
+		for i, f := range in.LaunchFailures {
+			if f.ExitCode != nil {
+				code := *f.ExitCode
+				f.ExitCode = &code
+			}
+			c.LaunchFailures[i] = f
+		}
+	}
 	if in.Labels != nil {
 		c.Labels = append([]string(nil), in.Labels...)
 	}

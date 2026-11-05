@@ -71,6 +71,7 @@ func New(db *mongo.Database, tenantID string) *Store {
 
 // Compile-time assertion that *Store satisfies the board contract.
 var _ native.BoardStore = (*Store)(nil)
+var _ native.LaunchFailureRecorder = (*Store)(nil)
 
 // issueDoc wraps a native.Issue with a Mongo _id + tenant scope. The inner
 // issue marshals via the bson default codec and round-trips back into a
@@ -833,8 +834,11 @@ func (s *Store) SetLastRun(id, runID, workdir string) error {
 	iss.LastWorkdir = workdir
 	iss.Runs = native.AppendRunRef(iss.Runs, runID, workdir, now)
 	iss.LaunchRefusal = nil // a launch happened: the retry ledger no longer describes the card
+	if runID != "" {
+		iss.LaunchFailures = nil // …and so do the failed attempts before it
+	}
 	iss.UpdatedAt = now
-	if err := s.replace(ctx, iss, append([]string{"lastrunid", "lastworkdir", "runs", "launchrefusal"}, outcomeKeys...)...); err != nil {
+	if err := s.replace(ctx, iss, append([]string{"lastrunid", "lastworkdir", "runs", "launchrefusal", "launchfailures"}, outcomeKeys...)...); err != nil {
 		return err
 	}
 	return s.emit(native.Event{Type: native.EvtIssueLastRun, IssueID: id, Payload: map[string]any{"run_id": runID, "workdir": workdir}})
@@ -891,6 +895,22 @@ func (s *Store) SetAwaitingInput(id string, v bool) error {
 		return err
 	}
 	return s.emit(native.Event{Type: native.EvtIssueUpdated, IssueID: id, Payload: map[string]any{"awaiting_input": v}})
+}
+
+// RecordLaunchFailure appends a failed dispatch attempt to the card; mirrors
+// the FS twin (native.Store.RecordLaunchFailure), UpdatedAt untouched.
+func (s *Store) RecordLaunchFailure(id string, f native.LaunchFailure) error {
+	ctx, cancel := ctxWithTimeout()
+	defer cancel()
+	iss, err := s.get(ctx, id)
+	if err != nil {
+		return err
+	}
+	iss.LaunchFailures = native.AppendLaunchFailure(iss.LaunchFailures, f)
+	if err := s.replace(ctx, iss, "launchfailures"); err != nil {
+		return err
+	}
+	return s.emit(native.Event{Type: native.EvtIssueUpdated, IssueID: id, Payload: map[string]any{"launch_failure": f.Hook}})
 }
 
 // SetGaveUp stamps (nil clears) the dispatcher's give-up on an issue — the

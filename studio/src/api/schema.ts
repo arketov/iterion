@@ -7064,6 +7064,7 @@ export interface components {
             last_run_id?: string;
             last_run_status?: string;
             last_workdir?: string;
+            launch_failures?: components["schemas"]["LaunchFailure"][];
             launch_refusal?: components["schemas"]["LaunchRefusal"];
             parent_id?: string;
             priority?: number;
@@ -7075,6 +7076,17 @@ export interface components {
             title: string;
             /** Format: date-time */
             updated_at: string;
+        };
+        LaunchFailure: {
+            attempt?: number;
+            /** Format: date-time */
+            at: string;
+            error: string;
+            exit_code?: number;
+            hook?: string;
+            log_path?: string;
+            run_id?: string;
+            stderr?: string;
         };
         LaunchRefusal: {
             attempts: number;

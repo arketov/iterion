@@ -18,45 +18,39 @@ describe("botOrigin", () => {
   it("classifies origins", () => {
     expect(botSource(bot("a"))).toBe("project");
     expect(botSource(bot("a", "catalog"))).toBe("project");
-    expect(botSource(bot("a", "builtin"))).toBe("builtin");
     expect(botSource(bot("a", "file"))).toBe("file");
     expect(botSource(bot("a", "tenant"))).toBe("team");
     expect(botSource(bot("a", "platform"))).toBe("platform");
     expect(isManifestless(bot("a", "file"))).toBe(true);
-    expect(isManifestless(bot("a", "builtin"))).toBe(true);
     expect(isManifestless(bot("a", "catalog"))).toBe(false);
   });
 
   it("stores a path for files, a name otherwise", () => {
     expect(botPickerValue(bot("t", "file", "/w/t.bot"))).toBe("/w/t.bot");
-    expect(botPickerValue(bot("feature-dev", "builtin"))).toBe("feature-dev");
     expect(botPickerValue(bot("x", "catalog"))).toBe("x");
   });
 
-  it("offers no workflow path for a built-in recipe", () => {
-    expect(botWorkflowPath(bot("feature-dev", "builtin"))).toBeNull();
+  it("stores a bot's own path as its workflow path", () => {
     expect(botWorkflowPath(bot("x", "catalog", "/w/bots/x"))).toBe("/w/bots/x");
   });
 
   it("groups project bots first and project files last, dropping empty groups", () => {
     const groups = groupBotsBySource([
       bot("f", "file"),
-      bot("b", "builtin"),
       bot("p", "catalog"),
     ]);
-    expect(groups.map((g) => g.label)).toEqual(["Project", "Built-in", "Project files"]);
+    expect(groups.map((g) => g.label)).toEqual(["Project", "Project files"]);
     expect(groupBotsBySource([bot("p")]).length).toBe(1);
   });
 });
 
 describe("countBots", () => {
-  it("counts catalog + built-in as bots and keeps project files apart", () => {
+  it("counts catalog bots as bots and keeps project files apart", () => {
     const c = countBots([bot("a", "catalog"), bot("b", "catalog")], [
-      bot("feature-dev", "builtin"),
       bot("t", "file"),
       bot("u", "file"),
     ]);
-    expect(c).toEqual({ total: 3, catalog: 2, builtin: 1, files: 2 });
-    expect(countBots(null, [])).toEqual({ total: 0, catalog: 0, builtin: 0, files: 0 });
+    expect(c).toEqual({ total: 2, catalog: 2, files: 2 });
+    expect(countBots(null, [])).toEqual({ total: 0, catalog: 0, files: 0 });
   });
 });

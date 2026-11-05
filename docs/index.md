@@ -220,6 +220,7 @@ kept there by a guard — the Mongo data model, the access-control matrix, and
 <div class="vp-features-lite">
 
 - 📊 **Diagrams** — the [data model](diagrams/data-model-runs.md) (identity, forges & bots, runs, credentials, automation, knowledge), the [access-control matrix](diagrams/access-control.md), and [18 feature flows](diagrams/flow-webhook-to-run.md) — webhooks, credentials, scheduling, dispatch, resume, sandboxes, and more. → [Overview, conventions, glossary](diagrams/README.md)
+- 🧭 **First steps** — [Core concepts](core-concepts.md) (workflow, bot, bundle, nodes, the catalog), the [studio overview](studio-overview.md) (every page, and how to run a file or a board card) and [where iterion keeps data](where-iterion-keeps-data.md) (project, store, `~/.iterion`).
 - 🧩 **Author .bot workflows** — the [DSL guide](dsl.md), [routers](routers.md), [human gates](human-in-the-loop.md), [backends](backends.md), [memory & knowledge](memory-and-knowledge.md), [secrets](secrets.md), [bundles](bundles.md), [authoring pitfalls](workflow_authoring_pitfalls.md).
 - ⚙️ **Run and operate locally** — [resume](resume.md), the [sandbox](sandbox.md), [scheduling](scheduling.md), the [dispatcher](dispatcher.md), [merge policy](merge-policy.md), [config share](config-share.md), [observability](observability/README.md).
 - 🤖 **Bots & security automation** — the [fleet](examples.md), the [security bots](security-bots.md) and their [distributed](security-bots-distributed.md) and [patcher](security-patcher.md) variants.
@@ -231,5 +232,6 @@ kept there by a guard — the Mongo data model, the access-control matrix, and
 
 ---
 
-New here? Start with [Why Iterion?](why-iterion.md) for the vision, jump straight
-to [Install](install.md), or [explore the bot fleet](examples.md).
+New here? Start with [Why Iterion?](why-iterion.md) for the vision, learn the vocabulary in
+[Core concepts](core-concepts.md), jump straight to [Install](install.md), or
+[explore the bot fleet](examples.md).
