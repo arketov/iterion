@@ -82,3 +82,23 @@ export function groupBotsBySource<T extends BotEntry>(bots: T[]): BotGroup<T>[] 
     }))
     .filter((g) => g.bots.length > 0);
 }
+
+export interface BotCounts {
+  /** Catalog bots + built-in recipes: what every screen calls "bots". */
+  total: number;
+  /** Manifest bots a workspace overlay can switch on and off (Manage). */
+  catalog: number;
+  builtin: number;
+  /** Single .bot files without a manifest, counted apart as "project files". */
+  files: number;
+}
+
+/** countBots is the one place the "Bots (N)" numbers come from, so the Home
+ *  panel, the Bots page and the Manage dialog agree: N = catalog + built-in,
+ *  project files are named separately. */
+export function countBots(bots: BotEntry[] | null, extra: BotEntry[]): BotCounts {
+  const catalog = bots?.length ?? 0;
+  const builtin = extra.filter((b) => b.origin === "builtin").length;
+  const files = extra.filter((b) => b.origin === "file").length;
+  return { total: catalog + builtin, catalog, builtin, files };
+}

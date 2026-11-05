@@ -34,9 +34,8 @@ export function BotTab({
           <div className="text-xs text-fg-subtle italic">Loading bots…</div>
         ) : bots.length === 0 ? (
           <div className="text-xs text-fg-subtle italic">
-            No bots discovered. Configure <code>--bots-path</code> on
-            the studio or set <code>bots.paths</code> on the dispatcher
-            config.
+            No bots available. Create or import one on the Bots page, or put
+            a bundle in the project&apos;s <code>bots/</code> folder.
           </div>
         ) : (
           <BotPicker value={bot} bots={bots} onChange={setBot} />
