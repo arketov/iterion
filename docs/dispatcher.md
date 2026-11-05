@@ -518,8 +518,17 @@ hooks:
                                       # here if you want to keep it).
 ```
 
-Hooks execute via `sh -lc` with `cwd=<workspace path>`. The dispatcher
-exports six environment variables, on top of its own, before
+Hooks execute with `cwd=<workspace path>` in the host's command shell:
+`sh -lc` on Linux and macOS, **PowerShell on Windows** (`pwsh` when it is on
+PATH, otherwise the built-in `powershell.exe`; no Git for Windows needed).
+A hook may name its shell with `shell:` (`sh`, `bash`, `pwsh`, `powershell`
+or a path), and `ITERION_SHELL` overrides the default for every hook;
+if no shell is found the hook fails naming what was looked for. A hook
+script is written in the dialect of the shell that runs it — see
+[shell portability](workflow_authoring_pitfalls.md#shell-portability-for-tool-nodes).
+The default `iterion dispatch` workspace-seeding `after_create` hook comes in
+a `sh` and a PowerShell variant and picks the one that matches the shell.
+The dispatcher exports six environment variables, on top of its own, before
 invoking the hook:
 
 | Var                          | Value                                  |
@@ -662,14 +671,13 @@ for the stock assignee workflow selection.
 
 **How to set `bot` / `bot_args`**: `iterion issue create` exposes
 `--bot <id>` and repeatable `--bot-arg key=value` (the latter lands in
-`BotArgs`, merged over the rendered dispatch vars) — see
+`BotArgs`, merged over the rendered dispatch vars) and `iterion issue update`
+takes the same flags for an existing card — see
 [native-tracker.md](native-tracker.md). The same fields are settable over
 REST (`POST /api/v1/native/issues` or `PATCH /api/v1/native/issues/{id}`
 with `{ "bot": "feature_dev", "bot_args": { "feature_prompt": "…" } }`), via
-the board MCP `set_bot`, or in the studio Launch modal. Only `iterion issue
-update` still lacks dedicated flags — change routing on an existing card via
-REST `PATCH`, `set_bot`, or the studio. Operators can also route purely
-through `assignee_workflows:` + `assignee_dispatch:`.
+the board MCP `set_bot`, or in the studio Launch modal. Operators can also
+route purely through `assignee_workflows:` + `assignee_dispatch:`.
 
 ### Per-assignee dispatch overrides
 

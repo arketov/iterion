@@ -24,6 +24,7 @@ import (
 	"github.com/arketov/iterion/pkg/backend/toolcatalog"
 	"github.com/arketov/iterion/pkg/dsl/ir"
 	"github.com/arketov/iterion/pkg/dsl/secretsink"
+	"github.com/arketov/iterion/pkg/internal/hostshell"
 	"github.com/arketov/iterion/pkg/internal/proc"
 	"github.com/arketov/iterion/pkg/sandbox"
 	"github.com/arketov/iterion/pkg/treenoise"
@@ -940,6 +941,15 @@ func (e *ClawExecutor) scriptRecipe(ctx context.Context, node *ir.ToolNode, inpu
 			if len(interp) == 0 {
 				return toolCommand{}, nil, fmt.Errorf("model: tool node %q: unsupported language %q", node.ID, node.Language)
 			}
+			if !(e.sandbox != nil && !e.nodeOptsOutOfSandbox(toolNodeOptOut)) {
+				// On the host the interpreter follows the platform rule
+				// (hostshell): an empty language is PowerShell on Windows.
+				hargv, hext, _, herr := hostshell.ScriptInterpreter(node.Language)
+				if herr != nil {
+					return toolCommand{}, nil, fmt.Errorf("model: tool node %q: %w", node.ID, herr)
+				}
+				interp, ext = hargv, hext
+			}
 			// The script file must be reachable from where the interpreter
 			// runs. Out of the judged tree whenever a place exists that both
 			// sides see at the same path: the host's temp dir for an
@@ -1078,6 +1088,10 @@ func scriptInterpreter(language string) (argv []string, ext string) {
 		return []string{"sh"}, ".sh"
 	case "bash":
 		return []string{"bash"}, ".sh"
+	case "powershell", "pwsh", "ps1":
+		// Only reachable where the interpreter runs in a Linux sandbox:
+		// PowerShell Core is there or the run fails naming it.
+		return []string{"pwsh", "-NoLogo", "-NoProfile", "-NonInteractive", "-File"}, ".ps1"
 	case "js", "node":
 		return []string{"node"}, ".js"
 	case "py", "python", "python3":
@@ -1410,7 +1424,24 @@ func (e *ClawExecutor) toolNodeCommand(ctx context.Context, resolved string, env
 		}
 		return e.sandboxToolCommand(ctx, args, sandbox.ExecOpts{Env: e.withEngineChildEnv(env), Stdin: stdin})
 	}
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	// Host path: the shell comes from the one platform choice point
+	// (pkg/internal/hostshell) — bash on Linux/macOS as always, PowerShell on
+	// Windows, or the operator's ITERION_SHELL. The sandbox branch above keeps
+	// bash: the container is Linux whatever the host is.
+	var cmd *exec.Cmd
+	if sh, shErr := hostshell.Resolve(hostshell.Request{PosixDefault: hostshell.KindBash}); shErr != nil {
+		// No shell to start: a command that fails to start with the reason,
+		// so every caller reports it where it reports a failed start.
+		cmd = exec.CommandContext(ctx, "bash")
+		cmd.Err = shErr
+	} else if sh.Kind == hostshell.KindPowerShell {
+		var argv []string
+		argv, stdin = sh.Argv(resolved, false)
+		cmd = exec.CommandContext(ctx, argv[0], argv[1:]...)
+	} else {
+		args[0] = sh.Path
+		cmd = exec.CommandContext(ctx, args[0], args[1:]...)
+	}
 	// A tool node's lifetime is the node's. `bash -c` routinely backgrounds
 	// jobs (`&`, a daemon a build script starts), and those grandchildren
 	// inherit our stdout/stderr pipes: killing only the shell leaves the
@@ -2190,7 +2221,8 @@ func sliceHasComplexElement(s []any) bool {
 // to the raw command template BEFORE substitution, never after.
 func shellEscape(s string) string {
 	// Replace each ' with '\'': end current quote, insert escaped quote, reopen quote.
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+	// On a Windows host the word is PowerShell's, where a quote is doubled.
+	return "'" + strings.ReplaceAll(s, "'", hostshell.SingleQuoteEscape()) + "'"
 }
 
 // scriptScratchDir decides where a tool node's script file is written, and

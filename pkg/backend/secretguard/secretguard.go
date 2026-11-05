@@ -40,6 +40,7 @@ import (
 	"sync/atomic"
 	"unicode/utf8"
 
+	"github.com/arketov/iterion/pkg/internal/hostshell"
 	"github.com/arketov/iterion/pkg/backend/tool/privacy/detector"
 	"github.com/arketov/iterion/pkg/dsl/secretsink"
 	"github.com/arketov/iterion/pkg/secrets"
@@ -972,7 +973,7 @@ func (g *Guard) MaterializeShell(s string) string {
 		if !st.resolvesAt(ph, secretsink.Command) {
 			continue
 		}
-		s = strings.ReplaceAll(s, ph, strings.ReplaceAll(val, "'", `'\''`))
+		s = strings.ReplaceAll(s, ph, strings.ReplaceAll(val, "'", hostshell.SingleQuoteEscape()))
 	}
 	return s
 }
@@ -1049,7 +1050,7 @@ func (g *Guard) materializeShellEnvAt(sink, s string) (string, map[string]string
 			continue
 		}
 		if strings.Contains(s, ph) {
-			s = strings.ReplaceAll(s, ph, strings.ReplaceAll(val, "'", `'\''`))
+			s = strings.ReplaceAll(s, ph, strings.ReplaceAll(val, "'", hostshell.SingleQuoteEscape()))
 		}
 	}
 	return s, env

@@ -2540,7 +2540,10 @@ is prepared, and it names the nearest built-in. The check applies to
 claw only — on every CLI backend the lowercase list is advisory, so an
 unknown name there is dead config, not a failure — and it never touches
 qualified MCP references (`mcp.<server>.<tool>`, the `mcp__server__tool`
-alias form, wildcards), which are resolved when the server connects.
+alias form, wildcards), which are resolved when the server connects. One
+host-side check does read them: `iterion validate` and `POST /api/validate`
+warn (`C332`) when such a reference names a server that no `mcp_server`
+block, project `.mcp.json` entry or enabled plugin declares.
 
 What it lets through, and why. iterion's own board and watch tools are
 accepted by their **bare** name (`create_issue`, `subscribe`, …): the

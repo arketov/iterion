@@ -479,4 +479,13 @@ const (
 	// while the run asks its guard: a launch that holds no grant renders
 	// the empty value and is not refused.
 	DiagMintedVarInScriptBody DiagCode = "C331" // a `{{vars.x}}` naming a server-minted credential (the forge publish grant) in a tool node's `script:` body — refused at run before the temp file exists (warning)
+
+	// DiagUnknownMCPServer is C332: a node's `tools:` names an MCP server
+	// (`mcp.<server>.<tool>`, `mcp.<server>.*` or `mcp__<server>__<tool>`) that
+	// no `mcp_server` block, project `.mcp.json` entry or enabled plugin
+	// declares. The compiler cannot know the host's catalog, so `iterion
+	// validate` and POST /api/validate raise it after mcp.PrepareWorkflow has
+	// resolved the catalog; a run only finds out at node build. A warning: the
+	// catalog is the host's, and the same file may be clean where the server exists.
+	DiagUnknownMCPServer DiagCode = "C332" // a node's `tools:` names an MCP server that no `mcp_server` block, `.mcp.json` entry or enabled plugin declares (warning)
 )
