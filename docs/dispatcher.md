@@ -518,8 +518,17 @@ hooks:
                                       # here if you want to keep it).
 ```
 
-Hooks execute via `sh -lc` with `cwd=<workspace path>`. The dispatcher
-exports six environment variables, on top of its own, before
+Hooks execute with `cwd=<workspace path>` in the host's command shell:
+`sh -lc` on Linux and macOS, **PowerShell on Windows** (`pwsh` when it is on
+PATH, otherwise the built-in `powershell.exe`; no Git for Windows needed).
+A hook may name its shell with `shell:` (`sh`, `bash`, `pwsh`, `powershell`
+or a path), and `ITERION_SHELL` overrides the default for every hook;
+if no shell is found the hook fails naming what was looked for. A hook
+script is written in the dialect of the shell that runs it — see
+[shell portability](workflow_authoring_pitfalls.md#shell-portability-for-tool-nodes).
+The default `iterion dispatch` workspace-seeding `after_create` hook comes in
+a `sh` and a PowerShell variant and picks the one that matches the shell.
+The dispatcher exports six environment variables, on top of its own, before
 invoking the hook:
 
 | Var                          | Value                                  |

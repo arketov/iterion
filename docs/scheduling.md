@@ -48,7 +48,7 @@ schedules:
     disabled: false                      # keep in the manifest, leave out of the crontab
     overlap: skip                        # optional: skip (default) | allow | keepalive — see "Overlap policy"
     max_concurrent: 0                    # optional, with overlap: allow — cap on live runs (0 = unlimited)
-    guard: ""                            # optional pre-launch sh -lc gate — see "Guard command"
+    guard: ""                            # optional pre-launch shell gate — see "Guard command"
     guard_timeout: "30s"                 # optional guard subprocess timeout
     guard_var: guard_output              # optional var name receiving the guard stdout
 ```
@@ -253,7 +253,7 @@ to every keepalive run, no extra wiring.
 
 ## Guard command — fire only when there is work
 
-`guard:` is an optional `sh -lc` snippet executed **before** any
+`guard:` is an optional snippet, run by the host shell (`sh -lc`; PowerShell on Windows), executed **before** any
 launch, in the entry's `workdir`, with `ITERION_SCHEDULE` /
 `ITERION_SCHEDULE_BOT` in the environment and a hard `guard_timeout`
 (default 30s) on its own context:
