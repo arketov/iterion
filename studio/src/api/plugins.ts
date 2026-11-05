@@ -118,9 +118,19 @@ async function send<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+export interface PluginListReport {
+  plugins: PluginView[];
+  /** Installed plugins the server could not load, one "<name>: <reason>" each. */
+  loadSkips: string[];
+}
+
+export async function listPluginsReport(): Promise<PluginListReport> {
+  const res = await send<{ plugins?: PluginView[]; load_skips?: string[] }>("/v1/plugins");
+  return { plugins: res.plugins ?? [], loadSkips: res.load_skips ?? [] };
+}
+
 export async function listPlugins(): Promise<PluginView[]> {
-  const res = await send<{ plugins: PluginView[] }>("/v1/plugins");
-  return res.plugins ?? [];
+  return (await listPluginsReport()).plugins;
 }
 
 // getPluginDetail fetches the full detail projection for one plugin.
