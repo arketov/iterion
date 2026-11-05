@@ -22,15 +22,14 @@ package hostshell
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
-	"unicode/utf16"
 
 	"github.com/arketov/iterion/internal/envtrust"
 )
@@ -166,15 +165,20 @@ func named(name, platform string) (Shell, error) {
 	return Shell{Kind: kind, Path: p}, nil
 }
 
-// psInlineLimit is the longest -EncodedCommand payload (base64 characters)
-// handed to PowerShell on the command line; a Windows command line is capped
-// at 32767, so a longer script is streamed on stdin instead.
-const psInlineLimit = 24000
+// psInlineLimit is the longest script (characters, prelude and epilogue
+// included) handed to PowerShell on the command line; a Windows command line
+// is capped at 32767 and Go escapes each quote and the backslashes before it
+// (worst case it doubles the script), so a longer script is streamed on stdin.
+// -EncodedCommand is deliberately not used: powershell.exe 5.1 answers it
+// with its error and warning streams serialised as CLIXML on stderr, which
+// no flag turns off, whereas a plain -Command keeps stderr text.
+const psInlineLimit = 12000
 
 // psPrelude makes the child's output UTF-8 whatever the console code page
-// (5.1 defaults to the OEM page) and silences progress records. Wrapped so a
+// (5.1 defaults to the OEM page), plain text (pwsh 7.2+ colours tables and
+// errors with ANSI even into a pipe) and free of progress records. Wrapped so a
 // host without a console cannot fail the command.
-const psPrelude = "try{[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)}catch{};$ProgressPreference='SilentlyContinue'\n"
+const psPrelude = "try{[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)}catch{};$ProgressPreference='SilentlyContinue';if($PSStyle){$PSStyle.OutputRendering='PlainText'}\n"
 
 // psEpilogue keeps a native command's exit code. `pwsh -Command` collapses
 // every failure to 1; a hook that exits 2 through `exit 2` is unaffected,
@@ -193,11 +197,10 @@ func (s Shell) Argv(script string, login bool) (argv []string, stdin io.Reader) 
 	case KindPowerShell:
 		argv = append([]string{s.Path}, psFlags...)
 		body := psPrelude + script + psEpilogue
-		enc := encodePS(body)
-		if len(enc) > psInlineLimit {
+		if len([]rune(body)) > psInlineLimit {
 			return append(argv, "-Command", "-"), strings.NewReader(body)
 		}
-		return append(argv, "-EncodedCommand", enc), nil
+		return append(argv, "-Command", body), nil
 	default:
 		flag := "-c"
 		if login {
@@ -227,15 +230,6 @@ func Command(ctx context.Context, req Request, script string, login bool) (*exec
 	return sh.Command(ctx, script, login), nil
 }
 
-func encodePS(s string) string {
-	u := utf16.Encode([]rune(s))
-	b := make([]byte, 0, len(u)*2)
-	for _, c := range u {
-		b = append(b, byte(c), byte(c>>8))
-	}
-	return base64.StdEncoding.EncodeToString(b)
-}
-
 // SingleQuoteEscape is what goes where a `'` sits inside a single-quoted
 // word: `'\''` for sh/bash (close, escaped quote, reopen), `''` on a Windows
 // host, where the word is PowerShell's. The PowerShell form is also
@@ -258,8 +252,8 @@ func IsWindowsHost() bool { return goos == "windows" }
 // (the script file path is appended) and the file extension, for a script
 // run on the host. ok is false for an unknown language. Languages js/node
 // and py/python/python3 are the same everywhere. The shell languages follow
-// the platform rule: empty means the platform shell (sh on POSIX, PowerShell
-// on Windows); `powershell`/`pwsh`/`ps1` is PowerShell anywhere it exists;
+// the platform rule: empty means the platform shell (Resolve: sh on POSIX,
+// PowerShell on Windows, or what ITERION_SHELL names); `powershell`/`pwsh`/`ps1` is PowerShell anywhere it exists;
 // an explicit `sh`/`bash` is that shell wherever it can be found — on
 // Windows it is looked up like any interpreter and a miss is a
 // *NotFoundError, not a silent fallback.
@@ -274,10 +268,16 @@ func scriptInterpreter(language, platform string) (argv []string, ext string, ok
 	case "py", "python", "python3":
 		return []string{"python3", "-I"}, ".py", true, nil
 	case "":
-		if platform == "windows" {
+		// The platform shell — what Resolve says: ITERION_SHELL when set, else
+		// sh on POSIX and PowerShell on Windows.
+		sh, rerr := resolve(Request{}, platform)
+		if rerr != nil {
+			return nil, "", true, rerr
+		}
+		if sh.Kind == KindPowerShell {
 			return psFile(platform)
 		}
-		return []string{"sh"}, ".sh", true, nil
+		return []string{sh.Path}, ".sh", true, nil
 	case "powershell", "pwsh", "ps1":
 		return psFile(platform)
 	case "sh", "bash":
@@ -306,4 +306,78 @@ func psFile(platform string) ([]string, string, bool, error) {
 	}
 	argv := append([]string{sh.Path}, psFlags...)
 	return append(argv, "-ExecutionPolicy", "Bypass", "-File"), ".ps1", true, nil
+}
+
+// IsPowerShell reports whether cmd was built by this package for a
+// PowerShell shell (its argv starts with pwsh/powershell and carries the
+// flags Argv adds).
+func IsPowerShell(cmd *exec.Cmd) bool {
+	if cmd == nil || len(cmd.Args) < 2 {
+		return false
+	}
+	base := strings.ToLower(strings.TrimSuffix(filepath.Base(strings.ReplaceAll(cmd.Args[0], `\`, "/")), ".exe"))
+	return (base == "pwsh" || base == "powershell") && cmd.Args[1] == psFlags[0]
+}
+
+// OutputFor is the writer to give cmd for one of its streams so a
+// PowerShell-run command's output reads as it would from sh: its CRLF line
+// ends become LF, which is what a variable, a guard's stdout or a log line
+// built from the stream is expected to carry. Any other command's stream is
+// w itself.
+func OutputFor(cmd *exec.Cmd, w io.Writer) io.Writer {
+	if !IsPowerShell(cmd) {
+		return w
+	}
+	return &lfWriter{w: w}
+}
+
+// OutputsFor is OutputFor for a command's stdout and stderr together. When
+// the caller hands the same writer for both, they stay ONE writer (one
+// wrapper for both fields): os/exec serialises writes only for identical
+// Stdout and Stderr, and the caller's writer may rely on that.
+func OutputsFor(cmd *exec.Cmd, stdout, stderr io.Writer) (io.Writer, io.Writer) {
+	if sameWriter(stdout, stderr) {
+		w := OutputFor(cmd, stdout)
+		return w, w
+	}
+	return OutputFor(cmd, stdout), OutputFor(cmd, stderr)
+}
+
+func sameWriter(a, b io.Writer) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	ta, tb := reflect.TypeOf(a), reflect.TypeOf(b)
+	return ta == tb && ta.Comparable() && a == b
+}
+
+// lfWriter rewrites CRLF to LF. A CR ending one Write is held until the next
+// byte says whether it starts a CRLF; one that never gets an answer (the
+// stream's last byte) is dropped, as PowerShell never writes it alone.
+type lfWriter struct {
+	w      io.Writer
+	heldCR bool
+}
+
+func (l *lfWriter) Write(p []byte) (int, error) {
+	out := make([]byte, 0, len(p)+1)
+	for _, b := range p {
+		if l.heldCR {
+			l.heldCR = false
+			if b != '\n' {
+				out = append(out, '\r')
+			}
+		}
+		if b == '\r' {
+			l.heldCR = true
+			continue
+		}
+		out = append(out, b)
+	}
+	if len(out) > 0 {
+		if _, err := l.w.Write(out); err != nil {
+			return 0, err
+		}
+	}
+	return len(p), nil
 }

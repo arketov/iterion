@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
-	"runtime"
 	"strings"
 	"time"
 
@@ -50,12 +49,6 @@ func (b Bash) Check(interpreter, text string) error {
 	// lookup class, which has a seam of its own and is tracked separately
 	// (docs/environment-variables.md).
 	var name, bin string
-	if runtime.GOOS == "windows" {
-		// On Windows a `command:` and a default-language `script:` run under
-		// PowerShell (pkg/internal/hostshell), so a `bash -n` verdict on them
-		// would be wrong in both directions: unchecked, said.
-		return fmt.Errorf("%w: on Windows tool bodies run under PowerShell, which has no parse-only check here", ErrNoChecker)
-	}
 	switch strings.ToLower(strings.TrimSpace(interpreter)) {
 	case "bash":
 		name, bin = "bash", "bash"

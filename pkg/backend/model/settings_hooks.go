@@ -350,8 +350,8 @@ func runCommandHook(ctx context.Context, event string, hctx hooks.Context, h set
 		"HOOK_MESSAGE_COUNT="+messageCount,
 	)
 	var stdout, stderr bytes.Buffer
-	c.Stdout = &stdout
-	c.Stderr = &stderr
+	c.Stdout = hostshell.OutputFor(c, &stdout)
+	c.Stderr = hostshell.OutputFor(c, &stderr)
 	err := c.Run()
 	if cctx.Err() != nil {
 		// Warn only for the hook's OWN timeout: when the parent ctx is

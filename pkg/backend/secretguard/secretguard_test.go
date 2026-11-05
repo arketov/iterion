@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/arketov/iterion/pkg/internal/hostshell"
 )
 
 const (
@@ -140,7 +142,9 @@ func TestMaterializeShell_SingleQuoteInjection(t *testing.T) {
 	// Every single quote in the VALUE must be the escaped form ('\''), so no
 	// bare `'` from the value can terminate the surrounding quote. `sh -c got`
 	// then passes the literal value `x'; id #` as one arg — `id` never runs.
-	want := `deploy --token 'x'\''; id #'`
+	// The escape is the host shell's: '\'' for sh/bash, '' where the word is
+	// PowerShell's (hostshell.SingleQuoteEscape) — both keep the value one word.
+	want := `deploy --token 'x` + hostshell.SingleQuoteEscape() + `; id #'`
 	if got != want {
 		t.Errorf("MaterializeShell = %q; want %q", got, want)
 	}

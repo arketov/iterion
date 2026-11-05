@@ -582,6 +582,16 @@ also takes `shell:`. Commands that run **inside a sandbox container** keep
 `bash`/`sh` — the container is Linux whatever the host is. If no shell is
 found the error names what was searched and what to install.
 
+**Output and exit codes under PowerShell.** The engine normalises what a
+PowerShell-run command prints: CRLF line ends become LF (so a variable built
+from stdout carries `v42
+`, as it does from `sh`), colours are off, and
+stderr is plain text. A script's `exit N` is the exit status, and a script
+whose last statement is a failing program exits with that program's code.
+Note what PowerShell itself does not do like `sh`: `pwd` prints a table (use
+`(Get-Location).Path`), `$NAME` is a PowerShell variable (read the environment
+as `$env:NAME`), and `>` writes UTF-16 in Windows PowerShell 5.1.
+
 **Portability rule.** A body is written for the shell that will run it. A
 workflow that must run on both Linux and Windows hosts keeps its bodies to
 the common subset (`git ...`, `iterion ...`, plain program calls with simple

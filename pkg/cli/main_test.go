@@ -8,6 +8,7 @@ import (
 	"github.com/arketov/iterion/internal/gittest"
 	"github.com/arketov/iterion/internal/hometest"
 	"github.com/arketov/iterion/internal/proctest"
+	"github.com/arketov/iterion/pkg/internal/hostshelltest"
 )
 
 // `iterion run` takes its workspace from the process cwd, so a run with
@@ -22,6 +23,7 @@ import (
 // resolve their stores from the iterion home, which hometest keeps off the
 // operator's.
 func TestMain(m *testing.M) {
+	hostshelltest.PreferPosix() // sh fixtures; PowerShell is the Windows default
 	restoreProviders := detecttest.IsolateProviders()
 	code := hometest.Isolate(func() int {
 		return proctest.NoProcessLeaks(func() int { return gittest.NoWorktreeLeaks(m) })
