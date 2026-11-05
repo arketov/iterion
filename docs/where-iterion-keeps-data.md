@@ -17,7 +17,7 @@ vocabulary? Read [Core concepts](core-concepts.md) first.
 absolute path with every `\`, `/` and `:` turned into `-` and a leading `-`
 added, so `C:\Users\Anna\shop` becomes `-C--Users-Anna-shop`. Different
 paths get different keys, a clone included — with one caveat: `\`, `/` and `:` all become
-`-`, so `C:-b` and `C:` collide, and `c:\` and `C:\` differ. Open the project
+`-`, so `C:\a-b` and `C:\a\b` collide, and `c:\` and `C:\` differ. Open the project
 the same way each time.
 
 | Place | What is in it | Who writes it |
