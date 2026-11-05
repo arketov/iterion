@@ -5,9 +5,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   installPlugin,
-  listPlugins,
+  listPluginsReport,
   setPluginEnabled,
   uninstallPlugin,
+  type PluginListReport,
   type PluginView,
 } from "@/api/plugins";
 import { useAuth } from "@/auth/AuthContext";
@@ -33,11 +34,12 @@ import PluginDetail from "./plugins/PluginDetail";
 // README) backed by GET /api/v1/plugins/{name}.
 export default function Plugins() {
   const queryClient = useQueryClient();
-  const pluginsQuery = useQuery<PluginView[]>({
+  const pluginsQuery = useQuery<PluginListReport>({
     queryKey: ["plugins"],
-    queryFn: listPlugins,
+    queryFn: listPluginsReport,
   });
-  const plugins = pluginsQuery.data ?? null;
+  const plugins: PluginView[] | null = pluginsQuery.data?.plugins ?? null;
+  const loadSkips = pluginsQuery.data?.loadSkips ?? [];
   // Enable/disable/remove failures share the fetch error's banner; any
   // reload clears them (the fetch side clears itself on refetch).
   const [actionError, setActionError] = useState<string | null>(null);
@@ -192,6 +194,17 @@ export default function Plugins() {
         {error && (
           <InlineBanner tone="danger" title="Plugin error" layout="inline">
             {error}
+          </InlineBanner>
+        )}
+
+        {loadSkips.length > 0 && (
+          <InlineBanner
+            tone="warning"
+            title={`${loadSkips.length} installed plugin(s) could not be loaded`}
+            layout="inline"
+          >
+            {loadSkips.join("; ")} — restore the plugin's plugin.yaml, or remove
+            it with `iterion plugin uninstall &lt;name&gt;`.
           </InlineBanner>
         )}
 

@@ -17,7 +17,14 @@ func (s *Server) handlePluginsList(w http.ResponseWriter, r *http.Request) {
 		s.httpErrorFor(w, r, http.StatusInternalServerError, "%v", err)
 		return
 	}
-	s.writeJSONFor(w, r, map[string]any{"plugins": reg.Views()})
+	// load_skips: installed plugins that could not be loaded, with the
+	// reason — a plugin absent from "plugins" is otherwise indistinguishable
+	// from one that was never installed.
+	skips := reg.LoadSkips()
+	if skips == nil {
+		skips = []string{}
+	}
+	s.writeJSONFor(w, r, map[string]any{"plugins": reg.Views(), "load_skips": skips})
 }
 
 // handlePluginEnable answers POST /api/v1/plugins/{name}/enable and

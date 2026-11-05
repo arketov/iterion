@@ -15,6 +15,13 @@ In a deployment that is **not** in cloud mode — `iterion studio` on a laptop,
 the desktop app, a self-hosted server — there is no product home, so `/`
 redirects into the studio and an operator never sees the difference.
 
+An address under `/studio` that no studio route declares — `/studio/settings`,
+`/studio/config` — answers with the studio's own **Page not found** screen, with
+links to Home and to the Sitemap. It does not fall back to Home: a mistyped
+address must not look like a working page. The Sitemap (`/studio/sitemap`) lists
+only the pages the running server answers — optional features, cloud pages and
+the admin console appear only when the server has them.
+
 ## What stays at the root, and why
 
 These addresses are printed in mail, minted by the CLI or handed out as links.

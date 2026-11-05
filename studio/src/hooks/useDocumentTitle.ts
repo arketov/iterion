@@ -91,8 +91,8 @@ export function useDocumentTitle() {
       const item = ADMIN_ITEMS.find((i) => `${ADMIN_BASE}${i.path}` === location);
       context = item ? `Admin — ${item.label}` : "Admin";
     } else {
-      // An unmatched route renders HomeView through the catch-all.
-      context = "Home";
+      // An unmatched route renders the NotFound page through the catch-all.
+      context = "Page not found";
     }
 
     // Compose: "<context> — <project> · iterion", dropping any segment

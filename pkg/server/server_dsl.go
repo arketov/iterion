@@ -553,10 +553,10 @@ func (s *Server) handleListExamples(w http.ResponseWriter, _ *http.Request) {
 			if !workflowfile.IsWorkflowFile(d.Name()) {
 				return nil
 			}
-			// Only surface first-class bots — a bundle's main.bot whose
-			// manifest.yaml declares a display_name persona. Drops loose
-			// .bot files (smoke tests) and un-personified bundles so the
-			// Home panel shows exactly the named team.
+			// Only surface bundle bots — a bundle's main.bot beside a
+			// readable manifest.yaml (persona optional). Loose .bot files
+			// are not here: the unified bot list shows them as "Project
+			// files" (GET /api/v1/bots?include=all).
 			persona, desc, ok := firstClassBot(path)
 			if !ok {
 				return nil
@@ -572,7 +572,7 @@ func (s *Server) handleListExamples(w http.ResponseWriter, _ *http.Request) {
 				return nil
 			}
 			seen[rel] = struct{}{}
-			entries = append(entries, exampleEntry{Name: rel, DisplayName: persona, Description: desc})
+			entries = append(entries, exampleEntry{Name: rel, DisplayName: persona, Description: desc, Origin: "project"})
 			return nil
 		})
 	}
@@ -585,7 +585,7 @@ func (s *Server) handleListExamples(w http.ResponseWriter, _ *http.Request) {
 		// Embedded recipes carry no manifest in the binary, so no persona
 		// here; the on-disk walk above already surfaced (with its persona)
 		// any bundle the workspace actually ships.
-		entries = append(entries, exampleEntry{Name: p})
+		entries = append(entries, exampleEntry{Name: p, Origin: "builtin"})
 	}
 
 	// Present the bots in the curated team order (Nexie first), not the
@@ -612,13 +612,18 @@ type exampleEntry struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"display_name,omitempty"`
 	Description string `json:"description,omitempty"`
+	// Origin is "project" for a bundle found on disk and "builtin" for a
+	// recipe embedded in the binary — the same vocabulary as the unified
+	// bot list (GET /api/v1/bots?include=all), so the Home panel can label
+	// where each row comes from.
+	Origin string `json:"origin,omitempty"`
 }
 
-// firstClassBot returns the persona + a one-line description of the bot
-// bundle whose entry point is mainBotPath, and whether it is first-class
-// — a "main.bot" whose sibling manifest.yaml declares a non-empty
-// display_name. The studio Home lists only first-class bots, so loose
-// .bot files (smoke tests) and un-personified bundles stay out.
+// firstClassBot returns the persona (may be empty) + a one-line description
+// of the bot bundle whose entry point is mainBotPath, and whether it is a
+// bundle bot — a "main.bot" whose sibling manifest.yaml loads. A bundle
+// without a display_name persona still counts (the Bots page lists it);
+// loose .bot files (no manifest) stay out of this list.
 func firstClassBot(mainBotPath string) (persona, description string, ok bool) {
 	if filepath.Base(mainBotPath) != "main.bot" {
 		return "", "", false
@@ -627,10 +632,10 @@ func firstClassBot(mainBotPath string) (persona, description string, ok bool) {
 	if err != nil || m == nil {
 		return "", "", false
 	}
+	// A bundle with no display_name persona is still a bundle bot: the
+	// Bots page lists it, so the Home panel must too (the row then leads
+	// with the technical name).
 	persona = strings.TrimSpace(m.DisplayName)
-	if persona == "" {
-		return "", "", false
-	}
 	return persona, shortDescription(m.Description), true
 }
 

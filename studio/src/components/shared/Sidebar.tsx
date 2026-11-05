@@ -111,7 +111,7 @@ export default function Sidebar() {
         <a
           href="/sitemap"
           className={`inline-flex items-center gap-2 text-xs text-fg-muted hover:text-fg-default hover:bg-surface-2 rounded ${collapsed ? "justify-center h-7 w-7" : "w-full px-2 py-1"}`}
-          title="Plan du site — Sitemap"
+          title="Sitemap"
           aria-label="Sitemap"
         >
           <MixerHorizontalIcon className="w-4 h-4 shrink-0" />
