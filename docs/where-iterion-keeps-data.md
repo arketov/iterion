@@ -15,17 +15,19 @@ vocabulary? Read [Core concepts](core-concepts.md) first.
 
 `~` is your home folder (`C:\Users\<you>` on Windows). `<key>` is the project's
 absolute path with every `\`, `/` and `:` turned into `-` and a leading `-`
-added, so `C:\Users\Anna\shop` becomes `-C--Users-Anna-shop`. Two different
-paths never share a key, a clone included.
+added, so `C:\Users\Anna\shop` becomes `-C--Users-Anna-shop`. Different
+paths get different keys, a clone included — with one caveat: `\`, `/` and `:` all become
+`-`, so `C:-b` and `C:` collide, and `c:\` and `C:\` differ. Open the project
+the same way each time.
 
 | Place | What is in it | Who writes it |
 |---|---|---|
 | **Your project folder** — `<project>/` | Your `.bot` files, bot bundles (`bots/`, `examples/`, `.botz/`), the rest of your code. Runs that use `worktree: auto` add branches to its git repository. | You, the studio's **Save**, `iterion bots create` |
-| **`<project>/.iterion/authoring/`** | The studio's save working state: a lock and recovery copies of the file being saved. It carries its own `.gitignore`, so git shows nothing of it. See [authoring lock](authoring-lock.md). | The studio, on every save |
+| **`.iterion/authoring/` beside a saved file** — for `bots/foo/main.bot`, `bots/foo/.iterion/authoring/` | The studio's save working state: a lock and recovery copies of the file being saved. There can be several, one per folder you saved a file in. It carries its own `.gitignore`, so git shows nothing of it. See [authoring lock](authoring-lock.md). | The studio, on every save |
 | **The project store** — `~/.iterion/projects/<key>/` by default | `runs/` (every run: `run.json`, `events.jsonl`, artifacts), `dispatcher/` (the board: `board.json`, `issues/`, `events.jsonl`; the dispatcher's settings in `dispatcher.json`; bots extracted for the dispatcher in `bots/`), `worktrees/` (a checkout per `worktree: auto` run), `marketplace/`, `secrets.json` (the project's sealed secrets), `skills/` (project skills). A project's `memory/` and `scratch/` are kept under the same key in the iterion home, even when the store itself is project-local (rule 2 below). | The studio, the CLI, the dispatcher |
 | **The iterion home** — `~/.iterion/` | Things that belong to *you*, not to a project: `plugins/` and `plugins.yaml` (installed plugins and which are enabled), `skills/` (your skill library), `secrets.json` (global secrets), `cli-auth.json` (the login of `iterion remote login`), `model-specs-cache.json`, and the `projects/` folder above. | The CLI, the studio, the desktop app |
 | **`~/.iterion/daemons/`** | One `<key>.json` per project server the desktop app started (its address, pid, project folder and start time) and a `<key>.log` beside it; the desktop app reads them to reattach. `~/.iterion/desktop.json` points at the most recent one. | The desktop app |
-| **`%APPDATA%\Iterion\`** (Windows; the user config folder elsewhere) | `config.json` — window size, the list of recent projects and the current one, updater settings — plus the lock files that keep one desktop instance (and one server per project) running, and `default-project/`, the empty folder the studio opens before you pick a project. | The desktop app |
+| **`%APPDATA%\Iterion\`** (Windows; the user config folder elsewhere) | `config.json` — window size, the list of recent projects and the current one, updater settings — plus the lock files that keep one desktop instance (and one server per project) running, and `default-project/`, the empty folder the studio opens before you pick a project. | The desktop app (the workspace studio shares the file) |
 
 Two practical consequences:
 
@@ -33,14 +35,16 @@ Two practical consequences:
   files or bundles; the runs and the board stay behind in the store.
 - **Deleting a project folder does not delete its runs.** They remain under
   `~/.iterion/projects/<key>/` until you remove that folder (or run
-  `iterion clean`).
+  `iterion clean --with-runs`; plain `iterion clean` only reclaims per-run
+  worktrees and scratch).
 
 ## How iterion chooses the store
 
 The studio, `iterion run`, `iterion dispatch` and the other local commands all
 ask the same function, `store.ResolveStoreDir`
-([source](../pkg/store/storedir.go)), with the project folder as the starting
-point. It takes the first rule that applies:
+([source](../pkg/store/storedir.go)), with a starting folder: the
+studio's project folder, and for CLI commands the **current directory** (not the
+bot file's folder). It takes the first rule that applies:
 
 1. **You named one.** `--store-dir <dir>` (or the desktop project's own store
    setting) is used exactly as given.
@@ -61,8 +65,8 @@ to a stray `.iterion` in a parent folder such as `~` and sharing it across
 unrelated projects — is gone on purpose.
 
 The consequence worth remembering: **the CLI and the studio share runs only if
-they resolve to the same store.** Both start from a folder, so run them from the
-same project, or pass the same `--store-dir` to both.
+they resolve to the same store.** Both start from a folder, so run the CLI from the
+same folder the studio serves (a subfolder gives a different key), or pass the same `--store-dir` to both.
 
 ## Changing it
 

@@ -88,7 +88,7 @@ Every node has an id; edges join them. The kinds you meet first
 | `agent` | An LLM, with tools, working in your workspace | Planning, writing code, researching — work that needs judgement |
 | `judge` | An LLM, same properties as `agent`, used to *evaluate* | A verdict (usually a `verdict` schema with `approved`) that an edge branches on |
 | `router` | The engine | Deciding where to go next: fan out to all branches or per item, a condition, round-robin, or an LLM choice (five modes — [routers](routers.md)) |
-| `tool` | A program: a shell `command` or a `script` | Build, test, `git`, anything deterministic. Its stdout (a JSON object) is its output. No LLM |
+| `tool` | A program: a shell `command` or a `script` | Build, test, `git`, anything deterministic. Its stdout, read as a JSON object, is its output. No LLM |
 | `human` | A person | A pause: the run stops, the studio shows a form, the run resumes with the answer ([human in the loop](human-in-the-loop.md)) |
 | `subbot` | Another bot | A real nested run with its own loops, state and budget ([sub-bots](groups-iteration-subbots.md)) |
 
@@ -102,8 +102,8 @@ A `tool` node runs its `command` in the host shell of the operating system:
 
 ## The bot catalog and where it comes from
 
-The **catalog** is the one list the studio's **Bots** page, the Home *Bots*
-panel, the Launch picker, the board's bot picker and the Dispatcher settings
+The **catalog** is the one list the studio's **Bots** page, the Home page's Bots
+tile and file list, the Launch picker, the board's bot picker and the Dispatcher settings
 all read (`GET /api/v1/bots?include=all`). Each entry shows where it came
 from — its *origin*:
 
@@ -111,7 +111,7 @@ from — its *origin*:
 |---|---|---|
 | **Project** | A bundle with a manifest | Folders `bots/`, `examples/` and `.botz/` of the project, plus any `--bots-path` you gave `iterion studio` |
 | **Built-in** | A recipe embedded in the `iterion` binary | `bots/` of the iterion repository, compiled in |
-| **Project file** | A single `.bot` file without a manifest | Anywhere in the project folder (the walk skips dot-folders, `node_modules`, `vendor` and build output; at most 500 files) |
+| **Project file** | A single `.bot` file without a manifest | Anywhere in the project folder outside the catalog folders (the walk skips dot-folders, `node_modules`, `vendor` and build output; at most 500 files) |
 | **Team**, **Platform** | Bots of your team or of the whole instance | Cloud only |
 
 A name present in more than one source is listed once, the project's winning
@@ -129,7 +129,7 @@ for the screens and [bundles](bundles.md) for the manifest.
 |---|---|
 | `.bot` files and bundles — your source | Runs and their events and artifacts |
 | `.botz/` unpacked bundles | The board: cards, columns, history |
-| `.iterion/authoring/` — the studio's save locks and recovery copies | The dispatcher's settings and the bots extracted for it |
+| `.iterion/authoring/` folders beside saved files — the studio's save locks and recovery copies | The dispatcher's settings and the bots extracted for it |
 | Branches your runs created, when a bot uses `worktree: auto` | The per-run checkouts (`worktrees/`) |
 
 Your project is source; the store is state. You can move the project without

@@ -18,7 +18,9 @@ that project, and its runs and cards are kept in the project's store
 
 - **Browser studio** (`iterion studio --dir <project>`): one server, one
   project. There is no project switcher; for another project start another
-  studio and open it in its own tab or window.
+  studio and open it in its own tab or window. (`iterion studio --workspace`
+  is the exception: one process hosts every registered project, each under its
+  own `/x/<project-id>/` address — see the [CLI reference](cli-reference.md#iterion-studio).)
 - **Desktop app:** pick the project in the welcome wizard. `Ctrl+P` (or the
   native menu) switches projects: the window reattaches to that project's own
   server and reloads, so every page follows.
@@ -31,7 +33,7 @@ the pages *your* server answers.
 
 | Group | Page | What it is for |
 |---|---|---|
-| — | **Home** | The start page: a *What's Next* entry, getting-started hints, tiles for every other page, the bot catalog, your project's `.bot` files and recent runs. |
+| — | **Home** | The start page: a *What's Next* entry, tiles for the other pages your server has, your project's `.bot` files and recent runs. |
 | — | **What's Next** | A conversation with the `whats-next` bot ("Nexie"): it surveys the repo and the board, proposes what to do next and can create and dispatch cards. The same session is available from the assistant dock on every page ([assistant dock](assistant-dock.md)). A dot on the entry means it is waiting for your answer. |
 | — | **Editor** | Author a bot: canvas, node inspector, source view and live diagnostics. Its start page lists the project's `.bot` files, **Open…**, **Import copy…** and your recent files. Open tabs fold under the entry. |
 | — | **Runs** | Every run of this project, live and past: status, cost, duration, filters; open one for the run console (live graph, event log, diffs, commits, cost report). A badge counts runs paused for your input. **Analytics** (button on this page, `/insights`) shows cost over time and per-workflow run counts, failure rates and durations. |
@@ -47,8 +49,8 @@ the pages *your* server answers.
 | — | **Sitemap** | The list of every page this server answers. An unknown address shows **Page not found** with links to Home and the Sitemap — it no longer falls back to Home. |
 
 Cloud-only pages (Integrations, Admin) and the Config editor appear only on a
-server that has them. **Settings** (the button in the sidebar) holds Backends — the
-detected LLM credentials — and Appearance.
+server that has them. The sidebar's **Preferences** button opens the Settings dialog: Backends
+(the detected LLM credentials), Appearance and more.
 
 ### Bots versus the Editor's file list
 
@@ -78,7 +80,7 @@ Goal: take a `.bot` file and see it run.
 1. **Editor → Open…** and pick the file (or use **Bots** → the bot → *Open in
    editor*). Fix anything the live diagnostics flag; **Save**.
 2. Press **Run** (top right). If it is greyed out, the tooltip says why: no LLM
-   credential detected (the warning icon beside it opens **Settings →
+   credential detected (the warning icon beside it opens **Preferences →
    Backends**), an unsaved empty buffer, or errors in the document.
 3. The launch form (`/runs/new`) asks for the bot's variables, attachments and
    options (model, budget, sandbox, worktree). Press **Launch**.
