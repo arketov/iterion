@@ -6,13 +6,14 @@ import { FileIcon, UploadIcon } from "@radix-ui/react-icons";
 import * as api from "@/api/client";
 import type { FileEntry } from "@/api/types";
 import { Button, InlineBanner } from "@/components/ui";
+import { ClampText } from "@/components/ui/ClampText";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { HiddenFileInput } from "@/components/shared/HiddenFileInput";
 import { errorMessage, toastError } from "@/lib/errorHints";
 import { basename } from "@/lib/format";
 import { replaceDocument } from "@/lib/replaceDocument";
 import { applyParsedSource, refuseReadRefusal } from "@/lib/salvage";
-import { getOrCreateDocumentStore } from "@/store/document";
+import { getOrCreateDocumentStore, stampEditor, stampHolds } from "@/store/document";
 import { useRecentsStore } from "@/store/recents";
 import { useTabsStore } from "@/store/tabs";
 import { useUIStore } from "@/store/ui";
@@ -60,10 +61,23 @@ export default function ProjectFilesPanel() {
         input.value = "";
         return;
       }
-      const tabId = useTabsStore.getState().newEditorTab(file.name);
+      // The tab keeps its default label until the file has loaded: a named
+      // tab with no bound file would read as a lost binding after a reload.
+      const tabId = useTabsStore.getState().newEditorTab();
       const store = getOrCreateDocumentStore(tabId);
+      // The tab is editable at once; what it held when made is all a failure
+      // may throw away (see RecentFilesPanel.handleOpenExample).
+      const created = stampEditor(store.getState());
+      const dropIfUntouched = () => {
+        const holds = stampHolds(created, store.getState());
+        if (holds.path && holds.generation && holds.source) {
+          useTabsStore.getState().closeTab(tabId);
+          return true;
+        }
+        return false;
+      };
       try {
-        await replaceDocument(
+        const outcome = await replaceDocument(
           store,
           file.name,
           async (signal) => {
@@ -79,10 +93,21 @@ export default function ProjectFilesPanel() {
             s.setCurrentSource(text);
           },
         );
-        setLocation("/editor");
+        if (outcome === "applied") {
+          useTabsStore.getState().rename(tabId, file.name);
+          setLocation("/editor");
+        } else if (outcome === "refused") {
+          // Nothing was applied: do not leave an empty tab posing as the file.
+          dropIfUntouched();
+        }
       } catch (err) {
-        useTabsStore.getState().closeTab(tabId);
-        toastError(addToast, err, "Open failed");
+        const dropped = dropIfUntouched();
+        toastError(
+          addToast,
+          err,
+          dropped ? "Open failed" : "Open failed — the tab you had started editing is kept",
+        );
+        if (!dropped) setLocation("/editor");
       }
       input.value = "";
     },
@@ -130,9 +155,17 @@ export default function ProjectFilesPanel() {
                 title={f.name}
               >
                 <FileIcon className="w-3.5 h-3.5 text-fg-subtle shrink-0" />
-                <span className="font-medium truncate">{basename(f.name)}</span>
+                <ClampText
+                  className="font-medium min-w-0"
+                  text={basename(f.name)}
+                  focusable={false}
+                />
                 {basename(f.name) !== f.name && (
-                  <span className="text-fg-subtle text-caption truncate">{f.name}</span>
+                  <ClampText
+                    className="text-fg-subtle text-caption min-w-0"
+                    text={f.name}
+                    focusable={false}
+                  />
                 )}
               </button>
             </li>

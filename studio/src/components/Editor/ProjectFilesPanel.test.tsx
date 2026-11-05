@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { useTabsStore } from "@/store/tabs";
+import { useUIStore } from "@/store/ui";
 import * as client from "@/api/client";
 
 import ProjectFilesPanel from "./ProjectFilesPanel";
@@ -54,5 +55,18 @@ describe("ProjectFilesPanel", () => {
     vi.mocked(client.listFiles).mockRejectedValueOnce(new Error("boom"));
     renderPanel();
     expect(await screen.findByText("Could not list project files")).toBeTruthy();
+  });
+
+  it("refuses a non-.bot file picked from disk without opening a tab", async () => {
+    const { container } = renderPanel();
+    await screen.findByText("dev-flow.bot");
+    const before = useTabsStore.getState().tabs.length;
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(["x"], "notes.txt", { type: "text/plain" });
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => {
+      expect(useUIStore.getState().toasts.map((t) => t.message).join(" ")).toContain("Only .bot files");
+    });
+    expect(useTabsStore.getState().tabs.length).toBe(before);
   });
 });
