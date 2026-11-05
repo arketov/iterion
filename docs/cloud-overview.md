@@ -22,7 +22,8 @@ Iterion is two things in one repository:
 
 > **Terminology.** An *agent workflow* is the deployable workload packaged as
 > `.bot` or `.botz` and identified as a `bot` by the existing CLI and API. An
-> *agent* is one LLM-powered node inside that workflow.
+> *agent* is one LLM-powered node inside that workflow. More terms:
+> [Core concepts](core-concepts.md).
 
 ## The governed execution loop
 

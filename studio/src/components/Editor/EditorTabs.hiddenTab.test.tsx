@@ -13,6 +13,7 @@ const api = vi.hoisted(() => ({
   saveFile: vi.fn(),
   openFile: vi.fn(),
   listFiles: vi.fn(),
+  listFilesPage: vi.fn(async () => ({ files: [] })),
   listExampleEntries: vi.fn(),
   parseBotSourceEditorPath: () => null,
   inferCatalogBotId: () => null,

@@ -33,18 +33,20 @@ func TestDispatchRequireAssigneeSkipsUnassigned(t *testing.T) {
 	}
 }
 
-// An explicit assignee is not touched by the guard (it falls through to the
-// normal bot checks, so no no_assignee skip is recorded).
-func TestDispatchRequireAssigneeLeavesAssignedAlone(t *testing.T) {
+// A card that names a bot is not an "unassigned" card: the guard leaves it to
+// the normal bot checks (here an unresolvable bot, which stops before any claim
+// or workspace is created) and records the bot skip, not no_assignee.
+func TestDispatchRequireAssigneeLeavesBotCardsAlone(t *testing.T) {
 	c := routerTestDispatcher(t, newFakeTracker())
 	cfg := *c.cfg.Load()
 	cfg.TicketRouter = TicketRouterConfig{}
 	cfg.RequireAssignee = true
 	c.cfg.Store(&cfg)
 
-	c.dispatch(context.Background(), tracker.Issue{ID: "i2", Identifier: "T-2", Assignee: "feature-dev"})
-	if sk, ok := c.state.dispatchSkips["i2"]; ok && sk.Kind == DispatchSkipNoAssignee {
-		t.Fatalf("assigned card wrongly skipped as no_assignee: %+v", sk)
+	c.dispatch(context.Background(), tracker.Issue{ID: "i2", Identifier: "T-2", Bot: "no-such-bot"})
+	sk, ok := c.state.dispatchSkips["i2"]
+	if !ok || sk.Kind == DispatchSkipNoAssignee {
+		t.Fatalf("a card with a bot must be skipped for its bot, not as no_assignee: %+v ok=%v", sk, ok)
 	}
 }
 
