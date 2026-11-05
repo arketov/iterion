@@ -1,5 +1,5 @@
 import { ClampText } from "@/components/ui/ClampText";
-import { MagnifyingGlassIcon, CaretSortIcon } from "@radix-ui/react-icons";
+import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
 
 import { Icon } from "@/components/ui/Icon";
 import { useProjectInfo } from "@/hooks/useProjectInfo";
@@ -32,8 +32,9 @@ interface Props {
 
 // SidebarContext renders two visually-separate controls below the logo
 // and above the nav:
-//   1. Project chip — current workspace context. Click opens the
-//      project switcher (Ctrl+P). Hidden in cloud mode.
+//   1. Project label — the name of the project THIS studio server serves
+//      (read-only, no switching: every project lives in its own server,
+//      opened in its own tab or window). Hidden in cloud mode.
 //   2. Command launcher — action surface. Click opens the command
 //      palette (Ctrl/Cmd+K).
 //
@@ -52,45 +53,29 @@ export default function SidebarContext({ collapsed }: Props) {
 
   const mac = isMacOS();
   const kbdK = mac ? "⌘K" : "Ctrl+K";
-  const kbdP = mac ? "⌘P" : "Ctrl+P";
 
-  const onOpenSwitcher = () => {
-    window.dispatchEvent(new CustomEvent("iterion:open-project-switcher"));
-  };
-
-  const projectTooltip = name
-    ? dir
-      ? `Project: ${name}\n${dir}\n\nClick to switch (${kbdP})`
-      : `Project: ${name}\nClick to switch (${kbdP})`
-    : null;
+  const projectTooltip = name ? (dir ? `Project: ${name} — ${dir}` : `Project: ${name}`) : null;
 
   return (
     <div className="flex flex-col gap-2">
       {hasProject &&
         (collapsed ? (
-          <button
-            type="button"
-            onClick={onOpenSwitcher}
+          <div
             title={projectTooltip ?? undefined}
-            aria-label={`Project: ${name ?? ""} — switch`}
-            className="flex items-center justify-center h-8 w-full rounded border border-border-default bg-surface-2 text-fg-muted hover:text-fg-default hover:bg-surface-3 transition-colors"
+            role="img"
+            aria-label={`Project: ${name ?? ""}`}
+            className="flex items-center justify-center h-8 w-full rounded border border-border-default bg-surface-2 text-fg-muted"
           >
             <FolderOpenGlyph />
-          </button>
+          </div>
         ) : (
-          <button
-            type="button"
-            onClick={onOpenSwitcher}
+          <div
             title={projectTooltip ?? undefined}
-            className="flex items-center gap-2 px-2 py-1.5 rounded border border-border-default bg-surface-2 text-xs text-fg-default hover:bg-surface-3 transition-colors group"
+            className="flex items-center gap-2 px-2 py-1.5 rounded border border-border-default bg-surface-2 text-xs text-fg-default"
           >
-            <FolderOpenGlyph className="h-3.5 w-3.5 text-fg-muted group-hover:text-fg-default" />
+            <FolderOpenGlyph className="h-3.5 w-3.5 text-fg-muted" />
             <span className="truncate flex-1 text-left font-medium">{name}</span>
-            <Icon
-              icon={CaretSortIcon}
-              className="h-3.5 w-3.5 text-fg-subtle group-hover:text-fg-muted shrink-0"
-            />
-          </button>
+          </div>
         ))}
 
       {collapsed ? (

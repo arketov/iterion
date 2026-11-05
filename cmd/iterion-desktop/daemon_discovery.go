@@ -3,12 +3,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -119,14 +121,29 @@ func findDaemonForProject(projectDir string) (string, bool) {
 	}
 	var info daemonInfo
 	if err := json.Unmarshal(raw, &info); err != nil {
-		_ = os.Remove(target)
+		removeDaemonFileIfUnchanged(target, raw)
 		return "", false
 	}
 	if !daemonAlive(info.PID, info.URL) {
-		_ = os.Remove(target)
+		removeDaemonFileIfUnchanged(target, raw)
 		return "", false
 	}
 	return info.URL, true
+}
+
+// removeDaemonFileIfUnchanged prunes a stale discovery file, but only if its
+// content is still exactly what the caller read and judged dead. A new daemon
+// may have overwritten the file with its own record between the read and the
+// removal; deleting that would hide a live daemon (which holds the project
+// lock) from the GUI until restart. The re-read narrows the window to the
+// gap between it and the Remove, which is orders of magnitude smaller than
+// the liveness probe the caller just ran.
+func removeDaemonFileIfUnchanged(path string, seen []byte) {
+	cur, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(cur, seen) {
+		return
+	}
+	_ = os.Remove(path)
 }
 
 // listLiveDaemons returns every daemon currently registered with a live
@@ -156,7 +173,7 @@ func listLiveDaemons() []daemonInfo {
 			continue
 		}
 		if !daemonAlive(info.PID, info.URL) {
-			_ = os.Remove(filepath.Join(dir, e.Name()))
+			removeDaemonFileIfUnchanged(filepath.Join(dir, e.Name()), raw)
 			continue
 		}
 		out = append(out, info)
@@ -285,13 +302,53 @@ func projectKeyForStorePath(storePath string) (string, bool) {
 // decode used to give spawnDaemonForProject something to launch when we
 // don't already have a live daemon for the project. The encoding is
 // lossy in principle (a literal "-" in the original path becomes "-",
-// indistinguishable from a separator), so the caller should treat the
-// returned path as a hint that needs validating before use.
+// indistinguishable from a separator), so the result is only a hint.
+//
+// On Windows a key like "-C--Users-me-proj" decodes to C:\Users\me\proj,
+// and the hint is returned only when that directory exists; otherwise the
+// result is "" so the caller stays on its current daemon instead of
+// spawning one for a nonexistent directory.
 func projectDirFromKey(key string) string {
+	if runtime.GOOS == "windows" {
+		return decodeWindowsProjectKey(key, dirExists)
+	}
+	return decodeUnixProjectKey(key)
+}
+
+func decodeUnixProjectKey(key string) string {
 	if !strings.HasPrefix(key, "-") {
 		return ""
 	}
 	return "/" + strings.ReplaceAll(strings.TrimPrefix(key, "-"), "-", "/")
+}
+
+// decodeWindowsProjectKey decodes "-<drive>--<a>-<b>" into `<drive>:\a\b`
+// and returns it only when exists reports the directory. Keys of any other
+// shape (UNC paths, no drive letter) yield "".
+func decodeWindowsProjectKey(key string, exists func(string) bool) string {
+	if len(key) < 4 || key[0] != '-' || key[2] != '-' || key[3] != '-' {
+		return ""
+	}
+	drive := key[1]
+	if !(drive >= 'A' && drive <= 'Z' || drive >= 'a' && drive <= 'z') {
+		return ""
+	}
+	rest := key[4:]
+	// Empty path segments ("--", leading/trailing "-", or a bare drive) are
+	// not something encodeProjectDirKey produces for a normal directory.
+	if rest == "" || strings.HasPrefix(rest, "-") || strings.HasSuffix(rest, "-") || strings.Contains(rest, "--") {
+		return ""
+	}
+	dir := string(drive) + `:\` + strings.ReplaceAll(rest, "-", `\`)
+	if exists(dir) {
+		return dir
+	}
+	return ""
+}
+
+func dirExists(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && fi.IsDir()
 }
 
 // findDaemonForStorePath returns the live daemon URL serving the given
