@@ -198,8 +198,9 @@ shown in `list`).
 bool, integers / floats → number, everything else → string. Use
 `--clear-field key` to unset a value.
 
-`iterion issue delete` removes the card file for good (the same operation as
-`DELETE /api/v1/native/issues/{id}` and the studio's delete). Unlike `close`,
+`iterion issue delete` removes the card file for good (what the studio's
+delete does). It refuses while the card's last run is still alive (running,
+queued or paused) — cancel or finish it first. Unlike `close`,
 which keeps the card in a terminal state, it cannot be undone, so it asks
 `[y/N]` first; `--yes` / `-y` skips the question and is required when stdin is
 not a terminal (a script or pipe without it is refused, nothing is deleted).

@@ -189,3 +189,18 @@ func TestIssueUpdateBotArgDropsATypedGrant(t *testing.T) {
 		t.Errorf("the operator's own arg was lost: %v", got.BotArgs)
 	}
 }
+
+func TestIssueDeleteRefusesAnEmptyReference(t *testing.T) {
+	storeDir, id := seedIssueCard(t, native.Issue{Title: "only card"})
+	err := RunIssueDelete(&Printer{W: &bytes.Buffer{}}, IssueDeleteOptions{
+		IssueCommonOptions: IssueCommonOptions{StoreDir: storeDir},
+		IDOrPrefix:         "  ",
+		Yes:                true,
+	})
+	if err == nil {
+		t.Fatal("an empty id must be refused")
+	}
+	if _, gerr := reloadIssue(t, storeDir, id); gerr != nil {
+		t.Fatalf("the only card was deleted by an empty reference: %v", gerr)
+	}
+}

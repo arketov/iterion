@@ -340,6 +340,9 @@ func (s *Server) handleValidate(w http.ResponseWriter, r *http.Request) {
 
 	var unopenable error
 	var notRead string
+	// The directory the bot's .mcp.json is read from — the file's own, as at
+	// a run and in `iterion validate` — when the editor names a local file.
+	catalogDir := s.cfg.WorkDir
 	// A bundle's prompts/*.md reach the compiler the way they do at a
 	// launch when the editor says which file the document is. The path is
 	// a hint: one the server cannot place (no workdir on a cloud server, an
@@ -360,6 +363,7 @@ func (s *Server) handleValidate(w http.ResponseWriter, r *http.Request) {
 		}
 	case req.Path != "" && !strings.Contains(req.Path, "://"):
 		if abs, perr := s.safePath(req.Path); perr == nil {
+			catalogDir = filepath.Dir(abs)
 			b, oerr := runview.ResolveBundleFromFilePath(abs)
 			switch {
 			case oerr != nil:
@@ -434,7 +438,7 @@ func (s *Server) handleValidate(w http.ResponseWriter, r *http.Request) {
 	if cr.Workflow != nil {
 		resp.NodeCount = len(cr.Workflow.Nodes)
 		resp.EdgeCount = len(cr.Workflow.Edges)
-		s.appendMCPCatalogIssues(&resp, cr.Workflow)
+		s.appendMCPCatalogIssues(&resp, cr.Workflow, catalogDir)
 	}
 
 	writeJSON(w, resp)
@@ -448,7 +452,7 @@ func (s *Server) handleValidate(w http.ResponseWriter, r *http.Request) {
 // servers that exist where the bot runs. Everything is a warning: an
 // environmental problem never makes the editor mark a document invalid (the
 // CLI is stricter about a catalog that cannot be built).
-func (s *Server) appendMCPCatalogIssues(resp *validateResponse, wf *ir.Workflow) {
+func (s *Server) appendMCPCatalogIssues(resp *validateResponse, wf *ir.Workflow, projectDir string) {
 	if s.cfg.Mode == "cloud" || s.cfg.WorkDir == "" {
 		return
 	}
@@ -461,7 +465,7 @@ func (s *Server) appendMCPCatalogIssues(resp *validateResponse, wf *ir.Workflow)
 	}
 	// PrepareWorkflow fills wf's resolved catalog in place; this compile is
 	// the request's own, discarded after the response.
-	if err := mcp.PrepareWorkflow(wf, s.cfg.WorkDir, s.cfg.WorkDir); err != nil {
+	if err := mcp.PrepareWorkflow(wf, projectDir, s.cfg.WorkDir); err != nil {
 		add(DiagnosticDTO{Severity: "warning", Message: "MCP catalog could not be resolved, tool servers were not checked: " + err.Error()})
 		return
 	}

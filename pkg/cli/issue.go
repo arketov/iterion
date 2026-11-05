@@ -388,12 +388,25 @@ func RunIssueUpdate(p *Printer, opts IssueUpdateOptions) error {
 // terminal-vs-not. A run that cannot be read is not protected: it is already
 // gone as far as the dispatcher is concerned.
 func refuseClearWhileRunAlive(opts IssueCommonOptions, runID string) error {
+	run := liveRunOf(opts, runID)
+	if run == nil {
+		return nil
+	}
+	return fmt.Errorf(
+		"issue update: run %s is still %s — clearing the pointer now would let the next dispatch start a SECOND run on this ticket; stop or answer it first (`iterion inspect --run-id %s`)",
+		shortID(runID), run.Status, runID)
+}
+
+// liveRunOf returns the run when it exists and is still alive (running, queued
+// or paused), nil otherwise — including when the store cannot be read: a run
+// that cannot be established is not protected.
+func liveRunOf(opts IssueCommonOptions, runID string) *store.Run {
 	if strings.TrimSpace(runID) == "" {
 		return nil
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
-		return err
+		return nil
 	}
 	rs, err := store.New(store.ResolveStoreDir(cwd, opts.StoreDir))
 	if err != nil {
@@ -408,9 +421,7 @@ func refuseClearWhileRunAlive(opts IssueCommonOptions, runID string) error {
 	switch run.Status {
 	case store.RunStatusRunning, store.RunStatusQueued,
 		store.RunStatusPausedWaitingHuman, store.RunStatusPausedOperator:
-		return fmt.Errorf(
-			"issue update: run %s is still %s — clearing the pointer now would let the next dispatch start a SECOND run on this ticket; stop or answer it first (`iterion inspect --run-id %s`)",
-			shortID(runID), run.Status, runID)
+		return run
 	}
 	return nil
 }
@@ -490,6 +501,11 @@ func RunIssueDelete(p *Printer, opts IssueDeleteOptions) error {
 	if err != nil {
 		return err
 	}
+	// An empty reference would prefix-match every card, and on a board with
+	// one card delete it: refuse before Resolve, for an irreversible command.
+	if strings.TrimSpace(opts.IDOrPrefix) == "" {
+		return errors.New("issue delete: an issue id or prefix is required")
+	}
 	id, err := s.Resolve(opts.IDOrPrefix)
 	if err != nil {
 		return err
@@ -497,6 +513,13 @@ func RunIssueDelete(p *Printer, opts IssueDeleteOptions) error {
 	iss, err := s.Get(id)
 	if err != nil {
 		return err
+	}
+	// The studio's pipeline-board delete answers 409 while the card's run is
+	// alive; deleting under it would leave the dispatcher writing to a card
+	// that no longer exists. Cancel or finish the run first.
+	if run := liveRunOf(opts.IssueCommonOptions, iss.LastRunID); run != nil {
+		return fmt.Errorf("issue delete: run %s is still %s — cancel or finish it first (`iterion inspect --run-id %s`)",
+			shortID(iss.LastRunID), run.Status, iss.LastRunID)
 	}
 	if !opts.Yes {
 		in := opts.Stdin

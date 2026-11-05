@@ -164,6 +164,8 @@ var issueUpdateCmd = &cobra.Command{
 			Fields:             issueUpdateFields,
 			ClearField:         issueUpdateClearField,
 			ClearLastRun:       issueUpdateClearLastRun,
+			BotArgs:            issueUpdateBotArgs,
+			ClearBotArg:        issueUpdateClearBotArg,
 		}
 		if cmd.Flags().Changed("title") {
 			opts.Title = &issueUpdateTitle
@@ -182,6 +184,9 @@ var issueUpdateCmd = &cobra.Command{
 		}
 		if cmd.Flags().Changed("blockers") {
 			opts.Blockers = &issueUpdateBlockers
+		}
+		if cmd.Flags().Changed("bot") {
+			opts.Bot = &issueUpdateBot
 		}
 		return cli.RunIssueUpdate(newPrinter(), opts)
 	},
