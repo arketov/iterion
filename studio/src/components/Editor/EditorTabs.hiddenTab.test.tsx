@@ -138,16 +138,11 @@ describe("a shortcut pressed with two editor tabs open", () => {
     expect(b.store.getState().isDirty()).toBe(true);
   });
 
-  it("opens the file chooser of the tab on screen only", async () => {
+  it("opens one file picker for Ctrl+O, not one per tab", async () => {
     await mountBoth();
-    const clicked: Element[] = [];
-    const click = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (this: HTMLInputElement) {
-      clicked.push(this);
-    });
     key("o");
-    click.mockRestore();
-    expect(clicked).toHaveLength(1);
-    expect(screen.getByTestId("tab-a").contains(clicked[0] ?? null)).toBe(true);
+    await waitFor(() => expect(useUIStore.getState().filePickerOpen).toBe(true));
+    await waitFor(() => expect(document.querySelectorAll('[role="dialog"]').length).toBe(1));
   });
 
   it("shows one shortcuts help, the one of the tab on screen", async () => {

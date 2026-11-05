@@ -84,13 +84,23 @@ team store.
 - **Save keeps the file name.** A file opened by path (a recent, a bot page,
   a link) is saved back to that same path. The workflow block's name never
   renames it: `dev-flow.bot` stays `dev-flow.bot`.
-- **Open… and Import carry the file's name.** The native picker (Open…,
-  Ctrl+O) hands the studio the file's text, not its path, so the tab is
-  unbound until the first save. That first Save opens **Save As**, which
-  proposes the picked file's own name (the workflow block's name is only the
-  proposal for a document that came from no file). Save As creates a new file
-  and never overwrites: if the name already exists in the project the dialog
-  says so; open the existing file from **Open recent** to save over it.
+- **Open… binds the file; Import copy does not.** **File → Open…** and
+  **Ctrl+O** open the searchable picker over the project's files (and
+  examples); a file picked there is bound to its project path, so Save
+  writes over the original. The editor's start pane answers Ctrl+O the same
+  way and lists the project's `.bot` files. **File → Import copy from
+  disk…** (and **Import copy…** on the start pane) hands the studio the
+  text of a file from anywhere on disk, not its path: the tab is unbound
+  until the first save, and that save goes through **Save As**, which
+  proposes the picked file's own name and creates a new file in the
+  project — it never overwrites, and says so when the name already exists
+  (open the existing file with Open… to save over it).
+- **Save As names a new document by its display name.** For a document that
+  came from no file, the dialog shows the display name of the contract the
+  first workflow keeps (else the workflow's name) and, beside it in grey
+  italic, the workflow's DSL id; the proposed file name is the display name
+  in lower-case words joined by hyphens (`Dev flow` → `dev-flow.bot`). A DSL
+  id cannot hold a hyphen, a file name can.
 - **A save rewrites the file in canonical form.** The studio writes the
   document, not your spelling of it: field order, commas and line breaks may
   change (a value written over several lines that the writer cannot

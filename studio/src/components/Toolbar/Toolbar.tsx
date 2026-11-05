@@ -32,6 +32,7 @@ import { usePromptText } from "@/hooks/usePromptText";
 import { useTabsStore } from "@/store/tabs";
 import { toastError } from "@/lib/errorHints";
 import {
+  FileIcon,
   FilePlusIcon,
   DownloadIcon,
   UploadIcon,
@@ -86,9 +87,10 @@ export default function Toolbar() {
   const toggleLayoutDirection = useUIStore((s) => s.toggleLayoutDirection);
   const canvasActions = useUIStore((s) => s.canvasActions);
 
-  // FilePicker modal stays the searchable cross-source picker for the
-  // blank-canvas tile and the Cmd+K command palette; the File menu below
-  // no longer opens it (Open… is now the native OS picker).
+  // FilePicker modal is the searchable cross-source picker. Open… and Ctrl+O
+  // open it: a file picked there is bound to its project path, so Save writes
+  // over the original. The native OS picker is the separate "Import copy from
+  // disk…" item (a file from disk has no path the server can write to).
   const filePickerOpen = useUIStore((s) => s.filePickerOpen);
   const setFilePickerOpen = useUIStore((s) => s.setFilePickerOpen);
   const recents = useRecentsStore((s) => s.recents);
@@ -101,10 +103,8 @@ export default function Toolbar() {
   const [examplesLoading, setExamplesLoading] = useState(false);
   const { confirm, dialog: confirmDialog } = useConfirm();
 
-  // Open… and Ctrl+O both trigger the native OS file picker (merged with
-  // the former "Import" action). Recents/Examples below keep binding the
-  // workspace path so Save/Run stay enabled.
-  const openNative = () => fileInputRef.current?.click();
+  const openFromProject = () => setFilePickerOpen(true);
+  const importFromDisk = () => fileInputRef.current?.click();
 
   const loadExamples = () => {
     if (examples !== null || examplesLoading) return;
@@ -157,7 +157,7 @@ export default function Toolbar() {
         handleSave();
       } else if ((e.ctrlKey || e.metaKey) && e.key === "o") {
         e.preventDefault();
-        fileInputRef.current?.click();
+        setFilePickerOpen(true);
       } else if (e.key === "?" && !(e.target as HTMLElement).matches("input, textarea, select") && shortcutsEnabled()) {
         e.preventDefault();
         setShowShortcuts(true);
@@ -165,7 +165,7 @@ export default function Toolbar() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [active, undo, redo, handleSave]);
+  }, [active, undo, redo, handleSave, setFilePickerOpen]);
 
   const workflows = document?.workflows ?? [];
 
@@ -240,8 +240,11 @@ export default function Toolbar() {
           <DropdownMenuItem icon={<FilePlusIcon />} shortcut="Ctrl+N" onSelect={handleNew}>
             New
           </DropdownMenuItem>
-          <DropdownMenuItem icon={<UploadIcon />} shortcut="Ctrl+O" onSelect={openNative}>
+          <DropdownMenuItem icon={<FileIcon />} shortcut="Ctrl+O" onSelect={openFromProject}>
             Open…
+          </DropdownMenuItem>
+          <DropdownMenuItem icon={<UploadIcon />} onSelect={importFromDisk}>
+            Import copy from disk…
           </DropdownMenuItem>
           <DropdownMenuSub icon={<ClockIcon />} label="Open recent">
             {recents.length === 0 ? (
@@ -468,7 +471,7 @@ export default function Toolbar() {
         </ToolbarGroup>
       )}
 
-      {/* The control is the File menu's Import item; this input is the
+      {/* The control is the File menu's "Import copy from disk…" item; this input is the
           mechanism it clicks (HiddenFileInput states that for every net,
           including jsdom, which loads no stylesheet). NOT fixable by teaching
           the harness `.hidden` globally: Tailwind's `hidden sm:table` surfaces
