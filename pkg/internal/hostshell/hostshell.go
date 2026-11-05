@@ -177,18 +177,52 @@ func posixForLegacyScript(platform string) (Shell, error) {
 // posixLine matches a line only a POSIX shell can read: `set -e`, a VAR=value
 // assignment, `export`, a shebang, a `[ ... ]` test, or the closing words of
 // an sh block. PowerShell variables start with `$`, so none of these is
-// PowerShell.
-var posixLine = regexp.MustCompile(`^(set\s+-[a-zA-Z]+\b|[A-Za-z_][A-Za-z0-9_]*=\S|export\s+[A-Za-z_]|#!\s*/\S*(ba)?sh\b|(if|elif|while|until)\s+(!\s+)?\[|\[\[?\s.*\s\]\]?\s*(&&|\|\||;|$)|fi\s*$|done\s*$|esac\s*$)`)
+// PowerShell. `set -Name x` (Set-Variable's alias) is told from `set -e` by
+// what follows the flag: only a bare flag or `-o name` ends the line.
+var posixLine = regexp.MustCompile(`^(set\s+(-[a-zA-Z]+|-o\s+\w+)\s*(;|&&|\|\||$)|[A-Za-z_][A-Za-z0-9_]*=\S|export\s+[A-Za-z_]|#!\s*/\S*(ba)?sh\b|(if|elif|while|until)\s+(!\s+)?\[|\[\[?\s.*\s\]\]?\s*(&&|\|\||;|$)|fi\s*$|done\s*$|esac\s*$)`)
 
 // LooksPosix reports whether script contains a line only a POSIX shell can
-// read (see posixLine). Conservative: false for anything ambiguous.
+// read (see posixLine). Conservative: false for anything ambiguous. Lines
+// inside a PowerShell here-string (@" ... "@, @' ... '@) or a hashtable
+// (@{ ... }) are data or `Name=value` pairs of PowerShell's own and are not
+// read.
 func LooksPosix(script string) bool {
+	here := "" // the closing token of the here-string being skipped
+	hash := 0  // open @{ blocks
 	for _, line := range strings.Split(script, "\n") {
 		line = strings.TrimSpace(line)
+		if here != "" {
+			if strings.HasPrefix(line, here) {
+				here = ""
+			}
+			continue
+		}
+		if strings.HasSuffix(line, `@"`) {
+			here = `"@`
+			continue
+		}
+		if strings.HasSuffix(line, `@'`) {
+			here = `'@`
+			continue
+		}
 		if line == "" {
 			continue
 		}
 		if strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "#!") {
+			continue
+		}
+		if hash > 0 {
+			hash += strings.Count(line, "@{") - strings.Count(line, "}")
+			if hash < 0 {
+				hash = 0
+			}
+			continue
+		}
+		if strings.Contains(line, "@{") {
+			hash += strings.Count(line, "@{") - strings.Count(line, "}")
+			if hash < 0 {
+				hash = 0
+			}
 			continue
 		}
 		if posixLine.MatchString(line) {

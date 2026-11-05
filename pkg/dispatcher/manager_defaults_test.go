@@ -26,7 +26,7 @@ func TestNewManager_MigratesAndPersistsTheLoadedConfig(t *testing.T) {
 	dir := newTestStoreDir(t)
 	wf := writeFlow(t, dir)
 	cfgPath := filepath.Join(dir, "dispatcher", "dispatcher.json")
-	body := `{"workflow":"` + strings.ReplaceAll(wf, `\`, `\\`) + `","tracker":{"kind":"native"},"hooks":{"after_create":{"script":"set -e\necho old"}}}`
+	body := `{"workflow":"` + strings.ReplaceAll(wf, `\`, `\\`) + `","tracker":{"kind":"native"},"workspace":{"root":"relroot"},"hooks":{"after_create":{"script":"set -e\necho old"}}}`
 	if err := os.WriteFile(cfgPath, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -52,6 +52,12 @@ func TestNewManager_MigratesAndPersistsTheLoadedConfig(t *testing.T) {
 	disk, err := os.ReadFile(cfgPath)
 	if err != nil || !strings.Contains(string(disk), `"shell": "pwsh"`) {
 		t.Fatalf("migrated config not persisted: %v\n%s", err, disk)
+	}
+	// Only the hook was rewritten: the loaded config has the relative
+	// workspace root made absolute, and writing that back would also write
+	// expanded `$TOKEN`s in clear.
+	if !strings.Contains(string(disk), `"root": "relroot"`) {
+		t.Fatalf("the rest of the file must stay as written: %s", disk)
 	}
 }
 

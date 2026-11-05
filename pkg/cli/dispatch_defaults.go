@@ -199,6 +199,11 @@ func seedHookForHost(projectDir string) (script, shell string) {
 	if !powershell {
 		return workspaceSeedScript(projectDir), ""
 	}
+	if err != nil {
+		// No PowerShell found: nothing to name. The preset is still the
+		// platform's, and the hook reports the missing shell when it runs.
+		return workspaceSeedPowerShell(projectDir), ""
+	}
 	shell = "powershell"
 	if base := strings.ToLower(strings.TrimSuffix(filepath.Base(sh.Path), ".exe")); base == "pwsh" {
 		shell = "pwsh"

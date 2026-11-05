@@ -89,7 +89,7 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
     if (
       !window.confirm(
         "Replace the saved dispatcher settings with the default ones? " +
-          "Your current settings, including hooks, will be overwritten.",
+          "Your current settings, including hooks, will be overwritten and the dispatcher restarted.",
       )
     ) {
       return;

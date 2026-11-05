@@ -185,6 +185,9 @@ func TestLooksPosix(t *testing.T) {
 		"git add -A && git commit -m x",
 		"# just a comment",
 		"$env:FOO = '1'",
+		"set -Name x -Value 1",
+		"$h = @{\n  Name='x'\n  Other='y'\n}\nWrite-Output $h",
+		"$t = @\"\nKEY=value\nset -e\n\"@\nWrite-Output $t",
 		"",
 	}
 	for _, s := range notPosix {
