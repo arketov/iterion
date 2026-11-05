@@ -18,10 +18,9 @@ export interface BotEntry {
   name: string;
   /** "tenant" for a team-authored bot, "platform" for a deployment-wide
    *  override (super-admin-pushed — see /admin/bots), "catalog" for a
-   *  baked/project one, "builtin" for a recipe embedded in the binary and
-   *  "file" for a single .bot without a manifest (the last two only come
-   *  from `?include=all`). */
-  origin?: "tenant" | "platform" | "catalog" | "builtin" | "file";
+   *  baked/project one and "file" for a single .bot without a manifest
+   *  (only from `?include=all`). */
+  origin?: "tenant" | "platform" | "catalog" | "file";
   /** Bundle persona from manifest.yaml `display_name` (e.g. "Nexie",
    *  "Revi"). Empty for loose .bot files / un-personified bundles. The
    *  studio shows it as the lead label with `name` as a muted aside. */
@@ -375,10 +374,10 @@ export async function listBotsWithDiagnostics(): Promise<{
   bots: BotEntryWithSchema[];
   discoveryErrors: BotDiscoveryError[];
 }> {
-  // include=all adds the manifest-less sources — the embedded built-in
-  // recipes (origin "builtin") and the project's single .bot files
-  // (origin "file") — so every screen lists one and the same set. The
-  // bots store splits them back out (see store/bots.ts).
+  // include=all adds the manifest-less source — the project's single .bot
+  // files (origin "file") — so every screen lists one and the same set. The
+  // bots store splits them back out (see store/bots.ts). The binary's
+  // embedded recipes are not a listed bot.
   const r = await apiRequest<ListResponse>(`${BASE}?include=all`);
   return { bots: r.bots ?? [], discoveryErrors: r.discovery_errors ?? [] };
 }
