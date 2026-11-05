@@ -3,7 +3,7 @@ import { Fragment, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Tooltip } from "@/components/ui";
 import { Table, THead, Th, TBody, Tr, Td } from "@/components/ui/Table";
-import { clickableRowProps } from "@/lib/a11y";
+import { pointerRowProps } from "@/lib/a11y";
 import type { DispatcherSnapshot } from "@/api/dispatcher";
 
 import { hookFailureLabel, logHint } from "@/lib/retryError";
@@ -109,13 +109,26 @@ export default function RetriesTable({
               const expanded = open.has(r.issue_id);
               return (
               <Fragment key={r.issue_id}>
+              {/* The row click is a pointer convenience: the row holds controls
+                  (the issue button, "Show full error"), so it carries no widget
+                  role — the keyboard path to the card is the issue button. */}
               <Tr
-                className={`cursor-pointer focus-visible:bg-surface-2/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent ${
-                  isDue ? "bg-warning-soft" : ""
-                }`}
-                {...clickableRowProps(() => onFocusIssue(r.issue_id))}
+                className={`cursor-pointer ${isDue ? "bg-warning-soft" : ""}`}
+                {...pointerRowProps(() => onFocusIssue(r.issue_id))}
               >
-                <Td className="font-mono whitespace-nowrap">{r.identifier || r.issue_id}</Td>
+                <Td className="font-mono whitespace-nowrap">
+                  <button
+                    type="button"
+                    className="font-mono text-accent-text hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent rounded"
+                    title="Show this issue on the board"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onFocusIssue(r.issue_id);
+                    }}
+                  >
+                    {r.identifier || r.issue_id}
+                  </button>
+                </Td>
                 <Td>{r.attempt}</Td>
                 <Td className="whitespace-nowrap">
                   <span className={isDue ? "text-warning-fg" : "text-fg-muted"}>
