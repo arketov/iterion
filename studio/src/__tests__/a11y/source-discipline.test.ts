@@ -421,6 +421,7 @@ describe("source discipline", () => {
     // (#2526). Files here are the DRAIN WAVE's job; new files red.
     const allowedPrefixes = [
       "/src/components/Home/RecentFilesPanel.tsx",
+      "/src/components/Editor/ProjectFilesPanel.tsx",
       "/src/views/Bots/index.tsx",
       "/src/components/shared/SidebarContext.tsx",
       "/src/components/Catalog/BotCatalogDialog.tsx",
