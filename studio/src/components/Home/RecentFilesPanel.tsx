@@ -17,7 +17,7 @@ import { useRecentsStore } from "@/store/recents";
 import { useTabsStore } from "@/store/tabs";
 import { useUIStore } from "@/store/ui";
 import { useBotsStore } from "@/store/bots";
-import { countBots, BOT_SOURCE_HINT, BOT_SOURCE_LABEL, botSource } from "@/lib/botOrigin";
+import { countBots, BOT_SOURCE_HINT } from "@/lib/botOrigin";
 import { useConfirm } from "@/hooks/useConfirm";
 import { errorMessage, toastError } from "@/lib/errorHints";
 import { basename } from "@/lib/format";
