@@ -868,7 +868,7 @@ so a new id-addressed route cannot land unclassified:
 | `/api/auth/…`, `/api/me/…`, `/api/orgs/…` | identity surfaces, user-scoped, org-scoped by path |
 | `/api/v1/native/issues/{id}…`, `/api/v1/pipeline-board/tasks/{id}…` | IN the by-id class since ADR-141: served from the issue's team (the resolver reads the id across teams; reads take a viewer, mutations a member) — self-hosted's single store stays out of the class |
 | `/api/v1/native/labels/{label}`, `/api/v1/native/board/…` | board vocabulary and config of the active team's store |
-| `/api/v1/bots/{name}…` | the dispatch catalog: a tiered namespace by design (team > platform > baked), not an authored-resource id |
+| `/api/v1/bots/{name}…` (`GET /api/v1/bots?include=all` adds the manifest-less sources: built-in recipes, `origin: builtin`, and the project's single `.bot` files, `origin: file`; the default list stays catalog + platform + team) | the dispatch catalog: a tiered namespace by design (team > platform > baked), not an authored-resource id |
 | `/api/assistant-watches/{watchID}` | fixed compatibility sibling of the run-addressed `DELETE /api/runs/{id}/assistant-watches/{watchID}`: the stop resolves the watch's target run under the caller's active team |
 | `/api/v1/marketplace/…` | public marketplace family (anonymous reads, repo-coordinate installs); the browse routes serve a public view — the submitter and reviewer account ids, the review timestamp and the reject reason are only returned to the submitter and to super-admins (`marketplace.ForViewer`); the moderation queue stays whole |
 | `/api/v1/mcp/…` | per-run token over single-tenant store surfaces |

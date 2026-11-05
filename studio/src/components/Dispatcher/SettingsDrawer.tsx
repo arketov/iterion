@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import * as dispatcher from "@/api/dispatcher";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +11,9 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Spinner } from "@/components/ui/Spinner";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
+import { Combobox, type ComboboxOption } from "@/components/ui/Combobox";
+import { BOT_SOURCE_LABEL, botSource, botWorkflowPath, groupBotsBySource } from "@/lib/botOrigin";
+import { useAllBots, useBotsStore } from "@/store/bots";
 
 interface Props {
   open: boolean;
@@ -23,6 +26,17 @@ interface Props {
 // PUTs the result on save. No YAML editing required.
 export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
   const [cfg, setCfg] = useState<dispatcher.DispatcherConfig | null>(null);
+  // True when the server has no dispatcher.json yet (GET /config returns
+  // 404): the only state in which POST /defaults/apply is accepted (409
+  // otherwise), so the "Use default settings" button shows only then.
+  const [noConfig, setNoConfig] = useState(false);
+  const defaultsAction = useAsyncAction();
+  // The bot list the Workflow path / assignee pickers draw from.
+  const botsLoaded = useBotsStore((s) => s.bots !== null);
+  const fetchBots = useBotsStore((s) => s.fetch);
+  useEffect(() => {
+    if (open && !botsLoaded) void fetchBots();
+  }, [open, botsLoaded, fetchBots]);
   // Two useAsyncAction slots: one for the open-time load, one for the
   // user-triggered Save. They share the same InlineBanner so the user
   // sees the most recent failure, but their `busy` flags are
@@ -32,14 +46,17 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
   const saveAction = useAsyncAction();
   const loading = loadAction.busy;
   const saving = saveAction.busy;
-  const error = saveAction.error ?? loadAction.error;
+  const error = saveAction.error ?? loadAction.error ?? defaultsAction.error;
 
   useEffect(() => {
     if (!open) return;
     let alive = true;
     void loadAction.run(async () => {
       const c = await dispatcher.getConfig();
-      if (alive) setCfg(c ?? defaultConfig());
+      if (alive) {
+        setNoConfig(c === null);
+        setCfg(c ?? defaultConfig());
+      }
     });
     return () => {
       alive = false;
@@ -54,6 +71,13 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
     saveAction.run(async () => {
       if (!cfg) return;
       await dispatcher.saveConfig(cfg);
+      onSaved();
+      onClose();
+    });
+
+  const onUseDefaults = () =>
+    defaultsAction.run(async () => {
+      await dispatcher.applyDefaults();
       onSaved();
       onClose();
     });
@@ -93,6 +117,24 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
         )}
 
         {error && <InlineBanner tone="danger">{error}</InlineBanner>}
+
+        {noConfig && !loading && (
+          <InlineBanner tone="info" title="No dispatcher configured yet">
+            <p>
+              Fill in the form below, or let iterion create a ready-made dispatcher: it uses
+              the built-in bots and the local board, and starts at once.
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="mt-2"
+              loading={defaultsAction.busy}
+              onClick={() => void onUseDefaults()}
+            >
+              Use default settings
+            </Button>
+          </InlineBanner>
+        )}
 
         {cfg && <Form cfg={cfg} setCfg={setCfg} />}
       </div>
@@ -140,17 +182,17 @@ function Form({ cfg, setCfg }: FormProps) {
             placeholder="my-dispatcher"
           />
         </Field>
-        <Field
-          label="Workflow path"
-          hint=".bot, .botz, or unpacked-bundle dir. Path is resolved relative to the project root."
-        >
-          <Input
-            size="sm"
+        <Field label="Workflow path" hint={WORKFLOW_PATH_HINT}>
+          <BotWorkflowSelect
             value={cfg.workflow}
-            onChange={(e) => update("workflow", e.target.value)}
-            placeholder="./bots/feature-dev/main.bot"
+            onChange={(v) => update("workflow", v)}
+            placeholder="Search bots, or type a path…"
           />
         </Field>
+        <AssigneeWorkflowsField
+          value={cfg.assignee_workflows ?? {}}
+          onChange={(v) => update("assignee_workflows", v)}
+        />
       </Section>
 
       <Section title="Tracker">
@@ -319,6 +361,124 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">{title}</h3>
       <div className="space-y-3">{children}</div>
     </section>
+  );
+}
+
+const WORKFLOW_PATH_HINT =
+  "Pick a bot: the studio fills in its full path for you. A path typed by hand " +
+  "(.bot, .botz or an unpacked bundle folder) is best written absolute: a relative path is " +
+  "resolved against the dispatcher config folder (~/.iterion/projects/<key>/dispatcher/), " +
+  "not against the project root.";
+
+/** BotWorkflowSelect is the searchable replacement for a workflow-path text
+ *  box: the operator picks a bot by name and the studio stores its full path.
+ *  freeSolo keeps a hand-typed path possible (an explicit operator choice is
+ *  never replaced). Built-in recipes have no on-disk path and are not
+ *  offered; disabled catalog bots are listed but marked. */
+function BotWorkflowSelect({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (path: string) => void;
+  placeholder?: string;
+}) {
+  const bots = useAllBots();
+  const options = useMemo<ComboboxOption<string>[]>(() => {
+    const out: ComboboxOption<string>[] = [];
+    for (const g of groupBotsBySource(bots ?? [])) {
+      for (const b of g.bots) {
+        const path = botWorkflowPath(b);
+        if (!path) continue;
+        const persona = b.display_name?.trim();
+        const disabled = b.enabled === false;
+        out.push({
+          value: path,
+          label: `${persona || b.name}${disabled ? " (disabled)" : ""}`,
+          description: path,
+          meta: botSource(b) === "project" ? undefined : BOT_SOURCE_LABEL[botSource(b)],
+          searchHaystack: `${persona ?? ""} ${b.name} ${b.rel_path ?? ""} ${BOT_SOURCE_LABEL[botSource(b)]}`,
+        });
+      }
+    }
+    return out;
+  }, [bots]);
+  return (
+    <Combobox<string>
+      value={value}
+      options={options}
+      onChange={(v) => onChange(v)}
+      placeholder={placeholder}
+      freeSolo
+    />
+  );
+}
+
+/** AssigneeWorkflowsField edits assignee_workflows: a card assigned to the
+ *  name on the left runs the bot on the right instead of the default.
+ *  Rows live in local state (an array, so a half-typed or duplicate name and
+ *  a numeric-looking name keep their place); the config object is rebuilt
+ *  from the complete rows only — the server rejects an empty key or path. */
+function AssigneeWorkflowsField({
+  value,
+  onChange,
+}: {
+  value: Record<string, string>;
+  onChange: (v: Record<string, string>) => void;
+}) {
+  const [rows, setRows] = useState<{ k: string; v: string }[]>(() =>
+    Object.entries(value).map(([k, v]) => ({ k, v })),
+  );
+  const commit = (next: { k: string; v: string }[]) => {
+    setRows(next);
+    const out: Record<string, string> = {};
+    for (const r of next) {
+      const k = r.k.trim();
+      if (k && r.v) out[k] = r.v;
+    }
+    onChange(out);
+  };
+  const dup = (k: string) => k.trim() !== "" && rows.filter((r) => r.k.trim() === k.trim()).length > 1;
+  return (
+    <div className="space-y-2">
+      <span className="text-xs font-medium text-fg-default">Per-assignee bots</span>
+      <span className="block text-xs text-fg-muted">
+        A card assigned to the name on the left runs the chosen bot instead of the default one.
+        A row with an empty name or bot is not saved.
+      </span>
+      {rows.map((r, i) => (
+        <div key={i} className="flex items-start gap-2">
+          <div className="w-36">
+            <Input
+              size="sm"
+              value={r.k}
+              placeholder="assignee"
+              onChange={(e) => commit(rows.map((x, j) => (j === i ? { ...x, k: e.target.value } : x)))}
+            />
+            {dup(r.k) && <span className="text-micro text-warning-fg">duplicate name</span>}
+          </div>
+          <div className="flex-1">
+            <BotWorkflowSelect
+              value={r.v}
+              onChange={(v) => commit(rows.map((x, j) => (j === i ? { ...x, v } : x)))}
+              placeholder="Search bots…"
+            />
+          </div>
+          <IconButton
+            size="sm"
+            variant="danger"
+            label={r.k ? `Remove ${r.k}` : "Remove row"}
+            onClick={() => commit(rows.filter((_, j) => j !== i))}
+          >
+            ×
+          </IconButton>
+        </div>
+      ))}
+      <Button variant="ghost" size="sm" onClick={() => setRows([...rows, { k: "", v: "" }])}>
+        + Add assignee bot
+      </Button>
+    </div>
   );
 }
 
