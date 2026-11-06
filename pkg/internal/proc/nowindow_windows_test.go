@@ -23,6 +23,7 @@ const (
 // writes: CREATE_NO_WINDOW is OR-ed in next to flags and fields the caller
 // already set, so a detached runner that wants its own process group keeps it.
 func TestHideWindow_AddsCreateNoWindowAndKeepsTheRest(t *testing.T) {
+	forceHideNeeded(t, true)
 	t.Run("nil SysProcAttr is created", func(t *testing.T) {
 		cmd := exec.Command("cmd", "/C", "exit 0")
 		HideWindow(cmd)
@@ -72,6 +73,7 @@ func TestHideWindow_AddsCreateNoWindowAndKeepsTheRest(t *testing.T) {
 }
 
 func TestCommand_HidesTheWindowByDefault(t *testing.T) {
+	forceHideNeeded(t, true)
 	if got := flagsOf(Command("cmd", "/C", "exit 0")); got&createNoWindow == 0 {
 		t.Fatalf("Command CreationFlags = %#x, want CREATE_NO_WINDOW set", got)
 	}
@@ -86,6 +88,7 @@ func TestCommand_HidesTheWindowByDefault(t *testing.T) {
 // TestCommand_KeepsPipesAndExitCodes: the flag must not change anything a
 // caller observes — stdout through a pipe, stderr, the exit code.
 func TestCommand_KeepsPipesAndExitCodes(t *testing.T) {
+	forceHideNeeded(t, true)
 	cmd := Command("cmd", "/C", "echo out& echo err 1>&2& exit 7")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -108,6 +111,7 @@ func TestCommand_KeepsPipesAndExitCodes(t *testing.T) {
 // A child started without the flag from a console-less parent would have no
 // console at all, and each of its console children would open a visible one.
 func TestCommand_ChildHasAConsoleButNoWindow(t *testing.T) {
+	forceHideNeeded(t, true)
 	cmd := Command(os.Args[0], "-test.run=^TestConsoleProbeHelper$")
 	cmd.Env = append(os.Environ(), probeEnv+"=1")
 	out, err := cmd.Output()
@@ -131,6 +135,69 @@ func TestConsoleProbeHelper(t *testing.T) {
 	n, _, _ := k32.NewProc("GetConsoleProcessList").Call(uintptr(unsafe.Pointer(&pids[0])), uintptr(len(pids)))
 	hwnd, _, _ := k32.NewProc("GetConsoleWindow").Call()
 	fmt.Printf("probe: console=%v window=%d\n", n > 0, hwnd)
+}
+
+// forceHideNeeded pins the "does this process need the flag" decision, which in
+// a real run depends on whether `go test` was started from a terminal.
+func forceHideNeeded(t *testing.T, v bool) {
+	t.Helper()
+	old := hideNeeded
+	hideNeeded = func() bool { return v }
+	t.Cleanup(func() { hideNeeded = old })
+}
+
+// TestHideWindow_SkippedWhenTheProcessHasAConsole: with a console to inherit
+// (a terminal, or a hidden one) a fresh hidden console would only cut the
+// child off from Ctrl+C, so the flag stays off.
+func TestHideWindow_SkippedWhenTheProcessHasAConsole(t *testing.T) {
+	forceHideNeeded(t, false)
+	cmd := Command("cmd", "/C", "exit 0")
+	if cmd.SysProcAttr != nil {
+		t.Fatalf("SysProcAttr = %+v, want untouched when no hiding is needed", cmd.SysProcAttr)
+	}
+}
+
+// TestDefaultHideNeeded_EnvOverride pins ITERION_CHILD_WINDOWS: "hide" forces
+// the flag, "show" forbids it, anything else asks whether we have a console.
+func TestDefaultHideNeeded_EnvOverride(t *testing.T) {
+	t.Setenv(ChildWindowsEnv, "hide")
+	if !defaultHideNeeded() {
+		t.Error("hide: want true")
+	}
+	t.Setenv(ChildWindowsEnv, " SHOW ")
+	if defaultHideNeeded() {
+		t.Error("show: want false")
+	}
+	for _, v := range []string{"", "auto", "garbage"} {
+		t.Setenv(ChildWindowsEnv, v)
+		if got, want := defaultHideNeeded(), !HasConsole(); got != want {
+			t.Errorf("%q: defaultHideNeeded = %v, want !HasConsole() = %v", v, got, want)
+		}
+	}
+}
+
+// TestEnsureHiddenConsole_OnlyWhenThereIsNone: it allocates exactly when the
+// process has no console, and never when the operator said "show".
+func TestEnsureHiddenConsole_OnlyWhenThereIsNone(t *testing.T) {
+	calls := 0
+	old := allocConsoleAndHideFunc
+	allocConsoleAndHideFunc = func() bool { calls++; return true }
+	t.Cleanup(func() { allocConsoleAndHideFunc = old })
+
+	t.Setenv(ChildWindowsEnv, "show")
+	if EnsureHiddenConsole() || calls != 0 {
+		t.Fatalf("show: EnsureHiddenConsole allocated (calls=%d)", calls)
+	}
+
+	t.Setenv(ChildWindowsEnv, "")
+	got := EnsureHiddenConsole()
+	if HasConsole() {
+		if got || calls != 0 {
+			t.Fatalf("console present: EnsureHiddenConsole = %v calls=%d, want false/0", got, calls)
+		}
+	} else if !got || calls != 1 {
+		t.Fatalf("no console: EnsureHiddenConsole = %v calls=%d, want true/1", got, calls)
+	}
 }
 
 func flagsOf(cmd *exec.Cmd) uint32 {

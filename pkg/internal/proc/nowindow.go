@@ -17,7 +17,8 @@ import (
 // gives a child its own window only when it is a console program and the
 // parent has no console to hand down; CREATE_NO_WINDOW (see [HideWindow])
 // is the one flag that stops it, and it has to be on the CreateProcess call
-// of every such child. Routing the construction through here makes the flag
+// of every such child. A process that HAS a console (run from a terminal)
+// gets no flag: its children share that console and its Ctrl+C. Routing the construction through here makes the flag
 // the default and a raw `exec.Command` in production code the exception —
 // TestNoRawExecCommand pins that, so a new shell-out cannot quietly bring
 // the terminals back.

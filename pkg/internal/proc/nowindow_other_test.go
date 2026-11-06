@@ -33,3 +33,12 @@ func TestCommand_IsPlainExecOffWindows(t *testing.T) {
 		}
 	}
 }
+
+func TestEnsureHiddenConsole_IsInertOffWindows(t *testing.T) {
+	if EnsureHiddenConsole() {
+		t.Fatal("EnsureHiddenConsole reported a console created off Windows")
+	}
+	if !HasConsole() {
+		t.Fatal("HasConsole = false off Windows")
+	}
+}

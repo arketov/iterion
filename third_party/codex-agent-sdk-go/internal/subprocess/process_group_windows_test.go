@@ -9,6 +9,10 @@ import (
 )
 
 func TestConfigureProcessGroup_NoConsoleWindow(t *testing.T) {
+	if hasConsole() {
+		t.Skip("the test process has a console: the child shares it and no flag is added")
+	}
+
 	cmd := exec.Command("cmd", "/C", "exit 0")
 	configureProcessGroup(cmd)
 	if cmd.SysProcAttr == nil || cmd.SysProcAttr.CreationFlags != createNoWindow {
