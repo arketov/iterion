@@ -73,3 +73,39 @@ export function listFilesystem(
   const qs = `?path=${encodeURIComponent(path)}`;
   return request<FilesystemListing>(`/filesystem/list${qs}`, { signal });
 }
+
+// A registered project whose folder is gone but whose store still holds data:
+// the candidate for "move the data of a moved project". Mirrors
+// pkg/server/projects/relocate.go.
+export interface RelocationSource {
+  id: string;
+  name: string;
+  dir: string;
+  store_dir: string;
+  cards: number;
+  runs: number;
+  has_dispatcher_config: boolean;
+}
+
+export interface RelocationOffer {
+  sources: RelocationSource[];
+  // False once the project's own store holds a board, settings or runs: the
+  // server refuses to merge into it.
+  destination_empty: boolean;
+}
+
+export function getRelocationOffer(id: string): Promise<RelocationOffer> {
+  return request<RelocationOffer>(
+    `/projects/${encodeURIComponent(id)}/relocation`,
+  );
+}
+
+export function relocateProject(
+  id: string,
+  sourceId: string,
+): Promise<{ copied: { cards: number; runs: number }; dispatcher: "stopped" }> {
+  return request(`/projects/${encodeURIComponent(id)}/relocate`, {
+    method: "POST",
+    body: JSON.stringify({ source_id: sourceId }),
+  });
+}

@@ -11,6 +11,7 @@ import { Table, THead, Th, TBody, Tr, Td } from "@/components/ui/Table";
 import { Tooltip } from "@/components/ui";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useConfirm } from "@/hooks/useConfirm";
+import { useProjects } from "@/hooks/useProjects";
 import { errorMessage } from "@/lib/errorHints";
 import {
   applyDefaults,
@@ -33,6 +34,7 @@ import CostCapBanner from "@/components/shared/CostCapBanner";
 import { dispatcherActionState } from "./dispatcherActionState";
 import { dispatcherPillMeta } from "@/components/shared/dispatcherPillMeta";
 
+import RelocationOffer from "./RelocationOffer";
 import RetriesTable from "./RetriesTable";
 import RunningTable from "./RunningTable";
 
@@ -53,6 +55,7 @@ export default function DispatcherView() {
   // setError(null)/setError(errorMessage(e)) at each call site.
   const action = useAsyncAction();
   const { confirm, dialog } = useConfirm();
+  const { currentProject } = useProjects();
   const wsRef = useRef<WebSocket | null>(null);
   // The dispatcher manager's WS only exists while it is running or paused;
   // idle / error / absent all 503. Gate the live socket on that so an
@@ -339,16 +342,29 @@ export default function DispatcherView() {
           // (the project's own bots, native board) and starts it. The server
           // answers 409 when a config already exists, so the button is only
           // offered while there is none.
+          // A project moved to another folder opens here with no settings while
+          // its data sits under the old path: offer to carry it over first.
           action={
             status && !status.has_config ? (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => void actionRun(async () => { setStatus(await applyDefaults()); })}
-                title="Create a default dispatcher that runs your project's bots, and start it"
-              >
-                Use default settings
-              </Button>
+              <div className="flex flex-col items-center gap-3">
+                <RelocationOffer
+                  projectId={currentProject?.id}
+                  onMoved={() =>
+                    void actionRun(async () => {
+                      setStatus(await getStatus());
+                      setSnap(await getState());
+                    })
+                  }
+                />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => void actionRun(async () => { setStatus(await applyDefaults()); })}
+                  title="Create a default dispatcher that runs your project's bots, and start it"
+                >
+                  Use default settings
+                </Button>
+              </div>
             ) : undefined
           }
           message={
