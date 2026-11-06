@@ -116,7 +116,6 @@ Linux and macOS are unchanged.
 
 | What you see | Why | What to do |
 |---|---|---|
-| Updating a bot's dependencies from the studio answers 400, "dependency transactions require filesystem identity checks on this platform". | The transaction needs a filesystem identity check that is built for Linux and macOS only (`pkg/server/assistant_dependency_rename_other.go`). |  No workaround on Windows yet; update the pin on a Linux or macOS host. |
 | A node with `permission: deny` on the `grok` or `kimi` backend is refused on Windows. | The gate hook is quoted for a POSIX shell and the backend's home is linked with symlinks, which an unprivileged Windows process cannot create. Running such a node ungated would fail open, so iterion refuses. | Use `permission: off`, or the `claude_code` or `claw` backend, which gate in-process. |
 | Cancelling a run can leave a child of a tool node running. | Windows has no process-group signal; cancellation kills the direct child only (`pkg/internal/proc`). | End leftover processes in Task Manager, or `taskkill /F /T /PID <pid>`. |
 | `iterion schedule install` fails. | It writes the managed block into the host `crontab`, which Windows does not have. `schedule install --print` shows the block without needing one. | Point Windows Task Scheduler at `iterion schedule run <name>`, the command a cron line calls (`schedule install --print` shows the exact line; not tried here). The manifest commands (`add`, `list`, `remove`) do not need `crontab`. See [scheduling](scheduling.md). |
