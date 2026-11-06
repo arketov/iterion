@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // Workspaces manages per-issue workspace directories under a single
@@ -18,6 +19,26 @@ import (
 type Workspaces struct {
 	root string
 	mu   sync.Mutex
+	// seedConfigured reports whether the dispatcher runs an after_create hook.
+	// Unset (the zero value) means it does not. Only the move of a long-named
+	// legacy workspace to the short name reads it (see legacyIsUnseeded).
+	seedConfigured atomic.Pointer[func() bool]
+}
+
+// SetSeedConfigured tells the manager how to ask whether the dispatcher seeds
+// a fresh workspace with an after_create hook. The dispatcher sets it when it
+// is built; the answer is read at use time, so a config reload is followed.
+func (w *Workspaces) SetSeedConfigured(fn func() bool) {
+	if fn == nil {
+		w.seedConfigured.Store(nil)
+		return
+	}
+	w.seedConfigured.Store(&fn)
+}
+
+func (w *Workspaces) seedHookConfigured() bool {
+	fn := w.seedConfigured.Load()
+	return fn != nil && (*fn)()
 }
 
 // workspaceKeyNamespace deliberately starts with a dot. sanitizeKey never
@@ -298,7 +319,7 @@ func (w *Workspaces) createForRun(issueID, runID string, trackSeed bool) (path s
 	// An unseeded generation left under the long name by an earlier build is
 	// removed first, so the paths below resolve to the short name and the seeding
 	// step starts afresh in it.
-	discardedLegacy, err := w.discardUnseededLegacy(issueID, runID)
+	discardedLegacy, err := w.discardUnseededLegacy(issueID, runID, rootCanon)
 	if err != nil {
 		return "", false, false, err
 	}
@@ -540,7 +561,7 @@ func (w *Workspaces) keyFor(issueID, runID string) string {
 	if keyPresent(namespace, short) || !keyPresent(namespace, legacy) {
 		return short
 	}
-	if legacyIsUnseeded(namespace, legacy, issueID, runID) {
+	if w.legacyIsUnseeded(namespace, legacy, issueID, runID) {
 		return short
 	}
 	return legacy
@@ -549,14 +570,17 @@ func (w *Workspaces) keyFor(issueID, runID string) string {
 // legacyIsUnseeded reports whether a legacy-named generation never got its
 // seeding done, so nothing in it is worth keeping under its long name: its
 // marker says the seed is pending (the directory may be missing, half-built or
-// empty), or it is an empty directory under a marker from a build that did not
-// track seeding (the bars-project case: `git worktree add` failed on the long
-// name and left the bare directory). Re-seeding such a generation under the long
-// name would fail the same way, so keyFor sends it to the short name and
-// discardUnseededLegacy removes what it left. A seeded workspace, a retired one
-// and a marker whose directory vanished are none of this: they stay under the
-// legacy name, and the lifecycle's fail-closed rules apply to them as before.
-func legacyIsUnseeded(namespace, legacy, issueID, runID string) bool {
+// empty), or, when an after_create hook is configured, it is an empty directory
+// under a marker from a build that did not track seeding (the bars-project case:
+// `git worktree add` failed on the long name and left the bare directory).
+// Re-seeding such a generation under the long name would fail the same way, so
+// keyFor sends it to the short name and discardUnseededLegacy removes what it
+// left. Without a hook an empty directory is not a failure (a `worktree: auto`
+// run works in its own checkout), and the generation stays resumable under the
+// legacy name. A seeded workspace, a retired one and a marker whose directory
+// vanished are none of this: they stay under the legacy name, and the
+// lifecycle's fail-closed rules apply to them as before.
+func (w *Workspaces) legacyIsUnseeded(namespace, legacy, issueID, runID string) bool {
 	owner, err := readWorkspaceOwner(filepath.Join(namespace, workspaceOwnersDir, legacy+".json"))
 	if err != nil || verifyWorkspaceOwner(owner, issueID, runID, workspaceOwnerActive) != nil {
 		return false
@@ -568,7 +592,7 @@ func legacyIsUnseeded(namespace, legacy, issueID, runID string) bool {
 		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 			return false
 		}
-		return owner.SeedPending || (!owner.SeedTracked && dirIsEmpty(dir))
+		return owner.SeedPending || (!owner.SeedTracked && w.seedHookConfigured() && dirIsEmpty(dir))
 	case errors.Is(err, os.ErrNotExist):
 		// A discard interrupted between removing the directory and the marker.
 		return owner.SeedPending
@@ -584,14 +608,19 @@ func legacyIsUnseeded(namespace, legacy, issueID, runID string) bool {
 // seeded one once its directory is gone), then the directory goes, then the
 // marker: an interruption at any point is retried by the next call. The caller
 // holds w.mu.
-func (w *Workspaces) discardUnseededLegacy(issueID, runID string) (bool, error) {
+func (w *Workspaces) discardUnseededLegacy(issueID, runID, rootCanon string) (bool, error) {
 	short, legacy := workspaceKeys(issueID, runID)
 	namespace := filepath.Join(w.root, workspaceKeyNamespace)
 	if keyPresent(namespace, short) || !keyPresent(namespace, legacy) ||
-		!legacyIsUnseeded(namespace, legacy, issueID, runID) {
+		!w.legacyIsUnseeded(namespace, legacy, issueID, runID) {
 		return false, nil
 	}
 	dir := filepath.Join(namespace, legacy)
+	if canon, err := filepath.EvalSymlinks(dir); err == nil && !isWithin(canon, rootCanon) {
+		// A junction or reparse point that legacyIsUnseeded's symlink test does
+		// not catch: never delete through it.
+		return false, fmt.Errorf("workspace: legacy workspace %s resolves to %q outside root %q — refusing to discard it", dir, canon, rootCanon)
+	}
 	markerPath := filepath.Join(namespace, workspaceOwnersDir, legacy+".json")
 	owner, err := readWorkspaceOwner(markerPath)
 	if err != nil {

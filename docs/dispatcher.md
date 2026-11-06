@@ -581,10 +581,11 @@ on a deep project path. Workspaces made by an earlier build under the long
 name (`<slug up to 80>--<64 hex digits>`) are still found and kept as they are,
 with their ownership record and its `seed_pending` / `seed_tracked` marks;
 only a new generation gets the short name. The exception is a long-named
-workspace whose seeding never finished (its record says `seed_pending`, or it is
-an empty folder under a record from a build before those marks): `after_create`
-could only fail on it again, so the dispatch deletes it and its record, creates
-the short-named workspace and runs `after_create` there. Ownership records live outside the checkout in
+workspace whose seeding never finished (its record says `seed_pending`, or, when
+`after_create` is configured, it is an empty folder under a record from a build
+before those marks): `after_create` could only fail on it again, so the dispatch
+deletes it and its record, creates the short-named workspace and runs
+`after_create` there. Ownership records live outside the checkout in
 the sibling `.owners/` directory.
 
 | `workspace.persist`     | Behaviour                                                 |

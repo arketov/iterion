@@ -203,6 +203,7 @@ func New(opts Options) (*Dispatcher, error) {
 		opts.Logger.Info("dispatcher: tracker %T has no claim-lease capability — lease heartbeats and the claim watchdog are disabled for this tracker (label-based claims cannot be fenced)", opts.Tracker)
 	}
 	c.cfg.Store(opts.Config)
+	opts.Workspaces.SetSeedConfigured(func() bool { return c.cfg.Load().Hooks.AfterCreate != nil })
 	// Seed the published snapshot so Snapshot() never reads a nil pointer
 	// before the actor's first fireSnapshot. Safe to build here: cfg and
 	// state are both set and no other goroutine exists yet.

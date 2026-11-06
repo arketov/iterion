@@ -209,14 +209,17 @@ func TestLegacyUnseededWorkspaceMovesToTheShortName(t *testing.T) {
 		owner workspaceOwnerRecord
 		files bool // leave a half-run seed in the directory
 	}{
-		{"seed pending, half seeded", workspaceOwnerRecord{State: workspaceOwnerActive, SeedPending: true, SeedTracked: true}, true},
-		{"seed pending, empty", workspaceOwnerRecord{State: workspaceOwnerActive, SeedPending: true, SeedTracked: true}, false},
-		{"no seed mark, empty directory", workspaceOwnerRecord{State: workspaceOwnerActive}, false},
+		{"pending-half", workspaceOwnerRecord{State: workspaceOwnerActive, SeedPending: true, SeedTracked: true}, true},
+		{"pending-empty", workspaceOwnerRecord{State: workspaceOwnerActive, SeedPending: true, SeedTracked: true}, false},
+		{"unmarked-empty", workspaceOwnerRecord{State: workspaceOwnerActive}, false},
 	}
 	for _, tc := range cases {
 		for _, runID := range []string{"", "run-bars"} {
-			t.Run(tc.name+"/run="+runID, func(t *testing.T) {
+			// Short subtest names: the test's temp directory carries them, and the
+			// legacy names are already long.
+			t.Run(tc.name+"-"+strings.TrimPrefix(runID, "run-"), func(t *testing.T) {
 				w := newSeedTestWorkspaces(t)
+				w.SetSeedConfigured(func() bool { return true })
 				dir, marker := makeLegacyGeneration(t, w, nativeCardID, runID, tc.owner)
 				if tc.files {
 					writeSeedProbe(t, dir)
@@ -255,6 +258,40 @@ func TestLegacyUnseededWorkspaceMovesToTheShortName(t *testing.T) {
 			})
 		}
 	}
+}
+
+// Without an after_create hook an empty directory under an unmarked legacy
+// workspace is no failed seed (a `worktree: auto` run works in its own
+// checkout): the generation stays under its legacy name and stays resumable.
+func TestLegacyEmptyWorkspaceWithoutSeedHookStaysResumable(t *testing.T) {
+	w := newSeedTestWorkspaces(t) // no SetSeedConfigured: no hook
+	dir, marker := makeLegacyGeneration(t, w, nativeCardID, "run-auto", workspaceOwnerRecord{State: workspaceOwnerActive})
+	if got := w.PathForRun(nativeCardID, "run-auto"); got != dir {
+		t.Fatalf("PathForRun = %q, want the legacy directory %q", got, dir)
+	}
+	generation, exists, managed, err := w.resumeGenerationState(nativeCardID, "run-auto")
+	if err != nil || !exists || !managed || generation != "run-auto" {
+		t.Fatalf("resumeGenerationState = (%q, %t, %t, %v), want the legacy generation, managed", generation, exists, managed, err)
+	}
+	path, created, reseeded, err := w.CreateForDispatch(nativeCardID, "run-auto")
+	if err != nil || created || reseeded {
+		t.Fatalf("CreateForDispatch = (%q, created=%t, reseeded=%t, %v), want the legacy workspace untouched", path, created, reseeded, err)
+	}
+	samePath(t, path, dir)
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("legacy marker is gone: %v", err)
+	}
+
+	// The same shape with the hook configured is the failed-seed leftover.
+	w.SetSeedConfigured(func() bool { return true })
+	if got, short := filepath.Base(w.PathForRun(nativeCardID, "run-auto")), mustShortKey(nativeCardID, "run-auto"); got != short {
+		t.Fatalf("with a hook the empty legacy workspace resolves to %q, want %q", got, short)
+	}
+}
+
+func mustShortKey(issueID, runID string) string {
+	short, _ := workspaceKeys(issueID, runID)
+	return short
 }
 
 // A discard interrupted between removing the directory and the marker leaves a
