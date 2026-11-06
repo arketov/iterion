@@ -2,11 +2,113 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
 	"github.com/arketov/iterion/pkg/store"
 )
+
+// A run launched from a project subfolder is keyed on the subfolder, so the
+// studio at the project root never sees it. The key rule is a documented
+// contract and stays; what must not stay is the silence: when a parent folder
+// up to the git root already holds a store, the launch has to name it.
+func TestAncestorStoreHint(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not in PATH")
+	}
+	seedRepo := func(t *testing.T) (repo, sub string) {
+		t.Helper()
+		t.Setenv("ITERION_HOME", t.TempDir())
+		repo = t.TempDir()
+		if out, err := exec.Command("git", "init", repo).CombinedOutput(); err != nil {
+			t.Fatalf("git init: %v\n%s", err, out)
+		}
+		sub = filepath.Join(repo, "bots", "x")
+		if err := os.MkdirAll(sub, 0o755); err != nil {
+			t.Fatalf("seed subfolder: %v", err)
+		}
+		return repo, sub
+	}
+	mkRuns := func(t *testing.T, storeDir string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(storeDir, "runs"), 0o755); err != nil {
+			t.Fatalf("seed store %s: %v", storeDir, err)
+		}
+	}
+	same := func(t *testing.T, got, want string) {
+		t.Helper()
+		g, errG := filepath.EvalSymlinks(got)
+		w, errW := filepath.EvalSymlinks(want)
+		if errG != nil || errW != nil {
+			g, w = got, want
+		}
+		if g != w {
+			t.Fatalf("hint = %q, want %q", got, want)
+		}
+	}
+
+	t.Run("parent project store is named", func(t *testing.T) {
+		repo, sub := seedRepo(t)
+		parent := filepath.Join(repo, store.StoreDirName)
+		mkRuns(t, parent)
+		got := ancestorStoreHint(sub, "", store.ResolveStoreDir(sub, ""))
+		if got == "" {
+			t.Fatal("expected a hint for the project store, got none")
+		}
+		same(t, got, parent)
+	})
+	t.Run("parent without runs gives no hint", func(t *testing.T) {
+		_, sub := seedRepo(t)
+		if got := ancestorStoreHint(sub, "", store.ResolveStoreDir(sub, "")); got != "" {
+			t.Fatalf("unexpected hint %q", got)
+		}
+	})
+	t.Run("explicit store-dir gives no hint", func(t *testing.T) {
+		repo, sub := seedRepo(t)
+		mkRuns(t, filepath.Join(repo, store.StoreDirName))
+		if got := ancestorStoreHint(sub, "/pinned", "/pinned"); got != "" {
+			t.Fatalf("unexpected hint %q", got)
+		}
+	})
+	t.Run("subfolder with its own managed store gives no hint", func(t *testing.T) {
+		repo, sub := seedRepo(t)
+		mkRuns(t, filepath.Join(repo, store.StoreDirName))
+		mkRuns(t, filepath.Join(sub, store.StoreDirName))
+		if got := ancestorStoreHint(sub, "", store.ResolveStoreDir(sub, "")); got != "" {
+			t.Fatalf("unexpected hint %q", got)
+		}
+	})
+	t.Run("anchor at the repository root gives no hint", func(t *testing.T) {
+		repo, _ := seedRepo(t)
+		mkRuns(t, filepath.Join(repo, store.StoreDirName))
+		if got := ancestorStoreHint(repo, "", store.ResolveStoreDir(repo, "")); got != "" {
+			t.Fatalf("unexpected hint %q", got)
+		}
+	})
+	t.Run("parent slot in the iterion home is named", func(t *testing.T) {
+		repo, sub := seedRepo(t)
+		slot := store.ResolveStoreDir(repo, "")
+		mkRuns(t, slot)
+		got := ancestorStoreHint(sub, "", store.ResolveStoreDir(sub, ""))
+		if got == "" {
+			t.Fatal("expected a hint for the parent slot, got none")
+		}
+		same(t, got, slot)
+	})
+	t.Run("folder outside git gives no hint", func(t *testing.T) {
+		t.Setenv("ITERION_HOME", t.TempDir())
+		outside := t.TempDir()
+		sub := filepath.Join(outside, "a", "b")
+		if err := os.MkdirAll(sub, 0o755); err != nil {
+			t.Fatalf("seed: %v", err)
+		}
+		mkRuns(t, filepath.Join(outside, store.StoreDirName))
+		if got := ancestorStoreHint(sub, "", store.ResolveStoreDir(sub, "")); got != "" {
+			t.Fatalf("unexpected hint %q", got)
+		}
+	})
+}
 
 // A bot that lives inside the project it drives must not key the run store on
 // its own subdirectory: the studio, the board and every follow-up command
