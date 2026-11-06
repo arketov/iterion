@@ -912,6 +912,11 @@ func addClawBinaryMount(spec *sandbox.Spec, wf *ir.Workflow, resolver effectiveB
 	if wf == nil || !containsClawNode(wf, resolver) {
 		return
 	}
+	// A Windows host's iterion.exe is a PE file the Linux container cannot
+	// run; the image must ship its own iterion.
+	if goruntime.GOOS == "windows" {
+		return
+	}
 	hostBin := locateHostIterionBinary()
 	if hostBin == "" {
 		return

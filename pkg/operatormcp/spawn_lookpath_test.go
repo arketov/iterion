@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/arketov/iterion/internal/envtrust"
@@ -27,7 +28,11 @@ func TestRunnerBinaryRefusesAPlantedPATH(t *testing.T) {
 	t.Setenv("ITERION_BIN", "")
 
 	dir := t.TempDir()
-	fake := filepath.Join(dir, "iterion")
+	name := "iterion"
+	if runtime.GOOS == "windows" {
+		name = "iterion.exe" // the lookup requires an .exe extension there
+	}
+	fake := filepath.Join(dir, name)
 	if err := os.WriteFile(fake, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
