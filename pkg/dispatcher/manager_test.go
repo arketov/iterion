@@ -1,9 +1,13 @@
 package dispatcher
 
 import (
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/arketov/iterion/pkg/dispatcher/native"
@@ -65,6 +69,40 @@ func TestNewManager_RequiresLogger(t *testing.T) {
 	})
 	if err == nil || !contains(err.Error(), "logger") {
 		t.Errorf("expected logger error, got %v", err)
+	}
+}
+
+// A manager that was never started answers an issue read with the JSON error
+// envelope every other API route uses, not a text/plain body.
+func TestManagerIssueDetail_NotRunningIsJSON(t *testing.T) {
+	dir := newTestStoreDir(t)
+	m, err := NewManager(ManagerOptions{
+		StoreDir:    dir,
+		NativeStore: newTestNativeStore(t, dir),
+		Logger:      newTestLogger(),
+	})
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	mux := http.NewServeMux()
+	m.RegisterRoutes(mux, "/api/v1/dispatcher")
+
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/dispatcher/issues/x", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", rec.Code)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("Content-Type = %q, want application/json", ct)
+	}
+	var body struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode %q: %v", rec.Body.String(), err)
+	}
+	if body.Error != "dispatcher not running" {
+		t.Errorf("error = %q, want %q", body.Error, "dispatcher not running")
 	}
 }
 

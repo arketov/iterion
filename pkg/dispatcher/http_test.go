@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -90,6 +91,15 @@ func TestHTTPIssueDetailAndCancel(t *testing.T) {
 	r404, _ := http.Get(srv.URL + "/issues/unknown")
 	if r404.StatusCode != 404 {
 		t.Fatalf("want 404, got %d", r404.StatusCode)
+	}
+	if ct := r404.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("404 Content-Type = %q, want application/json", ct)
+	}
+	var notTracked struct {
+		Error string `json:"error"`
+	}
+	if err := json.NewDecoder(r404.Body).Decode(&notTracked); err != nil || notTracked.Error != "issue not tracked by dispatcher" {
+		t.Errorf("404 body error = %q (decode err %v), want %q", notTracked.Error, err, "issue not tracked by dispatcher")
 	}
 	r404.Body.Close()
 
