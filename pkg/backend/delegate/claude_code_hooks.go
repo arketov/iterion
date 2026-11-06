@@ -691,9 +691,9 @@ func (b *ClaudeCodeBackend) wireBoardMCP(task Task, opts []claudesdk.Option, ext
 		return opts
 	}
 	if task.Sandbox == nil {
-		selfPath := proc.LocateIterionBinary()
+		selfPath := boardServerBinary()
 		if selfPath == "" {
-			b.Logger.Warn("[%s#%d/claude-code] could not resolve iterion CLI binary path; board MCP server disabled", task.NodeID, task.Iteration)
+			b.Logger.Warn("[%s#%d/claude-code] could not resolve a binary to serve the board MCP server; board MCP server disabled", task.NodeID, task.Iteration)
 			return opts
 		}
 		opts = append(opts, claudesdk.WithMCPServer(boardMCPServerName, &claudesdk.MCPStdioServer{

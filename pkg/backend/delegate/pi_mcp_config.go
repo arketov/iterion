@@ -74,6 +74,13 @@ func piSandboxSpawnFiles(mark string) []string {
 // The sweep that ends the spawn removes it (piSandboxSpawnFiles). Host: a
 // 0600 file in a 0700 directory of its own, removed when the node ends.
 func pinMCPServers(ctx context.Context, task Task, mark string, logger *iterlog.Logger) (string, func(), error) {
+	// piMCPServers' board stdio branch (hostless, no HTTP endpoint) needs a
+	// server executable; refuse the node rather than run it board-less.
+	if HasBoardCapability(task.Capabilities) && !(task.BoardHTTPEndpoint != "" && task.BoardRunToken != "") && task.Hostless() {
+		if err := refuseBoardWithoutServer(task, BackendPi); err != nil {
+			return "", func() {}, err
+		}
+	}
 	servers := piMCPServers(task, logger)
 	if len(servers) == 0 {
 		return "", func() {}, nil

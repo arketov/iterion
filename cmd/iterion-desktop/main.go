@@ -4,9 +4,11 @@ package main
 
 import (
 	_ "embed"
+	"fmt"
 	"log"
 	"os"
 
+	"github.com/arketov/iterion/pkg/cli"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
@@ -30,6 +32,20 @@ import (
 var appIcon []byte
 
 func main() {
+	// Hidden `__mcp-board`: nodes holding board.* capabilities spawn this
+	// very executable as their board MCP stdio server when no separate
+	// iterion CLI sits next to it. Dispatch FIRST — stdout is the JSON-RPC
+	// channel, nothing below may write to it or open a window. Every other
+	// invocation declares that this process can serve the board.
+	if handled, err := cli.MaybeServeBoardMCP(os.Args[1:], os.Stdin, os.Stdout); handled {
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "iterion-desktop __mcp-board:", err)
+			os.Exit(1)
+		}
+		return
+	}
+	cli.DeclareSelfServesBoardMCP()
+
 	// Set GLib's program name BEFORE Wails boots GTK. gtk_init reads
 	// g_get_prgname() when realising windows and stamps WM_CLASS from
 	// it — Wails calls g_set_prgname too but only AFTER NewWindow,

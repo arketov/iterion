@@ -25,7 +25,9 @@ import (
 //
 // Returns "" when no binary can be located. Callers either fall back
 // to a degraded mode (skip MCP wiring, log a warning) or expect the
-// target environment to ship its own copy on PATH.
+// target environment to ship its own copy on PATH. The board MCP server
+// has its own resolver, LocateBoardMCPBinary, which also accepts the
+// desktop binary serving `__mcp-board` itself.
 //
 // Symmetry note: the same logic lives in pkg/runtime/sandbox.go as
 // locateHostIterionBinary, kept inline there to avoid leaking the

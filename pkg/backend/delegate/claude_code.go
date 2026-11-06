@@ -951,6 +951,14 @@ func (b *ClaudeCodeBackend) Execute(ctx context.Context, task Task) (result Resu
 			return Result{}, err
 		}
 	}
+	// The stdio board server (wireBoardMCP, Sandbox == nil) needs an
+	// executable to run; without one the node is refused rather than run
+	// with board tools allow-listed and nothing behind them.
+	if HasBoardCapability(task.Capabilities) && task.Sandbox == nil {
+		if err := refuseBoardWithoutServer(task, BackendClaudeCode); err != nil {
+			return Result{}, err
+		}
+	}
 	// cliTurnCompleted records that the CLI carried this call to its own
 	// ResultMessage. It is the discriminator turnFinished needs and the
 	// defer below cannot read: `rm` is declared further down, so the

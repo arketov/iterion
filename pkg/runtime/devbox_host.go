@@ -233,7 +233,13 @@ func (e *Engine) provisionHostDevbox(ctx context.Context, runID string) func() {
 		// anywhere else a bot's shell tools are about to fall back to
 		// the ambient `iterion` without a word — say why.
 		if exe, exeErr := os.Executable(); exeErr == nil && e.logger != nil {
-			e.logger.Warn("runtime: host devbox: no iterion binary could be located (ITERION_BIN, a sibling of %s, the standard install paths) — a bot's shell tools will resolve `iterion` to whatever sits on the ambient PATH first", exe)
+			// The same missing binary also serves the board MCP server, so
+			// say that consequence too — unless this process serves it itself.
+			boardNote := ""
+			if !proc.SelfServesBoardMCP() {
+				boardNote = "; board tools unavailable in nodes (claude_code/pi nodes holding board.* capabilities are refused)"
+			}
+			e.logger.Warn("runtime: host devbox: no iterion binary could be located (ITERION_BIN, a sibling of %s, the standard install paths) — a bot's shell tools will resolve `iterion` to whatever sits on the ambient PATH first%s", exe, boardNote)
 		}
 	}
 
