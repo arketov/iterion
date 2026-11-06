@@ -439,6 +439,15 @@ func (c *Dispatcher) dispatch(ctx context.Context, iss tracker.Issue) {
 		return
 	}
 
+	// A finished run whose move to completed_state was lost (a tracker blip,
+	// a daemon restart mid-retry) leaves the card in the eligible running
+	// column. That is an unfinished transition, not a re-queue: complete it
+	// instead of buying a second run of a done task.
+	if c.finishedTransitionPending(cfg, iss) {
+		c.completeFinishedCard(cfg, iss, claimTok)
+		return
+	}
+
 	runID, resumeFromRunID, attempt, ok := c.resolveRunID(ctx, iss)
 	if !ok {
 		return
@@ -524,6 +533,67 @@ func (c *Dispatcher) dispatch(ctx context.Context, iss tracker.Issue) {
 		session:             entry.claim,
 		spec:                spec,
 	})
+}
+
+// finishedTransitionPending reports whether iss is a card whose last run
+// finished cleanly but whose move to completed_state never landed: it sits in
+// running_state, has no retry entry (that is the failure path), its last_run is
+// finished, and it entered the column BEFORE that run finished. A card an
+// operator put in the column AFTER the run finished is the deliberate re-queue
+// (see lastRunForbidsFresh) and returns false. Zero StateAt (a legacy card or a
+// tracker that cannot say) reads as unfinished. Runs on the actor.
+func (c *Dispatcher) finishedTransitionPending(cfg *Config, iss tracker.Issue) bool {
+	running, completed := cfg.Agent.RunningState, cfg.Agent.CompletedState
+	if running == "" || completed == "" || completed == running || iss.WorkflowState != running {
+		return false
+	}
+	if _, retrying := c.state.retries[iss.ID]; retrying {
+		return false
+	}
+	prev := c.lastRunID(iss.ID)
+	if prev == "" {
+		return false
+	}
+	rs, err := c.openRunStore()
+	if err != nil {
+		return false
+	}
+	r, err := c.loadRunForDecision(rs, prev, "unfinished-transition check")
+	if err != nil || r.Status != store.RunStatusFinished {
+		return false
+	}
+	if r.FinishedAt != nil && !iss.StateAt.IsZero() && iss.StateAt.After(*r.FinishedAt) {
+		return false
+	}
+	return true
+}
+
+// completeFinishedCard finishes the move to completed_state for a card
+// finishedTransitionPending recognised, on the claim dispatch just took. No run
+// starts and no slot is taken: the finish worker retries the move and releases
+// the claim.
+func (c *Dispatcher) completeFinishedCard(cfg *Config, iss tracker.Issue, claimTok tracker.ClaimToken) {
+	prev := c.lastRunID(iss.ID)
+	c.logger.Info("dispatcher: %s last run %s finished but the card is still in %s — completing the move to %q instead of a new run",
+		iss.Identifier, prev, cfg.Agent.RunningState, cfg.Agent.CompletedState)
+	var sess *claimSession
+	if c.leaser != nil {
+		// Nothing to cancel when the claim is lost: the worker's fenced
+		// writes are refused and it gives up on its own.
+		sess = StartClaimSession(c.leaser, iss.ID, claimTok, c.logger.Warn, func(error) {})
+	}
+	delete(c.state.dispatchSkips, iss.ID)
+	c.launchFinish(finishPlan{
+		kind:           finishCompleted,
+		issueID:        iss.ID,
+		identifier:     iss.Identifier,
+		runningTarget:  cfg.Agent.RunningState,
+		completedState: cfg.Agent.CompletedState,
+		runID:          prev,
+		retryCap:       cfg.MaxRetryBackoff(),
+		session:        sess,
+	})
+	c.fireSnapshot()
 }
 
 // lastRunHoldBeforeClaim handles persisted states that cannot make progress
@@ -874,7 +944,9 @@ func (c *Dispatcher) resolveRunID(ctx context.Context, iss tracker.Issue) (runID
 	// because a retry entry dropped PrevRunID, not because the
 	// workspace probe failed open. A finished last_run does NOT hold
 	// the card: dragging it back to an eligible column is the
-	// operator's re-queue gesture (see lastRunForbidsFresh).
+	// operator's re-queue gesture (see lastRunForbidsFresh) — except an
+	// unfinished completed-state move, already handled in dispatch
+	// (finishedTransitionPending) before this point.
 	if prev := c.lastRunID(iss.ID); prev != "" && !missingResumeWorkspace {
 		status, known := c.runStatusOnDisk(prev)
 		if !known {
