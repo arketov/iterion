@@ -151,6 +151,7 @@ func TestRemoteMintCommands_RefuseAPersonalAccessTokenBeforeSendingAnything(t *t
 func TestRemoteTeamsSwitch_TheStoredPATApprovesThroughTheBrowser(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("ITERION_HOME", home)
 	t.Setenv("ITERION_REMOTE_URL", "")
 
 	const teamUUID = "87a2ee99-6b91-43ca-bb51-659a8ce7f705"

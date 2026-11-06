@@ -32,6 +32,8 @@ func TestRemoteTeamTokenMints_EveryAlwaysMintingCommandRefusesAStoredTokenBefore
 	defer srv.Close()
 
 	t.Setenv("HOME", t.TempDir())
+
+	t.Setenv("ITERION_HOME", t.TempDir())
 	t.Setenv("ITERION_REMOTE_URL", srv.URL)
 	t.Setenv("ITERION_REMOTE_TOKEN", "iap_stored_token")
 	t.Setenv("ITERION_REMOTE_TEAM", "11111111-2222-3333-4444-555555555555")
@@ -97,6 +99,8 @@ func TestRemoteTeamTokenMints_AServerRefusalCarriesTheAdviceWhereverItLands(t *t
 	defer srv.Close()
 
 	t.Setenv("HOME", t.TempDir())
+
+	t.Setenv("ITERION_HOME", t.TempDir())
 	t.Setenv("ITERION_REMOTE_URL", srv.URL)
 	t.Setenv("ITERION_REMOTE_TOKEN", "an-access-token-with-no-iap-prefix")
 	t.Setenv("ITERION_REMOTE_TEAM", "11111111-2222-3333-4444-555555555555")
@@ -163,6 +167,8 @@ func TestRemoteTeamTokenMints_TheReadsAndTheNonMintsStayOpen(t *testing.T) {
 	defer srv.Close()
 
 	t.Setenv("HOME", t.TempDir())
+
+	t.Setenv("ITERION_HOME", t.TempDir())
 	t.Setenv("ITERION_REMOTE_URL", srv.URL)
 	t.Setenv("ITERION_REMOTE_TOKEN", "iap_stored_token")
 	t.Setenv("ITERION_REMOTE_TEAM", "11111111-2222-3333-4444-555555555555")
@@ -243,6 +249,7 @@ func TestRemoteForgeRepoBots_AVerbWithoutItsIdAnswersTheUsage(t *testing.T) {
 	}))
 	defer srv.Close()
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("ITERION_HOME", t.TempDir())
 	t.Setenv("ITERION_REMOTE_URL", srv.URL)
 	t.Setenv("ITERION_REMOTE_TOKEN", "iap_stored_token")
 	t.Setenv("ITERION_REMOTE_TEAM", "11111111-2222-3333-4444-555555555555")
