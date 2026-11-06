@@ -1077,7 +1077,9 @@ resume it by itself and does not park the card in `awaiting_input` (nobody has
 anything to answer): the card stays in its column with a `source_changed`
 badge, and the operator either force-resumes the run — the card then moves to
 `in_progress` on its own — or resets `last_run` (*Start over*,
-`iterion issue update --clear-last-run`).
+`iterion issue update --clear-last-run`). The adopted follow-up is journalled
+by the dispatcher (`dispatcher/source-holds.json`), so a restart while the run
+is going does not turn its `finished` status into a fresh run.
 
 See [dispatcher](dispatcher.md#paused-runs--the-awaiting_input-column--parked-sweep).
 

@@ -247,8 +247,15 @@ a `source_changed` badge on the card with two buttons:
   `iterion issue update --clear-last-run`); the next tick dispatches a fresh
   run.
 
-The hold is memory only: a daemon restart costs one extra
-claim → refusal → hold cycle. A tracker without a `last_run` pointer
+The refusal hold itself is memory only: a daemon restart costs one extra
+claim → refusal → hold cycle. Once a force-resume is adopted the hold is
+journalled in `<store>/dispatcher/source-holds.json` and survives a daemon
+restart, so a run that finishes later files the card to
+`agent.completed_state` instead of minting a fresh sibling (the adopted card
+sits in `in_progress`, an eligible column, with no claim). It is a journal and
+not a claim on purpose: the boot sweep releases a dead pid's claim on Unix,
+Windows never sweeps it, and the claim watchdog
+(`ITERION_BOARD_CLAIM_REAPER`) is opt-in. A tracker without a `last_run` pointer
 (github/forgejo) keeps the legacy park in `awaiting_input`, since nothing
 could lift a hold there.
 
