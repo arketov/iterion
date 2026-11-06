@@ -75,7 +75,8 @@ They overlap on purpose, and show different things:
   `workflows/` or `docs/` that no list shows. Only workflow files open this way:
   any other path (a `.env`, a config, a `.bot.yaml`) is refused with
   `not_workflow_file` before the server reads it, so the Editor is no way to read
-  the project's secrets. The tab is bound to that path, so
+  the project's secrets. A recent-files entry the server refuses this way is removed
+  from Recent when you open it, with a toast saying why. The tab is bound to that path, so
   **Save** writes over the original. If the list was cut at its cap, the picker
   says so (*Showing the first N files of M*).
 - **Import copy from disk…** takes a file from *anywhere* on your disk, but only
