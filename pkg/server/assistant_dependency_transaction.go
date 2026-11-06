@@ -54,8 +54,24 @@ type dependencyObject struct {
 	hash string
 }
 
-func dependencySnapshot(ctx context.Context, path string) (dependencyObject, error) {
+// dependencyLstat is os.Lstat with the file's identity bound now. On Windows a
+// FileInfo from Lstat resolves its identity at its first os.SameFile, by its
+// path then: an object renamed since (the lock replacement, a moved cache) is
+// compared by whatever the old path holds. Binding it here makes SameFile
+// compare the object that was inspected, as it does on Unix.
+func dependencyLstat(path string) (os.FileInfo, error) {
 	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !os.SameFile(info, info) {
+		return nil, &fs.PathError{Op: "identify", Path: path, Err: errors.New("file identity unavailable")}
+	}
+	return info, nil
+}
+
+func dependencySnapshot(ctx context.Context, path string) (dependencyObject, error) {
+	info, err := dependencyLstat(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return dependencyObject{}, nil
 	}
@@ -149,7 +165,7 @@ func prepareAssistantDependencyTransaction(ctx context.Context, root, workdir, l
 	t.rename = func(from, to string) error {
 		return renameDependencyNoReplace(from, to, t.directoryInfo(filepath.Dir(from)), t.directoryInfo(filepath.Dir(to)))
 	}
-	t.workdirInfo, err = os.Lstat(workdir)
+	t.workdirInfo, err = dependencyLstat(workdir)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +184,7 @@ func prepareAssistantDependencyTransaction(ctx context.Context, root, workdir, l
 	if err = t.lockState.matches(ctx, t.lockPath); err != nil {
 		return nil, err
 	}
-	t.parentInfo, err = os.Lstat(t.cacheParent)
+	t.parentInfo, err = dependencyLstat(t.cacheParent)
 	if errors.Is(err, os.ErrNotExist) {
 		t.parentInfo = nil
 	} else if err != nil {
@@ -218,7 +234,7 @@ func prepareAssistantDependencyTransaction(ctx context.Context, root, workdir, l
 			_ = os.RemoveAll(t.dir)
 		}
 	}()
-	t.dirInfo, err = os.Lstat(t.dir)
+	t.dirInfo, err = dependencyLstat(t.dir)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +242,7 @@ func prepareAssistantDependencyTransaction(ctx context.Context, root, workdir, l
 	if err = os.Mkdir(t.stageParent, 0o700); err != nil {
 		return nil, err
 	}
-	t.stageInfo, err = os.Lstat(t.stageParent)
+	t.stageInfo, err = dependencyLstat(t.stageParent)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +279,7 @@ func (t *assistantDependencyTransaction) snapshot(ctx context.Context, req assis
 	t.stagedOrigin = filepath.Join(t.stageParent, ".origins", req.Name+".json")
 	t.backupOrigin = filepath.Join(t.dir, "original-origin.json")
 	var err error
-	t.originParentInfo, err = os.Lstat(t.originParent)
+	t.originParentInfo, err = dependencyLstat(t.originParent)
 	if errors.Is(err, os.ErrNotExist) {
 		t.originParentInfo = nil
 	} else if err != nil {
@@ -339,7 +355,7 @@ func (t *assistantDependencyTransaction) stage(ctx context.Context, prepared *bo
 	}
 	t.newLocation = t.stagePath
 
-	t.stageOriginInfo, err = os.Lstat(filepath.Dir(t.stagedOrigin))
+	t.stageOriginInfo, err = dependencyLstat(filepath.Dir(t.stagedOrigin))
 	if err != nil {
 		return err
 	}
