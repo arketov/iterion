@@ -4,6 +4,20 @@ import (
 	"time"
 )
 
+// GhostRunGrace is how young a run-history entry must be to be left alone by
+// the ghost-run cleanup: a run stamped moments ago may not have reached the
+// run store yet.
+const GhostRunGrace = 10 * time.Minute
+
+// RunRefPruner is the ghost-run cleanup both board twins (native file store,
+// Mongo) implement; it pins the signature and is deliberately outside
+// BoardStore.
+type RunRefPruner interface {
+	PruneRunRefs(exists func(runID string) bool, grace time.Duration) ([]PrunedRunRefs, error)
+}
+
+var _ RunRefPruner = (*Store)(nil)
+
 // PrunedRunRefs reports the run ids PruneRunRefs removed from one card.
 type PrunedRunRefs struct {
 	IssueID string
@@ -43,36 +57,9 @@ func (s *Store) PruneRunRefs(exists func(runID string) bool, grace time.Duration
 		if rerr != nil || iss.Claim != "" {
 			continue
 		}
-		var gone []string
-		kept := make([]RunRef, 0, len(iss.Runs))
-		for _, r := range iss.Runs {
-			if r.RunID != "" && !r.At.After(cutoff) && !exists(r.RunID) {
-				gone = append(gone, r.RunID)
-				continue
-			}
-			kept = append(kept, r)
-		}
-		// The single pointer may name a run the history never carried
-		// (records older than run history).
-		pointerGone := false
-		if iss.LastRunID != "" && !alreadyPruned(gone, iss.LastRunID) && !exists(iss.LastRunID) &&
-			(len(iss.Runs) == 0 || !iss.UpdatedAt.After(cutoff)) {
-			pointerGone = true
-			gone = append(gone, iss.LastRunID)
-		}
+		gone, pointerChanged := PruneGhostRunRefs(iss, exists, cutoff)
 		if len(gone) == 0 {
 			continue
-		}
-		iss.Runs = kept
-		pointerChanged := false
-		if alreadyPruned(gone, iss.LastRunID) || pointerGone {
-			iss.LastRunStatus, iss.LastRunError, iss.LastRunErrorCode, iss.LastRunAt = "", "", "", nil
-			iss.AwaitingInput = false
-			iss.LastRunID, iss.LastWorkdir = "", ""
-			pointerChanged = true
-		}
-		if len(iss.Runs) == 0 {
-			iss.Runs = nil
 		}
 		// UpdatedAt is left alone: it orders the dispatch queue and the board,
 		// and a housekeeping rewrite is not an edit of the card.
@@ -90,6 +77,46 @@ func (s *Store) PruneRunRefs(exists func(runID string) bool, grace time.Duration
 		}
 	}
 	return pruned, nil
+}
+
+// PruneGhostRunRefs is the one definition of what the ghost-run cleanup removes
+// from a single card, shared by both board twins. It drops from iss.Runs every
+// entry with an id, not newer than cutoff, for which exists reports false, and
+// clears the LastRunID pointer (with its outcome tuple) when it names a gone
+// run. gone lists every removed run id; pointerCleared reports that the pointer
+// fields were reset. It touches neither UpdatedAt nor the claim: the caller
+// skips claimed cards itself.
+func PruneGhostRunRefs(iss *Issue, exists func(runID string) bool, cutoff time.Time) (gone []string, pointerCleared bool) {
+	kept := make([]RunRef, 0, len(iss.Runs))
+	for _, r := range iss.Runs {
+		if r.RunID != "" && !r.At.After(cutoff) && !exists(r.RunID) {
+			gone = append(gone, r.RunID)
+			continue
+		}
+		kept = append(kept, r)
+	}
+	// The single pointer may name a run the history never carried
+	// (records older than run history).
+	pointerGone := false
+	if iss.LastRunID != "" && !alreadyPruned(gone, iss.LastRunID) && !exists(iss.LastRunID) &&
+		(len(iss.Runs) == 0 || !iss.UpdatedAt.After(cutoff)) {
+		pointerGone = true
+		gone = append(gone, iss.LastRunID)
+	}
+	if len(gone) == 0 {
+		return nil, false
+	}
+	pointerCleared = alreadyPruned(gone, iss.LastRunID) || pointerGone
+	iss.Runs = kept
+	if pointerCleared {
+		iss.LastRunStatus, iss.LastRunError, iss.LastRunErrorCode, iss.LastRunAt = "", "", "", nil
+		iss.AwaitingInput = false
+		iss.LastRunID, iss.LastWorkdir = "", ""
+	}
+	if len(iss.Runs) == 0 {
+		iss.Runs = nil
+	}
+	return gone, pointerCleared
 }
 
 func alreadyPruned(gone []string, id string) bool {

@@ -72,6 +72,73 @@ func TestPruneRunRefsSkipsClaimedCard(t *testing.T) {
 	}
 }
 
+// PruneGhostRunRefs is the one definition both board twins share: it removes
+// gone runs from a card, clears a pointer that names one with its outcome
+// tuple, and touches neither UpdatedAt nor the claim.
+func TestPruneGhostRunRefsPure(t *testing.T) {
+	now := time.Now().UTC()
+	cutoff := now.Add(-10 * time.Minute)
+	old := now.Add(-time.Hour)
+	failedAt := old
+	mk := func() *Issue {
+		return &Issue{
+			ID:               "i1",
+			Claim:            "host",
+			UpdatedAt:        old,
+			Runs:             []RunRef{{RunID: "real", At: old}, {RunID: "ghost", At: old}, {RunID: "young", At: now}},
+			LastRunID:        "ghost",
+			LastWorkdir:      "/w",
+			LastRunStatus:    "failed",
+			LastRunError:     "boom",
+			LastRunErrorCode: "CODE",
+			LastRunAt:        &failedAt,
+			AwaitingInput:    true,
+		}
+	}
+
+	t.Run("old gone run removed and its pointer cleared with the outcome", func(t *testing.T) {
+		iss := mk()
+		gone, ptr := PruneGhostRunRefs(iss, func(id string) bool { return id != "ghost" && id != "young" }, cutoff)
+		if len(gone) != 1 || gone[0] != "ghost" || !ptr {
+			t.Fatalf("gone=%v pointerCleared=%v", gone, ptr)
+		}
+		if len(iss.Runs) != 2 || iss.Runs[0].RunID != "real" || iss.Runs[1].RunID != "young" {
+			t.Fatalf("Runs = %+v; the young entry must stay even though it does not exist", iss.Runs)
+		}
+		if iss.LastRunID != "" || iss.LastWorkdir != "" || iss.LastRunStatus != "" || iss.LastRunError != "" ||
+			iss.LastRunErrorCode != "" || iss.LastRunAt != nil || iss.AwaitingInput {
+			t.Fatalf("pointer/outcome not cleared: %+v", iss)
+		}
+		if !iss.UpdatedAt.Equal(old) || iss.Claim != "host" {
+			t.Fatalf("UpdatedAt/Claim touched: %v %q", iss.UpdatedAt, iss.Claim)
+		}
+	})
+
+	t.Run("pointer absent from an empty history is cleared when the card is old", func(t *testing.T) {
+		iss := &Issue{ID: "i2", UpdatedAt: old, LastRunID: "ghost", LastRunStatus: "failed"}
+		gone, ptr := PruneGhostRunRefs(iss, func(string) bool { return false }, cutoff)
+		if len(gone) != 1 || !ptr || iss.LastRunID != "" || iss.LastRunStatus != "" {
+			t.Fatalf("gone=%v ptr=%v iss=%+v", gone, ptr, iss)
+		}
+	})
+
+	t.Run("everything exists changes nothing", func(t *testing.T) {
+		iss := mk()
+		gone, ptr := PruneGhostRunRefs(iss, func(string) bool { return true }, cutoff)
+		if len(gone) != 0 || ptr || len(iss.Runs) != 3 || iss.LastRunID != "ghost" || iss.LastRunStatus != "failed" {
+			t.Fatalf("gone=%v ptr=%v iss=%+v", gone, ptr, iss)
+		}
+	})
+
+	t.Run("last gone entry leaves a nil history", func(t *testing.T) {
+		iss := &Issue{ID: "i3", UpdatedAt: old, Runs: []RunRef{{RunID: "ghost", At: old}}, LastRunID: "ghost"}
+		PruneGhostRunRefs(iss, func(string) bool { return false }, cutoff)
+		if iss.Runs != nil {
+			t.Fatalf("Runs = %#v, want nil", iss.Runs)
+		}
+	})
+}
+
 // A missing issue answers in the same JSON envelope as every other native
 // error, not as bare text.
 func TestMissingIssueAnswersJSON(t *testing.T) {

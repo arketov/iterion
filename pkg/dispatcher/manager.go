@@ -227,7 +227,7 @@ func (m *Manager) sweepStaleLocalClaimsAtBoot() {
 // ghostRunGrace is how young a run-history entry must be to be left alone by
 // the boot-time ghost cleanup: a run stamped moments ago may not have reached
 // the disk yet.
-const ghostRunGrace = 10 * time.Minute
+const ghostRunGrace = native.GhostRunGrace
 
 // pruneGhostRunsAtBoot drops from each card's run history the runs that have
 // no directory under <store>/runs — the phantoms a failed after_create hook

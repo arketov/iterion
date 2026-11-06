@@ -458,6 +458,14 @@ func (s *Server) ListenAndServe() error {
 			d.run(ctx)
 		}()
 	}
+	// One-off cleanup of ghost run refs on the cloud board (twin of the native
+	// boot prune): cards whose recorded run the run store proves absent lose
+	// that record. No lease on purpose — the pass is idempotent and every write
+	// is a CAS on the card being unclaimed and unchanged, so replicas starting
+	// together cannot clobber each other.
+	if s.cfg.CloudBoardCoordinator != nil && s.runs != nil {
+		s.goUntilShutdown("server.boardGhostRunPrune", s.pruneCloudGhostRunRefs)
+	}
 	// Truthful URL in the log: if the operator chose a non-loopback bind we
 	// print the actual address so they know the studio is exposed beyond the
 	// local machine. Previously we always printed http://localhost:<port>
