@@ -60,13 +60,15 @@ func writeDesktopURLFile(url string) {
 // removeDesktopURLFile clears the discovery file on shutdown so MCP
 // callers don't try to hit a dead port. Failure is silent — a stale
 // file is harmless (the MCP server will get a connection error and
-// surface it).
+// surface it). Every daemon and the GUI's embedded server write this file,
+// last one wins, so a server that stops removes it only while it still
+// points at itself (removeOwnDiscoveryFile).
 func removeDesktopURLFile() {
 	dir := desktopDataDir()
 	if dir == "" {
 		return
 	}
-	_ = os.Remove(filepath.Join(dir, desktopURLFileName))
+	_ = removeOwnDiscoveryFile(filepath.Join(dir, desktopURLFileName))
 }
 
 // desktopDataDir mirrors store.globalIterionDataDir without importing

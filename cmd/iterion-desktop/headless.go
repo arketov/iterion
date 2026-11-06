@@ -108,7 +108,13 @@ func runHeadless() {
 		log.Fatalf("daemon: %v — the GUI could not find this daemon, so it exits instead of holding the project", err)
 	}
 	writeDesktopURLFile(url) // legacy global discovery file for MCP
-	defer removeDaemonInfo(projectDir)
+	// Registered after the lock's defer, so it runs while this daemon still
+	// holds the project lock.
+	defer func() {
+		if err := removeDaemonInfo(projectDir); err != nil {
+			log.Printf("daemon: %v (the GUI prunes the entry once this pid is gone)", err)
+		}
+	}()
 	defer removeDesktopURLFile()
 	log.Printf("daemon: serving on %s (pid=%d, project=%s)", url, os.Getpid(), projectDir)
 
