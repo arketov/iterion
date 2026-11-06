@@ -31,7 +31,30 @@ type Workspaces struct {
 // namespace.
 const workspaceKeyNamespace = ".issue-workspaces-v2"
 
-const workspaceKeySlugMax = 80
+// A workspace directory name is `<slug>--<digest>`: a readable prefix cut to
+// workspaceKeySlugMax characters and the first workspaceKeyDigestHex hex digits
+// of a SHA-256 over the full identity. The name stays short on purpose. `git
+// worktree add <path>` registers the checkout under `.git/worktrees/<basename
+// of path>`, and git on Windows refuses a gitdir of about 220 bytes or more
+// ("'$GIT_DIR' too big", then "Filename too long"; core.longpaths does not
+// lift it). The project's own folder, `\.git\worktrees\` and this name all count
+// toward that limit, and the folder is the operator's to pick, so the name
+// takes as little of it as identity allows.
+//
+// The digest is the identity-bearing part. 64 bits keep two live generations
+// from sharing a name in any real deployment, and a collision still fails
+// closed: the ownership marker records the issue and run and is verified
+// before a directory is adopted.
+const (
+	workspaceKeySlugMax   = 24
+	workspaceKeyDigestHex = 16
+)
+
+// legacyWorkspaceKeySlugMax is the slug length of the first v2 key format,
+// `<slug up to 80>--<full 64 hex digits>` (up to 146 characters). Directories
+// and ownership markers made under it are still found (see keyFor) but never
+// created again.
+const legacyWorkspaceKeySlugMax = 80
 
 const workspaceOwnersDir = ".owners"
 
@@ -81,19 +104,16 @@ func (w *Workspaces) Root() string { return w.root }
 // Path returns the stable, versioned workspace path for an issue whose persist
 // policy intentionally reuses one workspace across dispatches.
 func (w *Workspaces) Path(issueID string) string {
-	return filepath.Join(w.root, workspaceKeyNamespace, workspaceKey(issueID))
+	return w.PathForRun(issueID, "")
 }
 
 // PathForRun returns a generation-specific path for one logical dispatch.
-// The readable slug is not an identity boundary: a full SHA-256 digest of the
+// The readable slug is not an identity boundary: a SHA-256 digest of the
 // original issue ID and generation separates sanitization collisions. A
 // completed dispatch's absolute path is never reused, so stale background
 // writers remain isolated from later dispatches.
 func (w *Workspaces) PathForRun(issueID, runID string) string {
-	if runID == "" {
-		return w.Path(issueID)
-	}
-	return filepath.Join(w.root, workspaceKeyNamespace, workspaceKeyForRun(issueID, runID))
+	return filepath.Join(w.root, workspaceKeyNamespace, w.keyFor(issueID, runID))
 }
 
 // Create ensures the stable workspace for issueID exists. It is retained for
@@ -175,11 +195,31 @@ func dirIsEmpty(path string) bool {
 	return err == nil && len(entries) == 0
 }
 
+// discardUnseededTarget deletes an unseeded workspace directory and deregisters
+// the git worktree the seed step may have registered for it. An absent
+// directory is fine. The caller holds w.mu and has verified ownership.
+func discardUnseededTarget(target string) error {
+	gitCommonDir, _ := workspaceGitCommonDir(target)
+	if err := os.RemoveAll(target); err != nil {
+		return fmt.Errorf("workspace: discard unseeded workspace %s: %w — a process still holds a file in it "+
+			"(OneDrive, an antivirus, a process the hook left running): close it, or delete the folder by hand", target, err)
+	}
+	if gitCommonDir == "" {
+		return nil
+	}
+	if err := removeGitWorktreeRegistration(gitCommonDir, target); err != nil {
+		return fmt.Errorf("workspace: discard unseeded workspace %s: %w (run `git worktree prune` in the host repository)", target, err)
+	}
+	return nil
+}
+
 // resetUnseededTarget empties a seed-pending workspace and recreates the bare
 // directory: the leftover of a failed after_create. A git worktree the seed
 // step registered for the path is deregistered, so the next seed can add it
 // again. The caller holds w.mu and has verified ownership.
 func resetUnseededTarget(target string) error {
+	// Same as discardUnseededTarget, then the bare directory is put back; the
+	// registration failure is reported only after that (see below).
 	gitCommonDir, _ := workspaceGitCommonDir(target)
 	if err := os.RemoveAll(target); err != nil {
 		return fmt.Errorf("workspace: reset unseeded workspace %s: %w — a process still holds a file in it "+
@@ -254,6 +294,15 @@ func (w *Workspaces) createForRun(issueID, runID string, trackSeed bool) (path s
 	if !isWithin(ownersCanon, rootCanon) {
 		return "", false, false, fmt.Errorf("workspace: ownership namespace %q escapes root %q", ownersCanon, rootCanon)
 	}
+
+	// An unseeded generation left under the long name by an earlier build is
+	// removed first, so the paths below resolve to the short name and the seeding
+	// step starts afresh in it.
+	discardedLegacy, err := w.discardUnseededLegacy(issueID, runID)
+	if err != nil {
+		return "", false, false, err
+	}
+	reseeded = discardedLegacy
 
 	target := w.PathForRun(issueID, runID)
 	ownerPath := w.ownerPathForRun(issueID, runID)
@@ -471,10 +520,111 @@ func (w *Workspaces) RemoveForRun(issueID, runID string) error {
 }
 
 func (w *Workspaces) ownerPathForRun(issueID, runID string) string {
-	if runID == "" {
-		return filepath.Join(w.root, workspaceKeyNamespace, workspaceOwnersDir, workspaceKey(issueID)+".json")
+	return filepath.Join(w.root, workspaceKeyNamespace, workspaceOwnersDir, w.keyFor(issueID, runID)+".json")
+}
+
+// keyFor returns the directory name of one generation: the short key, unless
+// the generation already exists under the legacy long key (its directory or its
+// ownership marker is there and nothing is under the short key). That keeps a
+// workspace made by an earlier build, with its seed_pending / seed_tracked
+// marker, found and owned instead of orphaned beside a second one. A new
+// generation always gets the short key.
+//
+// The answer depends only on what is on disk, never on a lock, so the
+// lock-free probes (resumeGenerationState, buildRunningEntry) and the locked
+// paths agree. A generation is deleted target first, marker second, and either
+// one alone keeps resolving to the key it was made under.
+func (w *Workspaces) keyFor(issueID, runID string) string {
+	short, legacy := workspaceKeys(issueID, runID)
+	namespace := filepath.Join(w.root, workspaceKeyNamespace)
+	if keyPresent(namespace, short) || !keyPresent(namespace, legacy) {
+		return short
 	}
-	return filepath.Join(w.root, workspaceKeyNamespace, workspaceOwnersDir, workspaceKeyForRun(issueID, runID)+".json")
+	if legacyIsUnseeded(namespace, legacy, issueID, runID) {
+		return short
+	}
+	return legacy
+}
+
+// legacyIsUnseeded reports whether a legacy-named generation never got its
+// seeding done, so nothing in it is worth keeping under its long name: its
+// marker says the seed is pending (the directory may be missing, half-built or
+// empty), or it is an empty directory under a marker from a build that did not
+// track seeding (the bars-project case: `git worktree add` failed on the long
+// name and left the bare directory). Re-seeding such a generation under the long
+// name would fail the same way, so keyFor sends it to the short name and
+// discardUnseededLegacy removes what it left. A seeded workspace, a retired one
+// and a marker whose directory vanished are none of this: they stay under the
+// legacy name, and the lifecycle's fail-closed rules apply to them as before.
+func legacyIsUnseeded(namespace, legacy, issueID, runID string) bool {
+	owner, err := readWorkspaceOwner(filepath.Join(namespace, workspaceOwnersDir, legacy+".json"))
+	if err != nil || verifyWorkspaceOwner(owner, issueID, runID, workspaceOwnerActive) != nil {
+		return false
+	}
+	dir := filepath.Join(namespace, legacy)
+	info, err := os.Lstat(dir)
+	switch {
+	case err == nil:
+		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return false
+		}
+		return owner.SeedPending || (!owner.SeedTracked && dirIsEmpty(dir))
+	case errors.Is(err, os.ErrNotExist):
+		// A discard interrupted between removing the directory and the marker.
+		return owner.SeedPending
+	default:
+		return false
+	}
+}
+
+// discardUnseededLegacy removes the leftover of a legacy-named generation that
+// legacyIsUnseeded sent to the short name, so a fresh, short-named workspace is
+// created in its place. It reports whether it removed one. The marker is first
+// made seed-pending (a marker without the mark could not be told apart from a
+// seeded one once its directory is gone), then the directory goes, then the
+// marker: an interruption at any point is retried by the next call. The caller
+// holds w.mu.
+func (w *Workspaces) discardUnseededLegacy(issueID, runID string) (bool, error) {
+	short, legacy := workspaceKeys(issueID, runID)
+	namespace := filepath.Join(w.root, workspaceKeyNamespace)
+	if keyPresent(namespace, short) || !keyPresent(namespace, legacy) ||
+		!legacyIsUnseeded(namespace, legacy, issueID, runID) {
+		return false, nil
+	}
+	dir := filepath.Join(namespace, legacy)
+	markerPath := filepath.Join(namespace, workspaceOwnersDir, legacy+".json")
+	owner, err := readWorkspaceOwner(markerPath)
+	if err != nil {
+		return false, fmt.Errorf("workspace: read ownership marker %s: %w", markerPath, err)
+	}
+	if !owner.SeedPending {
+		owner.SeedPending, owner.SeedTracked = true, true
+		if err := replaceWorkspaceOwner(markerPath, owner); err != nil {
+			return false, fmt.Errorf("workspace: mark %s seed-pending: %w", markerPath, err)
+		}
+	}
+	if err := discardUnseededTarget(dir); err != nil {
+		return false, err
+	}
+	if err := os.Remove(markerPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return false, fmt.Errorf("workspace: remove ownership marker %s of a discarded workspace: %w", markerPath, err)
+	}
+	return true, nil
+}
+
+// keyPresent reports whether a generation's directory or ownership marker
+// exists under namespace. A path that cannot be examined counts as present: the
+// caller then keeps using that key and meets the same error where it acts on it.
+func keyPresent(namespace, key string) bool {
+	for _, path := range []string{
+		filepath.Join(namespace, key),
+		filepath.Join(namespace, workspaceOwnersDir, key+".json"),
+	} {
+		if _, err := os.Lstat(path); err == nil || !errors.Is(err, os.ErrNotExist) {
+			return true
+		}
+	}
+	return false
 }
 
 // resumeGeneration returns the active, verified workspace shape that owns a
@@ -717,27 +867,46 @@ func replaceWorkspaceOwner(path string, owner workspaceOwnerRecord) error {
 
 var sanitizeKeyRe = regexp.MustCompile(`[^a-zA-Z0-9._-]`)
 
-// workspaceKey combines a bounded human-readable prefix with the complete
-// digest of the original ID. The digest is the identity-bearing part.
-func workspaceKey(issueID string) string {
-	return workspaceKeyWithIdentity(issueID, issueID)
-}
-
-// workspaceKeyForRun keeps the issue slug readable while deriving identity
-// from both the original issue ID and the unique run generation.
-func workspaceKeyForRun(issueID, runID string) string {
-	identity := "iterion-dispatch-workspace-run-v1\x00" + issueID + "\x00" + runID
-	return workspaceKeyWithIdentity(issueID, identity)
-}
-
-func workspaceKeyWithIdentity(issueID, identity string) string {
-	slug := sanitizeKey(issueID)
-	if len(slug) > workspaceKeySlugMax {
-		// sanitizeKey emits ASCII only, so a byte slice cannot split UTF-8.
-		slug = slug[:workspaceKeySlugMax]
+// workspaceKeys returns the current (short) and the legacy (long) directory
+// name of one generation. An empty runID is the stable per-issue workspace.
+func workspaceKeys(issueID, runID string) (short, legacy string) {
+	identity := issueID
+	if runID != "" {
+		identity = workspaceRunIdentity(issueID, runID)
 	}
+	return workspaceKeyWithIdentity(issueID, identity), legacyWorkspaceKeyWithIdentity(issueID, identity)
+}
+
+// workspaceRunIdentity derives the identity of a run generation from both the
+// original issue ID and the unique run ID.
+func workspaceRunIdentity(issueID, runID string) string {
+	return "iterion-dispatch-workspace-run-v1\x00" + issueID + "\x00" + runID
+}
+
+// workspaceKeyWithIdentity combines a bounded human-readable prefix with a
+// truncated digest of the identity (see workspaceKeySlugMax).
+func workspaceKeyWithIdentity(issueID, identity string) string {
+	return boundedSlug(issueID, workspaceKeySlugMax) + "--" + identityDigest(identity)[:workspaceKeyDigestHex]
+}
+
+// legacyWorkspaceKeyWithIdentity is the first v2 key format: a longer slug and
+// the complete digest.
+func legacyWorkspaceKeyWithIdentity(issueID, identity string) string {
+	return boundedSlug(issueID, legacyWorkspaceKeySlugMax) + "--" + identityDigest(identity)
+}
+
+func boundedSlug(issueID string, max int) string {
+	slug := sanitizeKey(issueID)
+	if len(slug) > max {
+		// sanitizeKey emits ASCII only, so a byte slice cannot split UTF-8.
+		slug = slug[:max]
+	}
+	return slug
+}
+
+func identityDigest(identity string) string {
 	sum := sha256.Sum256([]byte(identity))
-	return fmt.Sprintf("%s--%x", slug, sum)
+	return fmt.Sprintf("%x", sum)
 }
 
 // sanitizeKey replaces filesystem-hostile characters with underscore.

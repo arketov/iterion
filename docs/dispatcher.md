@@ -569,9 +569,22 @@ the stamp explicitly.
 ## Workspace lifecycle
 
 Workspaces live below
-`<workspace.root>/.issue-workspaces-v2/<readable-slug>--<sha256>/`.
-The digest is derived from the original issue ID, so IDs that sanitize to
-the same slug cannot collide. Ownership records live outside the checkout in
+`<workspace.root>/.issue-workspaces-v2/<readable-slug>--<digest>/`.
+The slug is the sanitized issue ID cut to 24 characters; the digest is the
+first 16 hex digits of a SHA-256 over the original issue ID (and the run ID for
+a generation), so IDs that sanitize to the same slug cannot collide. The name is
+at most 42 characters on purpose: `git worktree add <workspace>` registers the
+checkout as `<project>/.git/worktrees/<name>`, and git on Windows refuses a
+gitdir of about 220 bytes ("'$GIT_DIR' too big", then "Filename too long";
+`core.longpaths` does not lift it), so a long name would stop the seeding hook
+on a deep project path. Workspaces made by an earlier build under the long
+name (`<slug up to 80>--<64 hex digits>`) are still found and kept as they are,
+with their ownership record and its `seed_pending` / `seed_tracked` marks;
+only a new generation gets the short name. The exception is a long-named
+workspace whose seeding never finished (its record says `seed_pending`, or it is
+an empty folder under a record from a build before those marks): `after_create`
+could only fail on it again, so the dispatch deletes it and its record, creates
+the short-named workspace and runs `after_create` there. Ownership records live outside the checkout in
 the sibling `.owners/` directory.
 
 | `workspace.persist`     | Behaviour                                                 |
