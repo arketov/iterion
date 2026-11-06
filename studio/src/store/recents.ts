@@ -1,8 +1,11 @@
 import { create } from "zustand";
 
 import { readJSONFlag, writeJSONFlag } from "@/lib/localStorageFlag";
+import { scopePrefix } from "@/lib/scope";
 
-const STORAGE_KEY = "iterion.recents";
+// Per workspace pane: panes share the origin's localStorage, and a recent
+// valid in one project is dropped as "not found" in another.
+const STORAGE_KEY = "iterion.recents" + scopePrefix();
 const MAX_RECENTS = 10;
 
 function readRecents(): string[] {
