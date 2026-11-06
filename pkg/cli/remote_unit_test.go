@@ -148,3 +148,31 @@ func keysOf(m map[string]string) []string {
 	}
 	return out
 }
+
+// TestRemoteConfigPath_FollowsITERIONHOME pins that the remote credential
+// lives in the iterion home the rest of the operator's data uses: with
+// ITERION_HOME set, cli-auth.json is read and written there, not under the
+// user's real home directory.
+func TestRemoteConfigPath_FollowsITERIONHOME(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("ITERION_HOME", home)
+
+	got, err := RemoteConfigPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(home, "cli-auth.json"); got != want {
+		t.Fatalf("RemoteConfigPath() = %q, want %q", got, want)
+	}
+
+	if err := SaveRemoteConfig(RemoteConfig{BaseURL: "https://x.example", Token: "iap_t"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(home, "cli-auth.json")); err != nil {
+		t.Fatalf("the saved credential is not in ITERION_HOME: %v", err)
+	}
+	c, err := LoadRemoteConfig()
+	if err != nil || c.Token != "iap_t" {
+		t.Fatalf("LoadRemoteConfig() = %+v, %v; want the saved token", c, err)
+	}
+}
