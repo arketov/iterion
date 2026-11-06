@@ -234,6 +234,7 @@ jobs:
               # `-nsis` flag. Pick the first .exe that isn't an installer.
               exe="$(find "$bindir" -maxdepth 1 -name '*.exe' \
                           ! -name '*-installer.exe' \
+                          ! -name 'iterion.exe' \
                           | head -1)"
               if [ -z "$exe" ]; then
                 echo "ERROR: no portable .exe found under $bindir/" >&2
