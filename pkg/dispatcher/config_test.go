@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func writeConfig(t *testing.T, body string) string {
@@ -71,8 +72,8 @@ tracker:
 	if cfg.Agent.MaxConcurrent != DefaultMaxConcurrent {
 		t.Fatalf("default max concurrent: %d", cfg.Agent.MaxConcurrent)
 	}
-	if cfg.Stall.TimeoutMS != DefaultStallTimeoutMS {
-		t.Fatalf("default stall: %d", cfg.Stall.TimeoutMS)
+	if cfg.Stall.TimeoutMS == nil || *cfg.Stall.TimeoutMS != DefaultStallTimeoutMS {
+		t.Fatalf("default stall: %v", cfg.Stall.TimeoutMS)
 	}
 	if cfg.Agent.CompletedState != DefaultCompletedState {
 		t.Fatalf("default completed_state: %q, want %q", cfg.Agent.CompletedState, DefaultCompletedState)
@@ -338,5 +339,56 @@ assignee_dispatch:
 	}
 	if !strings.Contains(err.Error(), "feature-bot") || !strings.Contains(err.Error(), "not supported") {
 		t.Fatalf("expected an explicit per-assignee attachments rejection, got %v", err)
+	}
+}
+
+// An explicit stall.timeout_ms: 0 is the operator's "off"; an absent key is the
+// default; a negative value is the legacy synonym of 0.
+func TestStallTimeoutZeroDisables(t *testing.T) {
+	const head = "workflow: {{WORKFLOW}}\ntracker:\n  kind: native\n"
+	cases := []struct {
+		name    string
+		extra   string
+		want    time.Duration
+		wantMS  int
+		wantRaw *int // nil = LoadRaw must keep the key unset
+	}{
+		{"omitted is the default", "", 10 * time.Minute, DefaultStallTimeoutMS, nil},
+		{"zero disables", "stall:\n  timeout_ms: 0\n", 0, 0, new(0)},
+		{"negative disables", "stall:\n  timeout_ms: -1\n", 0, 0, new(-1)},
+		{"explicit value", "stall:\n  timeout_ms: 30000\n", 30 * time.Second, 30000, new(30000)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := writeConfig(t, head+tc.extra)
+			cfg, err := Load(p)
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.Stall.TimeoutMS == nil || *cfg.Stall.TimeoutMS != tc.wantMS {
+				t.Fatalf("Load: Stall.TimeoutMS = %v, want %d", cfg.Stall.TimeoutMS, tc.wantMS)
+			}
+			if got := cfg.StallTimeout(); got != tc.want {
+				t.Fatalf("Load: StallTimeout() = %v, want %v", got, tc.want)
+			}
+
+			raw, err := LoadRaw(p)
+			if err != nil {
+				t.Fatalf("LoadRaw: %v", err)
+			}
+			switch {
+			case tc.wantRaw == nil && raw.Stall.TimeoutMS != nil:
+				t.Fatalf("LoadRaw must keep an absent key unset, got %d", *raw.Stall.TimeoutMS)
+			case tc.wantRaw != nil && (raw.Stall.TimeoutMS == nil || *raw.Stall.TimeoutMS != *tc.wantRaw):
+				t.Fatalf("LoadRaw: Stall.TimeoutMS = %v, want %d", raw.Stall.TimeoutMS, *tc.wantRaw)
+			}
+			res, err := raw.Resolved(filepath.Dir(p), nil)
+			if err != nil {
+				t.Fatalf("Resolved: %v", err)
+			}
+			if got := res.StallTimeout(); got != tc.want {
+				t.Fatalf("Resolved: StallTimeout() = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
