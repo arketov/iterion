@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as api from "@/api/client";
-import type { FileEntry } from "@/api/types";
+import type { FileEntry, ListFilesResponse } from "@/api/types";
 import { errorMessage } from "@/lib/errorHints";
+import { filesCutNotice } from "@/lib/filesCutNotice";
+import { normalizeWorkflowPath } from "@/lib/openByPath";
 import { useRecentsStore } from "@/store/recents";
+import { useServerInfoStore } from "@/store/serverInfo";
 import {
   Badge,
   Dialog,
   Tabs,
+  Button,
   Input,
   InlineBanner,
   Spinner,
@@ -40,9 +44,12 @@ export default function FilePicker({ open, onOpenChange, onPick }: FilePickerPro
   // "genuinely empty" — collapsing a failure into an empty list hides
   // the real problem from the user. isFetching (not isLoading) so each
   // reopen shows the loading state again, like the pre-query behavior.
-  const filesQuery = useQuery<FileEntry[]>({
-    queryKey: ["workspace-files"],
-    queryFn: () => api.listFiles(),
+  // The same query (and cache entry) as the editor's Project files panel: one
+  // list, with the server's `truncated` flag, so a list cut at the cap says so
+  // here as well instead of silently missing files.
+  const filesQuery = useQuery<ListFilesResponse>({
+    queryKey: ["workspace-files-page"],
+    queryFn: () => api.listFilesPage(),
     enabled: open,
   });
   const examplesQuery = useQuery({
@@ -53,7 +60,12 @@ export default function FilePicker({ open, onOpenChange, onPick }: FilePickerPro
   const loadingFiles = filesQuery.isFetching;
   const filesError =
     !loadingFiles && filesQuery.error ? errorMessage(filesQuery.error) : null;
-  const files = filesQuery.error ? EMPTY_FILES : (filesQuery.data ?? EMPTY_FILES);
+  const files = filesQuery.error ? EMPTY_FILES : (filesQuery.data?.files ?? EMPTY_FILES);
+  const filesCut = !filesQuery.error && !!filesQuery.data?.truncated;
+  const cutNotice = filesCut ? filesCutNotice(files.length, filesQuery.data?.total) : null;
+  const workDir = useServerInfoStore((s) => s.info?.work_dir);
+  const [pathInput, setPathInput] = useState("");
+  const [pathError, setPathError] = useState<string | null>(null);
   const loadingExamples = examplesQuery.isFetching;
   const examplesError =
     !loadingExamples && examplesQuery.error
@@ -70,11 +82,16 @@ export default function FilePicker({ open, onOpenChange, onPick }: FilePickerPro
   useEffect(() => {
     if (!open) return;
     setQuery("");
-    // Fresh / first-time users have no recents — Examples is a better
-    // discovery surface than the raw workspace file listing. Returning
-    // users keep Recents as the default once they've opened anything.
-    setTab(recents.length > 0 ? "recents" : "examples");
-  }, [open, recents.length]);
+    setPathInput("");
+    setPathError(null);
+    // Fresh / first-time users have no recents: the project's own bots (the
+    // Files tab) are the way in. Returning users keep Recents as the default
+    // once they've opened anything.
+    setTab(recents.length > 0 ? "recents" : "files");
+    // Only opening the dialog resets it: removing a recent while it is open
+    // must not throw away what the author typed or the tab they are on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const isSearching = query.trim() !== "";
 
@@ -88,6 +105,17 @@ export default function FilePicker({ open, onOpenChange, onPick }: FilePickerPro
   const pick = (kind: "file" | "example", path: string) => {
     onPick(kind, path);
     onOpenChange(false);
+  };
+
+  // Open a project file that no list shows (workflows/, docs/, tests/…): the
+  // tab binds to the path, so Save and Run act on the file itself.
+  const openByPath = () => {
+    const res = normalizeWorkflowPath(pathInput, workDir);
+    if (!res.ok) {
+      setPathError(res.error);
+      return;
+    }
+    pick("file", res.path);
   };
 
   // While searching we visually highlight the Files tab (the
@@ -129,8 +157,12 @@ export default function FilePicker({ open, onOpenChange, onPick }: FilePickerPro
   // whichever tab Radix has active still shows the cross-source hits.
   const searchPanel =
     searchResults.length === 0 ? (
-      <Empty>No matches.</Empty>
+      <>
+        <Empty>No matches.</Empty>
+        {cutNotice && <CutNotice>{cutNotice}</CutNotice>}
+      </>
     ) : (
+      <>
       <List>
         {searchResults.map((r) => {
           if (r.kind === "recent") return renderRecentRow(r.path, "recent");
@@ -154,6 +186,8 @@ export default function FilePicker({ open, onOpenChange, onPick }: FilePickerPro
           );
         })}
       </List>
+      {cutNotice && <CutNotice>{cutNotice}</CutNotice>}
+      </>
     );
 
   const recentsPanel =
@@ -185,13 +219,18 @@ export default function FilePicker({ open, onOpenChange, onPick }: FilePickerPro
       {filesError}
     </InlineBanner>
   ) : files.length === 0 ? (
-    <Empty>No files in workspace.</Empty>
+    <Empty>
+      No bots in this project yet. Create one on the Bots page, or open a file by its path below.
+    </Empty>
   ) : (
-    <List>
-      {files.map((f) => (
-        <Row key={f.name} label={f.name} onPick={() => pick("file", f.name)} />
-      ))}
-    </List>
+    <>
+      <List>
+        {files.map((f) => (
+          <Row key={f.name} label={f.name} onPick={() => pick("file", f.name)} />
+        ))}
+      </List>
+      {cutNotice && <CutNotice>{cutNotice}</CutNotice>}
+    </>
   );
 
   const examplesPanel = loadingExamples ? (
@@ -205,7 +244,10 @@ export default function FilePicker({ open, onOpenChange, onPick }: FilePickerPro
       {examplesError}
     </InlineBanner>
   ) : examples.length === 0 ? (
-    <Empty>No examples available.</Empty>
+    <Empty>
+      No examples in this project. Your bots are in the Files tab; create one on the Bots page, or
+      open a file by its path below.
+    </Empty>
   ) : (
     <List>
       {examples.map((n) => (
@@ -258,7 +300,7 @@ export default function FilePicker({ open, onOpenChange, onPick }: FilePickerPro
             },
             {
               value: "files",
-              label: `Files${files.length ? ` (${files.length})` : ""}`,
+              label: `Files${files.length ? ` (${files.length}${filesCut ? "+" : ""})` : ""}`,
               icon: <FileIcon />,
             },
             {
@@ -270,6 +312,39 @@ export default function FilePicker({ open, onOpenChange, onPick }: FilePickerPro
           panels={panels}
           listClassName="mb-2"
         />
+        <form
+          className="space-y-1 border-t border-border-default pt-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            openByPath();
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Open by path, e.g. workflows/dev-flow.bot"
+              aria-label="Open a file by path"
+              value={pathInput}
+              onChange={(e) => {
+                setPathInput(e.target.value);
+                setPathError(null);
+              }}
+              size="md"
+              className="min-w-0 flex-1"
+            />
+            <Button type="submit" variant="secondary" size="md" disabled={pathInput.trim() === ""}>
+              Open
+            </Button>
+          </div>
+          {pathError ? (
+            <p role="alert" className="px-1 text-xs text-danger">
+              {pathError}
+            </p>
+          ) : (
+            <p className="px-1 text-caption text-fg-subtle">
+              A file in this project outside bots/ and examples/ opens here, bound to its path.
+            </p>
+          )}
+        </form>
       </div>
     </Dialog>
   );
@@ -277,6 +352,14 @@ export default function FilePicker({ open, onOpenChange, onPick }: FilePickerPro
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="text-xs text-fg-subtle py-6 text-center">{children}</p>;
+}
+
+function CutNotice({ children }: { children: React.ReactNode }) {
+  return (
+    <p role="status" className="px-1 pt-2 text-caption text-fg-subtle">
+      {children}
+    </p>
+  );
 }
 
 function LoadingState({ children }: { children: React.ReactNode }) {

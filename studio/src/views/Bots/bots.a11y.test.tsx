@@ -133,7 +133,7 @@ describe("a11y / Bots gallery", () => {
     // view that rendered nothing at all would pass without it. Awaited, so
     // the trigger read cannot land while axe is walking the tree.
     expect(
-      await screen.findByText("No bots discovered in this workspace"),
+      await screen.findByText("No bots yet"),
     ).toBeTruthy();
     await expectNoViolationsStrict(container, "BotsView (empty)");
   });
@@ -200,8 +200,51 @@ describe("a11y / Bots gallery drag-to-assistant (#2770)", () => {
     // when there are no bots at all.
     useBotsStore.setState({ bots: [] });
     mountGallery();
-    await screen.findByText("No bots discovered in this workspace");
+    await screen.findByText("No bots yet");
     expect(screen.queryByRole("group", { name: "I want to…" })).toBeNull();
     expect(screen.queryByText(/No bots match these filters/)).toBeNull();
+  });
+});
+
+describe("Bots page — the header counts only what the page lists", () => {
+  const FILE = {
+    name: "dev-flow",
+    origin: "file" as const,
+    path: "/w/dev-flow.bot",
+    rel_path: "dev-flow.bot",
+  } as BotEntryWithSchema;
+
+  it("counts catalog bots plus the project's single files, as n/N", async () => {
+    useBotsStore.setState({ extraBots: [FILE] });
+    mountGallery();
+    await screen.findAllByText("Acci");
+    expect(screen.getByText("3/3 bots")).toBeTruthy();
+    // Listed below, under the project files group.
+    expect(screen.getByText("dev-flow")).toBeTruthy();
+  });
+
+  it("a search narrows the numerator, never the denominator", async () => {
+    useBotsStore.setState({ extraBots: [FILE] });
+    mountGallery();
+    await screen.findAllByText("Acci");
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search bots" }), {
+      target: { value: "dev-flow" },
+    });
+    expect(await screen.findByText("1/3 bots")).toBeTruthy();
+  });
+
+  it("an empty catalog with project files lists the files and shows no empty state", async () => {
+    useBotsStore.setState({ bots: [], extraBots: [FILE] });
+    mountGallery();
+    expect(await screen.findByText("dev-flow")).toBeTruthy();
+    expect(screen.getByText("1/1 bot")).toBeTruthy();
+    expect(screen.queryByText("No bots yet")).toBeNull();
+  });
+
+  it("no bots at all is one empty state with a way forward", async () => {
+    useBotsStore.setState({ bots: [], extraBots: [] });
+    mountGallery();
+    expect(await screen.findByText("No bots yet")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "New bot" }).length).toBeGreaterThan(0);
   });
 });

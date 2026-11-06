@@ -417,10 +417,10 @@ func routeSchemas() map[string]routeOp {
 		// screens show (parseBotInclude). Declared because a client that does not
 		// know it silently gets the weaker list.
 		"GET /api/v1/bots": {
-			description: "The discovered bots with their vars schema. Without ?include the list is catalog + platform + tenant bots. With ?include=all (or files) it also lists the project's single .bot files that have no manifest (origin \"file\", reported enabled and not editable). A team-scoped caller never gets the file scan.",
+			description: "The discovered bots with their vars schema. Without ?include the list is catalog + platform + tenant bots. With ?include=all (or files) it also lists the single .bot files directly in the project folder (no walk of subfolders) that have no manifest (origin \"file\", reported enabled and not editable). A team-scoped caller never gets the file scan.",
 			query: []queryParam{{
 				name:        "include",
-				description: "Extra bot sources to list: all or files (the project's single .bot files without a manifest). Comma-separated tokens are accepted; builtin is accepted and ignored (the embedded recipes are not a listed bot source). Ignored for a team-scoped caller.",
+				description: "Extra bot sources to list: all or files (the single .bot files directly in the project folder, without a manifest). Comma-separated tokens are accepted; builtin is accepted and ignored (the embedded recipes are not a listed bot source). Ignored for a team-scoped caller.",
 				schemaType:  "string",
 			}},
 		},

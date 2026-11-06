@@ -83,3 +83,24 @@ describe("an example that fails to load from the empty canvas", () => {
     expect(screen.getByText("main.bot")).toBeTruthy();
   });
 });
+
+describe("the empty canvas in a project with no starter examples", () => {
+  it("says so and leads to Open file instead of an empty dialog", async () => {
+    useUIStore.setState({ filePickerOpen: false });
+    api.listExampleEntries.mockResolvedValue([]);
+    const store = createDocumentStore();
+    store.getState().setDocument(createEmptyDocument());
+    store.getState().markSaved();
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <DocumentStoreProvider store={store}>
+          <CanvasEmpty />
+        </DocumentStoreProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByText("Examples"));
+    expect(await screen.findByText(/This project has no starter examples yet/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Open file…" }));
+    expect(useUIStore.getState().filePickerOpen).toBe(true);
+  });
+});
