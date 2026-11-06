@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/arketov/iterion/internal/envtrust"
@@ -570,7 +571,7 @@ func (e *ClawExecutor) shellRecipe(ctx context.Context, node *ir.ToolNode, input
 			// from. {{run.*}} and {{outputs.*}} resolve beside {{input.*}},
 			// under the same shell escaping and the same missing-value rule.
 			td := TemplateDataFromContext(ctx)
-			resolved := resolveCommandTemplate(expandedCommand, node.CommandRefs, input, e.vars, td, RunIDFromContext(ctx), e.nodeShapes(node), e.secretGuard)
+			resolved := resolveCommandTemplateWith(e.commandValueRenderer(), expandedCommand, node.CommandRefs, input, e.vars, td, RunIDFromContext(ctx), e.nodeShapes(node), e.secretGuard)
 			// Compression (tool nodes): node-level opt-in ONLY — compresses
 			// command output only when the node's own `compress:` is on/ultra (a
 			// run override can force-off as a kill switch, never force-on), so a
@@ -1533,6 +1534,13 @@ func (e *ClawExecutor) sandboxSkipsRewrite() bool {
 // pass as a single quoted token). Untrusted external inputs MUST keep the
 // default escaping.
 func resolveCommandTemplate(command string, refs []*ir.Ref, input map[string]any, vars map[string]any, td *TemplateData, ctxRunID string, shapes *Shapes, guards ...*secretguard.Guard) string {
+	return resolveCommandTemplateWith(shellEscapeValue, command, refs, input, vars, td, ctxRunID, shapes, guards...)
+}
+
+// resolveCommandTemplateWith is resolveCommandTemplate with the renderer of
+// the default (escaped) form chosen by the caller: the host path passes
+// commandValueRenderer, which knows the shell the command will run in.
+func resolveCommandTemplateWith(render func(any, ValueShape) string, command string, refs []*ir.Ref, input map[string]any, vars map[string]any, td *TemplateData, ctxRunID string, shapes *Shapes, guards ...*secretguard.Guard) string {
 	var guard *secretguard.Guard
 	if len(guards) > 0 {
 		guard = guards[0]
@@ -1546,7 +1554,7 @@ func resolveCommandTemplate(command string, refs []*ir.Ref, input map[string]any
 	// Pinned by TestToolCommandRefsAreShellEscaped: the shell itself is the
 	// oracle there, because reading a bot's `VAR={{vars.x}}` as unquoted is a
 	// mistake that has already been made confidently.
-	return renderCommand(command, refs, input, vars, td, ctxRunID, guard, shapes, nil)
+	return renderCommandWith(render, command, refs, input, vars, td, ctxRunID, guard, shapes, nil)
 }
 
 // resolveScriptTemplate substitutes refs in a tool node's `script:` body.
@@ -1580,7 +1588,11 @@ func resolveScriptTemplate(script string, refs []*ir.Ref, input map[string]any, 
 // hole as null — named once each so the production path and a dry run
 // cannot choose differently.
 func renderCommand(command string, refs []*ir.Ref, input, vars map[string]any, td *TemplateData, ctxRunID string, guard *secretguard.Guard, shapes *Shapes, unresolved func(ref string)) string {
-	return resolveTemplateWith(command, refs, input, vars, td, ctxRunID, guard, shapes, true, shellEscapeValue, false, unresolved)
+	return renderCommandWith(shellEscapeValue, command, refs, input, vars, td, ctxRunID, guard, shapes, unresolved)
+}
+
+func renderCommandWith(render func(any, ValueShape) string, command string, refs []*ir.Ref, input, vars map[string]any, td *TemplateData, ctxRunID string, guard *secretguard.Guard, shapes *Shapes, unresolved func(ref string)) string {
+	return resolveTemplateWith(command, refs, input, vars, td, ctxRunID, guard, shapes, true, render, false, unresolved)
 }
 
 // A script body carries no declared shape: every namespace renders as a
@@ -2221,10 +2233,84 @@ func sliceHasComplexElement(s []any) bool {
 // Any post-escape expansion can re-introduce metacharacters that defeat
 // the quoting and re-open command-injection paths. Apply such expansions
 // to the raw command template BEFORE substitution, never after.
+//
+// On a legacy PowerShell, commandValueRenderer adds backslashes only before a
+// `"` (see escapeDoubleQuotesForLegacyArgs); `"` is not special inside a
+// PowerShell single-quoted word, so this barrier is not weakened.
 func shellEscape(s string) string {
 	// Replace each ' with '\'': end current quote, insert escaped quote, reopen quote.
 	// On a Windows host the word is PowerShell's, where a quote is doubled.
 	return "'" + strings.ReplaceAll(s, "'", hostshell.SingleQuoteEscape()) + "'"
+}
+
+// escapeDoubleQuotesForLegacyArgs prepares text inside a PowerShell
+// single-quoted word for a native program started under the legacy argument
+// passing (Windows PowerShell 5.1, pwsh before 7.3): that rule does not escape
+// an embedded `"` when it builds the child's command line, so the program's
+// CommandLineToArgvW drops it. Each `"` gains the backslash the parser reads
+// as a literal quote, and the run of backslashes before it is doubled first
+// (n backslashes before a `"` become 2n+1). `"` is not special inside a
+// PowerShell single-quoted word, so the `'` barrier of shellEscape is untouched.
+func escapeDoubleQuotesForLegacyArgs(s string) string {
+	if !strings.Contains(s, `"`) {
+		return s
+	}
+	var b strings.Builder
+	slashes := 0
+	for _, r := range s {
+		switch r {
+		case '\\':
+			slashes++
+			b.WriteRune(r)
+			continue
+		case '"':
+			b.WriteString(strings.Repeat(`\`, slashes+1))
+		}
+		slashes = 0
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+// legacyNativeArgsRenderer wraps a shell-escaped renderer so a rendered value
+// holding a `"` is escaped for legacy argument passing when legacy() says the
+// shell needs it. In shellEscapeValue's output every `"` sits inside a
+// single-quoted word and the words are separated by spaces, so the whole
+// result can be escaped at once. legacy is asked only when there is a `"`.
+func legacyNativeArgsRenderer(render func(any, ValueShape) string, legacy func() bool) func(any, ValueShape) string {
+	return func(val any, shape ValueShape) string {
+		out := render(val, shape)
+		if !strings.Contains(out, `"`) || !legacy() {
+			return out
+		}
+		return escapeDoubleQuotesForLegacyArgs(out)
+	}
+}
+
+// hostCommandValueRenderer is the default-form renderer of a tool node's
+// `command:`: shellEscapeValue as is when the command runs in the sandbox's
+// bash, and the legacy-argument wrapper when it runs in the host's shell. The
+// raw `{{!x}}` form never reaches it.
+func hostCommandValueRenderer(sandboxed bool) func(any, ValueShape) string {
+	if sandboxed {
+		return shellEscapeValue
+	}
+	var once sync.Once
+	var legacy bool
+	return legacyNativeArgsRenderer(shellEscapeValue, func() bool {
+		once.Do(func() {
+			// The same request as the run at toolNodeCommand, so the same shell.
+			sh, err := hostshell.Resolve(hostshell.Request{PosixDefault: hostshell.KindBash})
+			legacy = err == nil && sh.LegacyNativeArgs()
+		})
+		return legacy
+	})
+}
+
+// commandValueRenderer is hostCommandValueRenderer for this executor, with the
+// sandbox predicate toolNodeCommand uses.
+func (e *ClawExecutor) commandValueRenderer() func(any, ValueShape) string {
+	return hostCommandValueRenderer(e.sandbox != nil && !e.nodeOptsOutOfSandbox(toolNodeOptOut))
 }
 
 // scriptScratchDir decides where a tool node's script file is written, and

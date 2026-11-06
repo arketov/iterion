@@ -251,7 +251,7 @@ func (e *ClawExecutor) runVerifiedRecipe(ctx context.Context, node *ir.ToolNode,
 func (e *ClawExecutor) postconditionBody(ctx context.Context, node *ir.ToolNode, input map[string]any) string {
 	expanded, _ := ToolBodyEnv(node, node.Postcondition, lookupToolEnv)
 	td := TemplateDataFromContext(ctx)
-	return resolveCommandTemplate(expanded, node.PostcondRefs, input, e.vars, td, RunIDFromContext(ctx), e.nodeShapes(node), e.secretGuard)
+	return resolveCommandTemplateWith(e.commandValueRenderer(), expanded, node.PostcondRefs, input, e.vars, td, RunIDFromContext(ctx), e.nodeShapes(node), e.secretGuard)
 }
 
 func (e *ClawExecutor) runPostcondition(ctx context.Context, node *ir.ToolNode, input map[string]any) (met bool, output map[string]any, err error) {

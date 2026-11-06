@@ -31,6 +31,8 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/arketov/iterion/internal/envtrust"
 	"github.com/arketov/iterion/pkg/internal/proc"
@@ -140,6 +142,10 @@ var (
 	goos     = runtime.GOOS
 	lookPath = envtrust.LookPath
 	getenv   = os.Getenv
+
+	// psNativeArgMode asks the pwsh at path for its effective
+	// $PSNativeCommandArgumentPassing ("Legacy", "Windows", "Standard").
+	psNativeArgMode = queryNativeArgMode
 )
 
 // Resolve picks the shell for req.
@@ -344,6 +350,11 @@ func named(name, platform string) (Shell, error) {
 // no flag turns off, whereas a plain -Command keeps stderr text.
 const psInlineLimit = 12000
 
+// psPrelude deliberately does not set $PSNativeCommandArgumentPassing: it would
+// silently change how an operator's own arguments, .cmd and .bat files reach a
+// program on pwsh 7.3+ and is ignored by 5.1. LegacyNativeArgs tells a caller
+// whether the legacy rule applies, so it can escape what it renders instead.
+//
 // psPrelude makes the child's output UTF-8 whatever the console code page
 // (5.1 defaults to the OEM page), plain text (pwsh 7.2+ colours tables and
 // errors with ANSI even into a pipe) and free of progress records. Wrapped so a
@@ -550,4 +561,56 @@ func (l *lfWriter) Write(p []byte) (int, error) {
 		}
 	}
 	return len(p), nil
+}
+
+// nativeArgProbeTimeout bounds the one pwsh start that reads the argument
+// passing mode.
+const nativeArgProbeTimeout = 10 * time.Second
+
+type nativeArgModeResult struct {
+	mode string
+	err  error
+}
+
+// nativeArgModes caches the probe's answer per shell path, failures included,
+// so a broken pwsh is not started again for every command.
+var nativeArgModes sync.Map // path -> nativeArgModeResult
+
+func resetNativeArgModeCache() { nativeArgModes = sync.Map{} }
+
+// LegacyNativeArgs reports whether this shell hands an argument that holds a
+// `"` to a native program through the legacy Windows rule, which does not
+// escape the quote, so the program reads it dropped (Windows PowerShell 5.1,
+// and pwsh before 7.3 or with $PSNativeCommandArgumentPassing = Legacy). The
+// answer is false for any other shell, and when pwsh cannot say, which keeps
+// the behaviour a caller had before it asked.
+func (s Shell) LegacyNativeArgs() bool {
+	if s.Kind != KindPowerShell {
+		return false
+	}
+	if s.Name() == "powershell" {
+		return true
+	}
+	v, ok := nativeArgModes.Load(s.Path)
+	if !ok {
+		mode, err := psNativeArgMode(s.Path)
+		v, _ = nativeArgModes.LoadOrStore(s.Path, nativeArgModeResult{mode: strings.TrimSpace(mode), err: err})
+	}
+	r := v.(nativeArgModeResult)
+	return r.err == nil && strings.EqualFold(r.mode, "Legacy")
+}
+
+// queryNativeArgMode starts the pwsh at path once and returns its effective
+// $PSNativeCommandArgumentPassing; a pwsh older than 7.3 has no such variable
+// and answers "Legacy".
+func queryNativeArgMode(path string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), nativeArgProbeTimeout)
+	defer cancel()
+	args := append(append([]string{}, psFlags...), "-Command",
+		"if($null -eq $PSNativeCommandArgumentPassing){'Legacy'}else{[string]$PSNativeCommandArgumentPassing}")
+	out, err := proc.CommandContext(ctx, path, args...).Output()
+	if err != nil {
+		return "", fmt.Errorf("probe $PSNativeCommandArgumentPassing of %s: %w", path, err)
+	}
+	return strings.TrimSpace(string(out)), nil
 }
