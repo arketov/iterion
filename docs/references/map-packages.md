@@ -50,6 +50,7 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `internal/liveenv` | reads the launch knobs of the live e2e harness from the environment: the route every LLM node of a run is re-targeted at, the credential route that… | — |
 | `internal/mdcode` | answers one question about markdown: which of its bytes are code. | — |
 | `internal/modtypes` | type-checks this module's packages as the compiler sees them, for the guard tests that hold a rule over the whole tree: which code references a door,… | — |
+| `internal/pathredact` | reduces the absolute filesystem paths in a message to their last element, so a text written for an operator's log can be shown to an API caller… | — |
 | `internal/pricingtest` | isolates a test binary from the host's live model prices. | — |
 | `internal/proctest` | checks OS resources owned by a test binary. | — |
 | `internal/rendergate` | judges a rendered Kubernetes manifest stream — the output of `helm template`, `kustomize build` or an Argo CD manifest dump — for selectors that… | — |

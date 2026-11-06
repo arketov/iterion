@@ -18,7 +18,8 @@ import (
 // is a catalog entry, and a file deeper in the tree is not a bot of this
 // project); the binary's embedded recipes are deliberately not a listed bot
 // source (owner decision 2026-11-05), so "builtin" is accepted and ignored
-// for older clients.
+// for older clients. A cloud server never scans: the tree it would walk is the
+// platform's, not the caller's (appendManifestlessBots).
 type botInclude struct {
 	files bool
 }
@@ -46,7 +47,11 @@ func parseBotInclude(r *http.Request) botInclude {
 // drive-letter case or a link does not defeat it). A file has no manifest, so no enabled flag
 // to flip: it is reported enabled and not editable.
 func (s *Server) appendManifestlessBots(entries []botEntryView, inc botInclude) []botEntryView {
-	if !inc.files {
+	// A cloud server has no "project folder" of its caller's: its WorkDir is the
+	// platform's own tree, whose file names are not for a tenant, so nothing here
+	// scans it whatever the request asked for (the route also clears the flag for
+	// the same reason; this is the guard under it).
+	if !inc.files || s.cfg.Mode == "cloud" {
 		return entries
 	}
 	names := make(map[string]struct{}, len(entries))

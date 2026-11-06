@@ -68,7 +68,10 @@ They overlap on purpose, and show different things:
 
 - **Open… / `Ctrl+O`** picks a file from the project's lists (and examples), or opens
   any `.bot` file of the project by the path you type in *Open by path* — a file in
-  `workflows/` or `docs/` that no list shows. The tab is bound to that path, so
+  `workflows/` or `docs/` that no list shows. Only workflow files open this way:
+  any other path (a `.env`, a config, a `.bot.yaml`) is refused with
+  `not_workflow_file` before the server reads it, so the Editor is no way to read
+  the project's secrets. The tab is bound to that path, so
   **Save** writes over the original. If the list was cut at its cap, the picker
   says so (*Showing the first N files of M*).
 - **Import copy from disk…** takes a file from *anywhere* on your disk, but only

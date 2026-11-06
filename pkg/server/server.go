@@ -1213,6 +1213,8 @@ func New(cfg Config, logger *iterlog.Logger) *Server {
 	if cfg.StoreDir != "" || cfg.WorkDir != "" {
 		storeDir = store.ResolveStoreDir(cfg.WorkDir, cfg.StoreDir)
 	}
+	// A 4xx answer never names these directories (installPathRedaction).
+	installPathRedaction(cfg.WorkDir, storeDir, cfg.Bots.Paths...)
 	// When a caller-supplied Store is wired (cloud mode), bypass the
 	// filesystem .iterion discovery and inject the store directly so
 	// runview.NewService talks to Mongo+S3.

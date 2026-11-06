@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"reflect"
 	"sort"
 	"strings"
+	"sync/atomic"
 
 	"github.com/arketov/iterion/pkg/errtrack"
 )
@@ -47,6 +49,9 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 // A 4xx response keeps its actionable payload (for example a blocker list).
 func WriteErrorJSON(w http.ResponseWriter, status int, payload any) {
 	if status < 500 || status > 599 {
+		if status >= 400 {
+			payload = redactErrorPayload(payload)
+		}
 		WriteJSON(w, status, payload)
 		return
 	}
@@ -75,6 +80,62 @@ func WriteErrorJSON(w http.ResponseWriter, status int, payload any) {
 		}
 	}
 	WriteJSON(w, status, body)
+}
+
+// errorRedactor rewrites the message of a 4xx answer. Installed by the server
+// that owns the filesystem the messages may name (SetErrorRedactor); until
+// then, and for a process that never installs one, messages go out as they are.
+var errorRedactor atomic.Pointer[func(string) string]
+
+// SetErrorRedactor installs f as the rewrite WriteErrorJSON applies to the
+// "error" message of every 4xx answer — the one chokepoint of the studio and
+// cloud APIs' client errors, where a handler that formats err.Error() of a
+// file operation (`open /srv/store/runs/x/run.json: no such file`) would hand
+// the caller the host's directory layout. A 5xx body never carries the message
+// at all (it is logged, below). nil removes the redactor.
+func SetErrorRedactor(f func(string) string) {
+	if f == nil {
+		errorRedactor.Store(nil)
+		return
+	}
+	errorRedactor.Store(&f)
+}
+
+// RedactError applies the installed redactor to a message that does not go
+// through WriteErrorJSON (an answer written with http.Error, or a map that
+// carries an "error" beside other fields). It returns msg unchanged when no
+// redactor is installed.
+func RedactError(msg string) string {
+	if f := errorRedactor.Load(); f != nil {
+		return (*f)(msg)
+	}
+	return msg
+}
+
+// redactErrorPayload returns payload with its "error" message redacted. The
+// maps the callers pass are copied, never edited in place: a caller may keep
+// and reuse its payload. Other payload shapes (a struct, a list) are returned
+// as they are.
+func redactErrorPayload(payload any) any {
+	f := errorRedactor.Load()
+	if f == nil {
+		return payload
+	}
+	switch p := payload.(type) {
+	case map[string]string:
+		if msg, ok := p["error"]; ok {
+			c := maps.Clone(p)
+			c["error"] = (*f)(msg)
+			return c
+		}
+	case map[string]any:
+		if msg, ok := p["error"].(string); ok {
+			c := maps.Clone(p)
+			c["error"] = (*f)(msg)
+			return c
+		}
+	}
+	return payload
 }
 
 // EncodeJSON writes v as an application/json body WITHOUT touching the status

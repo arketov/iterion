@@ -8,6 +8,22 @@ goes through `pkg/log`, whose existing `pkg/errtrack` hook reports it. Stable
 4xx refusals keep their actionable payload. Readiness probes use `WriteJSON`:
 their operational states are intentional public data, not driver errors.
 
+A 4xx message never names the host's directories either. `WriteErrorJSON` runs
+the "error" text of every 4xx through the redactor the server installs
+(`httpx.SetErrorRedactor`, wired by `pkg/server/redact_paths.go`;
+`internal/pathredact.Host`): a path under a registered root — the workspace and
+store the server and a project switch register, plus the home, temp and working
+directories — becomes its remainder relative to that root, and any Windows
+drive or UNC path and any path under a host-only top-level directory (`/home`,
+`/var`, `/tmp`, …) shrinks to its last element. An API route in a message
+(`/api/v1/runs/…`) is left alone. Without an installed redactor the text goes
+out as it was, so a process that is not the studio server (the dispatcher run
+alone) changes nothing. A handler that writes an error with `http.Error` or a
+raw map bypasses that boundary and calls `httpx.RedactError` on the text
+itself. The bot catalog's discovery diagnostics use the stricter
+`pathredact.Strict` — every absolute path, in either spelling on every OS, goes
+— because their paths are all the server's.
+
 The server's plain, origin-aware, coded and structured helpers, dispatcher
 errors, and plugin failures share that boundary. A response buffer replacing
 the network writer must preserve its request/logger binding; webhook workers
@@ -36,6 +52,8 @@ enforced counter fails. The org row may already be saved; retrying the same
 request propagates its desired quota again. A 200 means propagation completed.
 
 Witnesses: `pkg/server/error_chokepoint_test.go`,
+`pkg/server/error_path_redaction_test.go`, `internal/pathredact/pathredact_test.go`,
+`internal/httpx/redact_test.go`,
 `pkg/identity/bulk_decode_test.go` and the real-Mongo bulk suite,
 `pkg/cli/remote_identity_partial_test.go`, plus Studio's partial identity and
 organization switcher tests. Mutate production code, observe each witness fail
