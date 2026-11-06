@@ -18,13 +18,20 @@ import (
 )
 
 // updaterPublicKeyHex is the Ed25519 verification key used to authenticate
-// the release manifest and its artefacts. Generated once via
-// `scripts/desktop/ed25519-keygen.sh` and pasted in here.
+// the release manifest and its artefacts.
 //
-// IMPORTANT: when a binary is shipped, this constant MUST point at the
-// real public key for the matching private key held in the
-// UPDATER_ED25519_PRIVATE GitHub secret.
-const updaterPublicKeyHex = "f267b9edc0346eddb50478be1cf5f33c5edd67d5c7bac8860a085d9d0e437684"
+// It is empty on purpose: the key inherited from upstream verifies
+// SocialGouv/iterion releases and we do not hold its private half, so
+// trusting it would let an upstream build replace ours. With no key every
+// check is refused ("updater: public key not configured") and nothing is
+// downloaded. The upstream key must never be restored.
+//
+// To open our own update channel: generate a pair with
+// `scripts/desktop/ed25519-keygen.sh`, store the private half as the
+// UPDATER_ED25519_PRIVATE secret of this repository, paste the public hex
+// here, and point updateManifestURL and scripts/desktop/generate-manifest.sh
+// (RELEASE_BASE_URL, release_notes_url) at this repository.
+const updaterPublicKeyHex = ""
 
 // updateManifestURL is the GitHub Releases location of the desktop-only
 // manifest. Channel-aware: stable uses /releases/latest/download, prerelease
@@ -69,7 +76,7 @@ type Updater struct {
 }
 
 // NewUpdater constructs an Updater. Returns a usable instance even if the
-// public key is the placeholder — it just rejects every signature.
+// public key is not embedded — it then refuses every check.
 func NewUpdater(cfg *Config) *Updater {
 	pk, _ := hex.DecodeString(updaterPublicKeyHex)
 	return &Updater{
@@ -145,6 +152,9 @@ func (u *Updater) CheckForUpdate(ctx context.Context, channel string) (*Release,
 func (u *Updater) DownloadAndApply(ctx context.Context, rel *Release, progress func(float64)) error {
 	if rel == nil {
 		return errors.New("updater: nil release")
+	}
+	if len(u.pubkey) != ed25519.PublicKeySize {
+		return errors.New("updater: public key not configured")
 	}
 	body, err := u.fetchArtifact(ctx, rel.URL, rel.Size, progress)
 	if err != nil {
