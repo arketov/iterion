@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 	iterlog "github.com/arketov/iterion/pkg/log"
 	"github.com/arketov/iterion/pkg/runtime"
 	"github.com/arketov/iterion/pkg/store"
@@ -149,6 +150,66 @@ func TestFinishRun_OperatorCancelSchedulesNoRetry(t *testing.T) {
 	c.finishRun(context.Background(), "fake:2", fmt.Errorf("%w: at node x", runtime.ErrRunInterrupted))
 	if _, ok := c.state.retries["fake:2"]; !ok {
 		t.Fatal("an internal interruption no longer schedules a retry — stall recovery regressed")
+	}
+}
+
+// TestFinishRun_OperatorMoveIsNotAFailedAttempt pins the live case: the
+// operator drags a running card to another column, refreshRunningStates
+// interrupts the run (ErrRunInterrupted, failed_resumable) and finishRun must
+// NOT count that as a failed attempt. With max_attempts=1 and failed_state=blocked
+// the old default arm gave up and overwrote the operator's move with "blocked".
+func TestFinishRun_OperatorMoveIsNotAFailedAttempt(t *testing.T) {
+	ft := newStateAwareTracker()
+	ft.add(tracker.Issue{ID: "fake:1", Identifier: "fake#1", WorkflowState: "in_progress"})
+	c, _ := newStateTestDispatcher(t, &StubRunner{}, ft, time.Hour, "in_progress")
+	cfg := c.cfg.Load()
+	cfg.Agent.MaxAttempts = 1
+	cfg.Agent.FailedState = "blocked"
+
+	runCtx, cancel := context.WithCancelCause(context.Background())
+	c.state.running["fake:1"] = &runningEntry{
+		IssueID:               "fake:1",
+		Identifier:            "fake#1",
+		RunID:                 "r1",
+		WorkflowState:         "ready",
+		TransitionedFromState: "ready",
+		Cancel:                cancel,
+	}
+	ft.claims["fake:1"] = c.hostMarker
+
+	// The operator moves the card out of running_state.
+	if err := ft.fakeTracker.UpdateState(context.Background(), "fake:1", "review"); err != nil {
+		t.Fatalf("seed review state: %v", err)
+	}
+
+	c.refreshRunningStates(context.Background())
+	if runCtx.Err() == nil {
+		t.Fatal("refreshRunningStates did not interrupt the run after the operator moved the card")
+	}
+	// The engine reports the interruption as ErrRunInterrupted.
+	c.finishRun(context.Background(), "fake:1", fmt.Errorf("%w: at node x", runtime.ErrRunInterrupted))
+
+	if _, ok := c.state.retries["fake:1"]; ok {
+		t.Fatal("an operator move scheduled a retry — it must not count as a failed attempt")
+	}
+
+	// The finish worker runs off the actor; Release is its last step.
+	deadline := time.Now().Add(5 * time.Second)
+	for ft.isClaimedOnTracker("fake:1") {
+		if time.Now().After(deadline) {
+			t.Fatal("finish worker never released the claim")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	if got := ft.issueState("fake:1"); got != "review" {
+		t.Fatalf("issue state = %q, want review — the operator's move must not be overwritten", got)
+	}
+	if calls := ft.calls(); len(calls) != 0 {
+		t.Fatalf("finish path wrote tracker state %+v, want none", calls)
+	}
+	if stamps := ft.giveUpStamps(); len(stamps) != 0 {
+		t.Fatalf("give-up stamped after an operator move: %+v", stamps)
 	}
 }
 
