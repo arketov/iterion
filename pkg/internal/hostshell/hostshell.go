@@ -338,10 +338,11 @@ func named(name, platform string) (Shell, error) {
 // psInlineLimit is the longest script (characters, prelude and epilogue
 // included) handed to PowerShell on the command line; a Windows command line
 // is capped at 32767 and Go escapes each quote and the backslashes before it
-// (worst case it doubles the script), so a longer script is streamed on stdin.
-// -EncodedCommand is deliberately not used: powershell.exe 5.1 answers it
-// with its error and warning streams serialised as CLIXML on stderr, which
-// no flag turns off, whereas a plain -Command keeps stderr text.
+// (worst case it doubles the script), so a longer script is streamed on stdin
+// and read by psStdinBootstrap. -EncodedCommand is deliberately not used:
+// powershell.exe 5.1 answers it with its error and warning streams serialised
+// as CLIXML on stderr, which no flag turns off, whereas a plain -Command keeps
+// stderr text.
 const psInlineLimit = 12000
 
 // psPrelude makes the child's output UTF-8 whatever the console code page
@@ -349,6 +350,13 @@ const psInlineLimit = 12000
 // errors with ANSI even into a pipe) and free of progress records. Wrapped so a
 // host without a console cannot fail the command.
 const psPrelude = "try{[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)}catch{};$ProgressPreference='SilentlyContinue';if($PSStyle){$PSStyle.OutputRendering='PlainText'}\n"
+
+// psStdinBootstrap runs a script too long for the command line. It reads the
+// whole of stdin (the script, UTF-8 whatever the console code page) to EOF
+// before the script's first statement runs, so a native program the script
+// starts finds stdin at EOF instead of eating the rest of the script, and
+// dot-sources it in the session scope, as an inline -Command body runs.
+const psStdinBootstrap = ". ([scriptblock]::Create([IO.StreamReader]::new([Console]::OpenStandardInput(),[Text.UTF8Encoding]::new($false)).ReadToEnd()))"
 
 // psEpilogue keeps a native command's exit code. `pwsh -Command` collapses
 // every failure to 1; a hook that exits 2 through `exit 2` is unaffected,
@@ -368,7 +376,7 @@ func (s Shell) Argv(script string, login bool) (argv []string, stdin io.Reader) 
 		argv = append([]string{s.Path}, psFlags...)
 		body := psPrelude + script + psEpilogue
 		if len([]rune(body)) > psInlineLimit {
-			return append(argv, "-Command", "-"), strings.NewReader(body)
+			return append(argv, "-Command", psPrelude+psStdinBootstrap), strings.NewReader(script + psEpilogue)
 		}
 		return append(argv, "-Command", body), nil
 	default:
