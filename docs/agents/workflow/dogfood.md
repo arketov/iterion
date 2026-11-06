@@ -21,7 +21,9 @@ managed store (`runs/`, `dispatcher/` or `.iterion-store`) the run lands in
 The caveat is a workspace with no managed `.iterion` yet: the run then goes to
 `~/.iterion/projects/<workdir-key>/`, which the operator's studio (bound to
 `<workspace>/.iterion`) cannot see, producing a `run not found` 404 in the
-studio's run/diffs panel. When in doubt
+studio's run/diffs panel. Launching from a **subfolder** of the workspace gives
+the same 404 (the subfolder is keyed on its own); `iterion run` now warns on
+stderr and prints the `--store-dir` to use. When in doubt
 **pass the primary checkout's store explicitly** — from a linked worktree too,
 since sessions work in one ([worktrees.md](worktrees.md)):
 `--store-dir "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.iterion"`.

@@ -170,7 +170,7 @@ Inputs and execution:
 | `--preset <name>` | Apply an in-source preset before `--var`. |
 | `--recipe <file>` | Apply a recipe JSON overlay. |
 | `--run-id <id>` | Supply the run id. |
-| `--store-dir <dir>` | Local store override. Without it, reuse a managed project `.iterion` or use the deterministic project slot under `$ITERION_HOME/projects/` (normally `~/.iterion/projects/`). |
+| `--store-dir <dir>` | Local store override. Without it, reuse a managed project `.iterion` or use the deterministic project slot under `$ITERION_HOME/projects/` (normally `~/.iterion/projects/`). The project is the **current directory**, not the bot's folder: from a subfolder of the project the store of the project root is not used, so pass it explicitly; `iterion run` warns when it detects this inside a git repository. |
 | `--timeout <duration>` | Outer run deadline. |
 | `--log-level error\|warn\|info\|debug\|trace` | Logging verbosity. |
 | `--no-interactive` | Return at a human pause instead of prompting on the TTY. |
