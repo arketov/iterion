@@ -3,6 +3,7 @@ package plugin
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -41,6 +42,44 @@ func TestRemoveDeletesAPluginWhoseManifestNeverLoaded(t *testing.T) {
 	}
 	if err := reg2.Remove("never-installed"); err == nil {
 		t.Fatal("removing an unknown plugin must still fail")
+	}
+}
+
+// enable/disable on a plugin whose manifest never loaded must say what is
+// wrong (installed, manifest not loadable, uninstall it) instead of "not found",
+// and must not write plugins.yaml. A name that is nowhere stays "not found".
+func TestSetEnabledOnAPluginWhoseManifestNeverLoadedNamesTheManifest(t *testing.T) {
+	home := t.TempDir()
+	dir := filepath.Join(home, pluginsSubdir, "broken-demo")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	reg, err := LoadFromForTest(home, home)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(reg.LoadSkips()) != 1 {
+		t.Fatalf("setup: want one skip, got %v", reg.LoadSkips())
+	}
+	err = reg.SetEnabled("broken-demo", false)
+	if err == nil {
+		t.Fatal("SetEnabled of a plugin with no loadable manifest must fail")
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "not found") {
+		t.Fatalf("the plugin is on disk, so the error must not say not found: %v", err)
+	}
+	for _, want := range []string{"broken-demo", "plugin.yaml", "plugin uninstall broken-demo"} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("error %q must mention %q", msg, want)
+		}
+	}
+	if _, statErr := os.Stat(filepath.Join(home, stateFile)); !os.IsNotExist(statErr) {
+		t.Fatalf("plugins.yaml must not be written for a plugin that cannot be toggled: %v", statErr)
+	}
+	err = reg.SetEnabled("never-installed", true)
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("an unknown plugin must still be not found, got %v", err)
 	}
 }
 
