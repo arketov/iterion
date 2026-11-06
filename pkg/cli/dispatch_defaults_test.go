@@ -111,7 +111,9 @@ func TestBuildDefaultConfig_SeedHook(t *testing.T) {
 	if cfg.Hooks.BeforeRemove != nil {
 		t.Fatalf("expected no destructive before_remove default, got %+v", cfg.Hooks.BeforeRemove)
 	}
-	if !strings.Contains(cfg.Hooks.AfterCreate.Script, projectDir) {
+	// The script quotes the path for its shell (sh doubles the backslashes of a
+	// Windows path), so look for the directory's own name, not its raw form.
+	if !strings.Contains(cfg.Hooks.AfterCreate.Script, filepath.Base(projectDir)) {
 		t.Fatalf("after_create hook should reference projectDir %q; got %q", projectDir, cfg.Hooks.AfterCreate.Script)
 	}
 	if !strings.Contains(cfg.Hooks.AfterCreate.Script, "worktree add") {

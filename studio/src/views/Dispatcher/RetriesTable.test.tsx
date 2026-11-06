@@ -97,7 +97,7 @@ describe("RetriesTable hook shell", () => {
     mount();
     const lines = screen.getAllByTestId("retry-shell");
     expect(lines).toHaveLength(1);
-    expect(lines[0].textContent).toContain("pwsh");
-    expect(lines[0].textContent).toContain("platform default");
+    expect(lines[0]!.textContent).toContain("pwsh");
+    expect(lines[0]!.textContent).toContain("platform default");
   });
 });

@@ -65,7 +65,7 @@ async function openAndSave(): Promise<DispatcherConfig> {
   await screen.findByText("Routing");
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() => expect(api.saveConfig).toHaveBeenCalledTimes(1));
-  return api.saveConfig.mock.calls[0][0] as DispatcherConfig;
+  return api.saveConfig.mock.calls[0]![0] as DispatcherConfig;
 }
 
 describe("SettingsDrawer saves what it shows and what it does not show", () => {
@@ -85,7 +85,7 @@ describe("SettingsDrawer saves what it shows and what it does not show", () => {
     fireEvent.click(box);
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(api.saveConfig).toHaveBeenCalledTimes(1));
-    expect((api.saveConfig.mock.calls[0][0] as DispatcherConfig).require_assignee).toBe(false);
+    expect((api.saveConfig.mock.calls[0]![0] as DispatcherConfig).require_assignee).toBe(false);
   });
 
   it("lists the bot folders and drops an emptied row on save", async () => {
@@ -97,7 +97,7 @@ describe("SettingsDrawer saves what it shows and what it does not show", () => {
     fireEvent.change(first, { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(api.saveConfig).toHaveBeenCalledTimes(1));
-    expect((api.saveConfig.mock.calls[0][0] as DispatcherConfig).bots?.paths).toEqual(["/proj/examples"]);
+    expect((api.saveConfig.mock.calls[0]![0] as DispatcherConfig).bots?.paths).toEqual(["/proj/examples"]);
   });
 
   it("shows the per-bot vars row", async () => {
