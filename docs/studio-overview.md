@@ -21,6 +21,10 @@ that project, and its runs and cards are kept in the project's store
   studio and open it in its own tab or window. (`iterion studio --workspace`
   is the exception: one process hosts every registered project, each under its
   own `/x/<project-id>/` address — see the [CLI reference](cli-reference.md#iterion-studio).)
+  A single-project server never changes its folder at run time: it answers
+  `POST /api/projects/switch`, or `POST /api/projects` for another folder, and
+  `DELETE /api/projects/{id}` of its own folder with `409`
+  `project_switch_unsupported`, and leaves the registry untouched.
 - **Desktop app:** pick the project in the welcome wizard. `Ctrl+P` (or the
   native menu) switches projects: the window reattaches to that project's own
   server and reloads, so every page follows.
