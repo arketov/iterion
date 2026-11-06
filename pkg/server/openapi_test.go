@@ -285,6 +285,42 @@ func TestTheSpecDeclaresTheBotListIncludeParameter(t *testing.T) {
 	}
 }
 
+// TestThePluginSchemasCarryTheirOwnNames: plugin.View and plugin.ConfigField are
+// published as PluginView and PluginConfigField, not under their bare Go names
+// (components["schemas"]["View"] in a generated client), whichever path reaches
+// them.
+func TestThePluginSchemasCarryTheirOwnNames(t *testing.T) {
+	doc, err := BuildOpenAPISpec()
+	if err != nil {
+		t.Fatalf("BuildOpenAPISpec: %v", err)
+	}
+	schemas := doc["components"].(map[string]any)["schemas"].(map[string]any)
+	for _, bare := range []string{"View", "ConfigField"} {
+		if _, ok := schemas[bare]; ok {
+			t.Errorf("component %q is published under its bare Go type name", bare)
+		}
+	}
+	for _, name := range []string{"PluginView", "PluginConfigField"} {
+		if _, ok := schemas[name]; !ok {
+			t.Errorf("component %q is missing from the spec", name)
+		}
+	}
+	itemsRef := func(component, prop string) string {
+		c, _ := schemas[component].(map[string]any)
+		props, _ := c["properties"].(map[string]any)
+		p, _ := props[prop].(map[string]any)
+		items, _ := p["items"].(map[string]any)
+		ref, _ := items["$ref"].(string)
+		return ref
+	}
+	if got, want := itemsRef("pluginsListResponse", "plugins"), "#/components/schemas/PluginView"; got != want {
+		t.Errorf("pluginsListResponse.plugins items $ref = %q, want %q", got, want)
+	}
+	if got, want := itemsRef("PluginView", "config_schema"), "#/components/schemas/PluginConfigField"; got != want {
+		t.Errorf("PluginView.config_schema items $ref = %q, want %q", got, want)
+	}
+}
+
 // TestTheSpecTypesThePluginListWithLoadSkips: GET /api/v1/plugins answers the
 // plugins and load_skips — the reason an installed plugin was dropped at load —
 // so a client can tell a skipped plugin from one never installed.
