@@ -131,7 +131,7 @@ Query params resolve the space:
 | `name` | always | space name (single segment, no `/`, no `..`) |
 | `visibility` | optional (default `project`) | one of the values above |
 | `bot` | `visibility=bot` | bot id |
-| `project` | `visibility ∈ {bot, project}` | encoded project key (`store.EncodeWorkDirKey` of the workspace root) |
+| `project` | `visibility ∈ {bot, project}` | encoded project key (`store.EncodeWorkDirKey` of the workspace root; a Windows path containing a dash gets a `~<hash>` suffix, and a key already written under the old encoding is still read from its legacy directory) |
 
 Tenant + user are taken from the identity on the request — never a
 query param — so a member can't read another org's memory by editing

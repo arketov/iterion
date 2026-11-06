@@ -70,7 +70,8 @@ a catalog bot and must run on any host/repo (CLAUDE.md "Catalog bots are
 repo-agnostic"). The bash reproduces `EncodeWorkDirKey` (replace `/ : \` →
 `-`, force leading `-`) against `${ITERION_HOME:-$HOME/.iterion}`, matching
 the same workDir the memory subsystem uses, so the resolved scope is
-identical to the one the writers used. Empty/missing/empty-dir → clean
+identical to the one the writers used. Windows paths with a literal dash get a
+hash suffix; the bash replica covers Unix paths only. Empty/missing/empty-dir → clean
 no-op. The literal path in the task brief is treated as runtime state to
 *derive*, not a constant to bake in.
 

@@ -140,8 +140,9 @@ Find it in the per-project discovery file the daemon writes:
 ~/.iterion/daemons/<project-key>.json      {"url": "http://127.0.0.1:61321/", "pid": …, "project_dir": "C:\…", "started_at": …}
 ```
 
-The file name is the project folder with separators turned into `-`; when you
-have several projects open, read `project_dir` in each file. If the daemon is not
+The file name is the project folder with separators turned into `-` (plus a
+`~<hash>` suffix when a Windows path contains a dash); `project_dir` in the file
+is the authority, so when you have several projects open, read it in each file. If the daemon is not
 running the file may be stale — the `pid` tells. Then two calls: `POST
 /api/parse` turns source text into a document, `POST /api/validate` checks the
 document.
