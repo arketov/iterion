@@ -82,6 +82,10 @@ type BoardStore interface {
 	// landed between its state probe and its write, while the watchdog —
 	// which judges on the CAS-observed state — would have honoured it.
 	SetStateOwnedFrom(id, from, to string, tok tracker.ClaimToken) (*Issue, bool, error)
+	// SetStateOwnedFromReason is SetStateOwnedFrom carrying an explicit
+	// descriptive provenance (Issue.StateReason and the event reason); an
+	// empty reason is marker-derived, exactly SetStateOwnedFrom.
+	SetStateOwnedFromReason(id, from, to string, tok tracker.ClaimToken, reason string) (*Issue, bool, error)
 	SetLastRunOwned(id, runID, workdir string, tok tracker.ClaimToken) error
 	SetAwaitingInputOwned(id string, v bool, tok tracker.ClaimToken) error
 	SetGaveUpOwned(id string, g *GiveUp, tok tracker.ClaimToken) error

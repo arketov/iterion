@@ -276,6 +276,13 @@ func (s *Store) setStateOwnedReason(id, newState string, tok tracker.ClaimToken,
 // FIRST (the FS twin's order) — a stolen claim reported as "drifted"
 // would be swallowed by the caller as an ordinary operator move.
 func (s *Store) SetStateOwnedFrom(id, from, to string, tok tracker.ClaimToken) (*native.Issue, bool, error) {
+	return s.SetStateOwnedFromReason(id, from, to, tok, "")
+}
+
+// SetStateOwnedFromReason is SetStateOwnedFrom with an explicit descriptive
+// provenance (card StateReason and event reason); an empty reason is
+// marker-derived, exactly SetStateOwnedFrom.
+func (s *Store) SetStateOwnedFromReason(id, from, to string, tok tracker.ClaimToken, reason string) (*native.Issue, bool, error) {
 	ctx, cancel := ctxWithTimeout()
 	defer cancel()
 	board, err := s.Board()
@@ -308,7 +315,7 @@ func (s *Store) SetStateOwnedFrom(id, from, to string, tok tracker.ClaimToken) (
 	filter["issue.state"] = from
 	writtenAt := time.Now().UTC()
 	res := s.issues.FindOneAndUpdate(ctx, filter,
-		bson.M{"$set": stateSetAt(to, native.StateProvenance(tok.Marker, ""), writtenAt)},
+		bson.M{"$set": stateSetAt(to, native.StateProvenance(tok.Marker, reason), writtenAt)},
 		options.FindOneAndUpdate().SetReturnDocument(options.After))
 	if res.Err() != nil {
 		if !isNoDocuments(res.Err()) {
@@ -332,7 +339,7 @@ func (s *Store) SetStateOwnedFrom(id, from, to string, tok tracker.ClaimToken) (
 		return nil, false, fmt.Errorf("boardmongo: set state owned from decode: %w", err)
 	}
 	if err := s.emit(native.Event{Type: native.EvtIssueState, IssueID: id,
-		Payload: native.StateChangePayload(from, to, tok.Marker)}); err != nil {
+		Payload: native.StateEventPayload(from, to, tok.Marker, reason)}); err != nil {
 		return nil, false, err
 	}
 	if to == native.StateDone {

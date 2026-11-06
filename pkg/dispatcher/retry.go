@@ -159,7 +159,9 @@ func isResumeSourceChanged(err error) bool {
 // set: the work completed, and dragging the card back to an eligible
 // column is the operator's deliberate re-queue gesture, and forbidding
 // finished would make a fresh run for that card unobtainable for as
-// long as the pointer stands. The other legitimate fresh starts are no
+// long as the pointer stands. (The one exception is a card the dispatcher
+// itself returned to an eligible completed_state — stamped run_finished —
+// which lastRunHoldBeforeClaim holds until an operator moves it.) The other legitimate fresh starts are no
 // last_run, or a hard-failed / vanished last_run plus an explicitly
 // eligible ticket.
 //
