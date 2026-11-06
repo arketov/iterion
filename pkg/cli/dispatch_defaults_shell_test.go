@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -106,6 +107,105 @@ func TestWorkspaceSeedPowerShell_CopiesANonRepository(t *testing.T) {
 				if _, err := os.Stat(filepath.Join(ws, f)); err != nil {
 					t.Fatalf("%s not copied: %v", f, err)
 				}
+			}
+		})
+	}
+}
+
+// Without ITERION_WORKSPACE an empty $ws vanishes from the argv of `git
+// worktree add` (Windows PowerShell 5.1), so git creates a worktree named HEAD
+// inside the host project and the hook exits 0. The preset refuses instead:
+// exit 2, the variable named on stderr, nothing created.
+func TestWorkspaceSeedPowerShell_RefusesWithoutAWorkspace(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not on PATH")
+	}
+	for _, shell := range []string{"pwsh", "powershell"} {
+		for _, isRepo := range []bool{true, false} {
+			name := shell + "/repository"
+			if !isRepo {
+				name = shell + "/non-repository"
+			}
+			t.Run(name, func(t *testing.T) {
+				if _, err := exec.LookPath(shell); err != nil {
+					t.Skipf("%s is not on PATH", shell)
+				}
+				project := t.TempDir()
+				if isRepo {
+					gitRepoWithCommit(t, project)
+				} else if err := os.WriteFile(filepath.Join(project, "a.txt"), []byte("a"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				cwd := t.TempDir()
+				h := &dispatcher.Hook{Script: workspaceSeedPowerShell(project), Shell: shell, TimeoutMS: 60_000}
+				var logs bytes.Buffer
+				err := h.Run(context.Background(), iterlog.New(iterlog.LevelInfo, &logs), "after_create", cwd, []string{"ITERION_WORKSPACE="})
+				var he *dispatcher.HookError
+				if !errors.As(err, &he) {
+					t.Fatalf("an empty ITERION_WORKSPACE must fail the hook, got %v\n%s", err, logs.String())
+				}
+				if he.ExitCode == 0 || !strings.Contains(he.Stderr, "ITERION_WORKSPACE") {
+					t.Fatalf("exit=%d stderr=%q: want a non-zero exit naming ITERION_WORKSPACE", he.ExitCode, he.Stderr)
+				}
+				if _, err := os.Stat(filepath.Join(project, "HEAD")); err == nil {
+					t.Fatal("a stray HEAD was created inside the host project")
+				}
+				if entries, err := os.ReadDir(cwd); err != nil || len(entries) != 0 {
+					t.Fatalf("the hook working directory must stay empty: %v %v", entries, err)
+				}
+				if isRepo {
+					out, err := exec.Command("git", "-C", project, "worktree", "list").CombinedOutput()
+					if err != nil {
+						t.Fatalf("git worktree list: %v\n%s", err, out)
+					}
+					if n := len(strings.Split(strings.TrimSpace(string(out)), "\n")); n != 1 {
+						t.Fatalf("a worktree was registered:\n%s", out)
+					}
+				}
+			})
+		}
+	}
+}
+
+// The seeding is the dispatcher's gesture: the host repository's post-checkout
+// hook must not run during the worktree add (core.hooksPath=/dev/null).
+func TestWorkspaceSeedPowerShell_RunsNoHostRepositoryHook(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not on PATH")
+	}
+	for _, shell := range []string{"pwsh", "powershell"} {
+		t.Run(shell, func(t *testing.T) {
+			if _, err := exec.LookPath(shell); err != nil {
+				t.Skipf("%s is not on PATH", shell)
+			}
+			project := t.TempDir()
+			gitRepoWithCommit(t, project)
+			marker := filepath.Join(t.TempDir(), "hook-ran")
+			hook := "#!/bin/sh\necho ran >> \"" + filepath.ToSlash(marker) + "\"\n"
+			if err := os.WriteFile(filepath.Join(project, ".git", "hooks", "post-checkout"), []byte(hook), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			// Control: without the override this git does run the hook.
+			ctrl := filepath.Join(t.TempDir(), "ctrl")
+			if out, err := exec.Command("git", "-C", project, "worktree", "add", "--detach", ctrl, "HEAD").CombinedOutput(); err != nil {
+				t.Fatalf("control worktree add: %v\n%s", err, out)
+			}
+			if _, err := os.Stat(marker); err != nil {
+				t.Skip("this git does not run post-checkout here")
+			}
+			if err := os.Remove(marker); err != nil {
+				t.Fatal(err)
+			}
+			ws := filepath.Join(t.TempDir(), "ws")
+			if err := os.MkdirAll(ws, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			runSeedHook(t, shell, project, ws)
+			if _, err := os.Stat(marker); err == nil {
+				t.Fatal("the host repository's post-checkout hook ran while seeding")
+			}
+			if _, err := os.Stat(filepath.Join(ws, "tracked.txt")); err != nil {
+				t.Fatalf("the worktree lacks the tracked file: %v", err)
 			}
 		})
 	}
