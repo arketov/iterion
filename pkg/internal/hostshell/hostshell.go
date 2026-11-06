@@ -419,8 +419,10 @@ func SingleQuoteEscape() string {
 func IsWindowsHost() bool { return goos == "windows" }
 
 // ScriptInterpreter maps a tool node's `language:` to the interpreter argv
-// (the script file path is appended) and the file extension, for a script
-// run on the host. ok is false for an unknown language. Languages js/node
+// (its last argument is ScriptFileArg(ext, path), and the file holds
+// ScriptFileContent(ext, body)) and the file extension, for a script
+// run on the host. PowerShell runs the file as `& '<file>'` under -Command, not
+// `-File`, for UTF-8 output and the exit code of a failing last program. ok is false for an unknown language. Languages js/node
 // and py/python/python3 are the same everywhere. The shell languages follow
 // the platform rule: empty means the platform shell (Resolve: sh on POSIX,
 // PowerShell on Windows, or what ITERION_SHELL names); `powershell`/`pwsh`/`ps1` is PowerShell anywhere it exists;
@@ -475,7 +477,34 @@ func psFile(platform string) ([]string, string, bool, error) {
 		return nil, "", true, err
 	}
 	argv := append([]string{sh.Path}, psFlags...)
-	return append(argv, "-ExecutionPolicy", "Bypass", "-File"), ".ps1", true, nil
+	return append(argv, "-ExecutionPolicy", "Bypass", "-Command"), ".ps1", true, nil
+}
+
+// ScriptFileContent is what the script file for body holds, given the ext
+// ScriptInterpreter returned. A .ps1 starts with the UTF-8 byte order mark —
+// Windows PowerShell 5.1 reads a script without one in the ANSI code page,
+// which garbles non-ASCII text or breaks the parse; pwsh reads either — and
+// ends with psEpilogue: a script run through `& '<file>'` leaves its caller's
+// $? true whatever its last statement did, so only inside the script can a
+// failing last program become its exit code. Any other body is written as is.
+func ScriptFileContent(ext, body string) string {
+	if ext != ".ps1" {
+		return body
+	}
+	return "\ufeff" + body + psEpilogue
+}
+
+// ScriptFileArg is the last argument of the argv ScriptInterpreter returned:
+// the script file's path, or for a .ps1 the -Command text that runs it as
+// `& '<path>'` between the prelude and the epilogue an inline command gets
+// (UTF-8 output whatever the console code page; the script's exit code kept
+// past -Command's collapse of every failure to 1). path is absolute: `&` does
+// not look in the current directory for a bare name.
+func ScriptFileArg(ext, path string) string {
+	if ext != ".ps1" {
+		return path
+	}
+	return psPrelude + "& '" + strings.ReplaceAll(path, "'", "''") + "'" + psEpilogue
 }
 
 // IsPowerShell reports whether cmd was built by this package for a
