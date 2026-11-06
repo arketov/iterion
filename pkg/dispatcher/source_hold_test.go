@@ -185,3 +185,108 @@ func TestReconcileSourceHolds_ForcedResumeFailsAgain(t *testing.T) {
 		t.Errorf("launched %d run(s), want 0", fx.launched)
 	}
 }
+
+// restart simulates a daemon restart: a fresh Dispatcher over the same store
+// dir, board and runner, without Start (no stale-claim sweep, no actors).
+func (fx *lastRunFixture) restart(t *testing.T) {
+	t.Helper()
+	old := fx.disp
+	c, err := New(Options{
+		Config: old.cfg.Load(), Tracker: native.NewAdapter(fx.board), Runner: old.runner,
+		Workspaces: old.workspaces, Logger: old.logger, HostMarker: "test-host-2", StoreDir: old.storeDir,
+	})
+	if err != nil {
+		t.Fatalf("restart New: %v", err)
+	}
+	fx.disp = c
+}
+
+func (fx *lastRunFixture) adoptedFixture(t *testing.T) *lastRunFixture {
+	t.Helper()
+	fx.setRunStatus(t, store.RunStatusRunning)
+	fx.disp.reconcileSourceHolds(context.Background())
+	if h := fx.disp.state.sourceHolds[fx.issue.ID]; h == nil || !h.adopted {
+		t.Fatalf("hold = %+v, want adopted", h)
+	}
+	return fx
+}
+
+func TestSourceHold_AdoptedCardSurvivesRestart(t *testing.T) {
+	fx := sourceChangedFixture(t).adoptedFixture(t)
+	ctx := context.Background()
+	if got := fx.card(t); got.State != native.StateInProgress || got.Claim != "" {
+		t.Fatalf("adopted card state=%q claim=%q, want in_progress/unclaimed", got.State, got.Claim)
+	}
+
+	fx.restart(t)
+	h := fx.disp.state.sourceHolds[fx.issue.ID]
+	if h == nil || !h.adopted || h.runID != fx.runID || h.sourceState != native.StateReady {
+		t.Fatalf("reloaded hold = %+v, want adopted on run %q from %q", h, fx.runID, native.StateReady)
+	}
+
+	fx.setRunStatus(t, store.RunStatusFinished)
+	fx.dispatchCard(native.StateInProgress)
+	fx.disp.workersWG.Wait()
+	if fx.launched != 0 {
+		t.Fatalf("launched %d run(s), want 0: a finished adopted run must not get a fresh sibling", fx.launched)
+	}
+	if got := fx.card(t); got.Claim != "" || got.LastRunID != fx.runID {
+		t.Errorf("card claim=%q last_run=%q, want unclaimed and last_run kept", got.Claim, got.LastRunID)
+	}
+
+	fx.disp.reconcileSourceHolds(ctx)
+	if got := fx.card(t); got.State != "review" {
+		t.Errorf("card state = %q, want review once the run finished", got.State)
+	}
+	if _, ok := fx.disp.state.sourceHolds[fx.issue.ID]; ok {
+		t.Error("the hold must be dropped at the terminal status")
+	}
+	fx.restart(t)
+	if n := len(fx.disp.state.sourceHolds); n != 0 {
+		t.Errorf("journal reloaded %d hold(s), want it cleared", n)
+	}
+	if fx.launched != 0 {
+		t.Errorf("launched %d run(s), want 0", fx.launched)
+	}
+}
+
+func TestSourceHold_NotAdoptedHoldIsMemoryOnly(t *testing.T) {
+	fx := sourceChangedFixture(t)
+	if len(fx.disp.state.sourceHolds) != 1 {
+		t.Fatalf("holds = %d, want the refusal hold", len(fx.disp.state.sourceHolds))
+	}
+	fx.restart(t)
+	if n := len(fx.disp.state.sourceHolds); n != 0 {
+		t.Errorf("holds after restart = %d, want 0: only adopted holds are durable", n)
+	}
+}
+
+func TestSourceHold_RestartedHoldDroppedWhenPointerReset(t *testing.T) {
+	fx := sourceChangedFixture(t).adoptedFixture(t)
+	fx.restart(t)
+	if err := fx.board.SetLastRun(fx.issue.ID, "", ""); err != nil {
+		t.Fatalf("SetLastRun: %v", err)
+	}
+	fx.disp.reconcileSourceHolds(context.Background())
+	if len(fx.disp.state.sourceHolds) != 0 {
+		t.Error("a cleared last_run must drop the reloaded hold")
+	}
+	fx.restart(t)
+	if len(fx.disp.state.sourceHolds) != 0 {
+		t.Error("the journal must be rewritten empty")
+	}
+}
+
+func TestSourceHold_AdoptedForceResumeFailsAgainAfterRestart(t *testing.T) {
+	fx := sourceChangedFixture(t).adoptedFixture(t)
+	fx.restart(t)
+	fx.setRunStatus(t, store.RunStatusFailedResumable)
+	fx.disp.reconcileSourceHolds(context.Background())
+	if got := fx.card(t); got.State != native.StateReady {
+		t.Errorf("card state = %q, want ready again", got.State)
+	}
+	fx.restart(t)
+	if len(fx.disp.state.sourceHolds) != 0 {
+		t.Error("a given-back hold is no longer adopted: the journal must be empty")
+	}
+}
