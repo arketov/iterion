@@ -45,7 +45,8 @@ type Config struct {
 	// ticket carries a per-ticket Bot override. Paths are walked
 	// using pkg/botregistry's discovery rules (single .bot files +
 	// .botz bundles). Empty Paths disables the override path — a
-	// ticket with iss.Bot set on it will fail to dispatch.
+	// ticket with iss.Bot set on it will fail to dispatch. The studio's Manager
+	// fills an empty list with the project's own roots (DefaultBotsPaths).
 	Bots botregistry.Config `yaml:"bots,omitempty" json:"bots,omitempty"`
 
 	// TicketRouter, when Enabled, routes an UNASSIGNED new issue
@@ -59,13 +60,16 @@ type Config struct {
 	TicketRouter TicketRouterConfig `yaml:"ticket_router,omitempty" json:"ticket_router,omitempty"`
 
 	// RequireAssignee, when true, makes the dispatcher refuse a card that
-	// names neither an assignee nor a bot (and that no ticket_router claims)
-	// instead of running it on the config's default workflow — a paid run the
-	// operator never chose. The card stays put and is reported in the
-	// snapshot's dispatch_skips with kind "no_assignee", which the board and
-	// the Dispatcher page show as "no assignee". Off by default so hand-written
+	// names neither an assignee nor a bot (and that no ticket_router claims),
+	// or whose assignee is not a bot it can route to (a person's name, a typo,
+	// a bot disabled in the catalogue), instead of running it on the config's
+	// default workflow — a paid run the operator never chose. The card stays
+	// put and is reported in the snapshot's dispatch_skips with kind
+	// "no_assignee" or "no_bot", which the board and the Dispatcher page show
+	// as "no assignee" / "no bot". Off by default so hand-written
 	// single-workflow configs keep their meaning; the zero-config
-	// `iterion dispatch` / desktop preset turns it on. See docs/dispatcher.md.
+	// `iterion dispatch` / desktop preset turns it on (and has no default
+	// workflow at all). See docs/dispatcher.md.
 	RequireAssignee bool `yaml:"require_assignee,omitempty" json:"require_assignee,omitempty"`
 
 	SourcePath string `yaml:"-" json:"-"`

@@ -89,7 +89,8 @@ func TestDispatchRequireAssigneeAcceptsRoutableBot(t *testing.T) {
 // Without require_assignee the documented fallback to the default workflow is
 // unchanged, so an assignee that matches no bot is not refused.
 func TestDispatchWithoutRequireAssigneeKeepsDefaultFallback(t *testing.T) {
-	c, _ := requireBotDispatcher(t)
+	c, rr := requireBotDispatcher(t)
+	rr.Default = &recordingRunner{name: "default"} // a dispatcher that has a fallback workflow
 	cfg := *c.cfg.Load()
 	cfg.RequireAssignee = false
 	c.cfg.Store(&cfg)
@@ -117,7 +118,8 @@ func TestRefuseWithoutBotPlainRunnerIsNotJudged(t *testing.T) {
 // its course while there is a fallback workflow, and is refused when there is
 // none (nothing to run it on).
 func TestRefuseWithoutBotRetryException(t *testing.T) {
-	c, _ := requireBotDispatcher(t)
+	c, rr := requireBotDispatcher(t)
+	rr.Default = &recordingRunner{name: "default"}
 	c.state.retries = map[string]*retryEntry{"i5": {}}
 	iss := tracker.Issue{ID: "i5", Identifier: "T-5", Assignee: "artem"}
 
@@ -130,8 +132,26 @@ func TestRefuseWithoutBotRetryException(t *testing.T) {
 
 	cfg.Workflow = ""
 	c.cfg.Store(&cfg)
+	rr.Default = nil
 	if !c.refuseWithoutBot(c.cfg.Load(), iss) {
 		t.Fatal("a retrying card with no fallback workflow has nothing to run on: refused")
+	}
+}
+
+// A dispatcher built with no fallback workflow keeps refusing a card no bot
+// routes to even after require_assignee is switched off by a live reload (which
+// does not rebuild the runner): claiming it would only fail it on every retry.
+func TestRefuseWithoutBotNoDefaultRunnerRefusesEvenWithoutRequireAssignee(t *testing.T) {
+	c, _ := requireBotDispatcher(t) // its runner has no default
+	cfg := *c.cfg.Load()
+	cfg.RequireAssignee = false
+	c.cfg.Store(&cfg)
+
+	if !c.refuseWithoutBot(c.cfg.Load(), tracker.Issue{ID: "i6", Identifier: "T-6", Assignee: "artem"}) {
+		t.Fatal("a runner with no default must refuse a card no bot routes to")
+	}
+	if c.refuseWithoutBot(c.cfg.Load(), tracker.Issue{ID: "i7", Identifier: "T-7", Assignee: "customy"}) {
+		t.Fatal("a routable bot is still run")
 	}
 }
 

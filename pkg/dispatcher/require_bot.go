@@ -27,13 +27,29 @@ import (
 //
 // Runs on the actor goroutine, like the rest of dispatch().
 func (c *Dispatcher) refuseWithoutBot(cfg *Config, iss tracker.Issue) bool {
+	// A dispatcher built with no fallback workflow has nothing to run a card no
+	// bot routes to, whatever the setting says now: a live config reload does
+	// not rebuild the runner, so require_assignee switched off after the start
+	// would otherwise claim such a card and fail it on every retry.
+	if rr, ok := c.runner.(*RoutingRunner); ok && rr.Default == nil && iss.Bot == "" {
+		return c.refuseUnroutable(cfg, iss)
+	}
 	if !cfg.RequireAssignee || iss.Bot != "" {
 		return false
 	}
+	return c.refuseUnroutable(cfg, iss)
+}
+
+// refuseUnroutable is the body of refuseWithoutBot once the policy applies.
+func (c *Dispatcher) refuseUnroutable(cfg *Config, iss tracker.Issue) bool {
 	// A card with a pending retry already started under an earlier policy (e.g.
 	// before an upgrade): let its retry/resume run its course, when there is a
 	// default workflow to run it on.
-	if _, retrying := c.state.retries[iss.ID]; retrying && cfg.Workflow != "" {
+	hasDefault := cfg.Workflow != ""
+	if rr, ok := c.runner.(*RoutingRunner); ok && rr.Default == nil {
+		hasDefault = false // the runner was built without one
+	}
+	if _, retrying := c.state.retries[iss.ID]; retrying && hasDefault {
 		return false
 	}
 	if iss.Assignee == "" {
@@ -49,7 +65,10 @@ func (c *Dispatcher) refuseWithoutBot(cfg *Config, iss tracker.Issue) bool {
 	if _, err := botregistry.ResolveBotEntry(iss.Assignee, cfg.Bots.Paths); err == nil {
 		reason = fmt.Sprintf("bot %q is disabled in the catalogue: enable it on the Bots page to run this card", iss.Assignee)
 	}
-	c.logger.Warn("dispatcher: %s: %s — not running it", iss.Identifier, reason)
+	// Said once per reason: the same card is refused again on every poll.
+	if prev, seen := c.state.dispatchSkips[iss.ID]; !seen || prev.Reason != reason {
+		c.logger.Warn("dispatcher: %s: %s — not running it", iss.Identifier, reason)
+	}
 	c.recordDispatchSkipKind(iss, DispatchSkipNoBot, reason)
 	return true
 }

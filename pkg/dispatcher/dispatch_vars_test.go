@@ -62,7 +62,7 @@ func TestBuildSpec_ManifestDispatchVarsReadLive(t *testing.T) {
 		t.Fatal(err)
 	}
 	spec = d.buildSpec(cfg, iss, "r3", "/tmp/ws", 0, nil)
-	if spec.Vars["prompt"] != "Fix it" || spec.Vars["task"] != "" {
+	if _, stale := spec.Vars["task"]; spec.Vars["prompt"] != "Fix it" || stale {
 		t.Fatalf("an edited manifest must be re-read: %v", spec.Vars)
 	}
 }

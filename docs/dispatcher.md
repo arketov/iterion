@@ -991,11 +991,17 @@ The dispatcher watches `iterion.dispatcher.yaml` via fsnotify with a
 | `dispatch.vars`                                | applied next dispatch                |
 | `workspace.persist`                            | applied next dispatch; resumed runs preserve their original workspace shape |
 | `stall.timeout_ms`                             | applied next tick                    |
-| `workflow:`, `tracker.kind:`, `workspace.root` | warn-only; require restart           |
+| `require_assignee`, `assignee_dispatch`        | applied next dispatch                |
+| `workflow:`, `assignee_workflows`, `bots.paths`, `tracker.kind:`, `workspace.root` | warn-only; require restart (Stop, then Start) |
 | `tracker.*` credentials                        | warn-only; require restart           |
 
 Invalid reloads (YAML errors, template parse errors, missing workflow
-file) keep the previous config and log a warning.
+file) keep the previous config and log a warning. The same holds for a save
+from the studio's settings form: the routing is built when the dispatcher
+starts, so a changed fallback workflow or bot folder takes effect after Stop and
+Start. A dispatcher that was started with no fallback workflow (the default
+preset) keeps refusing a card no bot routes to, even if `require_assignee` is
+switched off meanwhile.
 
 ## Tracker adapters
 

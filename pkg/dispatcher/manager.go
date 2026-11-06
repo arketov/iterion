@@ -1,7 +1,6 @@
 package dispatcher
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -336,7 +335,36 @@ func (m *Manager) baseDir() string {
 // project root, the studio's default bot roots filling an empty bots.paths).
 func (m *Manager) resolve(raw *Config) (*Config, error) {
 	raw.SourcePath = m.configPath
-	return raw.Resolved(m.baseDir(), m.defaultBotsPaths)
+	rt, err := raw.Resolved(m.baseDir(), m.defaultBotsPaths)
+	if err != nil {
+		return nil, err
+	}
+	m.warnUnsetTokenRefs(raw, rt)
+	return rt, nil
+}
+
+// warnUnsetTokenRefs says so when a tracker token saved as an `$ENV` reference
+// expands to nothing in this process: the config keeps the reference, never the
+// token, so a studio started without the variable runs the tracker with no
+// credential — silently, unless this is said.
+func (m *Manager) warnUnsetTokenRefs(raw, rt *Config) {
+	if m.logger == nil {
+		return
+	}
+	check := func(kind, refTok, runTok string) {
+		if refTok != "" && refTok != maskedToken && runTok == "" {
+			m.logger.Warn("manager: %s tracker token %q expands to nothing: the variable is not set in this process, so the tracker runs without a credential", kind, refTok)
+		}
+	}
+	if raw.Tracker.GitHub != nil && rt.Tracker.GitHub != nil {
+		check("github", raw.Tracker.GitHub.Token, rt.Tracker.GitHub.Token)
+	}
+	if raw.Tracker.Forgejo != nil && rt.Tracker.Forgejo != nil {
+		check("forgejo", raw.Tracker.Forgejo.Token, rt.Tracker.Forgejo.Token)
+	}
+	if raw.Tracker.GitLab != nil && rt.Tracker.GitLab != nil {
+		check("gitlab", raw.Tracker.GitLab.Token, rt.Tracker.GitLab.Token)
+	}
 }
 
 // RawConfig returns the saved configuration as written — `$ENV` references and
@@ -751,44 +779,6 @@ func carrySecrets(in, prev *Config) {
 	if in.Tracker.GitLab != nil {
 		carry(&in.Tracker.GitLab.Token, oldGL)
 	}
-}
-
-// patchAfterCreateHook rewrites only hooks.after_create (script, shell) in the
-// config file at path and leaves every other field exactly as it was written.
-// A migration must not re-save the whole loaded Config: loading expands
-// `$ENV` tokens and absolutises paths, and writing that back would put a
-// token on disk in clear.
-func patchAfterCreateHook(path string, h *Hook) error {
-	if h == nil {
-		return errors.New("no after_create hook to write")
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber()
-	var doc map[string]any
-	if err := dec.Decode(&doc); err != nil {
-		return err
-	}
-	hooks, _ := doc["hooks"].(map[string]any)
-	if hooks == nil {
-		return errors.New("config has no hooks object")
-	}
-	after, _ := hooks["after_create"].(map[string]any)
-	if after == nil {
-		return errors.New("config has no after_create hook")
-	}
-	after["script"] = h.Script
-	if h.Shell != "" {
-		after["shell"] = h.Shell
-	}
-	out, err := json.MarshalIndent(doc, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, out, 0o600)
 }
 
 func saveConfigJSON(path string, cfg *Config) error {

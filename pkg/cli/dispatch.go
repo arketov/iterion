@@ -120,6 +120,10 @@ func RunDispatch(p *Printer, opts DispatchOptions) error {
 		NativeStore: nativeStore,
 		Logger:      logger,
 		ProjectDir:  cwd,
+		// A store saved by an earlier version holds a preset that routes to
+		// bots the binary used to embed; NewManager auto-starts from it, so it
+		// is brought up to date before that start.
+		MigrateConfig: MigrateSavedConfig(storeDir),
 	})
 	if err != nil {
 		return err

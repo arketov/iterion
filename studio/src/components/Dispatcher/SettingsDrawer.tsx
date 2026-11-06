@@ -31,6 +31,10 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
   // saved config the same endpoint needs ?replace=1 (409 otherwise), which
   // is what "Reset to default settings" asks for.
   const [noConfig, setNoConfig] = useState(false);
+  // Bumped on every load: the list editors of the form keep their rows in local
+  // state, so a form built from an earlier load (before a reset to defaults, say)
+  // must be remounted, not just handed the new settings.
+  const [formKey, setFormKey] = useState(0);
   const defaultsAction = useAsyncAction();
   // The bot list the Workflow path / assignee pickers draw from.
   const botsLoaded = useBotsStore((s) => s.bots !== null);
@@ -57,6 +61,7 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
       if (alive) {
         setNoConfig(c === null);
         setCfg(c ?? defaultConfig());
+        setFormKey((k) => k + 1);
       }
     });
     return () => {
@@ -174,7 +179,7 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
           </InlineBanner>
         )}
 
-        {cfg && <Form cfg={cfg} setCfg={setCfg} />}
+        {cfg && <Form key={formKey} cfg={cfg} setCfg={setCfg} />}
       </div>
     </Drawer>
   );
@@ -249,7 +254,8 @@ function Form({ cfg, setCfg }: FormProps) {
             <span className="block text-fg-muted">
               A card with no assignee, or whose assignee is not one of the bots below (a person&apos;s
               name, a typo), is not run: it waits marked “no assignee” / “no bot”. Turn it off to run
-              such cards on the fallback workflow above, if there is one.
+              such cards on the fallback workflow above, if there is one. Changes to the bot
+              folders and the fallback workflow apply when the dispatcher is stopped and started again.
             </span>
           </span>
         </label>
