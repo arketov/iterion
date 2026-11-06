@@ -50,12 +50,14 @@ flowchart TD
     fin -- "err is nil" --> okd["COMPLETED - maybeTransitionToCompleted to completed_state, default review, then Release"]
     fin -- "ErrRunPaused, ErrRunPausedOperator, resume source changed" --> park["PARKED in awaiting_input - claim RETAINED, heartbeat stopped, never retried"]
     fin -- "ErrRunCancelled - an operator stop" --> heldc["HELD - no move, no retry, claim retained until an explicit resume"]
+    fin -- "ErrRunInterrupted after the operator moved the card out of running_state" --> moved["REVERT is a no-op, then Release - the card stays where the operator put it, NO retry entry, no give-up, the attempt counter does not advance"]
     fin -- "a deterministic failure code, or max_attempts reached" --> giveup["GAVE UP - failed_state, default blocked, plus a give-up stamp"]
     fin -- "any other failure" --> retry["REVERT to the source state, then Release - retry in 10s doubling, capped at max_retry_backoff_ms"]
     fin -- "a force-reap context.Canceled" --> reap["REVERT to the source state, then Release - NO retry entry, so the next tick re-picks the card and the attempt counter does not advance"]
     giveup -- "the board cannot represent failed" --> retry
     retry --> sorted
     reap --> sorted
+    moved --> sorted
 ```
 
 The three **filing** dispositions — COMPLETED, GAVE UP, REVERT — are executed by an off-actor finish worker that does the transition **first** and `Release` **last**, stopping the heartbeat after its own last write: the claim is what keeps `ListCandidates` away until the card sits in its final, mostly non-eligible column. PARKED and HELD never reach that worker: the actor itself stamps `last_run`, stops the heartbeat and **keeps** the claim — no `Release` at all, which is the parking brake of ADR-014. PARKED also moves the card into `awaiting_input` on the actor, best-effort; HELD leaves it in its column with a visible skip.

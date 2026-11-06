@@ -243,6 +243,7 @@ which tickets are being worked on right now. Behaviour:
 | Workspace create / runID mint fails    | Revert state, release claim                         |
 | Run force-reaped (a literal `context.Canceled`) | Revert state, release claim, keep workspace |
 | Run cancelled by the operator (`ErrRunCancelled`) | No revert, no retry: the claim is retained and the ticket stays held until an explicit resume |
+| Operator moved the card out of `running_state` mid-run (`refreshRunningStates` interrupts the run) | Interrupt, release claim — **not** a failed attempt: no retry is scheduled, `max_attempts` is not spent, no give-up fires, and the card stays in the column the operator put it in. The run is left `failed_resumable`; moving the card back to an eligible state resumes it from its checkpoint |
 | Run failed (non-cancel)                | Revert state, release claim, schedule retry         |
 | Run finished cleanly (`err == nil`)    | **No revert.** If the workflow moved the state itself (docs-refresh → `review`), that is honoured. If it left the card in `running_state`, the dispatcher moves it to `agent.completed_state` (default `review`) — see `maybeTransitionToCompleted`. |
 | Daemon shutdown (Ctrl+C, SIGTERM)      | Revert each in-flight ticket's transition           |
@@ -547,6 +548,12 @@ issue to `agent.failed_state` (default `blocked`) and drops the retry, so a
 doomed ticket stops burning model spend. If the board cannot represent that
 state the move is refused and the unbounded retry is kept instead — a ticket is
 never frozen in place.
+
+Only a failed attempt spends the budget. A run interrupted because the operator
+dragged the card out of `agent.running_state` is not an attempt: it schedules no
+retry, never gives up and never overwrites the column the operator chose (see
+[the in-progress transition](#in-progress-transition-agentrunning_state)). A stall
+reap, which carries the same interruption cause but no operator move, still counts.
 
 A successful give-up also **stamps** the issue (`Issue.gave_up` — the run, the
 state written, the attempt count — plus an `issue_gave_up` event). The stamp
