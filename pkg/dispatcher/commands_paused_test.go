@@ -144,6 +144,8 @@ func TestFinishRun_PausedForInputIsParkedNotRetried(t *testing.T) {
 // TestFinishRun_SourceChangedParksNoSibling: a doomed resume (bot
 // source changed) must not mint a sibling from entry. The ticket stays
 // claimed on the same last_run so the operator can resume --force.
+// Pointer-less tracker (no LastRunForIssue seam): the legacy park. Trackers
+// with the seam hold the card in place instead — see source_hold_test.go.
 func TestFinishRun_SourceChangedParksNoSibling(t *testing.T) {
 	const issueID = "fake:source-changed-1"
 	ft := newFakeTracker()
