@@ -64,11 +64,18 @@ fi
 // workspaceSeedPowerShell is workspaceSeedScript for a PowerShell host (the
 // Windows default): the same decisions — skip a non-empty workspace, a
 // detached `git worktree add` when the project is a repository, a recursive
-// copy otherwise — in PowerShell, with the same hooks-off worktree add.
+// copy otherwise — in PowerShell, with the same hooks-off worktree add. It
+// refuses to run without ITERION_WORKSPACE: an empty $ws drops out of the argv
+// of `git worktree add` (PowerShell 5.1) and git would create a worktree named
+// HEAD inside the host project.
 func workspaceSeedPowerShell(projectDir string) string {
 	q := "'" + strings.ReplaceAll(projectDir, "'", "''") + "'"
 	return `$projectDir = ` + q + `
 $ws = $env:ITERION_WORKSPACE
+if ([string]::IsNullOrWhiteSpace($ws)) {
+  [Console]::Error.WriteLine('ITERION_WORKSPACE is not set - the workspace seed needs the workspace path from the dispatcher')
+  exit 2
+}
 # A workspace that already has content (a previous failed attempt) is not
 # re-seeded: the operator cleans it up rather than being silently overwritten.
 if ((Test-Path -LiteralPath $ws) -and (Get-ChildItem -LiteralPath $ws -Force | Select-Object -First 1)) {
