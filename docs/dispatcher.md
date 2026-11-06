@@ -787,6 +787,10 @@ invoking the hook:
 | `ITERION_WORKSPACE`          | absolute workspace path                |
 | `ITERION_STORE_DIR`          | the run store directory, when the dispatch carries one |
 
+The built-in PowerShell `after_create` seed preset refuses to run when
+`ITERION_WORKSPACE` is empty or unset: it exits with code 2, names the variable
+on stderr and creates nothing.
+
 A failed `after_create` or `before_run` aborts the dispatch and feeds
 the retry queue (what the studio shows for it: [Hook failure](#hook-failure)). The run never started, so its id is **not** recorded in
 the card's run history (it would open to a 404 and offer a diff of
