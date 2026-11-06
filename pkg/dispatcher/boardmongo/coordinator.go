@@ -55,6 +55,21 @@ func (c *Coordinator) DistinctEffectTenants(ctx context.Context) ([]string, erro
 	return vals, nil
 }
 
+// DistinctCardTenants lists the tenants holding at least one card that
+// records a run (a history entry or a LastRunID pointer): the tenants the
+// boot-time ghost-run cleanup has to visit.
+func (c *Coordinator) DistinctCardTenants(ctx context.Context) ([]string, error) {
+	res := c.coll.Distinct(ctx, "tenant_id", bson.M{"$or": ghostRunRefFilter()})
+	if err := res.Err(); err != nil {
+		return nil, fmt.Errorf("boardmongo: distinct card tenants: %w", err)
+	}
+	var vals []string
+	if err := res.Decode(&vals); err != nil {
+		return nil, fmt.Errorf("boardmongo: decode card tenants: %w", err)
+	}
+	return vals, nil
+}
+
 // ListEligible is the SWEEPS' listing: up to `limit` UNCLAIMED issues whose
 // state is in `eligible`, across every tenant, with no bot filter (a sweep
 // judges a card by its recorded run — the dispatch tick lists through
