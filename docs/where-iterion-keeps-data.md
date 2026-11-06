@@ -2,8 +2,11 @@
 
 **Status:** describes the local studio, desktop app and CLI on `main`; checked
 against `pkg/store/storedir.go`, `pkg/cli/studio.go`, `pkg/skilllib`,
-`pkg/plugin`, `cmd/iterion-desktop` and a Windows 11 install. Not covered: the
-cloud, whose data lives in MongoDB and S3 ([cloud architecture](cloud-architecture.md)).
+`pkg/plugin`, `cmd/iterion-desktop` and a Windows 11 install; the move of a
+project folder ([below](#moving-a-project-folder)) is covered by unit tests
+(`pkg/server/projects/relocate_test.go`, `pkg/server/workspace_test.go`) and has
+not yet been tried by hand on Windows. Not covered: the cloud, whose data lives
+in MongoDB and S3 ([cloud architecture](cloud-architecture.md)).
 
 Iterion writes in five places. Your own files stay in your project; everything
 the tool generates — runs, the board, settings — goes to a *store* outside it by
@@ -20,6 +23,12 @@ paths get different keys, a clone included — with one caveat: `\`, `/` and `:`
 `-`, so `C:\a-b` and `C:\a\b` collide, and `c:\` and `C:\` differ. Open the project
 the same way each time.
 
+The store belongs to the project's **path**, not to the project itself: iterion
+keeps no marker of identity. Move or rename the folder and the new path gets a
+new, empty store while the old one stays untouched with the board, the
+dispatcher's settings and the runs in it — see
+[Moving a project folder](#moving-a-project-folder).
+
 | Place | What is in it | Who writes it |
 |---|---|---|
 | **Your project folder** — `<project>/` | Your `.bot` files, bot bundles (`bots/`, `examples/`, `.botz/`), the rest of your code. Runs that use `worktree: auto` add branches to its git repository. | You, the studio's **Save**, `iterion bots create` |
@@ -32,7 +41,9 @@ the same way each time.
 Two practical consequences:
 
 - **Nothing in the project is needed to run it elsewhere.** Move your `.bot`
-  files or bundles; the runs and the board stay behind in the store.
+  files or bundles; the runs and the board stay behind in the store. A moved
+  project folder therefore opens as a new project until its data is carried
+  over.
 - **Deleting a project folder does not delete its runs.** They remain under
   `~/.iterion/projects/<key>/` until you remove that folder (or run
   `iterion clean --with-runs`; plain `iterion clean` only reclaims per-run
@@ -68,10 +79,62 @@ The consequence worth remembering: **the CLI and the studio share runs only if
 they resolve to the same store.** Both start from a folder, so run the CLI from the
 same folder the studio serves (a subfolder gives a different key), or pass the same `--store-dir` to both.
 
+## Moving a project folder
+
+Because the store is found by the folder's path, a project you moved (for
+example out of OneDrive to `C:\work\shop`) opens in the studio with an empty
+board and a dispatcher with no settings (`has_config: false`). Nothing is lost:
+the old store, `~/.iterion/projects/<old key>/`, still holds the cards, the
+dispatcher's settings and the runs.
+
+The workspace studio (`iterion studio --workspace`) offers to carry them over.
+On the dispatcher's empty page a block *Move data from `<old path>`* shows the
+number of cards and runs found there. It appears only when all of these hold:
+
+- the old project is in the studio's project list (it was opened through the
+  studio once; the list keeps its folder and store even after the folder is
+  gone);
+- the old folder no longer exists and has the same name as the new one;
+- the old store holds a board, dispatcher settings or runs;
+- the new project's store is still empty: no dispatcher settings, no cards, no
+  runs. A store that already has data is never merged into or overwritten
+  (the request is refused with `409`).
+
+Nothing is matched by folder name alone or by the key, so another project that
+happens to have the same folder name is not offered, and nothing is copied
+before you click.
+
+| Copied | Not copied |
+|---|---|
+| The board: `dispatcher/board.json`, `issues/`, `events.jsonl` | `worktrees/` — each holds a pointer to the old repository and breaks when copied |
+| The dispatcher's settings, `dispatcher.json`, with every absolute path under the old folder (`workflow`, `bots.paths`, `workspace.root`, hook paths, …) rewritten to the new folder; relative paths and `$ENV` references are kept | `secrets.json`, `skills/`, `marketplace/` — move them by hand if you want them |
+| `runs/`, the run history | The dispatcher's saved running state (`dispatcher/runtime.json`) and claims; `memory/` and `scratch/`, which live under the old key in the iterion home |
+
+The old store is only read, never changed or deleted, and the entry of the old
+project stays in the project list until you remove it there. The dispatcher of
+the new project is left **stopped**: without a saved state a dispatcher that has
+settings starts by itself on the next boot, so the copy writes
+`{"desired":"stopped"}` to `dispatcher/runtime.json`. Start it from the
+dispatcher page once you have checked the settings. Paths recorded inside old
+`run.json` files and on cards (`last_workdir`) keep the old folder; those runs
+stay readable but are not meant to be resumed.
+
+Not offered: the desktop app and a single-project studio (they have no such
+route), and a project that was never opened in the studio (only from the CLI),
+because nothing records where its old store was. For those, copy by hand with
+the studio closed: from `~/.iterion/projects/<old key>/` to `<new key>/`, the
+`dispatcher/` folder (edit the absolute paths in `dispatcher.json`, and set
+`runtime.json` to `{"desired":"stopped"}`) and `runs/`. The key is the path
+rule in [the map](#the-map).
+
+This is a local, studio-side state; the cloud, which keeps its data in MongoDB
+and S3, is not affected.
+
 ## Changing it
 
 | You want | Do |
 |---|---|
+| A project you moved to another folder to keep its board, settings and runs | Open it in the workspace studio and, on the empty Dispatcher page, click *Move data from …* ([details](#moving-a-project-folder)). |
 | One command or studio to use a specific store | `--store-dir <dir>` — `iterion run`, `iterion studio`, `iterion dispatch`, `iterion inspect` and the other local commands take it. Pass the same value to every command that must see the same runs. |
 | Every project's slot (and all of `~/.iterion/`) somewhere else — another disk, a synced folder | Set the `ITERION_HOME` environment variable to the folder you want. It replaces `~/.iterion` as a whole: plugins, skills, global secrets and the `projects/` slots move with it. The desktop app reads it too, for `daemons/` and `desktop.json`. |
 | A project's state inside the repository | Create `<project>/.iterion/runs/` (rule 2) and add `.iterion/` to the project's `.gitignore` unless you want it versioned. |
@@ -84,6 +147,9 @@ Details that bite:
   used for locating data but does not give that project's code the trust that
   an operator-set value has (for example for sandbox mounts). See
   [environment variables](environment-variables.md).
+- A dispatcher with saved settings and no `dispatcher/runtime.json` starts by
+  itself on the next boot. Never copy a store between projects without also
+  writing `{"desired":"stopped"}` there if the dispatcher must stay off.
 - With no home folder at all (a bare CI container) iterion falls back to
   `<temp>/iterion-data`.
 - `%APPDATA%\Iterion\` is **not** moved by `ITERION_HOME`; it is the OS user
