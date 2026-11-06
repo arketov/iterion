@@ -309,6 +309,12 @@ type Snapshot struct {
 // assignee and no bot while Config.RequireAssignee is on.
 const DispatchSkipNoAssignee = "no_assignee"
 
+// DispatchSkipNoBot is DispatchSkipView.Kind for a ready card whose assignee is
+// not a bot the dispatcher can route to (a person's name, a typo, a bot
+// disabled in the catalogue) while Config.RequireAssignee is on. The card is
+// not run: the dispatcher never falls back to a default bot for it.
+const DispatchSkipNoBot = "no_bot"
+
 // DispatchSkipView is one entry of the "won't dispatch" surface: an
 // eligible issue the dispatcher refused to claim because its explicit
 // bot can't be resolved to a workflow file, or resolves but has no
@@ -319,10 +325,14 @@ type DispatchSkipView struct {
 	IssueID    string `json:"issue_id"`
 	Identifier string `json:"identifier"`
 	Bot        string `json:"bot,omitempty"`
-	Reason     string `json:"reason"`
+	// Assignee is the card's assignee, set so the UI can say which name is not
+	// a bot ("no bot (artem)").
+	Assignee string `json:"assignee,omitempty"`
+	Reason   string `json:"reason"`
 	// Kind classifies the skip so the UI can give it its own state:
 	// "no_assignee" (ready card with no assignee/bot while require_assignee
-	// is on), or empty for the bot-misconfiguration family.
+	// is on), "no_bot" (the assignee is not a routable bot, same policy), or
+	// empty for the bot-misconfiguration family.
 	Kind string `json:"kind,omitempty"`
 }
 

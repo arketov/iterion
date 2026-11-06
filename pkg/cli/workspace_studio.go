@@ -226,9 +226,11 @@ func newWorkspaceProjectServer(opts StudioOptions, project projects.Project, log
 				DefaultBotsPaths: botsPaths,
 				RunEnv:           runEnv,
 				DefaultsFn: func() (*dispatcher.Config, error) {
-					return BuildDefaultConfig(project.StoreDir, project.Dir)
+					return BuildDefaultConfig(project.Dir)
 				},
-				MigrateConfig: MigrateLegacySeedHook,
+				MigrateConfig: MigrateSavedConfig(project.StoreDir),
+				// A relative path in the saved settings is the project's.
+				ProjectDir: project.Dir,
 			})
 			if managerErr != nil {
 				logger.Warn("workspace: dispatcher disabled for %s: %v", project.Name, managerErr)
