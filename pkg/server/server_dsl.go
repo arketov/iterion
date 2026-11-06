@@ -529,6 +529,14 @@ func (s *Server) mergeBotSourcePrompts(r *http.Request, f *ast.File, editorPath 
 	return nil
 }
 
+// examplesDir is the folder the Home's bot list and /api/examples/{name} read,
+// under stateMu: a project switch rewrites it (swapWorkDir).
+func (s *Server) examplesDir() string {
+	s.stateMu.RLock()
+	defer s.stateMu.RUnlock()
+	return s.cfg.ExamplesDir
+}
+
 func (s *Server) handleListExamples(w http.ResponseWriter, _ *http.Request) {
 	// The studio Home's "Bots" quick-open panel lists the bundle bots found
 	// under <ExamplesDir>/<bot>/main.bot (e.g. <repo>/bots/ when the user
@@ -540,7 +548,7 @@ func (s *Server) handleListExamples(w http.ResponseWriter, _ *http.Request) {
 	seen := map[string]struct{}{}
 	var entries []exampleEntry
 
-	if dir := s.cfg.ExamplesDir; dir != "" {
+	if dir := s.examplesDir(); dir != "" {
 		_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return nil
@@ -699,7 +707,7 @@ func (s *Server) handleLoadExample(w http.ResponseWriter, r *http.Request) {
 	// An example is a file of the project's <ExamplesDir>. The binary no
 	// longer carries a built-in recipe set to fall back to: a name the
 	// project does not hold is not found.
-	if dir := s.cfg.ExamplesDir; dir != "" {
+	if dir := s.examplesDir(); dir != "" {
 		abs := filepath.Join(dir, filepath.FromSlash(name))
 		if data, err := os.ReadFile(abs); err == nil {
 			s.serveDiskExample(w, name, abs, data)
