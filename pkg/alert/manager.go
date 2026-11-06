@@ -32,6 +32,9 @@ type runState struct {
 	lastProgressAt time.Time
 	terminal       bool
 	terminalAt     time.Time
+	// lastBeat is the detail of the last event when it was a tool_heartbeat
+	// (empty otherwise): the stall text names the silent command with it.
+	lastBeat string
 	// paused is set while the run is intentionally waiting (human form
 	// input or an operator pause) and cleared when it resumes or executes
 	// a node. Stall detection is suppressed while paused: a run waiting on
@@ -154,6 +157,11 @@ func (m *Manager) Observe(evt store.Event) {
 	//     tool still ticks, and a safety net that keeps its run reading
 	//     as alive would blind the alarm it was laid beside — including
 	//     when the tick is a FAILING push, which repeats forever.
+	//
+	// tool_heartbeat is NOT in this list, on purpose: unlike the checkpoint
+	// it is emitted by the node itself, only while its command's process is
+	// alive, and its own ceiling (ITERION_TOOL_NODE_HEARTBEAT_MAX) stops the
+	// beats so a really hung command meets this detector again.
 	if evt.Type == store.EventRunHealth ||
 		evt.Type == store.EventRunWorkspaceCheckpoint {
 		return
@@ -168,6 +176,13 @@ func (m *Manager) Observe(evt store.Event) {
 	}
 	if ts.After(rs.lastProgressAt) {
 		rs.lastProgressAt = ts
+	}
+	// The detail of a tool heartbeat rides the next stall text, and any
+	// following event clears it: only a LAST event that was a beat names the
+	// silent command.
+	rs.lastBeat = ""
+	if evt.Type == store.EventToolHeartbeat {
+		rs.lastBeat = toolBeatDetail(evt.Data)
 	}
 	// Any event means the run is alive again — re-arm stall detection so
 	// a fresh stall episode can re-fire, and close the episode with a
@@ -323,6 +338,9 @@ func (m *Manager) checkStalls(now time.Time) []Alert {
 		}
 		rs.stallAlerted = true
 		reason := fmt.Sprintf("no activity for %s", now.Sub(rs.lastProgressAt).Round(time.Second))
+		if rs.lastBeat != "" {
+			reason += " (last signal: tool " + rs.lastBeat + ")"
+		}
 		fired = append(fired, m.alertLocked(KindStall, rs, rs.currentNode, reason, "", 0, now))
 		m.mu.Unlock()
 	}
@@ -478,6 +496,24 @@ func strData(d map[string]any, key string) string {
 		return v
 	}
 	return ""
+}
+
+// toolBeatDetail renders what a tool_heartbeat event says about the running
+// command — "<tool> running for <elapsed>: <command>", empty parts omitted —
+// or "" when the event names no tool.
+func toolBeatDetail(data map[string]any) string {
+	tool := strData(data, "tool")
+	if tool == "" {
+		return ""
+	}
+	detail := tool
+	if ms := floatData(data, "elapsed_ms"); ms > 0 {
+		detail += " running for " + (time.Duration(ms) * time.Millisecond).Round(time.Second).String()
+	}
+	if cmd := strData(data, "command"); cmd != "" {
+		detail += ": " + cmd
+	}
+	return detail
 }
 
 func floatData(d map[string]any, key string) float64 {

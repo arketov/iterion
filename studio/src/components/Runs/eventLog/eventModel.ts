@@ -44,6 +44,7 @@ export const EVENT_BADGE: Record<string, string> = {
   llm_request: "bg-surface-2 text-fg-muted",
   llm_step_finished: "bg-surface-2 text-fg-muted",
   tool_called: "bg-surface-2 text-fg-muted",
+  tool_heartbeat: "bg-surface-2 text-fg-muted",
   tool_error: "bg-danger-soft text-danger-fg",
 };
 

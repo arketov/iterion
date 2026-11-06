@@ -45,6 +45,9 @@ type ClawExecutor struct {
 	// command's sweep is retried after its end went unproven (zero: the
 	// defaults, toolSweepBudget and toolSweepBudgetOnCancel).
 	sweepBudget, sweepBudgetOnCancel time.Duration
+	// toolHeartbeatEvery is the interval of a running tool node's heartbeat
+	// (zero: toolNodeHeartbeatEvery). It exists for tests, not as an option.
+	toolHeartbeatEvery time.Duration
 
 	registry        *Registry
 	backendRegistry *delegate.Registry // backend registry (claw, claude_code, codex)
