@@ -66,7 +66,12 @@ export interface UseDocumentFileOpsResult {
   handleRemoveWorkflow: () => void;
 }
 import { applyOpenedFile } from "@/lib/openedFile";
-import { importFileIntoStore, isMissingFileError } from "@/lib/openInEditorTab";
+import {
+  importFileIntoStore,
+  isMissingFileError,
+  isNotWorkflowFileError,
+  notWorkflowRecentToast,
+} from "@/lib/openInEditorTab";
 import { replaceDocument, replaceDocumentNow } from "@/lib/replaceDocument";
 import { offerReload } from "@/lib/reloadOffer";
 import { stampEditor, stampHolds } from "@/store/document";
@@ -170,6 +175,11 @@ export function useDocumentFileOps({
         if (kind === "file" && isMissingFileError(err)) {
           removeRecent(path);
           addToast(`Removed missing file from recents: ${path}`, "warning");
+        } else if (kind === "file" && isNotWorkflowFileError(err)) {
+          // The server refuses a non-.bot path outright (not_workflow_file),
+          // so the recent entry would fail on every click: prune it too.
+          removeRecent(path);
+          addToast(notWorkflowRecentToast(path), "warning");
         } else {
           toastError(addToast, err, "Open failed");
         }

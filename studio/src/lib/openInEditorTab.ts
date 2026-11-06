@@ -29,8 +29,32 @@ export interface OpenDeps {
 
 /** `focused`: the file already had a tab. `opened`: a new tab holds it.
  *  `missing`: the file is gone from disk (its recent entry was removed).
- *  `failed`: the open failed for another reason; nothing was opened. */
-export type OpenFileOutcome = "focused" | "opened" | "missing" | "failed";
+ *  `unsupported`: the server refuses the file as not a workflow file (its
+ *  recent entry was removed). `failed`: the open failed for another reason;
+ *  nothing was opened. */
+export type OpenFileOutcome = "focused" | "opened" | "missing" | "unsupported" | "failed";
+
+/** The server's error_code for /api/files/open on a path that is not a workflow file. */
+const NOT_WORKFLOW_FILE_CODE = "not_workflow_file";
+
+/**
+ * True when the server refused an open because the path is not a workflow
+ * file (a `.env`, a config, a `.bot.yaml`). Read from the typed error code: the
+ * message is prose, and a path that happens to contain "404" must not read as
+ * a missing file.
+ */
+export function isNotWorkflowFileError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { errorCode?: unknown }).errorCode === NOT_WORKFLOW_FILE_CODE
+  );
+}
+
+/** The toast for a recent entry removed because the server refuses its file. */
+export function notWorkflowRecentToast(path: string): string {
+  return `Removed from recents, not a workflow file: ${path}`;
+}
 
 /**
  * True when an open failed because the file is not there (deleted, moved, or
@@ -38,7 +62,7 @@ export type OpenFileOutcome = "focused" | "opened" | "missing" | "failed";
  * of a timeout or a server fault. Decides whether a recent entry is pruned.
  */
 export function isMissingFileError(err: unknown): boolean {
-  if (err instanceof ReplaceDeadlineError) return false;
+  if (err instanceof ReplaceDeadlineError || isNotWorkflowFileError(err)) return false;
   return /file not found|no such file|404/i.test(errorMessage(err) ?? "");
 }
 
@@ -54,7 +78,9 @@ export function editorFileHref(path: string): string {
  * the server cannot find opens no tab: a tab for it would show only an error,
  * and its entry in the recent list would stay for the next click — so the
  * entry is removed and the author told (the same words the Toolbar's picker
- * uses). Any other failure keeps the recent entry: the file may be fine.
+ * uses). The same goes for a file the server refuses as not a workflow file
+ * (a `.env` that got into the recent list). Any other failure keeps the recent
+ * entry: the file may be fine.
  */
 export async function openFileInNewTab(path: string, deps: OpenDeps): Promise<OpenFileOutcome> {
   const { navigate, addToast } = deps;
@@ -80,6 +106,11 @@ export async function openFileInNewTab(path: string, deps: OpenDeps): Promise<Op
       removeRecent(path);
       addToast(`Removed missing file from recents: ${path}`, "warning");
       return "missing";
+    }
+    if (isNotWorkflowFileError(err)) {
+      removeRecent(path);
+      addToast(notWorkflowRecentToast(path), "warning");
+      return "unsupported";
     }
     toastError(addToast, err, "Open failed");
     return "failed";
