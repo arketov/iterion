@@ -1,7 +1,11 @@
 package runtime
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/arketov/iterion/pkg/store"
@@ -12,9 +16,10 @@ import (
 // at a snapshot of `wtPath`'s current working-tree contents. The
 // snapshot is implemented as an orphan-style commit-tree (HEAD is its
 // parent so the tree stays reachable by garbage-collection rules) but
-// the worktree's HEAD and index are NOT modified — the function
-// stages, builds a tree, builds a commit, points the ref, then
-// un-stages, leaving the worktree in the exact state it was in.
+// the worktree's HEAD, index and any in-progress merge are NOT modified —
+// the function stages into a private copy of the index, builds a tree,
+// builds a commit and points the ref, leaving the worktree in the exact
+// state it was in.
 //
 // Returns the snapshot's commit SHA. Empty SHA + nil error means the
 // worktree had no tracked changes from HEAD AND no untracked files —
@@ -57,13 +62,27 @@ func snapshotWorktree(wtPath, ref string) (string, error) {
 	// purpose (#1464): a turn snapshot exists to replay the worktree AS IT
 	// WAS, and a rewind that came back without the mirror or the drifted
 	// lock would not be a rewind. The gates that exclude tree noise judge
-	// the PASS's work; the snapshot preserves the world. Reverted at the
-	// end so the engine's index stays as it was before the snapshot pass.
-	if out, err := runGitCombined(wtPath, "add", "-A"); err != nil {
+	// the PASS's work; the snapshot preserves the world.
+	//
+	// Staged into a PRIVATE copy of the index (GIT_INDEX_FILE), never the
+	// worktree's own. The previous shape staged into the real index and
+	// undid it with `git reset --mixed HEAD`, and that reset is not an
+	// undo: it also deletes MERGE_HEAD / CHERRY_PICK_HEAD and every
+	// unmerged index entry. A tool node that stops on a merge conflict for
+	// the next agent node to resolve (a merge train) handed that agent a
+	// tree with conflict markers but no merge in progress, so its commit
+	// came out single-parent and the branch was never merged. The copy
+	// keeps the real index's stat cache (no full re-hash) and leaves the
+	// worktree's index and in-progress operation exactly as they were.
+	idx, dropIdx, err := privateIndexCopy(wtPath)
+	if err != nil {
+		return "", fmt.Errorf("snapshot: %w", err)
+	}
+	defer dropIdx()
+	if out, err := runGitWithIndex(wtPath, idx, "add", "-A"); err != nil {
 		return "", fmt.Errorf("snapshot: git add -A: %w\noutput: %s", err, out)
 	}
-	defer func() { _, _ = runGitCombined(wtPath, "reset", "--mixed", "HEAD") }()
-	treeOut, treeStderr, err := runGit(wtPath, "write-tree")
+	treeOut, treeStderr, err := runGitWithIndexStdout(wtPath, idx, "write-tree")
 	if err != nil {
 		return "", fmt.Errorf("snapshot: git write-tree: %w\nstderr: %s", err, treeStderr)
 	}
@@ -180,6 +199,66 @@ func runGitCombined(wtPath string, args ...string) (string, error) {
 	defer cancel()
 	out, err := cmd.CombinedOutput()
 	return string(out), err
+}
+
+// privateIndexCopy copies the worktree's index file into a temp file and
+// returns its path plus a cleanup. A worktree with no index yet gets a
+// path that does not exist: git reads a missing GIT_INDEX_FILE as an empty
+// index and creates it on the first write.
+func privateIndexCopy(wtPath string) (string, func(), error) {
+	pathOut, pathErr, err := runGit(wtPath, "rev-parse", "--git-path", "index")
+	if err != nil {
+		return "", nil, fmt.Errorf("git rev-parse --git-path index: %w\nstderr: %s", err, pathErr)
+	}
+	indexPath := strings.TrimSpace(pathOut)
+	if indexPath != "" && !filepath.IsAbs(indexPath) {
+		indexPath = filepath.Join(wtPath, indexPath)
+	}
+	tmp, err := os.CreateTemp("", "iterion-snapshot-index-*")
+	if err != nil {
+		return "", nil, fmt.Errorf("create private index: %w", err)
+	}
+	tmpPath := tmp.Name()
+	_ = tmp.Close()
+	drop := func() {
+		_ = os.Remove(tmpPath)
+		_ = os.Remove(tmpPath + ".lock")
+	}
+	data, err := os.ReadFile(indexPath)
+	switch {
+	case err == nil:
+		if werr := os.WriteFile(tmpPath, data, 0o600); werr != nil {
+			drop()
+			return "", nil, fmt.Errorf("copy index: %w", werr)
+		}
+	case errors.Is(err, fs.ErrNotExist):
+		// An empty file is not a valid index; a missing one is.
+		_ = os.Remove(tmpPath)
+	default:
+		drop()
+		return "", nil, fmt.Errorf("read index %s: %w", indexPath, err)
+	}
+	return tmpPath, drop, nil
+}
+
+// runGitWithIndex is runGitCombined with GIT_INDEX_FILE pointed at idx.
+func runGitWithIndex(wtPath, idx string, args ...string) (string, error) {
+	cmd, cancel := gitCmd(append([]string{"-C", wtPath}, args...)...)
+	defer cancel()
+	cmd.Env = append(cmd.Env, "GIT_INDEX_FILE="+idx)
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
+// runGitWithIndexStdout is runGit with GIT_INDEX_FILE pointed at idx.
+func runGitWithIndexStdout(wtPath, idx string, args ...string) (stdout string, stderr string, err error) {
+	cmd, cancel := gitCmd(append([]string{"-C", wtPath}, args...)...)
+	defer cancel()
+	cmd.Env = append(cmd.Env, "GIT_INDEX_FILE="+idx)
+	var errOut strings.Builder
+	cmd.Stderr = &errOut
+	out, err := cmd.Output()
+	return string(out), strings.TrimSpace(errOut.String()), err
 }
 
 // nodeSnapshotRef builds ref names in pkg/store so the Fork API can
