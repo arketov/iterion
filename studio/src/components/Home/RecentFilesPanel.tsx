@@ -172,7 +172,7 @@ export default function RecentFilesPanel({ variant = "card" }: Props) {
                     <button
                       type="button"
                       onClick={() => handleOpenBot(b)}
-                      className={`w-full flex items-start gap-2 px-2 py-1.5 rounded hover:bg-surface-2 text-left focus-visible:ring-1 focus-visible:ring-accent ${b.enabled === false ? "opacity-60" : ""}`}
+                      className={`w-full flex items-start gap-2 px-2 py-1.5 rounded hover:bg-surface-2 text-left focus-visible:ring-1 focus-visible:ring-accent ${b.enabled === false ? "text-fg-muted" : ""}`}
                     >
                       <span
                         className="text-sm leading-none shrink-0 mt-0.5"

@@ -109,6 +109,14 @@ var operatorInfraNames = map[string]bool{
 	// (pkg/internal/hostshell): a stored record must not pick the binary the
 	// host runs, only the operator's own environment does.
 	"ITERION_SHELL": true,
+	// Test-only twin of ITERION_SHELL: which PowerShell the hostshell tests
+	// pin (pkg/internal/hostshelltest).
+	"ITERION_TEST_POWERSHELL": true,
+	// Written by the desktop for the studio daemon it spawns: where that
+	// daemon's log lives, surfaced next to dispatcher launch failures.
+	"ITERION_DAEMON_LOG": true,
+	// Configures the studio process: how many workflow files /api/files lists.
+	"ITERION_STUDIO_FILES_LIMIT": true,
 	// Written by the engine for a child (a run's identity in its
 	// environment), and the escape hatch on the engine-child `.env` skip
 	// (#2844): a stored record must never forge the first nor re-open the
