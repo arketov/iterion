@@ -219,7 +219,11 @@ the dispatcher worker already returned when the run first parked, so
 `finishRun` is not in the loop.
 
 To really start over: drag a `finished` or hard-`failed` ticket back to
-`ready`. A `failed_resumable` one is not enough — the table above resumes it,
+`ready`. (Dragging a finished ticket into `running_state` after its run
+finished also re-queues it. A finished ticket that sits in `running_state`
+since **before** its run finished is not a re-queue but an unfinished move to
+`completed_state`: the dispatcher completes the move instead of running it
+again — see [terminal-state keys](#terminal-state-keys).) A `failed_resumable` one is not enough — the table above resumes it,
 so the board's **Retry** means *resume* on a dispatcher-owned board even
 though the studio's own admission loop would have minted a fresh run. Drop
 the pointer to make the restart deterministic: ⋯ → **Retry from zero** on the
@@ -244,7 +248,7 @@ which tickets are being worked on right now. Behaviour:
 | Run force-reaped (a literal `context.Canceled`) | Revert state, release claim, keep workspace |
 | Run cancelled by the operator (`ErrRunCancelled`) | No revert, no retry: the claim is retained and the ticket stays held until an explicit resume |
 | Run failed (non-cancel)                | Revert state, release claim, schedule retry         |
-| Run finished cleanly (`err == nil`)    | **No revert.** If the workflow moved the state itself (docs-refresh → `review`), that is honoured. If it left the card in `running_state`, the dispatcher moves it to `agent.completed_state` (default `review`) — see `maybeTransitionToCompleted`. |
+| Run finished cleanly (`err == nil`)    | **No revert.** If the workflow moved the state itself (docs-refresh → `review`), that is honoured. If it left the card in `running_state`, the dispatcher moves it to `agent.completed_state` (default `review`) — see `maybeTransitionToCompleted`. A transient write failure is retried with backoff while the card stays claimed; after a restart, a finished card still in `running_state` is completed instead of re-run ([terminal-state keys](#terminal-state-keys)). |
 | Daemon shutdown (Ctrl+C, SIGTERM)      | Revert each in-flight ticket's transition           |
 
 Every revert is **best-effort** and protected by a `RefreshStates`
@@ -413,6 +417,11 @@ parked entry stays in the retry queue until its hour has passed; after
 fixing the host press *Retry now* on its row (below) instead of waiting. The
 attempt counter, `max_attempts` and the give-up move below apply to every row.
 
+The retry queue is for re-running the bot. A failed move of a cleanly-finished
+card to `completed_state` is not in it and does not count toward
+`max_attempts`: the finish worker retries the move itself (same capped
+backoff), see [terminal-state keys](#terminal-state-keys).
+
 Each row of the Dispatcher page's *Retry queue* has two actions:
 
 - **Retry now** makes the retry due at once and requests a poll tick. The
@@ -532,9 +541,34 @@ opt-out:
 | `merged_state` | `done` | The run's branch is merged from the studio — the canonical lifecycle is `review → merged → done`. Without it, merged issues sit in `completed_state` forever and the operator closes each one by hand. |
 | `failed_state` | `blocked` | `max_attempts` was reached (below). |
 
-A board that does not define the target state refuses the move; the
-failure is logged and non-fatal, so custom boards degrade rather than
+A board that does not define the target state refuses the move; that
+refusal is logged and non-fatal, so custom boards degrade rather than
 break, and no operator is forced to opt out explicitly.
+
+A **transient** failure of the `completed_state` write (a tracker error, a
+store write that lost a race, a forge 5xx) is different: the card is still in
+`running_state`, which is eligible, so giving up would hand it to the next tick
+as a second paid run of a task that is already done. The finish worker
+therefore keeps the card's claim and retries the move with the retry queue's
+backoff (`min(10s × 2^(n-1), agent.max_retry_backoff_ms)`, unbounded attempts,
+no new knob) until it lands, the claim is superseded by another owner, or the
+dispatcher stops. While it fails, the Dispatcher page and the card show a
+`completion_pending` row (the last error, the next retry, "will NOT be
+re-run"). This retry is not a run retry: it is not in the retry queue and does
+not count toward `max_attempts`.
+
+If the dispatcher stops or restarts mid-retry, the claim is released and the
+card stays in `running_state`. The next tick recognises it as an unfinished
+transition — the card is in `running_state`, its `last_run` is `finished`, and
+it entered that column **before** the run finished — and completes the move
+instead of starting a run. Moving a finished card into `running_state` **after**
+the run finished is the operator's re-queue gesture and still starts a fresh
+run (as does a finished `last_run` on a card in `ready`). A card on a legacy
+record that carries no column-entry time counts as an unfinished transition.
+With `completed_state: none` there is nothing to complete and the old
+behaviour stays. The cloud dispatcher keeps its own watchdog for finished
+runs; this guard is the native tracker's. Design record:
+[ADR-163](adr/163-finish-worker-retries-completed-state-move.md).
 
 ### Giving up (`agent.max_attempts`)
 
@@ -1460,7 +1494,11 @@ reopen, so the column editor cannot become the way around a refusal.
   workflow that never moves the card would be re-picked on every poll
   and burn model spend indefinitely. A workflow that moves the state
   itself (`iterion issue move <id> --to done`, or a board-capable bot)
-  is left alone. Opt out with `completed_state: none`.
+  is left alone. Opt out with `completed_state: none`. The move is
+  never allowed to fail silently: a transient write failure is retried
+  while the card stays claimed, and after a restart a finished card
+  still in `running_state` is completed rather than re-run (see
+  [terminal-state keys](#terminal-state-keys)).
 
 ## Deferred to v2
 

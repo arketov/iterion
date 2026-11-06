@@ -36,7 +36,9 @@ flowchart TD
     claim -- "ErrClaimConflict" --> skip2["drop the journal entry - no slot allocated, no worker"]
     claim --> repark{"reparkClaimedIfLastRunWaiting - is last_run a dispatcher-owned pause?"}
     repark -- "yes" --> rpk["back to awaiting_input - the claim is KEPT and the dispatch abandoned, no fresh sibling"]
-    repark -- "no" --> ws["resolveRunID and dispatchWorkspaceLifecycle - resume or fresh, a generation under .issue-workspaces-v2"]
+    repark -- "no" --> unfin{"finishedTransitionPending - in running_state, last_run finished, entered the column before the run finished?"}
+    unfin -- "yes" --> okd
+    unfin -- "no" --> ws["resolveRunID and dispatchWorkspaceLifecycle - resume or fresh, a generation under .issue-workspaces-v2"]
     ws -- "ownership probe failed" --> rel["releaseClaim, token-less - no session exists yet, the dispatch is deferred to a later tick"]
     ws --> session["StartClaimSession, only now - renew the 15 min lease every lease/3 for the rest of the hold"]
     session --> setup["runDispatchSetup OFF the actor - fenced UpdateState to running_state, then the workspace mkdir"]
@@ -47,7 +49,7 @@ flowchart TD
     run --> afterrun["after_run - on every return of the dispatch, best-effort, it never overrides the verdict"]
     afterrun --> teardown["clean return only - before_remove, remove the directory, deregister the worktree"]
     teardown --> fin["finishRun on the actor - free the slot, stamp last_run, choose the disposition"]
-    fin -- "err is nil" --> okd["COMPLETED - maybeTransitionToCompleted to completed_state, default review, then Release"]
+    fin -- "err is nil" --> okd["COMPLETED - maybeTransitionToCompleted to completed_state, default review, retried with backoff while the claim is held, then Release"]
     fin -- "ErrRunPaused, ErrRunPausedOperator, resume source changed" --> park["PARKED in awaiting_input - claim RETAINED, heartbeat stopped, never retried"]
     fin -- "ErrRunCancelled - an operator stop" --> heldc["HELD - no move, no retry, claim retained until an explicit resume"]
     fin -- "a deterministic failure code, or max_attempts reached" --> giveup["GAVE UP - failed_state, default blocked, plus a give-up stamp"]
