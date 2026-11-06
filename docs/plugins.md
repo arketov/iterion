@@ -52,6 +52,8 @@ A single plugin may contribute several kinds (repo-falcon ships `mcp_servers` +
   (`rtk`, `graphify`, `repo-falcon`, `codeindex`, `firecrawl`).
 - **Installed** plugins live under `~/.iterion/plugins/<name>/` (a directory
   with a `plugin.yaml`). `iterion plugin install <path|git-url>` puts them there.
+  The directory name must equal the manifest `name:`; a directory that differs
+  is skipped as broken.
 - **Enable/disable state** is persisted in `~/.iterion/plugins.yaml`; the
   default for a plugin with no recorded preference is its manifest
   `default_enabled`. (`$ITERION_HOME` overrides the home dir.)
@@ -216,7 +218,7 @@ sources are all lost.
 ## Manifest reference (`plugin.yaml`)
 
 ```yaml
-name: rtk                       # unique id (kebab-case) = install dir + enable key
+name: rtk                       # unique id (kebab-case) = install dir + enable key (a directory named otherwise is skipped, reported in load skips)
 version: 1.0.0
 description: …                  # shown in `plugin list`
 author: …
@@ -401,11 +403,16 @@ iterion plugin install <path|git-url>    # install a third-party plugin under ~/
 iterion plugin uninstall <name>          # remove an installed plugin
 ```
 
-A plugin directory whose `plugin.yaml` is missing or unparseable is skipped at
-load, and `iterion validate` says so (`mcp: N installed plugin(s) were skipped
+A plugin directory whose `plugin.yaml` is missing, unparseable, or names a
+different plugin than the directory itself is skipped at load, and
+`iterion validate` says so (`mcp: N installed plugin(s) were skipped
 …`) on every run. Restore the manifest, or remove the broken plugin with
-`iterion plugin uninstall <name>` — uninstall works on a plugin that never
-loaded. `plugin disable` does not silence the message: the manifest is read
+`iterion plugin uninstall <dir-name>` — the name is the directory name, and
+uninstall works on a plugin that never loaded, including a broken directory
+named like a builtin (for example `repo-falcon/` with an unparseable
+`plugin.yaml`; the builtin and its enable state stay). Uninstall also drops a
+stale `plugins.yaml` entry left after a directory was deleted by hand; loading
+never rewrites `plugins.yaml`. `plugin disable` does not silence the message: the manifest is read
 before the enabled state is consulted.
 
 That message is a real fault only for a directory with no builtin behind its
