@@ -106,6 +106,14 @@ type Store struct {
 	rebuildPending atomic.Bool
 	rebuildRerun   atomic.Bool
 
+	// rebuildLastErr is the text of the error the last rebuildAsync pass
+	// logged, "" while the last pass succeeded. The rebuild goroutine ends
+	// after every pass, so the memory that keeps a failing verification tick
+	// from logging the same line every interval lives here. Guarded by
+	// rebuildLogMu.
+	rebuildLogMu   sync.Mutex
+	rebuildLastErr string
+
 	// rebuildWG counts the rebuild goroutines that are alive, so Close
 	// waits for the whole goroutine and not merely for the scan inside it.
 	// The Add happens under mu and only while !closed, which is what keeps
