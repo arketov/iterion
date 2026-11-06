@@ -72,6 +72,108 @@ func TestPruneRunRefsSkipsClaimedCard(t *testing.T) {
 	}
 }
 
+// The disk probe runs without the store lock (a slow drive must not stall Get,
+// List and the mutators), and each run id is probed once even when the pointer
+// repeats a history entry.
+func TestPruneRunRefsDoesNotHoldStoreLockWhileChecking(t *testing.T) {
+	s := newTestStore(t)
+	iss, err := s.Create(Issue{Title: "ghosts", State: "ready"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-time.Hour)
+	s.mu.Lock()
+	cur, _ := s.readIssueLocked(iss.ID)
+	cur.Runs = []RunRef{
+		{RunID: "ghost-1", At: old},
+		{RunID: "ghost-2", At: old},
+		{RunID: "ghost-3", At: old},
+	}
+	cur.LastRunID = "ghost-3"
+	if err := s.writeIssueLocked(cur); err != nil {
+		s.mu.Unlock()
+		t.Fatal(err)
+	}
+	s.setIndexLocked(cur.ID, cloneIssue(cur))
+	s.mu.Unlock()
+
+	calls := map[string]int{}
+	exists := func(id string) bool {
+		calls[id]++
+		if !s.mu.TryLock() {
+			t.Errorf("store lock held while checking disk for %s", id)
+			return false
+		}
+		s.mu.Unlock()
+		return false
+	}
+	pruned, err := s.PruneRunRefs(exists, 10*time.Minute)
+	if err != nil {
+		t.Fatalf("PruneRunRefs: %v", err)
+	}
+	if len(pruned) != 1 || len(pruned[0].RunIDs) != 3 {
+		t.Fatalf("pruned = %+v, want 3 ghosts on one card", pruned)
+	}
+	for _, id := range []string{"ghost-1", "ghost-2", "ghost-3"} {
+		if calls[id] != 1 {
+			t.Errorf("exists(%s) called %d times, want 1", id, calls[id])
+		}
+	}
+}
+
+// Between the disk check and the write the card may change: a claim wins, and a
+// run id the disk check never saw is kept.
+func TestPruneRunRefsRechecksCardAfterDiskCheck(t *testing.T) {
+	s := newTestStore(t)
+	a, _ := s.Create(Issue{Title: "A", State: "ready"})
+	b, _ := s.Create(Issue{Title: "B", State: "ready"})
+	old := time.Now().Add(-time.Hour)
+	for id, run := range map[string]string{a.ID: "ghost-a", b.ID: "ghost-b"} {
+		s.mu.Lock()
+		cur, _ := s.readIssueLocked(id)
+		cur.Runs = []RunRef{{RunID: run, At: old}}
+		_ = s.writeIssueLocked(cur)
+		s.setIndexLocked(cur.ID, cloneIssue(cur))
+		s.mu.Unlock()
+	}
+
+	first := true
+	exists := func(string) bool {
+		if first {
+			first = false
+			if !s.mu.TryLock() {
+				t.Error("store lock held while checking disk")
+				return false
+			}
+			ca, _ := s.readIssueLocked(a.ID)
+			ca.Claim = "host-1"
+			_ = s.writeIssueLocked(ca)
+			s.setIndexLocked(ca.ID, cloneIssue(ca))
+			cb, _ := s.readIssueLocked(b.ID)
+			cb.Runs = append(cb.Runs, RunRef{RunID: "added-later", At: old})
+			_ = s.writeIssueLocked(cb)
+			s.setIndexLocked(cb.ID, cloneIssue(cb))
+			s.mu.Unlock()
+		}
+		return false
+	}
+	pruned, err := s.PruneRunRefs(exists, 10*time.Minute)
+	if err != nil {
+		t.Fatalf("PruneRunRefs: %v", err)
+	}
+	if len(pruned) != 1 || pruned[0].IssueID != b.ID {
+		t.Fatalf("pruned = %+v, want only card B", pruned)
+	}
+	gotA, _ := s.Get(a.ID)
+	if len(gotA.Runs) != 1 || gotA.Runs[0].RunID != "ghost-a" {
+		t.Fatalf("claimed card A Runs = %+v, want untouched", gotA.Runs)
+	}
+	gotB, _ := s.Get(b.ID)
+	if len(gotB.Runs) != 1 || gotB.Runs[0].RunID != "added-later" {
+		t.Fatalf("card B Runs = %+v, want only added-later", gotB.Runs)
+	}
+}
+
 // A missing issue answers in the same JSON envelope as every other native
 // error, not as bare text.
 func TestMissingIssueAnswersJSON(t *testing.T) {
