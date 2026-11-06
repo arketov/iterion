@@ -24,6 +24,17 @@ itself. The bot catalog's discovery diagnostics use the stricter
 `pathredact.Strict` — every absolute path, in either spelling on every OS, goes
 — because their paths are all the server's.
 
+The redactor is a safety net, not the fix at the source. A run route that
+cannot load its run answers 404 with the fixed text `run not found`
+(`Server.runNotFound`; the by-id gate in `run_scope.go` uses the same text for a
+missing and for an invisible run, ADR-103). The store's own error never
+goes into the body — it names the store's layout and, on a read failure, the
+absolute path of `run.json`. A load failure that is not absence
+(`store.RunAbsent` false) is logged at warn level with its cause instead;
+absence adds no log line. A route that maps a tombstone keeps its 410
+(`run was deleted`). The dispatcher's issue 404s are JSON through
+`dispatcher.WriteErr`, not `http.Error`.
+
 The server's plain, origin-aware, coded and structured helpers, dispatcher
 errors, and plugin failures share that boundary. A response buffer replacing
 the network writer must preserve its request/logger binding; webhook workers
@@ -52,7 +63,8 @@ enforced counter fails. The org row may already be saved; retrying the same
 request propagates its desired quota again. A 200 means propagation completed.
 
 Witnesses: `pkg/server/error_chokepoint_test.go`,
-`pkg/server/error_path_redaction_test.go`, `internal/pathredact/pathredact_test.go`,
+`pkg/server/error_path_redaction_test.go`, `pkg/server/run_not_found_message_test.go`,
+`internal/pathredact/pathredact_test.go`,
 `internal/httpx/redact_test.go`,
 `pkg/identity/bulk_decode_test.go` and the real-Mongo bulk suite,
 `pkg/cli/remote_identity_partial_test.go`, plus Studio's partial identity and
