@@ -3,6 +3,7 @@ import { Link } from "wouter";
 
 import { listIssues } from "@/api/native";
 import { LaunchFailureDetails } from "@/components/shared/LaunchFailureDetails";
+import { ClampText } from "@/components/ui/ClampText";
 import {
   issuesWithLaunchFailures,
   latestLaunchFailure,
@@ -49,12 +50,12 @@ export function LaunchFailuresPanel({ className = "" }: { className?: string }) 
               <div className="flex items-center gap-2 text-xs">
                 <Link
                   href={`/board?focus=${encodeURIComponent(iss.id)}`}
-                  className="font-mono text-accent-text hover:underline"
+                  className="font-mono text-accent-text underline underline-offset-2"
                   title="Open the card on the board"
                 >
-                  {iss.identifier || iss.id}
+                  {iss.id}
                 </Link>
-                <span className="truncate text-fg-default">{iss.title}</span>
+                <ClampText className="text-fg-default min-w-0" text={iss.title} focusable={false} />
                 {iss.launch_failures!.length > 1 && (
                   <span className="ml-auto text-fg-muted whitespace-nowrap">
                     {iss.launch_failures!.length} attempts

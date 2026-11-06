@@ -11,6 +11,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import FilePicker from "@/components/FilePicker/FilePicker";
 import { HiddenFileInput } from "@/components/shared/HiddenFileInput";
 import { openExampleIntoStore } from "@/lib/openExample";
+import { filesCutNotice } from "@/lib/filesCutNotice";
+import { refusalFor } from "@/lib/workflowFileKind";
 import { errorMessage, toastError } from "@/lib/errorHints";
 import { basename } from "@/lib/format";
 import { replaceDocument } from "@/lib/replaceDocument";
@@ -52,6 +54,8 @@ export default function ProjectFilesPanel() {
   const singles = files.filter((f) => f.kind !== "bundle");
   const truncated = !filesQuery.error && !!filesQuery.data?.truncated;
   const filesError = filesQuery.error ? errorMessage(filesQuery.error) : null;
+  // Bundle directories the list could not show (a manifest with no main.bot).
+  const skipped = filesQuery.error ? [] : (filesQuery.data?.discovery_errors ?? []);
 
   const openProjectFile = useCallback(
     (path: string) => {
@@ -99,8 +103,9 @@ export default function ProjectFilesPanel() {
       const input = e.target;
       const file = input.files?.[0];
       if (!file) return;
-      if (!file.name.endsWith(".bot")) {
-        addToast("Only .bot files can be opened", "error");
+      const refusal = refusalFor(file.name);
+      if (refusal) {
+        addToast(refusal, "error");
         input.value = "";
         return;
       }
@@ -109,7 +114,7 @@ export default function ProjectFilesPanel() {
       const tabId = useTabsStore.getState().newEditorTab();
       const store = getOrCreateDocumentStore(tabId);
       // The tab is editable at once; what it held when made is all a failure
-      // may throw away (see RecentFilesPanel.handleOpenExample).
+      // may throw away (an open that fails while the author types into the new tab keeps the tab).
       const created = stampEditor(store.getState());
       const dropIfUntouched = () => {
         const holds = stampHolds(created, store.getState());
@@ -198,7 +203,7 @@ export default function ProjectFilesPanel() {
           message={
             filesQuery.isLoading
               ? "Loading project files…"
-              : "No .bot files in this project yet — create a new workflow or import one from disk."
+              : "No bots in this project yet — create a new workflow, open a file by its path (Open…), or import a copy from disk."
           }
         />
       ) : (
@@ -213,10 +218,14 @@ export default function ProjectFilesPanel() {
           )}
         </div>
       )}
+      {skipped.length > 0 && (
+        <InlineBanner tone="warning" layout="inline" title="Some bundles cannot be opened">
+          {skipped.map((d) => `${d.path}: ${d.error}`).join("; ")}
+        </InlineBanner>
+      )}
       {truncated && (
         <p className="mt-1 px-1 text-caption text-fg-subtle">
-          Showing the first {files.length} files. Use Open file… for the rest, or raise
-          ITERION_STUDIO_FILES_LIMIT.
+          {filesCutNotice(files.length, filesQuery.data?.total)}
         </p>
       )}
     </div>
@@ -227,7 +236,8 @@ export default function ProjectFilesPanel() {
 function displayName(f: FileEntry): string {
   if (f.kind === "bundle") {
     const dir = f.name.split("/").slice(0, -1);
-    if (dir.length > 0) return dir[dir.length - 1];
+    const last = dir[dir.length - 1];
+    if (last) return last;
   }
   return basename(f.name);
 }

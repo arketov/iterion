@@ -3075,15 +3075,13 @@ func (r *Runner) executeRun(ctx context.Context, msg *queue.RunMessage, usageOut
 				spawnVars = run.Inputs
 			}
 		}
-		// The ambient stamp's twin of the pool filter: on a run whose
-		// credentials refuse the pod environment, only gateway-model
-		// supervisors spawn — a vendor-family supervisor would spin
-		// refusal-per-evaluation for a run that must not spend it.
-		ambientRefusedRun := false
-		if creds, ok := secrets.CredentialsFromContext(ctx); ok {
-			ambientRefusedRun = creds.AmbientRefused
-		}
-		specs := runview.AmbientSurvivingSpecs(runview.PoolSurvivingSpecs(supervise.SpecsFromWorkflow(wf, engine.ResolveVars(spawnVars), runLogger), msg.ContentBoundary, msg.RunnerPool, runLogger), ambientRefusedRun, runLogger)
+		// The supervisors the resolver funds (ADR-161 decision 4): the
+		// content boundary's refusal, then the claw arm on each evaluator's
+		// model under the run's credentials — a stamped run's own sealed key
+		// serves its supervisor, the pod's money does not, and a spec no
+		// credential funds is dropped by name rather than refused at every
+		// evaluation. The pre-flight meters this same list.
+		specs := runview.FundedSupervisorSpecs(ctx, supervise.SpecsFromWorkflow(wf, engine.ResolveVars(spawnVars), runLogger), msg.ContentBoundary, msg.RunnerPool, runLogger)
 		// F12: a supervisor's evaluations are the run's money — each one
 		// books its tokens on its own route (source supervisor:<name>), the
 		// same route totals recordCredentialSpend meters per credential at
@@ -3592,6 +3590,40 @@ func (r *Runner) executorSpec(ctx context.Context, msg *queue.RunMessage, wf *ir
 		// on cloud: the Mongo change-stream surfaces the transitions.
 		Inbox:    &model.StoreInboxBinder{Store: r.cfg.Store},
 		AsyncAsk: &model.StoreAsyncAskBinder{Store: r.cfg.Store},
+	}
+	// The board's NATIVE action transport (ADR-151, #2834): on the runner
+	// the instance's board is the TENANT's Mongo store (#2465), resolved
+	// through the same Config.BoardFor the sandboxed host-MCP transport
+	// uses — never the pod-local fs store BuildExecutor would default to
+	// (it yields to this explicit registration). The run's tenant comes
+	// from the MESSAGE, the authoritative launch fact — same doctrine as
+	// the token pin below. And a runner that CANNOT resolve that store
+	// refuses the run here, at admission: letting the fs default serve a
+	// pod-local board that is not the instance's would answer reads with
+	// an empty board and nobody would learn why (#2465's whole point).
+	if runview.WorkflowHasNativeBoardAction(wf) {
+		if r.cfg.BoardFor == nil || msg.TenantID == "" {
+			return zero, nil, fmt.Errorf("runner: workflow declares a native board action (board.*) but this runner resolves no tenant board (Config.BoardFor wired: %t, run tenant %q) — refusing rather than reading a pod-local board that is not the instance's",
+				r.cfg.BoardFor != nil, msg.TenantID)
+		}
+		// BoardFor's contract INCLUDES answering nil (the grant names a board
+		// this process does not serve — hostmcp's 404 is the same answer one
+		// transport over). A wired resolver that answers nil for this tenant
+		// is the refusal's case exactly: resolve ONCE, here, and refuse
+		// rather than let the fs default in BuildExecutor read a pod-local
+		// board that is not the instance's.
+		board := r.cfg.BoardFor(msg.TenantID)
+		if board == nil {
+			return zero, nil, fmt.Errorf("runner: workflow declares a native board action (board.*) but the board resolver answered nil for tenant %q — the grant names a board this process does not serve; refusing rather than reading a pod-local board that is not the instance's",
+				msg.TenantID)
+		}
+		// The owning ticket rides this transport as it rides every board
+		// transport BuildExecutor wires (planner provenance on a create):
+		// resolved once here through the spec's run loader and carried on
+		// the spec, so BuildExecutor's own reading answers the same id
+		// without a second record load.
+		spec.SourceIssueID = runview.SourceIssueIDOf(spec)
+		spec.ActionTransports = append(spec.ActionTransports, runview.NativeBoardTransport(board, spec.SourceIssueID))
 	}
 	// The sandboxed host-MCP transport (C082, #2632): mint a per-node token
 	// scoped to the node's capabilities and pinned to the run's tenant — the

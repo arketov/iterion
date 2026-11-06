@@ -81,7 +81,7 @@ func TestResume_NonWorktreeSubdirKeepsLaunchScratchDir(t *testing.T) {
 	if want := memory.WorkspaceScratchDir(repo); launchVar != want {
 		t.Fatalf("launch ${PROJECT_SCRATCH_DIR} = %q, want the repo-root-keyed %q", launchVar, want)
 	}
-	launchRoot := launchSpy.lastScratch(t)
+	launchRun, launchShared := launchSpy.lastScratch(t)
 
 	// A fresh engine with NO WithWorkDir, as a runner restart sees the
 	// resume: the environment must be rebuilt from the record alone.
@@ -98,9 +98,71 @@ func TestResume_NonWorktreeSubdirKeepsLaunchScratchDir(t *testing.T) {
 	if resumedVar != launchVar {
 		t.Errorf("resume moved ${PROJECT_SCRATCH_DIR}: launch %q, resume %q — a crash-resume loses the scratch it filled", launchVar, resumedVar)
 	}
-	// The scratch read root pushed to claw travels with the var (#2650):
-	// same directory on both sides of the pause.
-	if resumedRoot := resumeSpy.lastScratch(t); resumedRoot != launchRoot {
-		t.Errorf("resume pushed scratch read root %q, want the launch's %q", resumedRoot, launchRoot)
+	// The scratch read roots pushed to claw travel with the var (#2650,
+	// #2869): same subtree, same shared root, on both sides of the pause.
+	resumedRun, resumedShared := resumeSpy.lastScratch(t)
+	if resumedRun != launchRun {
+		t.Errorf("resume pushed run scratch root %q, want the launch's %q", resumedRun, launchRun)
+	}
+	if resumedShared != launchShared {
+		t.Errorf("resume pushed shared scratch root %q, want the launch's %q", resumedShared, launchShared)
+	}
+}
+
+// TestResume_RunScratchDirKeepsTheLaunchSubtree is the resume half of
+// ${RUN_SCRATCH_DIR} (#2869): a fresh engine resuming a paused run must
+// expand the var to the SAME subtree the launch gave the nodes. The owner
+// the subtree keys on is settled by restoreRunEnv before the resume arms
+// re-resolve the vars; resolved before it, the var silently falls back to
+// the shared project scratch while the push still attaches runs/<id> — the
+// resumed nodes would read and write a directory the state saved before
+// the pause is not in, with no error anywhere.
+func TestResume_RunScratchDirKeepsTheLaunchSubtree(t *testing.T) {
+	t.Setenv("ITERION_HOME", t.TempDir())
+
+	wf := &ir.Workflow{
+		Name:  "run-scratch-resume",
+		Entry: "start",
+		Nodes: map[string]ir.Node{
+			"start": &ir.ToolNode{BaseNode: ir.BaseNode{ID: "start"}, Command: "true"},
+			"gate":  &ir.HumanNode{BaseNode: ir.BaseNode{ID: "gate"}, InteractionFields: ir.InteractionFields{Interaction: ir.InteractionHuman}},
+			"done":  &ir.DoneNode{BaseNode: ir.BaseNode{ID: "done"}},
+			"fail":  &ir.FailNode{BaseNode: ir.BaseNode{ID: "fail"}},
+		},
+		Edges: []*ir.Edge{{From: "start", To: "gate"}, {From: "gate", To: "done"}},
+		Vars: map[string]*ir.Var{
+			"own_dir": {Name: "own_dir", Type: ir.VarString, HasDefault: true, Default: "${RUN_SCRATCH_DIR}"},
+		},
+		Worktree: "none",
+	}
+
+	s := tmpStore(t)
+	repo, _ := initBareishRepo(t)
+	const runID = "run-scratch-resume-own"
+	ctx := context.Background()
+
+	launchSpy := &scratchPushSpy{}
+	eng := New(wf, s, launchSpy, WithWorkDir(repo), WithLogger(log.New(log.LevelWarn, os.Stderr)))
+	if err := eng.Run(ctx, runID, nil); !errors.Is(err, ErrRunPaused) {
+		t.Fatalf("launch = %v, want ErrRunPaused at the gate", err)
+	}
+	want := filepath.Join(memory.WorkspaceScratchDir(repo), memory.RunScratchDirName, runID)
+	if got, _ := launchSpy.vars[len(launchSpy.vars)-1]["own_dir"].(string); got != want {
+		t.Fatalf("launch ${RUN_SCRATCH_DIR} = %q, want the run's subtree %q", got, want)
+	}
+
+	resumeSpy := &scratchPushSpy{}
+	eng = New(wf, s, resumeSpy, WithLogger(log.New(log.LevelWarn, os.Stderr)))
+	if err := eng.Resume(ctx, runID, map[string]any{"approved": true}); err != nil {
+		t.Fatalf("resume: %v", err)
+	}
+	if len(resumeSpy.vars) == 0 {
+		t.Fatal("the resume never pushed the resolved vars")
+	}
+	if got, _ := resumeSpy.vars[len(resumeSpy.vars)-1]["own_dir"].(string); got != want {
+		t.Errorf("resumed ${RUN_SCRATCH_DIR} = %q, want the launch's subtree %q — the resumed nodes lose the state saved before the pause", got, want)
+	}
+	if run, _ := resumeSpy.lastScratch(t); run != want {
+		t.Errorf("resume pushed run read root %q, want %q", run, want)
 	}
 }

@@ -445,7 +445,7 @@ func (s *Server) handleValidate(w http.ResponseWriter, r *http.Request) {
 
 // appendMCPCatalogIssues is what `iterion validate` says about the host's MCP
 // catalog, for the studio: plugins skipped at load and `tools:` entries naming
-// an MCP server the catalog lacks (C332). Local/desktop servers only — the
+// an MCP server the catalog lacks (C337). Local/desktop servers only — the
 // catalog is the project's .mcp.json plus the operator's plugins, and a cloud
 // server's WorkDir is not the tenant's project, so there it would warn about
 // servers that exist where the bot runs. Everything is a warning: an

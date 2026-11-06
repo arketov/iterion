@@ -1,10 +1,15 @@
 package server
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/arketov/iterion/pkg/botregistry"
 )
 
 func writeListFixture(t *testing.T, root, rel string) {
@@ -54,7 +59,7 @@ func TestListWorkflowFiles_Scope(t *testing.T) {
 	// A nested clone of the whole project below the root is never reached.
 	writeListFixture(t, root, "build-desktop/src/bots/y/main.bot")
 
-	files, truncated := listWorkflowFiles(root, 0)
+	files, _, truncated, _ := listWorkflowFiles(root, botregistry.DefaultPaths(root), 0)
 	if truncated {
 		t.Fatal("unexpected truncation")
 	}
@@ -80,24 +85,80 @@ func TestListWorkflowFiles_ProjectRootWithGitIsStillListed(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeListFixture(t, root, "a.bot")
-	files, _ := listWorkflowFiles(root, 0)
+	files, _, _, _ := listWorkflowFiles(root, botregistry.DefaultPaths(root), 0)
 	if got := listedNames(files); !reflect.DeepEqual(got, []string{"a.bot"}) {
 		t.Fatalf("got %v", got)
 	}
 }
 
+// The cap keeps the bundles: a project with many loose files still lists its
+// bundles, and the response says how many rows the rule found.
 func TestListWorkflowFiles_Limit(t *testing.T) {
 	root := t.TempDir()
 	for _, n := range []string{"a.bot", "b.bot", "c.bot"} {
 		writeListFixture(t, root, n)
 	}
-	files, truncated := listWorkflowFiles(root, 2)
-	if !truncated || len(files) != 2 {
-		t.Fatalf("got %d files, truncated=%v; want 2, true", len(files), truncated)
+	writeListFixture(t, root, ".botz/packed/manifest.yaml")
+	writeListFixture(t, root, ".botz/packed/main.bot")
+	roots := botregistry.DefaultPaths(root)
+	files, total, truncated, _ := listWorkflowFiles(root, roots, 2)
+	if !truncated || len(files) != 2 || total != 4 {
+		t.Fatalf("got %d files, total=%d, truncated=%v; want 2, 4, true", len(files), total, truncated)
 	}
-	files, truncated = listWorkflowFiles(root, 3)
-	if truncated || len(files) != 3 {
+	if got := listedNames(files); !reflect.DeepEqual(got, []string{".botz/packed/main.bot", "a.bot"}) {
+		t.Fatalf("the bundle must survive the cap: %v", got)
+	}
+	files, _, truncated, _ = listWorkflowFiles(root, roots, 4)
+	if truncated || len(files) != 4 {
 		t.Fatalf("at exactly the limit: got %d, truncated=%v", len(files), truncated)
+	}
+}
+
+// A bundle directory with a manifest and no main.bot is reported instead of
+// vanishing from the list.
+func TestListWorkflowFiles_ReportsAnUnopenableBundle(t *testing.T) {
+	root := t.TempDir()
+	writeListFixture(t, root, "bots/broken/manifest.yaml")
+	files, _, _, skipped := listWorkflowFiles(root, botregistry.DefaultPaths(root), 0)
+	if len(files) != 0 {
+		t.Fatalf("got %v", listedNames(files))
+	}
+	if len(skipped) != 1 || skipped[0].Path != "bots/broken" {
+		t.Fatalf("skipped = %+v", skipped)
+	}
+}
+
+// --bots-path pins the catalog, so it pins the list the editor shows too.
+func TestHandleListFiles_FollowsBotsPath(t *testing.T) {
+	root := t.TempDir()
+	writeListFixture(t, root, "flows/dev-flow.bot")
+	writeListFixture(t, root, "bots/ignored.bot")
+	s := &Server{cfg: Config{WorkDir: root, Bots: BotsConfig{Paths: []string{filepath.Join(root, "flows")}}}}
+	rec := httptest.NewRecorder()
+	s.handleListFiles(rec, httptest.NewRequest(http.MethodGet, "/api/files", nil))
+	var resp listFilesResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if got := listedNames(resp.Files); !reflect.DeepEqual(got, []string{"flows/dev-flow.bot"}) {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestHandleListFiles_TruncatedCarriesTheTotal(t *testing.T) {
+	t.Setenv("ITERION_STUDIO_FILES_LIMIT", "1")
+	root := t.TempDir()
+	writeListFixture(t, root, "a.bot")
+	writeListFixture(t, root, "b.bot")
+	s := &Server{cfg: Config{WorkDir: root}}
+	rec := httptest.NewRecorder()
+	s.handleListFiles(rec, httptest.NewRequest(http.MethodGet, "/api/files", nil))
+	var resp listFilesResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if !resp.Truncated || resp.Total != 2 || len(resp.Files) != 1 {
+		t.Fatalf("got %+v", resp)
 	}
 }
 

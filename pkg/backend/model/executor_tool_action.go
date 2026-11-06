@@ -3,7 +3,6 @@ package model
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"math/rand/v2"
@@ -50,6 +49,17 @@ type ConnectorResolver interface {
 
 // executeToolNodeAction runs a connector operation.
 func (e *ClawExecutor) executeToolNodeAction(ctx context.Context, node *ir.ToolNode, input map[string]any) (map[string]any, error) {
+	// A registered NATIVE transport owns its connector outright (ADR-151):
+	// the board's facade executes in process against the instance's store,
+	// with no credential, no base URL and no catalog resolution — which is
+	// also why its node declares no `connection:`. The lookup is by the
+	// id's first segment and nothing else; HTTP below stays the default.
+	if transport := e.actionTransportFor(node.Action); transport != nil {
+		if err := e.checkToolNodePolicy(ctx, node, actionToolName(node), actionToolName(node), actionToolName(node)); err != nil {
+			return nil, err
+		}
+		return e.executeToolNodeNativeAction(ctx, node, transport, input)
+	}
 	if e.connectors == nil {
 		// Explicit rather than a silent no-op: a bot that declares an action
 		// and runs somewhere with no catalog wired must say so, not report a
@@ -68,7 +78,7 @@ func (e *ClawExecutor) executeToolNodeAction(ctx context.Context, node *ir.ToolN
 		return nil, err
 	}
 
-	params, err := e.renderActionParams(ctx, node, op, input)
+	params, err := e.renderActionParams(ctx, node, op, input, secretsMaterialized)
 	if err != nil {
 		// Scrubbed: a coercion refusal PRINTS the value it refused, so a
 		// secret materialised into a parameter the operation declares
@@ -325,21 +335,20 @@ func (e *ClawExecutor) scrubTypedActionError(err *exec.Error) {
 
 // scrubActionError does the same for an UNTYPED failure — a local refusal, a
 // coercion that printed the value it refused, a walk that could not read its
-// collection.
+// collection, a native transport's store error.
 //
-// Flattened only when the redaction actually changed something. An error that
-// carries no secret comes back exactly as it went in, so `errors.Is` still
-// recognises a context cancellation and `errors.As` still finds whatever the
-// layer below typed; the trade is made only where the alternative is leaking.
+// The text is redacted through redactedThrough, which keeps errors.Is /
+// errors.As answering for the error below without unwrapping to its raw
+// text: a native transport's failure carries its FACTS by type — an
+// undecided write (runtime.AmbiguousEffect), a refused grant
+// (runtime.CapabilityDenial) — and a flattened string would hand the
+// recovery dispatcher a retryable failure in place of a write that may have
+// landed. An error that carries no secret comes back exactly as it went in.
 func (e *ClawExecutor) scrubActionError(err error) error {
 	if err == nil || e.secretGuard == nil {
 		return err
 	}
-	msg := err.Error()
-	if red := e.secretGuard.Redact(msg); red != msg {
-		return errors.New(red)
-	}
-	return err
+	return redactedThrough(e.secretGuard.Redact, err)
 }
 
 // actionOutput shapes a successful call into the node's output map.
@@ -383,16 +392,32 @@ func (e *ClawExecutor) actionOutput(node *ir.ToolNode, op spec.Operation, res ex
 	return out
 }
 
+// actionSecrets is what a rendered action parameter carries in a secret's
+// place.
+type actionSecrets bool
+
+const (
+	// secretsMaterialized is the HTTP call's: the vendor needs the value, and
+	// the `params` sink delivers it immediately before the request.
+	secretsMaterialized actionSecrets = true
+	// secretsAsPlaceholders is a native transport's: iterion's own store
+	// persists what it receives and shows it to every reader, so it receives
+	// the placeholder — the form an agent's board MCP call files
+	// (keepsPlaceholders).
+	secretsAsPlaceholders actionSecrets = false
+)
+
 // renderActionParams resolves each declared param's template refs against the
 // run's namespaces, then coerces the result to the type the OPERATION
-// declares.
+// declares. secrets says whether a placeholder is materialised (the vendor
+// call) or kept (a native transport).
 //
 // The coercion is not cosmetic. Templates render to strings, and a JSON body
 // carrying `{"index": "42"}` where the vendor's schema says integer is a
 // request many APIs reject and some silently mis-handle. The operation is the
 // only place that knows which is which, so the conversion happens here rather
 // than in the DSL, where every value is text.
-func (e *ClawExecutor) renderActionParams(ctx context.Context, node *ir.ToolNode, op spec.Operation, input map[string]any) (map[string]any, error) {
+func (e *ClawExecutor) renderActionParams(ctx context.Context, node *ir.ToolNode, op spec.Operation, input map[string]any, secrets actionSecrets) (map[string]any, error) {
 	declared := make(map[string]spec.Param, len(op.Params))
 	for _, p := range op.Params {
 		declared[p.Key] = p
@@ -441,13 +466,17 @@ func (e *ClawExecutor) renderActionParams(ctx context.Context, node *ir.ToolNode
 		}
 		// A `{{secrets.NAME}}` ref renders to a PLACEHOLDER, not a value —
 		// the whole point, since a secret must not sit in a command line or
-		// in a log. Every other recipe materialises it before use; this one
-		// did not, so the literal text `__ITERION_SECRET_NAME__` travelled to
-		// the vendor as the argument. The raw form is right here: nothing on
-		// this path reaches a shell, so the shell-escaping variants would
-		// corrupt the value. The `params` sink: an authored value, named so a
-		// secret kept off the vendor call by its declaration stays off it.
-		rendered = e.secretGuard.MaterializeFor(secretsink.Params, rendered)
+		// in a log. A vendor call materialises it before use, or the literal
+		// text `__ITERION_SECRET_NAME__` travels to the vendor as the
+		// argument. The raw form is right here: nothing on this path reaches
+		// a shell, so the shell-escaping variants would corrupt the value.
+		// The `params` sink: an authored value, named so a secret kept off
+		// the vendor call by its declaration stays off it. A native
+		// transport keeps the placeholder: its store persists and shows
+		// what it receives.
+		if secrets == secretsMaterialized {
+			rendered = e.secretGuard.MaterializeFor(secretsink.Params, rendered)
+		}
 		decl, known := declared[p.Key]
 		if !known {
 			// exec refuses this too, and its message lists what the operation

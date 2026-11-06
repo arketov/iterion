@@ -1018,6 +1018,13 @@ export interface ListFilesResponse {
   files: FileEntry[];
   /** True when the server cut the list at its entry cap. */
   truncated?: boolean;
+  /** How many files the listing rule found before the cap cut the list.
+   *  Present only with `truncated`. */
+  total?: number;
+  /** Bundle directories the list could not show: a manifest with no
+   *  main.bot, or a directory the walk could not read. Paths are
+   *  workspace-relative. */
+  discovery_errors?: Array<{ path: string; error: string; kind?: string }>;
 }
 
 export interface SaveFileResponse {

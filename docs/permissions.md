@@ -334,29 +334,58 @@ Matching semantics (`pkg/backend/permission`):
   runs in (so an absolute rule bounds `./secrets/key`, and a relative path
   cannot climb out of the workspace past a deny), and with the symlinks of
   its existing prefix resolved — `/tmp/s` → `/run/iterion/secrets` does not
-  walk past a deny, not even for a file that does not exist yet. Known
-  limit, pre-dating the fold work and tracked as #2918: the RAW spelling
-  is among the candidates on the allow side too, so a narrow allow
-  (`Read(/work/**)`) is met by a `..`-carrying spelling
-  (`/work/../secrets/x`) whose cleaned form would not match — bound a
-  directory for certain on the `deny:` side, which the engine-armed secret
-  trees below do for the run's credential locations.
+  walk past a deny, not even for a file that does not exist yet. A
+  spelling that still carries a `..` segment — the string as sent
+  (`/work/docs/../../etc/passwd`), or a relative cleanup that climbs above
+  its anchor (`../etc/passwd`) — names the file while its TEXT names a
+  directory the file is not under, so no wildcard or prefix `allow:` or
+  grant reads it: `Read(/work/docs/**)` does not open
+  `/work/docs/../../etc/passwd` (#2918). The anchored spellings stand in
+  for it, so a `..` that lands back inside the tree still opens. An exact
+  rule reads every spelling — an exact string names one file — which keeps
+  an `allow once` quoting what the model wrote; an unbounded scope
+  (`Read(**)`) leaves no call out. `deny:` and `ask:` read every spelling
+  too: over-refusing costs a refusal, and `deny: ["Read(**/../**)"]` bites
+  the climb itself.
 - **Glob / Grep** (and claw's `workspace_grep`) patterns match the search
   pattern OR the search ROOT, each spelling of the root offered bare and
   under a `path:` prefix: `Grep(path:/run/iterion/secrets/**)` names the
   dimension explicitly, and a `dir/**` rule covers the call rooted AT `dir`
   because such a call reads what is under it. **LS**'s `path` reads the
-  same way.
-- **WebFetch** patterns match `domain:<host>`, `<host>`, or the full URL.
+  same way. A Glob pattern is a path under its root: one that climbs
+  (`../../etc/*`) leaves it, so only a bare `Glob` or an unbounded scope
+  opens it, an `allow once` binds its pattern and asks again, and a
+  `deny:` meets where the climb lands — the pattern joined onto the root.
+- **WebFetch** patterns match `domain:<host>`, `<host>`, or the full URL,
+  the host read the way a WHATWG fetcher reads it — claude_code's WebFetch
+  parses with Node, and claw's Go fetcher dials that same host whenever it
+  parses the URL: `https:example.com/x`, `https://Example.com:443/x` and
+  `https://example.com\x` all fetch `example.com`, `http://0xa9fea9fe/` fetches
+  `169.254.169.254`, and a `deny:` naming an IPv4 address also meets its
+  IPv4-mapped IPv6 spelling (`http://[::ffff:a9fe:a9fe]/`), which both
+  fetchers dial as that address. A URL's path is a path: one whose decoded
+  path climbs (`/docs/../admin`, `/docs/%2e%2e/admin`, `/docs/..\admin`) is
+  read by no full-URL pattern, since a fetcher resolves the climb before the
+  server sees it; its host still stands for it. A `deny:` also meets the
+  URL with its path decoded and resolved (`https://example.com/./%61dmin/x` is
+  `https://example.com/admin/x`), upgraded from http to https as claude_code
+  fetches it, and its host without port or root-zone dot. A URL the gate
+  cannot read that way — another scheme, a host or port no fetcher accepts
+  — opens no pattern and meets every scoped `deny:` and `ask:` on WebFetch.
+- **Any other tool** (MCP, custom) is scoped by its sorted `k=v`
+  arguments; a value carrying a `..` segment keeps the call from every
+  pattern but an unbounded one, the gate not knowing which value is a path.
 - **Tool-name globs**: `*` (any tool) and `mcp__<server>__*`.
 - **Tool classes**: `class:shell` matches by the registry's capability
   metadata — the member set, not a spelling ([tool classes](#tool-classes)).
 - A rule matches if it matches ANY candidate, and a **deny** is matched
   against one wider set: every path key the call carries, not only the one
   the tool is expected to honour (claw's `read_file` reads `path`,
-  claude_code's `Read` reads `file_path`). An `allow` stays on the single
-  path, or naming an allowed file beside a forbidden one would authorise the
-  forbidden one.
+  claude_code's `Read` reads `file_path`). An `allow` or a grant opens such
+  a call only when it opens EVERY path the call carries, each read as its
+  own spellings: `{"file_path": "/work/docs/x.md", "path": "/etc/passwd"}`
+  is no read under `Read(/work/docs/**)`, or an allowed file named beside a
+  forbidden one would open whichever the tool honours.
 - A **deny** (and an `ask:`, which outranks an allow) also matches the
   path's FOLDED spellings — slash-spelled and case-folded, the fold the
   read-scope guard applies (iterion#2868): a file system that folds case
@@ -380,6 +409,11 @@ pattern does not, which is what makes `allow: ["Grep(path:src/**)"]` a usable
 bound. A pattern-shaped rule keeps matching the pattern: a scoped rule on a
 search tool matches EITHER dimension, so the way to bound a directory for
 certain is the `deny:` side, which wins in every mode.
+
+**Behaviour break (#2918).** An `allow:` pattern written against a relative
+climb — `Read(../shared/**)` — opens nothing any more: a relative spelling
+that climbs above the agent's directory is read by no pattern. Write the
+tree absolute; the absolute form of the call still meets it.
 
 **The run's secret locations are denied by construction (#1710).** Every
 gated node's policy is armed by the engine with deny trees over the

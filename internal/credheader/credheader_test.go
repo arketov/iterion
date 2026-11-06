@@ -162,6 +162,68 @@ func TestCarriesName_ReadsTheNameAlone(t *testing.T) {
 	}
 }
 
+// LineValue answers the value the request would carry: the LAST line of the
+// name wins (the CLI applies the block per line, last write wins), trimmed
+// of the space around it; a block holding none, or one whose value is
+// empty, answers ok=false — nothing the request would carry.
+func TestLineValue_LastLineOfTheNameWins(t *testing.T) {
+	cases := []struct {
+		raw   string
+		want  string
+		wantO bool
+	}{
+		{"Authorization: Bearer sk-x", "Bearer sk-x", true},
+		{"Authorization:  Bearer  sk-x  ", "Bearer  sk-x", true},
+		{"X-Tenant: acme\nAuthorization: Bearer first\nX-Note: n\nAuthorization: Bearer second", "Bearer second", true},
+		{"authorization: bearer sk-x", "bearer sk-x", true},
+		{"X-Tenant: acme", "", false},
+		{"Authorization:", "", false},
+		{"Authorization:   ", "", false},
+		{"Authorization", "", false},
+		{"", "", false},
+	}
+	for _, tc := range cases {
+		got, ok := credheader.LineValue(tc.raw, credheader.NameAuthorization)
+		if got != tc.want || ok != tc.wantO {
+			t.Errorf("LineValue(%q) = %q, %v, want %q, %v", tc.raw, got, ok, tc.want, tc.wantO)
+		}
+	}
+}
+
+// Line answers what the CLI applies under a name: the LAST line's value, and
+// whether a line of the name is applied at all — an empty value included,
+// which claw's parser keeps and its identity sets over the header the CLI's
+// own auth put there, erasing it. Pinned against that parser on blocks it
+// accepts, for both names the Anthropic wire's auth sets.
+func TestLine_AgreesWithTheCLIsParser(t *testing.T) {
+	for _, raw := range []string{
+		"",
+		"X-Tenant: acme",
+		"Authorization: Bearer sk-x",
+		"Authorization:",
+		"Authorization:   ",
+		"x-api-key: k-1\nx-api-key: k-2",
+		"X-Tenant: acme\r\nAuthorization: Bearer a\r\nx-api-key:",
+		"authorization: bearer lower",
+	} {
+		headers, err := clawapi.ParseCustomHeaders(raw)
+		if err != nil {
+			t.Fatalf("bench: the CLI's parser refused %q: %v", raw, err)
+		}
+		for _, name := range []string{credheader.NameAuthorization, credheader.NameXAPIKey} {
+			wantValue, wantPresent := "", false
+			for k, v := range headers {
+				if strings.EqualFold(k, name) {
+					wantValue, wantPresent = v, true
+				}
+			}
+			if value, present := credheader.Line(raw, name); value != wantValue || present != wantPresent {
+				t.Errorf("Line(%q, %q) = %q, %v — the CLI applies %q, %v", raw, name, value, present, wantValue, wantPresent)
+			}
+		}
+	}
+}
+
 // The name set is the subject of the vendored-producer guard in
 // pkg/backend/model: keep it non-empty and lower-case here, or that guard
 // compares against nothing.

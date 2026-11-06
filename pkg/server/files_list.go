@@ -1,14 +1,11 @@
 package server
 
 import (
-	"io/fs"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/arketov/iterion/pkg/botregistry"
-	"github.com/arketov/iterion/pkg/bundle"
 )
 
 // defaultListFilesLimit caps GET /api/files. A project folder can hold
@@ -31,104 +28,34 @@ func listFilesLimit() int {
 	return n
 }
 
-// isNestedRepo reports whether dir (not the walk root) is the root of its own
-// git checkout — a clone, submodule or linked worktree, all marked by a
-// `.git` entry. Its files belong to that project, not to this one.
-func isNestedRepo(dir string) bool {
-	_, err := os.Lstat(filepath.Join(dir, ".git"))
-	return err == nil
-}
-
 // Kinds of a listed file. A bundle is one row however many files it has: its
 // main.bot. A file is a single-file bot.
 const (
-	fileKindBundle = "bundle"
-	fileKindFile   = "file"
+	fileKindBundle = botregistry.ProjectWorkflowBundle
+	fileKindFile   = botregistry.ProjectWorkflowFile
 )
 
-// listWorkflowFiles lists the bots the editor can open for this project, from
-// the same places the bot catalog looks in (botregistry.DefaultPaths: bots/,
-// examples/, .botz/) plus the single .bot files directly in the project root
-// (no recursion there). A bundle — a directory bundle.DirClaim claims (an iterion manifest, skills/ or presets/) — is one
-// row, its main.bot; the rest of its files (lib/, skills, …) are parts of it,
-// not bots. Nested git checkouts (a directory holding .git: clone, submodule,
-// linked worktree) and hidden directories are never entered. The list stops
-// after limit entries (limit <= 0: no cap); truncated reports that.
-func listWorkflowFiles(workDir string, limit int) (files []fileEntry, truncated bool) {
+// listWorkflowFiles lists the bots the editor can open for this project: the
+// project's own workflows by botregistry.ListProjectWorkflows — the one rule
+// the bot catalog's origin=file rows follow too (the catalog roots, so
+// --bots-path included, plus the single .bot files directly in the project
+// root; a bundle is one row, its main.bot; nested git checkouts and hidden
+// directories are never entered). The rows are ordered bundles first, so the
+// cap never drops the bundles for loose files. roots are the catalog's
+// discovery roots (Server.effectivePathsFor). The cap is limit rows
+// (limit <= 0: no cap); total is how many rows the rule found, truncated
+// reports that the cap cut the list, and skipped names the bundle
+// directories that carry no main.bot (they cannot be opened, and the catalog
+// reports them too).
+func listWorkflowFiles(workDir string, roots []string, limit int) (files []fileEntry, total int, truncated bool, skipped []botregistry.DiscoveryError) {
 	files = []fileEntry{}
-	seen := map[string]struct{}{}
-	// add returns false once the cap is hit.
-	add := func(path, kind string) bool {
-		rel, err := filepath.Rel(workDir, path)
-		if err != nil {
-			return true
+	res := botregistry.ListProjectWorkflows(workDir, roots, limit)
+	for _, it := range res.Items {
+		var size int64
+		if info, err := os.Stat(it.Path); err == nil {
+			size = info.Size()
 		}
-		rel = filepath.ToSlash(rel)
-		if _, dup := seen[rel]; dup {
-			return true
-		}
-		info, err := os.Stat(path)
-		if err != nil || info.IsDir() {
-			return true
-		}
-		if limit > 0 && len(files) >= limit {
-			truncated = true
-			return false
-		}
-		seen[rel] = struct{}{}
-		files = append(files, fileEntry{Name: rel, Size: info.Size(), Kind: kind})
-		return true
+		files = append(files, fileEntry{Name: it.RelPath, Size: size, Kind: it.Kind})
 	}
-
-	// Single files at the project root, not below it.
-	if entries, err := os.ReadDir(workDir); err == nil {
-		for _, e := range entries {
-			if e.IsDir() || !isWorkflowFile(e.Name()) {
-				continue
-			}
-			if !add(filepath.Join(workDir, e.Name()), fileKindFile) {
-				return files, truncated
-			}
-		}
-	}
-
-	for _, root := range botregistry.DefaultPaths(workDir) {
-		stop := false
-		// Per-entry errors are handled in the callback; an absent root or a
-		// walk failure yields the partial (possibly empty) list, which this
-		// read-only file browser degrades to gracefully.
-		_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return nil
-			}
-			if d.IsDir() {
-				if path != root && (isSkippedDir(d.Name()) || isNestedRepo(path)) {
-					return filepath.SkipDir
-				}
-				// The one definition of a bundle directory the catalog uses.
-				if claimed, _, _ := bundle.DirClaim(path); claimed {
-					// One bundle: its entry file, not its parts.
-					if !add(filepath.Join(path, bundle.MainBotFile), fileKindBundle) {
-						stop = true
-						return fs.SkipAll
-					}
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if !isWorkflowFile(d.Name()) {
-				return nil
-			}
-			if !add(path, fileKindFile) {
-				stop = true
-				return fs.SkipAll
-			}
-			return nil
-		})
-		if stop {
-			return files, truncated
-		}
-	}
-
-	return files, truncated
+	return files, res.Total, res.Truncated, res.Skipped
 }
