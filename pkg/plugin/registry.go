@@ -159,16 +159,18 @@ type Registry struct {
 	// persisted alongside enable state in plugins.yaml.
 	config map[string]map[string]string
 	// loadSkips names every installed plugin that could not be loaded —
-	// an unreadable or unparseable plugin.yaml. Empty for a healthy home.
+	// an unreadable or unparseable plugin.yaml, or a manifest whose name
+	// differs from its directory. Empty for a healthy home.
 	// Consumers whose decision depends on having SEEN every installed
 	// plugin (the skill-mirror pass deciding whether its workspace prune
 	// is safe) must treat a non-empty list as "the enumeration is
 	// partial", not as "nothing enabled".
 	loadSkips []string
 	// brokenDirs maps the directory name of each installed plugin whose
-	// manifest could not be read or parsed (the loadSkips of that kind) to its
-	// directory, so `plugin uninstall` can remove a plugin the registry never
-	// loaded: without it the operator told to uninstall one gets "not found".
+	// manifest could not be read or parsed, or names another plugin (the
+	// loadSkips of that kind), to its directory, so `plugin uninstall` can
+	// remove a plugin the registry never loaded: without it the operator told
+	// to uninstall one gets "not found".
 	brokenDirs map[string]string
 	// homeOperatorChosen is true when `home` is the iterion home the
 	// OPERATOR chose — the one named by the inherited environment — as
@@ -315,9 +317,18 @@ func (r *Registry) loadInstalled() {
 			r.noteBrokenDir(e.Name(), dir)
 			continue
 		}
+		if m.Name != e.Name() {
+			// The directory name is the install key and the enable key; a
+			// manifest naming another plugin is as broken as an unparseable
+			// one. The skip is named after the DIRECTORY so that
+			// `plugin uninstall <dir>` finds it in brokenDirs.
+			r.loadSkips = append(r.loadSkips, fmt.Sprintf("%s: %s names the plugin %q but its directory is %q — the name is the install directory and the enable key; rename the directory to match or fix `name:`", e.Name(), ManifestFile, m.Name, e.Name()))
+			r.noteBrokenDir(e.Name(), dir)
+			continue
+		}
 		if have[m.Name] {
-			// Builtin (or an earlier installed dir) shadows this copy —
-			// deliberate, not a breakage.
+			// A builtin shadows this copy — deliberate, not a breakage
+			// (installed directories are unique: name == directory).
 			continue
 		}
 		have[m.Name] = true
@@ -506,16 +517,29 @@ func (r *Registry) saveState() error {
 // Remove deletes an installed plugin's directory and clears its state. Builtin
 // plugins cannot be removed (disable them instead).
 func (r *Registry) Remove(name string) error {
-	p, ok := r.Get(name)
-	if !ok {
-		// An installed plugin whose manifest never loaded is not in the
-		// list, but it is on disk and it is what the "skipped while
-		// loading" warning tells the operator to remove.
-		if dir, broken := r.brokenDirs[name]; broken {
-			if err := os.RemoveAll(dir); err != nil {
-				return fmt.Errorf("plugin: remove %q: %w", name, err)
-			}
-			delete(r.brokenDirs, name)
+	p, known := r.Get(name)
+	// The name is a directory name. A directory that never loaded (broken
+	// manifest, or one naming another plugin) is checked first: it is what the
+	// "skipped while loading" warning tells the operator to remove, even when
+	// its name is a builtin's.
+	if dir, broken := r.brokenDirs[name]; broken {
+		if err := os.RemoveAll(dir); err != nil {
+			return fmt.Errorf("plugin: remove %q: %w", name, err)
+		}
+		delete(r.brokenDirs, name)
+		if known {
+			return nil // the name is a builtin's: its enable state is not ours to drop
+		}
+		if _, had := r.state[name]; !had {
+			return nil
+		}
+		delete(r.state, name)
+		return r.saveState()
+	}
+	if !known {
+		// A stale entry (the plugin directory was deleted by hand) is cleared by
+		// this explicit action; Load never writes.
+		if _, had := r.state[name]; had {
 			delete(r.state, name)
 			return r.saveState()
 		}
