@@ -5385,7 +5385,7 @@ export interface paths {
         };
         /**
          * GET /api/v1/bots
-         * @description The discovered bots with their vars schema. Without ?include the list is catalog + platform + tenant bots. With ?include=all (or files) it also lists the project's single .bot files that have no manifest (origin "file", reported enabled and not editable). A team-scoped caller never gets the file scan.
+         * @description The discovered bots with their vars schema. Without ?include the list is catalog + platform + tenant bots. With ?include=all (or files) it also lists the single .bot files directly in the project folder (no walk of subfolders) that have no manifest (origin "file", reported enabled and not editable). A team-scoped caller never gets the file scan.
          */
         get: operations["getV1Bots"];
         put?: never;
@@ -6728,15 +6728,6 @@ export interface components {
             created_at: string;
             id: string;
         };
-        ConfigField: {
-            default?: string;
-            description?: string;
-            key: string;
-            label?: string;
-            options?: string[];
-            required?: boolean;
-            type?: string;
-        };
         ContextRef: {
             id: string;
             kind: string;
@@ -7329,6 +7320,29 @@ export interface components {
             updated_at: string;
             updated_by?: string;
         };
+        PluginConfigField: {
+            default?: string;
+            description?: string;
+            key: string;
+            label?: string;
+            options?: string[];
+            required?: boolean;
+            type?: string;
+        };
+        PluginView: {
+            author?: string;
+            builtin: boolean;
+            config_schema?: components["schemas"]["PluginConfigField"][];
+            config_secret_set?: string[];
+            config_values?: {
+                [key: string]: string;
+            };
+            description?: string;
+            enabled: boolean;
+            kinds: string[];
+            name: string;
+            version?: string;
+        };
         Policy: {
             cross_harness?: string;
             locks?: string[];
@@ -7689,20 +7703,6 @@ export interface components {
             name?: string;
             status: string;
             updated_at?: string;
-        };
-        View: {
-            author?: string;
-            builtin: boolean;
-            config_schema?: components["schemas"]["ConfigField"][];
-            config_secret_set?: string[];
-            config_values?: {
-                [key: string]: string;
-            };
-            description?: string;
-            enabled: boolean;
-            kinds: string[];
-            name: string;
-            version?: string;
         };
         WatcherCursor: {
             consecutive_no_progress?: number;
@@ -8343,7 +8343,7 @@ export interface components {
         };
         pluginsListResponse: {
             load_skips: string[];
-            plugins: components["schemas"]["View"][];
+            plugins: components["schemas"]["PluginView"][];
         };
         previewBackendOption: {
             unavailable_reason?: string;
@@ -17272,7 +17272,7 @@ export interface operations {
     getV1Bots: {
         parameters: {
             query?: {
-                /** @description Extra bot sources to list: all or files (the project's single .bot files without a manifest). Comma-separated tokens are accepted; builtin is accepted and ignored (the embedded recipes are not a listed bot source). Ignored for a team-scoped caller. */
+                /** @description Extra bot sources to list: all or files (the single .bot files directly in the project folder, without a manifest). Comma-separated tokens are accepted; builtin is accepted and ignored (the embedded recipes are not a listed bot source). Ignored for a team-scoped caller. */
                 include?: string;
             };
             header?: never;
