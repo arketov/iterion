@@ -599,7 +599,7 @@ func (s *Service) startInProcess(parent context.Context, runID string, spec Laun
 		spec.AttachmentPromote, spec.Preset, RunModelOverrides(spec.ModelOverrides),
 		spec.ParentRunID,
 		precreateInputs,
-		launchExtras{workDir: workDir, dailyCap: spec.DailyCap, source: spec.SourceRef, routingPolicy: spec.RoutingPolicy, routePolicy: spec.LLMRoutePolicy, onOutcome: spec.OnOutcome, observers: spec.ExtraObservers, loopBudgetGuard: spec.LoopBudgetGuard, supervisors: spec.Supervisors, budgetAsk: spec.Budget, executionContext: ctxContract, permission: spec.Permission, worktreeBaseCommit: spec.WorktreeBaseCommit, botOrigin: spec.BotOrigin, delegation: spec.Delegation, budgetOverrides: rawBudget, compiled: cs, botSourceTier: spec.BotSourceTier},
+		launchExtras{workDir: workDir, dailyCap: spec.DailyCap, source: spec.SourceRef, routingPolicy: spec.RoutingPolicy, routePolicy: spec.LLMRoutePolicy, onOutcome: spec.OnOutcome, observers: spec.ExtraObservers, loopBudgetGuard: spec.LoopBudgetGuard, supervisors: spec.Supervisors, budgetAsk: spec.Budget, executionContext: ctxContract, permission: spec.Permission, worktreeBaseCommit: spec.WorktreeBaseCommit, requireWorktree: spec.RequireWorktree, botOrigin: spec.BotOrigin, delegation: spec.Delegation, budgetOverrides: rawBudget, compiled: cs, botSourceTier: spec.BotSourceTier},
 		s.store,
 		func(ctx context.Context, eng *runtime.Engine) error {
 			return eng.Run(ctx, runID, inputs)
@@ -1673,8 +1673,10 @@ type launchExtras struct {
 	// outcome contract, handed to the engine for doc persistence.
 	routingPolicy      *store.RoutingPolicy
 	worktreeBaseCommit string
-	botOrigin          *store.BotOrigin
-	delegation         *store.RunDelegation
+	// requireWorktree mirrors LaunchSpec.RequireWorktree.
+	requireWorktree bool
+	botOrigin       *store.BotOrigin
+	delegation      *store.RunDelegation
 	// botSourceTier mirrors LaunchSpec.BotSourceTier on a LAUNCH (#1959):
 	// the tier the bot resolver served, which the isolation floor judges.
 	// Empty on a resume, whose document carries it already.
@@ -1823,6 +1825,9 @@ func (s *Service) engineOptions(runLogger *iterlog.Logger, hash, filePath, runNa
 	}
 	if ex.worktreeBaseCommit != "" {
 		opts = append(opts, runtime.WithWorktreeBaseCommit(ex.worktreeBaseCommit))
+	}
+	if ex.requireWorktree {
+		opts = append(opts, runtime.WithRequireWorktree())
 	}
 	if ex.botOrigin != nil {
 		opts = append(opts, runtime.WithBotOrigin(ex.botOrigin))

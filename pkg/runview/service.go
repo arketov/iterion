@@ -306,6 +306,12 @@ type LaunchSpec struct {
 	// Cross-project delegation uses it to execute an exact snapshot without
 	// moving or staging the operator's checkout.
 	WorktreeBaseCommit string
+	// RequireWorktree refuses the worktree:auto degrade to in-place (non-git
+	// folder, no commits): the run fails at setup instead. Set by unattended
+	// board launches. Not recovered for queued runs after a restart (same V1
+	// limit as other launch overrides); not honoured on the detached/cloud
+	// paths.
+	RequireWorktree bool
 	// BotOrigin is the workflow code provenance; Delegation links an
 	// optional worker run to the source run episode that requested it.
 	BotOrigin  *store.BotOrigin

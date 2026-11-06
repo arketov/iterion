@@ -32,6 +32,12 @@ import (
 	"github.com/arketov/iterion/pkg/store"
 )
 
+// DefaultMaxConcurrentPipelines is the cap every local studio entry point
+// (`iterion studio`, `iterion server`, the desktop app) applies to concurrent
+// root pipelines unless the operator says otherwise. 0 stays "unlimited" for
+// an explicit --max-concurrent-pipelines.
+const DefaultMaxConcurrentPipelines = 3
+
 // StudioOptions holds options for the studio command.
 type StudioOptions struct {
 	Port      int
@@ -103,7 +109,7 @@ type StudioOptions struct {
 	ForwardedHeader string
 
 	// MaxConcurrentPipelines caps how many ROOT pipelines run at once
-	// (0 = unlimited). Over the cap, launches wait in the pipeline
+	// (0 = unlimited; local entry points pass DefaultMaxConcurrentPipelines). Over the cap, launches wait in the pipeline
 	// board's Todo lane. Threaded into server.Config →
 	// runview.WithMaxConcurrentPipelines.
 	MaxConcurrentPipelines int

@@ -62,11 +62,12 @@ func (h *ServerHost) Start(parent context.Context, dir, storeDir string) (string
 		// Use a noop printer — the desktop has no stdout for the user.
 		printer := cli.NewPrinter(cli.OutputJSON)
 		opts := cli.StudioOptions{
-			Port:      -1, // random
-			Bind:      "127.0.0.1",
-			Dir:       dir,
-			StoreDir:  storeDir,
-			NoBrowser: true,
+			Port:                   -1, // random
+			Bind:                   "127.0.0.1",
+			Dir:                    dir,
+			StoreDir:               storeDir,
+			MaxConcurrentPipelines: cli.DefaultMaxConcurrentPipelines,
+			NoBrowser:              true,
 			OnReady: func(addr string) {
 				select {
 				case addrCh <- addr:

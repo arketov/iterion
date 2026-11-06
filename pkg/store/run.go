@@ -1772,6 +1772,10 @@ const (
 	// learns a new word; what the typed form adds is DeliveryID, the
 	// run->delivery back-reference the run-outcome spine needs.
 	RunSourceKindWebhook = "webhook"
+	// RunSourceKindPipelineBoard is a launch from the studio's pipeline
+	// board: the admission loop and "Launch now". The run carries
+	// Source.IssueID of the card; it is not a dispatcher run.
+	RunSourceKindPipelineBoard = "pipeline_board"
 )
 
 // RunSource captures who originated this run. Populated by the

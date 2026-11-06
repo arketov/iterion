@@ -44,6 +44,7 @@
 package workspacetrack
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -261,6 +262,9 @@ type Tracker interface {
 	// Capture records the workspace as it currently stands, chained onto
 	// the run's current head, and returns the resulting snapshot.
 	Capture(runID, workspaceDir, label string) (*Snapshot, error)
+	// CaptureContext is Capture that aborts when ctx is done. An aborted
+	// capture writes no snapshot and no cache and never latches Overflowed.
+	CaptureContext(ctx context.Context, runID, workspaceDir, label string) (*Snapshot, error)
 	// Alias points a label at an already-captured snapshot. Used for the
 	// "state before node N" marker, which is by construction identical to
 	// the state after node N-1 — nothing touches the workspace in

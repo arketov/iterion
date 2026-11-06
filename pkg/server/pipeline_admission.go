@@ -32,20 +32,27 @@ const pipelineAdmissionInterval = 2 * time.Second
 // built-in launch loop for ready pipeline tickets: a local native board +
 // a run service. The studio always wires an *idle* dispatcher Manager for
 // the /dispatcher dashboard, so we do NOT gate on Dispatcher==nil; instead
-// admitReadyPipelines backs off while that dispatcher is actively running
-// (only then would two launchers race the same board).
+// admitReadyPipelines backs off while a dispatcher owns the board (see
+// dispatcherOwnsBoard: only a project with no dispatcher config uses this loop).
 func (s *Server) pipelineAdmissionEnabled() bool {
 	return s.cfg.Mode != "cloud" &&
 		s.cfg.NativeTrackerStore != nil &&
 		s.runs != nil
 }
 
-// dispatcherActivelyLaunching reports whether an external/SPA-started
-// dispatcher is currently polling the board — in which case the admission
-// loop must stand down so the two don't double-launch the same ticket.
-func (s *Server) dispatcherActivelyLaunching() bool {
+// dispatcherOwnsBoard reports whether the project's dispatcher owns the board,
+// in which case the admission loop must stand down: a saved dispatcher config
+// is the operator's statement that a dispatcher launches this board's cards,
+// whether it is started, paused, stopped or errored. Stop means "nothing is
+// launched from the board", not "the studio takes over".
+func (s *Server) dispatcherOwnsBoard() bool {
 	return s.cfg.Dispatcher != nil &&
-		s.cfg.Dispatcher.Status().State == dispatcher.ManagerStateRunning
+		dispatcherOwnsBoardStatus(s.cfg.Dispatcher.Status())
+}
+
+// dispatcherOwnsBoardStatus is the pure decision behind dispatcherOwnsBoard.
+func dispatcherOwnsBoardStatus(st dispatcher.ManagerStatus) bool {
+	return st.HasConfig || st.State != dispatcher.ManagerStateIdle
 }
 
 // runPipelineAdmissionLoop is the studio's minimal, pipeline-cap-scoped
@@ -80,8 +87,8 @@ func (s *Server) admitReadyPipelines() {
 	if board == nil {
 		return
 	}
-	// Stand down while an operator-started dispatcher owns the board.
-	if s.dispatcherActivelyLaunching() {
+	// Stand down while a configured dispatcher owns the board.
+	if s.dispatcherOwnsBoard() {
 		return
 	}
 	s.stateMu.RLock()
@@ -879,13 +886,16 @@ func (s *Server) launchTicketNow(ctx context.Context, teamID string, from launch
 		// live run is invisible to close, reset AND delete. issueRunRoots
 		// already looks for Source.IssueID; nothing was ever setting it here.
 		//
-		// Kind is deliberately LEFT EMPTY. deriveSourceKind
-		// (pkg/runview/service_runs.go) returns Source.Kind verbatim when set,
-		// so stamping RunSourceKindDispatcher here would relabel every
-		// studio-launched ticket run as "dispatcher" in the run list's
-		// grouping and filtering. It is a studio launch; only the issue link
-		// is new information.
-		SourceRef: &store.RunSource{IssueID: iss.ID},
+		// Kind is its own word, never RunSourceKindDispatcher: that would
+		// relabel every studio-launched ticket run as "dispatcher" in the run
+		// list and trigger dispatcher-only readers. Left empty it fell
+		// through to "manual" in deriveSourceKind, hiding that the studio's
+		// board launched it.
+		SourceRef: &store.RunSource{Kind: store.RunSourceKindPipelineBoard, IssueID: iss.ID},
+		// An unattended board launch must not silently run in place in the
+		// project root when no worktree can be made (non-git folder, no
+		// commits): it fails at setup instead.
+		RequireWorktree: true,
 		// Consumed by the concurrency gate: a needs-attention ticket holds a
 		// reserved slot, and this is what lets its own relaunch spend that
 		// reservation instead of being refused by it.

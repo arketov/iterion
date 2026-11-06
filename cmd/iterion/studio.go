@@ -64,7 +64,7 @@ func init() {
 	f.IntVar(&studioOpts.maxUploadsPerRun, "max-uploads-per-run", 0, "Max distinct attachments per run (0 = 20)")
 	f.StringSliceVar(&studioOpts.allowUploadMime, "allow-upload-mime", nil, "Allowed upload MIME patterns (default: image/*, application/pdf, text/*, ...)")
 	f.StringSliceVar(&studioOpts.botsPaths, "bots-path", nil, "Directories or files to scan for bots (default: <dir>/bots, <dir>/examples, <dir>/.botz)")
-	f.IntVar(&studioOpts.maxConcurrentPipelines, "max-concurrent-pipelines", 3, "Max root pipelines running at once (0 = unlimited). Over the cap, launches wait in the pipeline board's Todo lane and start as slots free.")
+	f.IntVar(&studioOpts.maxConcurrentPipelines, "max-concurrent-pipelines", cli.DefaultMaxConcurrentPipelines, "Max root pipelines running at once (0 = unlimited). Over the cap, launches wait in the pipeline board's Todo lane and start as slots free.")
 	f.BoolVar(&studioOpts.recoveryPassive, "recovery-passive", false, "Start a loopback-only recovery console: assistant chat and explicit run actions remain available, while every autonomous worker is disabled")
 	rootCmd.AddCommand(studioCmd)
 }

@@ -273,6 +273,7 @@ type Engine struct {
 	botOrigin                *store.BotOrigin                     // workflow code provenance, distinct from the triggering action
 	delegation               *store.RunDelegation                 // optional host-owned worker linkage
 	worktreeBaseCommit       string                               // explicit verified base for delegated worktrees
+	requireWorktree          bool                                 // refuse the worktree:auto degrade to in-place
 	budgetOverrides          *store.RunBudgetOverrides            // raw launch/resume budget intent, persisted for every later engine rebuild
 
 	// activeBudget points at the SharedBudget of the run currently
