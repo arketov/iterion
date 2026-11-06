@@ -15,6 +15,7 @@ import (
 	"github.com/arketov/iterion/pkg/backend/secretguard"
 	"github.com/arketov/iterion/pkg/backend/tool"
 	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/internal/hostshell"
 	"github.com/arketov/iterion/pkg/sandbox"
 )
 
@@ -543,7 +544,7 @@ func TestShellEscape(t *testing.T) {
 		{"", "''"},
 		{"hello", "'hello'"},
 		{"hello world", "'hello world'"},
-		{"it's mine", `'it'\''s mine'`},
+		{"it's mine", "'it" + hostshell.EscapeSingleQuoted("'") + "s mine'"},
 		{"$VAR `cmd`", "'$VAR `cmd`'"},
 		{"line\nbreak", "'line\nbreak'"},
 	}
@@ -553,6 +554,24 @@ func TestShellEscape(t *testing.T) {
 				t.Errorf("shellEscape(%q) = %q, want %q", c.in, got, c.want)
 			}
 		})
+	}
+}
+
+// PowerShell closes a '...' literal on a typographic single quote too
+// (U+2018..U+201B), so on a Windows host each one is doubled like a `'`.
+func TestShellEscape_TypographicQuotes(t *testing.T) {
+	want := "'a’b'"
+	if runtime.GOOS == "windows" {
+		want = "'a’’b'"
+	}
+	if got := shellEscape("a’b"); got != want {
+		t.Errorf("shellEscape = %q, want %q", got, want)
+	}
+	inj := "‘$(Write-Output pwned)’"
+	if runtime.GOOS == "windows" {
+		if got, want := shellEscape(inj), "'‘‘$(Write-Output pwned)’’'"; got != want {
+			t.Errorf("shellEscape = %q, want %q", got, want)
+		}
 	}
 }
 

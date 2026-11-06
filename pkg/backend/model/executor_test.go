@@ -16,6 +16,7 @@ import (
 	"github.com/arketov/iterion/pkg/backend/delegate"
 	"github.com/arketov/iterion/pkg/backend/tool"
 	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/internal/hostshell"
 )
 
 // ---------------------------------------------------------------------------
@@ -875,7 +876,7 @@ func TestResolveCommandTemplate(t *testing.T) {
 			name:    "injection escaped",
 			command: "echo {{input.msg}}",
 			input:   map[string]any{"msg": "'; rm -rf / #"},
-			want:    "echo ''\\''; rm -rf / #'",
+			want:    "echo '" + hostshell.EscapeSingleQuoted("'") + "; rm -rf / #'",
 		},
 		{
 			name:    "string slice expands to space-separated args",
@@ -2203,12 +2204,12 @@ func TestShellEscapeValue_ComplexTypes(t *testing.T) {
 	t.Run("single quote in JSON value survives shell-escape", func(t *testing.T) {
 		// A package whose name contains a single quote (rare but legal in
 		// some ecosystems) must not break out of the shell-quoted JSON
-		// token. shellEscape replaces ' with '\''.
+		// token. shellEscape replaces ' with the host shell's form.
 		patches := []any{
 			map[string]any{"name": "Bob's package"},
 		}
 		got := shellEscapeValue(patches, ShapeUndeclared)
-		if !strings.Contains(got, `'\''s package`) {
+		if !strings.Contains(got, hostshell.EscapeSingleQuoted("'")+"s package") {
 			t.Errorf("single-quote escape failed in JSON token: got %q", got)
 		}
 	})

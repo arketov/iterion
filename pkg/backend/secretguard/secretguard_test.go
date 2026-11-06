@@ -143,13 +143,30 @@ func TestMaterializeShell_SingleQuoteInjection(t *testing.T) {
 	// bare `'` from the value can terminate the surrounding quote. `sh -c got`
 	// then passes the literal value `x'; id #` as one arg — `id` never runs.
 	// The escape is the host shell's: '\'' for sh/bash, '' where the word is
-	// PowerShell's (hostshell.SingleQuoteEscape) — both keep the value one word.
-	want := `deploy --token 'x` + hostshell.SingleQuoteEscape() + `; id #'`
+	// PowerShell's (hostshell.EscapeSingleQuoted) — both keep the value one word.
+	want := `deploy --token 'x` + hostshell.EscapeSingleQuoted("'") + `; id #'`
 	if got != want {
 		t.Errorf("MaterializeShell = %q; want %q", got, want)
 	}
 	if strings.Contains(got, ph) {
 		t.Errorf("placeholder survived MaterializeShell: %q", got)
+	}
+}
+
+// PowerShell also closes a '...' literal on a typographic single quote
+// (U+2018..U+201B), so a secret holding one must be escaped like a `'`.
+func TestMaterializeShell_TypographicQuote(t *testing.T) {
+	const evil = "x’; id #"
+	g := newTestGuard(t, Secret{Name: "tok", Value: evil})
+	ph := defaultPlaceholder("tok")
+
+	got := g.MaterializeShell(`deploy --token '` + ph + `'`)
+	want := `deploy --token '` + hostshell.EscapeSingleQuoted(evil) + `'`
+	if got != want {
+		t.Errorf("MaterializeShell = %q; want %q", got, want)
+	}
+	if runtime.GOOS == "windows" && !strings.Contains(got, "x’’; id #") {
+		t.Errorf("typographic quote not doubled on a PowerShell host: %q", got)
 	}
 }
 
