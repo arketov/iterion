@@ -25,7 +25,7 @@ func TestRealHomeTestEntries_NamesOnlyTestKeys(t *testing.T) {
 	legitTmp := "-tmp-my-real-project"
 	legitOther := "-home-jo-lab-prod"
 	leakDefault := "-tmp-TestFoo-001"
-	leakInherited := store.EncodeWorkDirKey(os.TempDir()) + "-TestBar-002"
+	leakInherited := store.EncodeWorkDirKeyStem(os.TempDir()) + "-TestBar-002"
 	for _, n := range []string{leakDefault, leakInherited, legitTmp, legitOther} {
 		if err := os.MkdirAll(filepath.Join(projects, n), 0o700); err != nil {
 			t.Fatal(err)
