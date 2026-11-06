@@ -291,22 +291,20 @@ func TestWorkspaceGenerationProbePropagatesFilesystemError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewWorkspaces: %v", err)
 	}
-	namespace := filepath.Join(root, workspaceKeyNamespace)
-	if err := os.MkdirAll(namespace, 0o755); err != nil {
-		t.Fatalf("mkdir namespace: %v", err)
-	}
-	// A regular file where .owners must be a directory makes Lstat on an
-	// owner marker fail with a deterministic non-ENOENT error (typically
-	// ENOTDIR). Unlike chmod-based EACCES fixtures, this works under root
-	// and on platforms whose permission model differs.
-	if err := os.WriteFile(filepath.Join(namespace, workspaceOwnersDir), []byte("broken"), 0o600); err != nil {
-		t.Fatalf("plant invalid ownership namespace: %v", err)
-	}
-
 	const (
 		issueID = "native:probe-io-error"
 		runID   = "run-probe-io-error"
 	)
+	// A directory where the ownership marker file belongs: Lstat sees the
+	// shape, ReadFile on it fails with a deterministic non-ENOENT error
+	// (EISDIR on Linux, "Incorrect function" on Windows). Unlike chmod-based
+	// EACCES fixtures this works under root; unlike a regular file planted at
+	// .owners it also works on Windows, where a path below a regular file
+	// reports ERROR_PATH_NOT_FOUND, which Go classifies as "absent".
+	if err := os.MkdirAll(w.ownerPathForRun(issueID, runID), 0o755); err != nil {
+		t.Fatalf("plant unreadable ownership marker: %v", err)
+	}
+
 	generation, managed, err := w.resumeGeneration(issueID, runID)
 	if err == nil {
 		t.Fatalf("resumeGeneration = (%q, %t, nil), want filesystem error", generation, managed)
@@ -319,7 +317,7 @@ func TestWorkspaceGenerationProbePropagatesFilesystemError(t *testing.T) {
 	}
 
 	d := &Dispatcher{workspaces: w}
-	if _, _, err := d.dispatchWorkspaceLifecycle(issueID, WorkspacePersistKeep, runID, false); err == nil {
+	if _, _, err := d.dispatchWorkspaceLifecycle(issueID, WorkspacePersistKeep, runID, true); err == nil {
 		t.Fatal("dispatchWorkspaceLifecycle swallowed ownership probe filesystem error")
 	}
 }
