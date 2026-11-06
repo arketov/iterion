@@ -30,7 +30,7 @@ import SettingsDrawer from "@/components/Dispatcher/SettingsDrawer";
 import { LaunchFailuresPanel } from "@/components/shared/LaunchFailuresPanel";
 import TrackerErrorBanner from "@/components/shared/TrackerErrorBanner";
 import CostCapBanner from "@/components/shared/CostCapBanner";
-import { dispatcherActionState } from "./dispatcherActionState";
+import { dispatcherActionState, retryNowNotice } from "./dispatcherActionState";
 import { dispatcherPillMeta } from "@/components/shared/dispatcherPillMeta";
 
 import RetriesTable from "./RetriesTable";
@@ -42,6 +42,8 @@ export default function DispatcherView() {
   const [status, setStatus] = useState<ManagerStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Shown after "Retry now" while the dispatcher is paused; cleared on Resume.
+  const [retryNotice, setRetryNotice] = useState<string | null>(null);
   // Consecutive failed status polls — surfaces an explicit "manager
   // unreachable" banner once the silent 2s retry has failed a few times,
   // instead of only quietly flipping the chip to "unreachable".
@@ -157,6 +159,10 @@ export default function DispatcherView() {
   }, [reload, dispatcherAttached, setActionError]);
 
   useEffect(() => {
+    if (!snap?.paused) setRetryNotice(null);
+  }, [snap?.paused]);
+
+  useEffect(() => {
     let cancelled = false;
     const tick = async () => {
       try {
@@ -205,11 +211,17 @@ export default function DispatcherView() {
   );
 
   const doRetryNow = useCallback(
-    (issueID: string) => void actionRun(async () => {
-      await retryNow(issueID);
-      await refreshTick();
-    }),
-    [actionRun],
+    (issueID: string) => {
+      const row = (snap?.retries ?? []).find((r) => r.issue_id === issueID);
+      const name = row?.identifier || issueID;
+      setRetryNotice(null);
+      void actionRun(async () => {
+        const res = await retryNow(issueID);
+        setRetryNotice(retryNowNotice(name, res.paused));
+        await refreshTick();
+      });
+    },
+    [actionRun, snap],
   );
   const doDropRetry = useCallback(
     async (issueID: string) => {
@@ -327,6 +339,9 @@ export default function DispatcherView() {
           New dispatches are suspended. The retry queue won't fire, and new ready
           issues won't be picked up. In-flight runs continue. Resume from the toolbar above.
         </InlineBanner>
+      )}
+      {retryNotice && snap.paused && (
+        <InlineBanner tone="info">{retryNotice}</InlineBanner>
       )}
 
       <LaunchFailuresPanel className="mx-4 mt-4 max-w-4xl" />

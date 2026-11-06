@@ -15,6 +15,15 @@ export interface DispatcherActionState {
   reloadTitle: string;
 }
 
+// retryNowNotice is the note shown after "Retry now" when the dispatcher is
+// paused: the retry is due, but it only fires after Resume. null when it fires
+// on the next tick and needs no note.
+export function retryNowNotice(name: string, paused: boolean): string | null {
+  return paused
+    ? `${name} stays in the retry queue — it runs after you resume the dispatcher.`
+    : null;
+}
+
 export function dispatcherActionState(
   state: ManagerState | null | undefined,
   snapshotPaused = false,
