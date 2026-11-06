@@ -569,7 +569,7 @@ export default function WorkspaceShell() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-surface-0 text-fg-default overflow-hidden">
+    <div className="h-screen w-full min-w-0 flex flex-col bg-surface-0 text-fg-default overflow-hidden">
       {/* The desktop keeps its multi-pane chrome. In the browser, the project
           dropdown inside the active pane is the only visible selector. */}
       {!browserWorkspace && (

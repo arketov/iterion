@@ -124,7 +124,7 @@ export function RunViewLoadError({
 export function RunViewSkeleton() {
   return (
     <div
-      className="h-screen w-screen flex flex-col bg-surface-0"
+      className="h-screen w-full min-w-0 flex flex-col bg-surface-0"
       role="status"
       aria-live="polite"
       aria-busy="true"
