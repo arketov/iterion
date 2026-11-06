@@ -132,7 +132,3 @@ func lnSnapshotOf(tasks ...map[string]any) string {
 	}
 	return jsonLine(map[string]any{"type": "system", "subtype": "background_tasks_changed", "tasks": list, "session_id": "s1"})
 }
-
-type writerFunc func([]byte) (int, error)
-
-func (f writerFunc) Write(p []byte) (int, error) { return f(p) }
