@@ -60,6 +60,13 @@ operator's: `pre:` is an *alias* and does not advance the chain head, so a run
 that stops inside a node would otherwise end with its most recent recorded
 state being the one that node started from.
 
+A capture is cancellable (`CaptureContext`): cancelling a run aborts an in-flight
+walk instead of waiting out a huge workspace. The `fail:`/`pause:` boundary taken
+when a node stops runs under its own live context with a 10-second budget,
+because the durable status write waits behind it; a scan that outlasts the budget
+is abandoned, so a later rewind may report no snapshot for that boundary.
+`ITERION_WORKSPACE_TRACK=off` turns the versioning off altogether.
+
 `pause:` and `fail:` also OPEN the one kind of interval in which **nothing of
 the run is executing**, and `resume:` CLOSES it. A file that appears in that
 window demonstrably did not come from this run — it came from the operator's

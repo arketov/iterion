@@ -132,7 +132,7 @@ erDiagram
     runs {
         string _id PK
         string tenant_id FK "team id"
-        string source.kind "free-form; today dispatcher|schedule|studio_chat"
+        string source.kind "free-form; today dispatcher|schedule|studio_chat|webhook|pipeline_board"
         string source.schedule_id FK "e.g. scheduled_bots._id, trigger_subscriptions._id"
     }
     audit_events {

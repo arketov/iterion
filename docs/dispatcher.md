@@ -174,6 +174,10 @@ global cap has room.
 
 ### Paused runs — the `awaiting_input` column + parked sweep
 
+> The studio's own launch loop never runs beside a configured dispatcher
+> (see [native tracker](native-tracker.md)), so the retry and parking rules
+> below describe the dispatcher whenever one is configured.
+
 A run that suspends for input (a `human` node → `paused_waiting_human`,
 or an operator soft-pause → `paused_operator`) is **not** a failure and
 is never retried. The dispatcher **parks** the card instead:
