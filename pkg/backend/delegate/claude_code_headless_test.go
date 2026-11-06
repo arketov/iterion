@@ -19,6 +19,12 @@ import (
 	"github.com/arketov/iterion/pkg/plugin"
 )
 
+// writerFunc adapts a function to io.Writer; claude_code_background_test.go (!windows)
+// and this file both use it, so it lives in the untagged one.
+type writerFunc func([]byte) (int, error)
+
+func (f writerFunc) Write(p []byte) (int, error) { return f(p) }
+
 // headlessWithheldNames is what every claude_code spawn must carry on
 // --disallowedTools, spelled out here rather than read from the product's own
 // list: a name dropped from that list must redden a test, not move both sides.
