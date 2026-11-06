@@ -149,6 +149,14 @@ describe("RecentFilesPanel — the Bots block is the Bots page's own list", () =
     expect(screen.getByText("Bot catalog unavailable")).toBeTruthy();
     expect(screen.getByText("boom")).toBeTruthy();
   });
+
+  it("offers a Retry on the banner that reloads the catalog", () => {
+    const refetch = vi.fn(async () => {});
+    setStore({ bots: null, extraBots: [], error: "boom", refetch });
+    render(<RecentFilesPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("RecentFilesPanel — a recent file that is gone from disk", () => {
