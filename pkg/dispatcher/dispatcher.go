@@ -349,10 +349,9 @@ func isStaleLocalMarker(marker, host string) bool {
 	if !ok || mhost != host {
 		return false
 	}
-	// A live PID — or one we can't probe (different user, or any
-	// non-Unix platform) — counts as "not stale": never reclaim a claim
-	// we can't confidently prove is dead. See localPidGone in
-	// proc_unix.go / proc_windows.go.
+	// A live PID — or one we can't probe (different user) — counts as
+	// "not stale": never reclaim a claim we can't confidently prove is
+	// dead. See localPidGone in proc_unix.go / proc_windows.go.
 	return localPidGone(pid)
 }
 
@@ -361,9 +360,7 @@ func isStaleLocalMarker(marker, host string) bool {
 // host: the shape is unparsable or the pid <= 1 (isStaleLocalMarker
 // refuses those unconditionally). A live pid or a foreign host is a
 // TRANSIENT decline — the owner may release it, or its host's own boot
-// will. (On Windows localPidGone abstains for every pid, so live-pid
-// declines there are also permanent in practice — accepted: naming them
-// all would storm on the one platform where none is provable.)
+// will.
 func journalDeclineIsPermanent(marker string) bool {
 	_, _, ok := parseLocalMarker(marker)
 	// Parseable + pid > 1 is always transient: same-host = the pid may
