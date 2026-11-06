@@ -72,28 +72,77 @@ read ceiling (64 MiB): zlib holds ~1000:1, so a compressed bomb — or
 many small streams summing to one — fails the read with an explicit
 `ErrBudgetExceeded` instead of allocating. claude_code reads PDFs
 natively; this is the same capability wired on claw (the parity
-doctrine above). The run's `${PROJECT_SCRATCH_DIR}` is a READ root of
-claw's `read_file`/`glob`/`grep`/`read_image` beside the workspace
+doctrine above). The run's scratch is a READ root of claw's
+`read_file`/`glob`/`grep`/`read_image` beside the workspace
 (#2650 — a bot's agents must read the briefs the run itself wrote
 there, as claude_code's unbounded `Read` does); other attachment paths
 stay outside the read scope — reach them through `bash`.
 
-What that root holds, measured: it is the PROJECT scratch dir —
-`<iterion home>/projects/<encoded repo root>/scratch`, the iterion home
-being `$ITERION_HOME` or `~/.iterion` — and it is shared between the
-runs of one repository on purpose, because a sub-bot child writes its
-fan-in there from its own container and docs-refresh, sec-audit-deps and
-wiki-gen treat it as cross-run memory (`pkg/runtime/scratch_sweep.go`,
-`applyScratchMount`, which creates it `0700` when it binds it). A claw
-agent can therefore read what other runs OF THE SAME REPOSITORY left
-there, scanner output included — the breadth claude_code's unbounded
-`Read` already had. It reaches no further: another repository encodes
-another key, another operator resolves another iterion home, and a
-driver with no host filesystem (kubernetes — a pod rejects `type=bind`)
-gets a container-local scratch that the teardown banks per run
-(ADR-106), so no host directory is shared into the pod at all.
-Narrowing the root to the run's own subtree is a separate change, and it
-has to keep the fan-in and those caches readable.
+Which scratch, since #2869: the run family's OWN subtree
+(`${RUN_SCRATCH_DIR}` — `<project scratch>/runs/<family root>`, where the
+family root is the run's id, or the topmost ancestor's for a sub-bot
+child) is always the first root, and the SHARED project scratch
+(`${PROJECT_SCRATCH_DIR}` — `<iterion home>/projects/<encoded repo
+root>/scratch`, the iterion home being `$ITERION_HOME` or `~/.iterion`)
+rides along as a second root only while the workflow still references it
+in a resolved var. A bot whose state all moved to `${RUN_SCRATCH_DIR}`
+reads no other run's leftovers; an unmigrated one keeps the breadth
+claude_code's unbounded `Read` already had. The fan-in survives the
+narrowing: a child and its parent key on the same family root, so the
+child writes where the parent reads. The cross-run caches that keep
+referencing the shared scratch (docs-refresh, sec-audit-deps, wiki-gen)
+keep it readable — that is exactly what "still references" measures. The
+signal's bound, named: it reads the RESOLVED vars — a reference spelled
+inline in a tool body or a prompt template, never through a var, is not
+seen, and the shared root then stays out (fail-closed; no in-tree bot
+reads the scratch that way — they all go through a `run_dir`-shaped var,
+and an inline `${PROJECT_SCRATCH_DIR}` in a tool body already draws C315).
+The reach never grew: another repository encodes another key, another
+operator resolves another iterion home, and a driver with no host
+filesystem (kubernetes — a pod rejects `type=bind`) gets a
+container-local scratch that the teardown banks per run (ADR-106). The
+family root is a path component, so every id the parent walk adopts must
+be one the store accepts (`store.SanitizePathComponent`): a
+`parent_run_id` shaped like `../..` ends the walk at the last valid id
+instead of moving the subtree out of the project scratch. The subtree is
+attached BENEATH the project scratch, never through it: sandboxed runs
+write the shared scratch through their bind, so `runs/<id>` can be a link
+one of them planted, and a root that followed it would become the link's
+target. Only the project scratch is canonicalized; the path from it to
+the subtree stays lexical, a target counts as inside only when its
+resolved path lies under that lexical root, and it is opened by a
+no-follow walk from the project scratch — a link anywhere below contains
+nothing. The engine and the in-container runner create the subtree as a
+chain of real directories (`safepath.EnsureRealBindSourceDir`), so a
+planted `runs/` link never receives it. The narrowed list crosses the
+sandbox envelope as `IOTask.ScratchReadRoots` with the project scratch as
+`IOTask.ScratchAnchor`; `ScratchDir`, the one root a runner that predates
+the list registers, is the shared scratch when the push carries it (the
+subtree lies beneath it, so the old runner reads the same union) and the
+subtree when it rides alone. The age sweep (`ITERION_SCRATCH_RETENTION`,
+`iterion clean`) judges each `runs/<id>` as its own entry: judged as one,
+`runs/` stays fresh while any run of the repository works.
+
+Under every read root the credential exclusion applies alike, and since
+#2868 its list is not a frozen name table: it follows the paths a
+credential is actually read from (claw's first-party
+`CredentialReadGuard`, vendored). Real layouts refuse at any depth
+(`.kube/config`, `.aws/`, `.codex/auth.json`, `.docker/config.json`,
+`.claude/.credentials.json`, `.config/gh/hosts.yml`, the gcloud ADC, ssh
+and gnupg dirs), the process's own env/home-derived locations refuse
+wherever a root reaches them (`KUBECONFIG`, `NPM_CONFIG_USERCONFIG`,
+`CODEX_HOME`, `AWS_SHARED_CREDENTIALS_FILE`, `DOCKER_CONFIG`,
+`GH_CONFIG_DIR`, `CLAUDE_CONFIG_DIR`, `HOME` — in a sandboxed runner that
+is the runner's own env, whose HOME lives under the scratch root),
+`.npmrc` refuses at a project position (the root of the workspace — in
+its spelling and its symlink-resolved one — or of a declared read root),
+and the intrinsic carriers (the `.env` family,
+`.netrc`, `.git-credentials`, `cli-auth.json`, private keys, the clone's
+`.git/iterion-credentials`, the iterion home's `secrets.json`) refuse
+wherever they appear. The consequence an author feels: a fixture or
+template carrying one of those names OUTSIDE a real location —
+`testdata/auth.json`, `fixtures/credentials`, a `kubeconfig.tpl` — reads
+freely. The verdict is always a refusal, never a redaction.
 
 Only reads take the extra root. `write_file` and `file_edit` are not
 scope-aware: a relative path rebases onto the workspace, an absolute one
@@ -1192,6 +1241,13 @@ refusal retains its type when the extraction allowance is exhausted. The
 extraction's own call is booked by its own `delegate_finished` /
 `delegate_error`, marked `reask: "extract"` and named after claw, the
 detected model and its provider, so the run's meter counts it on that route.
+The event carries the credential keys of the claw arm's Spend for the call
+(ADR-161 decision 8): the spend ledger books it on the run slot it spent
+and the credential plan's fine table on that slot's fingerprint — a donor's
+lent key included — never on the node's plan row by prediction; the pod's
+money books on nobody and is no plan miss. Under the stamp, an extraction the
+pod alone would fund is refused by the arm: nothing is sent, nothing booked
+(`credparity.RecoveryRows`).
 
 **Runtime output schemas are advisory by default for outputs the executor does
 not validate** (tool, human, subbot and wait). A mismatch emits
@@ -2555,7 +2611,7 @@ unknown name there is dead config, not a failure — and it never touches
 qualified MCP references (`mcp.<server>.<tool>`, the `mcp__server__tool`
 alias form, wildcards), which are resolved when the server connects. One
 host-side check does read them: `iterion validate` and `POST /api/validate`
-warn (`C332`) when such a reference names a server that no `mcp_server`
+warn (`C337`) when such a reference names a server that no `mcp_server`
 block, project `.mcp.json` entry or enabled plugin declares.
 
 What it lets through, and why. iterion's own board and watch tools are

@@ -17,6 +17,7 @@ import (
 
 	"github.com/arketov/iterion/pkg/backend/ambient"
 	"github.com/arketov/iterion/pkg/backend/backendcaps"
+	"github.com/arketov/iterion/pkg/backend/credroute"
 	"github.com/arketov/iterion/pkg/backend/permission"
 	"github.com/arketov/iterion/pkg/backend/toolcatalog"
 	"github.com/arketov/iterion/pkg/plugin"
@@ -611,6 +612,23 @@ type Task struct {
 	// across all runs of the same project regardless of which
 	// worktree they execute in.
 	RepoRoot string
+
+	// ScratchReadRoots are the run's scratch read roots as the RUNNER must
+	// see them (#2869): the run family's own subtree first, then the
+	// shared project scratch while the workflow still references it. The
+	// claw backend reads them at the sandbox crossing to narrow the
+	// in-container runner's read scope; every other backend and every
+	// unsandboxed execution ignores the field (their read scope lives in
+	// the registry's ReadScope). Empty means no narrowing was pushed —
+	// the crossing keeps its legacy project-scratch root.
+	ScratchReadRoots []string
+
+	// ScratchAnchor is the project scratch the ScratchReadRoots lie
+	// beneath, as the RUNNER sees it (#2869). The runner attaches a root
+	// below it without following any link between the two — the shared
+	// scratch is written by other runs, so a link planted at runs/<id>
+	// must not become a root. Empty when no push happened.
+	ScratchAnchor string
 
 	// ReasoningEffort is the reasoning effort level sent on the wire.
 	// Valid values: "none", "low", "medium", "high", "xhigh", "max". The DSL also
@@ -1996,6 +2014,13 @@ type Result struct {
 	// downstream forks can detect a cross-provider switch and fall back
 	// to a fresh session instead of failing on signed thinking blocks.
 	SessionFingerprint string
+
+	// Credential is what this call spent, as the process that built it
+	// resolved it (credroute.Spend, ADR-161 decision 8): the usage events
+	// carry it as their credential keys, and the spend ledger and the fine
+	// table book on it. Zero for a backend whose arm has not landed — its
+	// events carry no keys, and the readers keep their derivation.
+	Credential credroute.Spend
 
 	// TerminatedBackgroundTasks labels the background work (claude_code:
 	// async subagents, background commands) this call's processes — the

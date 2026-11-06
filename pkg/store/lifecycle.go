@@ -123,6 +123,14 @@ const (
 	// image, the backend, or `sandbox: none`.
 	FailureCapabilityUnsupported FailureCode = "CAPABILITY_UNSUPPORTED"
 
+	// FailureCapabilityDenied: the node named something its declared
+	// `capabilities:` grant does not open — a board verb without board.read
+	// on the tool node, the native action transport answering #78=A
+	// (ADR-151). Deterministic by construction: the same IR meets the same
+	// grant on every attempt, so no retry and no auto-resume can change the
+	// answer; the cure is the declaration, then a resume.
+	FailureCapabilityDenied FailureCode = "CAPABILITY_DENIED"
+
 	// FailureSandboxDriverUnavailable: an EXPLICIT sandbox mode was
 	// requested (a workflow's `sandbox:` block declaring `mode: inline`
 	// with an image / build) but no driver is available on this host —
@@ -147,6 +155,18 @@ const (
 	// "not logged in". The cases the predicate cannot settle stay a launch
 	// warning (sandbox_no_credential_warning).
 	FailureSandboxCredentialUnreachable FailureCode = "SANDBOX_CREDENTIAL_UNREACHABLE"
+
+	// FailureCredentialAmbientRefused: a run stamped to its own credentials
+	// (ADR-131 §7) was refused before it started because a node of it has
+	// no leg its own credentials fund — only the pod's environment would,
+	// which the stamp refuses (ADR-161 decision 7).
+	FailureCredentialAmbientRefused FailureCode = "CREDENTIAL_AMBIENT_REFUSED"
+
+	// FailureCredentialSubscriptionForbidden: a judged run was refused before
+	// it started because a node of it is funded by a subscription alone and
+	// ITERION_FORBID_SUBSCRIPTION_OAUTH refuses spending one outside the
+	// vendor's own CLI (ADR-161 decision 7).
+	FailureCredentialSubscriptionForbidden FailureCode = "CREDENTIAL_SUBSCRIPTION_FORBIDDEN"
 
 	// FailureAttachmentsUndeliverable: the run carries attachments and the
 	// selected sandbox driver can neither bind-mount their directory into
@@ -305,8 +325,11 @@ var ReservedFailureCodes = []FailureCode{
 	FailureSchemaUnusable,
 	FailureProviderRequestInvalid,
 	FailureCapabilityUnsupported,
+	FailureCapabilityDenied,
 	FailureSandboxDriverUnavailable,
 	FailureSandboxCredentialUnreachable,
+	FailureCredentialAmbientRefused,
+	FailureCredentialSubscriptionForbidden,
 	FailureAttachmentsUndeliverable,
 	FailureAttachmentPathUnavailable,
 	FailureAttachmentsUnfetchable,

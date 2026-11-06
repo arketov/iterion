@@ -85,10 +85,37 @@ runner that still mounts the login — a credential declared `as: file`
 reaches the container's filesystem, not the backend CLI's auth, so it does
 not lift this refusal); a
 node whose backend the predicate cannot read is a
-`sandbox_no_credential_warning`, never a refusal on a guess. Trusted runs
-are never judged, and handing the operator's own OAuth token to a fork's
-container is refused by design — the token is the operator's identity, not
-a scoped run credential (#1768).
+`sandbox_no_credential_warning`, never a refusal on a guess. A trusted run
+is judged only when it is stamped to its own credentials (ADR-131 §7), and
+handing the operator's own OAuth token to a fork's container is refused by
+design — the token is the operator's identity, not a scoped run credential
+(#1768).
+
+The answer is the credential resolver's ([ADR-161](adr/161-one-resolver-decides-the-credential-a-call-spends.md)),
+the one the dispatch spends on: every leg of every model-calling site of the
+run — agent and judge nodes, an `llm` router, a human node's LLM half, a
+Verified Action's recovery rungs, each asked where its call is made (a
+direct generation in process, on the host) — at the one site every start
+passes, before a `none` or degraded `auto` run starts on the host too, and
+in a subbot child's adopt branch, on its own nodes. The sites are one
+enumeration (`model.CallSites`), the one the usage-cap pre-flight keys. A
+stamped node only the pod's environment would fund refuses with
+`CREDENTIAL_AMBIENT_REFUSED`; one funded by a subscription alone that
+`ITERION_FORBID_SUBSCRIPTION_OAUTH` refuses, with
+`CREDENTIAL_SUBSCRIPTION_FORBIDDEN`. A refused `fallbacks:` route,
+interaction generation, review companion or supervisor spec is warned, and so
+is an `llm_or_human` node's LLM half, which falls back to the human pause.
+
+The stamp binds every backend (ADR-161 decision 5). `kimi`, `grok` and
+`opencode` read their own configuration, never a run credential: a stamped
+node made of them refuses with `CREDENTIAL_AMBIENT_REFUSED` (route it to
+`claw` or `claude_code`), a `fallbacks:` rung on one is warned and never
+serves, and an unstamped one is admitted with the
+`sandbox_no_credential_warning`. Until their credential arms land, a
+stamped `pi` or `codex` leg is refused too — same code, its own remedy
+(route the node to `claw` or `claude_code` on the run's own credentials):
+their dispatch reads the pod's stores and keys past the run's seal. Each
+of these refusals also stands at the dispatch, before the CLI starts.
 
 ## Quick start
 
