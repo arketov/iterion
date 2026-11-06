@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -264,5 +265,32 @@ func TestRemoveDaemonInfo_WaitsOutAReaderHoldingTheFile(t *testing.T) {
 	}
 	if _, err := os.Stat(daemonInfoPath(project)); !os.IsNotExist(err) {
 		t.Fatalf("record should be removed once the reader closes, stat err = %v", err)
+	}
+}
+
+func TestProjectDirFromKey_HashedKey(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows path joining")
+	}
+	const project = `C:\my-app`
+	key := encodeProjectDirKey(project)
+	if !strings.Contains(key, "~") {
+		t.Fatalf("a Windows path with a dash must get a hash suffix, got %q", key)
+	}
+	only := func(dir string) func(string) bool {
+		return func(p string) bool { return p == `C:\` || p == dir }
+	}
+	if got := decodeHashedWindowsProjectKey(key, only(project)); got != project {
+		t.Errorf("decode(%q) = %q, want %q", key, got, project)
+	}
+	// Only the sibling `C:\my\app` exists: same stem, different hash.
+	if got := decodeHashedWindowsProjectKey(key, func(p string) bool {
+		return p == `C:\` || p == `C:\my` || p == `C:\my\app`
+	}); got != "" {
+		t.Errorf("a sibling directory with the same stem decoded to %q, want empty", got)
+	}
+	// A legacy key keeps the plain decode.
+	if got := decodeHashedWindowsProjectKey("-C--a-b", only(`C:\a-b`)); got != `C:\a-b` {
+		t.Errorf("legacy key decoded to %q", got)
 	}
 }

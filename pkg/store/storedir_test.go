@@ -3,6 +3,7 @@ package store
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -216,5 +217,76 @@ func TestEncodeWorkDirKey_DistinctPathsDistinctKeys(t *testing.T) {
 			t.Errorf("collision: %q and %q both encode to %q", other, p, k)
 		}
 		seen[k] = p
+	}
+}
+
+func TestEncodeWorkDirKey_WindowsDashCollision(t *testing.T) {
+	dash, nested := EncodeWorkDirKey(`C:\a-b`), EncodeWorkDirKey(`C:\a\b`)
+	if dash == nested {
+		t.Fatalf(`C:\a-b and C:\a\b share the key %q`, dash)
+	}
+	if nested != "-C--a-b" {
+		t.Errorf(`EncodeWorkDirKey(C:\a\b) = %q, want the plain key "-C--a-b"`, nested)
+	}
+	if !strings.HasPrefix(dash, "-C--a-b~") || len(dash) != len("-C--a-b~")+16 {
+		t.Errorf(`EncodeWorkDirKey(C:\a-b) = %q, want "-C--a-b~" plus 16 hex characters`, dash)
+	}
+
+	paths := []string{`C:\a-b`, `C:\a\b`, `C:\a~b`, `D:\a-b`, `\\srv\a-b`, `\\srv\a\b`, `C:\my-app`}
+	seen := map[string]string{}
+	for _, p := range paths {
+		k := EncodeWorkDirKey(p)
+		if other, ok := seen[k]; ok {
+			t.Errorf("collision: %q and %q both encode to %q", other, p, k)
+		}
+		seen[k] = p
+	}
+	if EncodeWorkDirKey(`C:/a-b`) != dash {
+		t.Errorf(`C:/a-b and C:\a-b must share a key`)
+	}
+}
+
+func TestEncodeWorkDirKey_DriveCase(t *testing.T) {
+	for _, in := range []string{`c:\x`, `C:\x`} {
+		if got := EncodeWorkDirKey(in); got != "-C--x" {
+			t.Errorf("EncodeWorkDirKey(%q) = %q, want %q", in, got, "-C--x")
+		}
+	}
+	if EncodeWorkDirKey(`c:\a-b`) != EncodeWorkDirKey(`C:\a-b`) {
+		t.Errorf(`c:\a-b and C:\a-b must share a key`)
+	}
+}
+
+func TestEncodeWorkDirKey_UnixKeysUnchanged(t *testing.T) {
+	if got := EncodeWorkDirKey("/home/jo/my-proj"); got != "-home-jo-my-proj" {
+		t.Errorf("Unix key with a dash changed: %q", got)
+	}
+}
+
+func TestProjectSlotDir_LegacyFallback(t *testing.T) {
+	const work = `C:\my-app`
+	dataDir := t.TempDir()
+	newDir := filepath.Join(dataDir, "projects", EncodeWorkDirKey(work))
+	legacyDir := filepath.Join(dataDir, "projects", legacyWorkDirKey(work))
+	if newDir == legacyDir {
+		t.Fatalf("test needs distinct keys, both %q", newDir)
+	}
+
+	if got := ProjectSlotDir(dataDir, work); got != newDir {
+		t.Errorf("fresh home: got %q, want the new directory %q", got, newDir)
+	}
+
+	if err := os.MkdirAll(legacyDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if got := ProjectSlotDir(dataDir, work); got != legacyDir {
+		t.Errorf("legacy directory present: got %q, want %q", got, legacyDir)
+	}
+
+	if err := os.MkdirAll(newDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if got := ProjectSlotDir(dataDir, work); got != newDir {
+		t.Errorf("both present: got %q, want the new directory %q", got, newDir)
 	}
 }
