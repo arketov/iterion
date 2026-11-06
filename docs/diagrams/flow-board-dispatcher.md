@@ -135,7 +135,7 @@ The watchdog never clears a claim before deciding: it CAS-**transfers** it, then
 
 | collection | written by | what |
 | --- | --- | --- |
-| `board_issues` | both twins | the card: its column, `claim` / `claim_epoch` / `claimed_at` / `claim_lease_until`, `last_run_id`, `last_workdir`, the awaiting-input badge, the launch-refusal ledger and the give-up stamp |
+| `board_issues` | both twins | the card: its column, `claim` / `claim_epoch` / `claimed_at` / `claim_lease_until`, `last_run_id`, `last_workdir`, the awaiting-input badge, the launch-refusal ledger and the give-up stamp; at server start the cloud twin also drops `runs` entries and the `last_run_*` pointer that name a run the run store proves absent (guarded write, unclaimed cards only) |
 | `board_config` | cloud twin | the board schema the eligible and terminal columns come from (read), and the per-tenant event-seq counter `seq:<tenant>` that every emitted board event `$inc`-upserts: claim, in-progress move, `last_run` stamp, final move, release, launch refusal, give-up |
 | `board_events` | both twins | one event per content change — a lease renewal is liveness, so it appends nothing |
 | `trigger_effects` | server | the durable `projection` row a native card move materializes for the bound forge board |

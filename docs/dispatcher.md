@@ -466,7 +466,7 @@ What a failed hook does to the card:
   **not** written to the card's run history; otherwise the card would offer a
   console link and *View diff* for a run that does not exist. Ghost runs
   recorded by older versions are removed from card histories when the studio
-  boots. The failure itself is kept on the card instead (last paragraph of this
+  boots, and when the cloud server (Mongo board) starts. The failure itself is kept on the card instead (last paragraph of this
   section).
 - **The ticket retries.** The claim is released and the ticket enters the
   retry queue with the backoff above; after `agent.max_attempts` the

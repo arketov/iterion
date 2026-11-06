@@ -96,7 +96,13 @@ hook failed first never started and is never recorded (the failure shows in
 the dispatcher's Retry queue instead). Cards written by older builds may carry
 such phantoms; at boot the dispatcher manager removes the entries that have no
 run directory under `<store>/runs` (skipping claimed cards and entries younger
-than 10 minutes; the pointer is cleared, history kept). Anything
+than 10 minutes; the pointer is cleared, history kept). The cloud server
+(Mongo board) does the same once when it starts, one pass over the tenants that
+have cards with run references: a run counts as absent only when the run store
+answers *not found* or *deleted* (any other error means it is alive), claimed
+cards and entries younger than 10 minutes are skipped, and the write is a
+compare-and-swap on the card still being unclaimed and unchanged, so replicas
+starting together are safe. Anything
 still unresolvable shows in the card's run history as *did not start or was
 deleted* with no console link or diff, and the run page says the same with a
 *Back to card* link. The REST API answers a missing run or issue in the JSON
