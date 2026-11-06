@@ -68,6 +68,8 @@ For every platform row, walk every scenario column. Mark `✓` (pass), `✗` (fa
 
 ### 7. Auto-update
 
+Only for a build with a configured `updaterPublicKeyHex`. A build without one must answer `updater: public key not configured` in Settings → Updates and download nothing.
+
 - [ ] Running version `vN-1` (the prior release).
 - [ ] Manifest URL responds with current release JSON + `.sig`.
 - [ ] App detects the new version on its periodic check (manual trigger via `Help → Check for updates` if surfaced).

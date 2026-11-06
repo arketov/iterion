@@ -89,6 +89,8 @@ Rotation procedure:
 5. Update the GitHub secret `UPDATER_ED25519_PRIVATE` to the new key.
 6. Securely destroy the old private key.
 
+Never use this procedure (or its dual-key bridge) to move away from the key inherited from upstream: a bridge keeps trusting SocialGouv releases. This repository embeds no key until it opens its own channel (see [desktop-distribution.md](desktop-distribution.md)); that first key is simply pasted in, with no bridge.
+
 Without the dual-key bridge, users on the old version can't update past the rotation point because their embedded public key won't verify the new manifest.
 
 ## What's not here
