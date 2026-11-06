@@ -60,7 +60,9 @@ func (a *App) GetServerURL() string {
 // Returns "" when no fallback is available (e.g. spawn timed out + no
 // current daemon URL). The SPA treats "" as "stay where you are and
 // just navigate with relative links" so the worst case is the old
-// same-daemon behaviour, not a hard error.
+// same-daemon behaviour, not a hard error. A failed spawn is logged (its
+// error names the daemon log) and the next call tries again: nothing caches
+// a failure, as with the project switcher.
 func (a *App) GetDaemonURLForStore(storePath string) (string, error) {
 	// Daemons opted out (ITERION_DESKTOP_ATTACH_DAEMON=0): neither attach to
 	// one nor spawn one; the embedded server is the only one to point at.
@@ -77,9 +79,11 @@ func (a *App) GetDaemonURLForStore(storePath string) (string, error) {
 	// have no project dir to seed the spawn.
 	if key, ok := projectKeyForStorePath(storePath); ok {
 		if projectDir := projectDirFromKey(key); projectDir != "" {
-			if url, err := spawnDaemonForProject(projectDir); err == nil {
+			url, err := spawnDaemonForProject(projectDir)
+			if err == nil {
 				return url, nil
 			}
+			log.Printf("desktop: daemon spawn for %s failed: %v — opening the run on the current daemon", projectDir, err)
 		}
 	}
 	// Fallback: current daemon. Returns "" when the embedded server
