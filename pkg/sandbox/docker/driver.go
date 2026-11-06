@@ -1051,7 +1051,7 @@ func (r *Run) Command(ctx context.Context, cmd []string, opts sandbox.ExecOpts) 
 	if len(cmd) == 0 {
 		// Mirror noop's degenerate case: return a cmd that errors on
 		// Start.
-		return exec.CommandContext(ctx, "")
+		return proc.CommandContext(ctx, "")
 	}
 
 	stdinScript := sandbox.ShouldStreamScriptViaStdin(cmd, opts)

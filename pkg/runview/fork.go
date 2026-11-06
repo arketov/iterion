@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/arketov/iterion/pkg/backend/delegate"
 	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/internal/proc"
 	"github.com/arketov/iterion/pkg/runtime"
 	"github.com/arketov/iterion/pkg/store"
 )
@@ -153,7 +153,7 @@ func (s *Service) Fork(ctx context.Context, spec ForkSpec) (*ForkResult, error) 
 		cleanupCtx := context.WithoutCancel(ctx)
 		if child.Worktree && child.WorkDir != "" && child.RepoRoot != "" {
 			wtCtx, cancel := context.WithTimeout(cleanupCtx, 30*time.Second)
-			cmd := exec.CommandContext(wtCtx, "git", gitlib.NoRunHooks("-C", child.RepoRoot, "worktree", "remove", "--force", child.WorkDir)...)
+			cmd := proc.CommandContext(wtCtx, "git", gitlib.NoRunHooks("-C", child.RepoRoot, "worktree", "remove", "--force", child.WorkDir)...)
 			cmd.Env = gitlib.SanitizeEnv(os.Environ())
 			_, _ = cmd.CombinedOutput()
 			cancel()
@@ -463,7 +463,7 @@ func forkWorktree(parent *store.Run, spec ForkSpec, turn *store.TurnCheckpoint, 
 	defer cancel()
 	// The parent's repository is a run's: its post-checkout hook would run in
 	// the child's tree as it is checked out.
-	wtCmd := exec.CommandContext(ctx, "git", gitlib.NoRunHooks("-C", parent.RepoRoot, "worktree", "add", newWtPath, target)...)
+	wtCmd := proc.CommandContext(ctx, "git", gitlib.NoRunHooks("-C", parent.RepoRoot, "worktree", "add", newWtPath, target)...)
 	// -C names the repository; an inherited GIT_DIR would override it.
 	wtCmd.Env = gitlib.SanitizeEnv(os.Environ())
 	out, err := wtCmd.CombinedOutput()

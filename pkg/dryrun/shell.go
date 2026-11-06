@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // ErrNoChecker says an interpreter has no syntax checker here: the text is
@@ -72,7 +73,7 @@ func (b Bash) Check(interpreter, text string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, bin, "-n")
+	cmd := proc.CommandContext(ctx, bin, "-n")
 	cmd.Stdin = strings.NewReader(text)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr

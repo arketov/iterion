@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // Provenance describes the repository state that owns a workflow source.
@@ -80,7 +81,7 @@ func SnapshotWorkingTree(repoRoot, namespace string) (commit, tree string, err e
 	runWithIndex := func(args ...string) (string, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
-		cmd := exec.CommandContext(ctx, "git", NoRunHooks(append([]string{"-C", repoRoot}, args...)...)...)
+		cmd := proc.CommandContext(ctx, "git", NoRunHooks(append([]string{"-C", repoRoot}, args...)...)...)
 		cmd.Env = append(SanitizeEnv(os.Environ()),
 			"LC_ALL=C", "LANG=C", "GIT_INDEX_FILE="+index,
 			"GIT_AUTHOR_NAME=Iterion", "GIT_AUTHOR_EMAIL=iterion@localhost",

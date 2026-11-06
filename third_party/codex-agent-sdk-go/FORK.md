@@ -63,3 +63,13 @@ patches as this fork. Once #24 is merged and released: delete
 Regression tests added: `internal/subprocess/appserver_bigline_test.go`
 (fake app-server emitting a 3 MB notification line) and
 `internal/protocol/fatal_error_drain_test.go` (both shutdown interleavings).
+
+## Windows console-window patch
+
+`internal/subprocess/process_group_windows.go` (`configureProcessGroup`) and
+`internal/cli/discovery.go` (the `--version` probe, through
+`internal/cli/nowindow_*.go`) start every codex process with
+`CREATE_NO_WINDOW` on Windows when the host process has no console. Without it a host that has no console — the
+iterion desktop app and the studio daemon behind it — opens a visible console
+window for each codex process and each version probe. No change off Windows.
+Not upstream-tracked: drop with the rest of this fork.

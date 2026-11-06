@@ -21,6 +21,7 @@ import (
 	"github.com/arketov/iterion/pkg/dispatcher"
 	"github.com/arketov/iterion/pkg/dispatcher/native"
 	"github.com/arketov/iterion/pkg/errtrack"
+	"github.com/arketov/iterion/pkg/internal/proc"
 	"github.com/arketov/iterion/pkg/legal"
 	iterlog "github.com/arketov/iterion/pkg/log"
 	"github.com/arketov/iterion/pkg/marketplace"
@@ -197,6 +198,12 @@ func isLoopbackBindHost(bind string) bool {
 }
 
 func RunStudio(ctx context.Context, opts StudioOptions, p *Printer) error {
+	// A studio with no console (the desktop app, or the daemon it spawns on
+	// Windows) would open a console window for every console program a run
+	// starts. Give it a hidden console now so all of them — including the ones
+	// third-party code starts with plain os/exec — inherit it. No-op off
+	// Windows and when a console already exists.
+	proc.EnsureHiddenConsole()
 	switch opts.Port {
 	case 0:
 		opts.Port = 4891

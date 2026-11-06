@@ -231,7 +231,7 @@ func buildRunnerCmd(ctx context.Context, bin string, spec detachedSpec) (*exec.C
 		args = append(args, "--timeout", spec.Timeout.String())
 	}
 
-	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd := proc.CommandContext(ctx, bin, args...)
 	// The other half of the split: `iterion run` takes these from its
 	// environment and unsets them before the first node runs
 	// (store.TakeServerMintedSecretVarsFromEnv), so no tool process the run

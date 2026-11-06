@@ -18,6 +18,7 @@ import (
 	"time"
 
 	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/internal/proc"
 	iterlog "github.com/arketov/iterion/pkg/log"
 	"github.com/arketov/iterion/pkg/sandbox"
 )
@@ -944,7 +945,7 @@ func (r *Run) renderRefreshedSecret(name string, value []byte) ([]byte, error) {
 // the cap for different reasons — see [resolveStreamPayload].
 func (r *Run) Command(ctx context.Context, cmd []string, opts sandbox.ExecOpts) *exec.Cmd {
 	if len(cmd) == 0 {
-		return exec.CommandContext(ctx, "")
+		return proc.CommandContext(ctx, "")
 	}
 
 	// Per-call cwd is realised by `cd <dir> && exec ...` — kubectl
@@ -1224,7 +1225,7 @@ func (r *Run) streamDirIntoPod(ctx context.Context, src, podDst string) error {
 	for _, e := range entries {
 		tarArgs = append(tarArgs, e.Name())
 	}
-	hostTar := exec.CommandContext(ctx, "tar", tarArgs...)
+	hostTar := proc.CommandContext(ctx, "tar", tarArgs...)
 	// --no-overwrite-dir stays as defence in depth for any pre-existing subdir.
 	podTar := r.driver.kubectl.cmdContext(ctx, "--namespace", r.namespace,
 		"exec", "-i", r.podName, "--", "tar", "-C", podDst, "--no-overwrite-dir", "-xf", "-")
@@ -1699,7 +1700,7 @@ func workspaceFileTarget(workspace, relPath string) (string, error) {
 // runner made. For a plain clone or a non-git dir it returns hostSrc
 // unchanged. Best-effort: any git failure falls back to hostSrc.
 func resolveCloneRoot(ctx context.Context, hostSrc string) string {
-	cloneCmd := exec.CommandContext(ctx, "git", gitlib.NoRunHooks("-C", hostSrc,
+	cloneCmd := proc.CommandContext(ctx, "git", gitlib.NoRunHooks("-C", hostSrc,
 		"rev-parse", "--path-format=absolute", "--git-common-dir")...)
 	// -C names the workspace; an inherited GIT_DIR or GIT_COMMON_DIR would
 	// answer about another repository and resolve the clone root to it.

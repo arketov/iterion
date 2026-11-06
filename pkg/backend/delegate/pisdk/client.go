@@ -155,7 +155,7 @@ func (c *Client) Start(ctx context.Context) error {
 		if c.opts.Binary == "" {
 			return errors.New("pisdk: no binary configured")
 		}
-		c.cmd = exec.CommandContext(ctx, c.opts.Binary, argv...) // #nosec G204 — argv is caller-configured, not attacker-controlled
+		c.cmd = proc.CommandContext(ctx, c.opts.Binary, argv...) // #nosec G204 — argv is caller-configured, not attacker-controlled
 		if c.opts.Env != nil {
 			c.cmd.Env = c.opts.Env
 		}

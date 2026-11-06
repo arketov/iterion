@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/internal/proc"
 	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
@@ -326,7 +326,7 @@ func (c *sdkClient) buildTransport() (mcp.Transport, error) {
 		if err != nil {
 			return nil, err
 		}
-		cmd := exec.Command(command, c.cfg.Args...)
+		cmd := proc.Command(command, c.cfg.Args...)
 		if c.cfg.WorkDir != "" {
 			cmd.Dir = c.cfg.WorkDir
 		}

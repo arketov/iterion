@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/arketov/iterion/pkg/internal/proc"
 	"github.com/arketov/iterion/pkg/internal/shellquote"
 
 	iterlog "github.com/arketov/iterion/pkg/log"
@@ -282,7 +283,7 @@ func (f *claudeSettingsFiles) remove(logger *iterlog.Logger) {
 
 // claudeFailedCmd is a command whose Start returns err.
 func claudeFailedCmd(ctx context.Context, path string, err error) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, path)
+	cmd := proc.CommandContext(ctx, path)
 	cmd.Err = err
 	return cmd
 }

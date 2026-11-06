@@ -21,6 +21,7 @@ import (
 	"github.com/arketov/iterion/pkg/backend/compatgw"
 	"github.com/arketov/iterion/pkg/backend/modelroute"
 	"github.com/arketov/iterion/pkg/internal/clilocate"
+	"github.com/arketov/iterion/pkg/internal/proc"
 	"github.com/arketov/iterion/pkg/secrets"
 )
 
@@ -546,7 +547,7 @@ func detectClaudeCode(ctx context.Context) BackendStatus {
 var claudeAuthStatusFn = func(ctx context.Context, binPath string) bool {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, binPath, "auth", "status", "--json")
+	cmd := proc.CommandContext(ctx, binPath, "auth", "status", "--json")
 	cmd.Env = claudeChildEnv()
 	out, err := cmd.Output()
 	if err != nil {

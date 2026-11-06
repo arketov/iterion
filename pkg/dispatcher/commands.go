@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/arketov/iterion/pkg/dispatcher/native"
 	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/internal/proc"
 	iterlog "github.com/arketov/iterion/pkg/log"
 	"github.com/arketov/iterion/pkg/retrypolicy"
 	"github.com/arketov/iterion/pkg/runtime"
@@ -62,7 +62,7 @@ func forceRemoveSandboxContainer(logger *iterlog.Logger, runID string) {
 	// otherwise block indefinitely with no caller able to cancel it.
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "docker", "rm", "--force", containerName)
+	cmd := proc.CommandContext(ctx, "docker", "rm", "--force", containerName)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -1233,7 +1233,7 @@ func workspaceIsDirty(path string) (bool, error) {
 	// becoming dispatchable again.
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", gitlib.NoRunHooks("status", "--porcelain")...)
+	cmd := proc.CommandContext(ctx, "git", gitlib.NoRunHooks("status", "--porcelain")...)
 	cmd.Dir = path
 	// cmd.Dir names the repository; an inherited GIT_DIR or GIT_INDEX_FILE
 	// would answer about another one, or read an index that is not its own.
@@ -1259,7 +1259,7 @@ func workspaceGitCommonDir(path string) (string, error) {
 	// Do not use rev-parse --path-format=absolute here: that flag requires Git
 	// 2.31, while --git-common-dir itself works on every Git version that
 	// supports linked worktrees. Resolve its possibly-relative output below.
-	cmd := exec.CommandContext(ctx, "git", gitlib.NoRunHooks("rev-parse", "--git-common-dir")...)
+	cmd := proc.CommandContext(ctx, "git", gitlib.NoRunHooks("rev-parse", "--git-common-dir")...)
 	cmd.Dir = workspaceDir
 	cmd.Env = gitlib.SanitizeEnv(os.Environ())
 	out, err := cmd.Output()
@@ -1325,7 +1325,7 @@ func removeGitWorktreeRegistration(commonDir, workspacePath string) error {
 
 	removeCtx, cancelRemove := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancelRemove()
-	cmd := exec.CommandContext(removeCtx, "git", gitlib.NoRunHooks("--git-dir", commonDir, "worktree", "remove", "--force", workspacePath)...)
+	cmd := proc.CommandContext(removeCtx, "git", gitlib.NoRunHooks("--git-dir", commonDir, "worktree", "remove", "--force", workspacePath)...)
 	// --git-dir overrides GIT_DIR but NOT GIT_COMMON_DIR, and the worktree
 	// registry is exactly one of the non-worktree files git takes from there.
 	// Inherited, this --force removal would deregister a worktree in ANOTHER
@@ -1344,7 +1344,7 @@ func listGitWorktrees(commonDir string, nulDelimited bool) ([]byte, error) {
 	if nulDelimited {
 		args = append(args, "-z")
 	}
-	listCmd := exec.CommandContext(listCtx, "git", gitlib.NoRunHooks(args...)...)
+	listCmd := proc.CommandContext(listCtx, "git", gitlib.NoRunHooks(args...)...)
 	// Same reason as the removal above: --git-dir does not neutralise
 	// GIT_COMMON_DIR, so this would list another repository's worktrees.
 	listCmd.Env = gitlib.SanitizeEnv(os.Environ())

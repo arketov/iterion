@@ -119,9 +119,9 @@ func (r *run) Command(ctx context.Context, cmd []string, opts sandbox.ExecOpts) 
 		// Match exec.CommandContext's "Path is empty -> Err set on
 		// Start" behaviour by returning an exec.Cmd with no path. We
 		// cannot return nil because callers expect a usable cmd.
-		return exec.CommandContext(ctx, "")
+		return proc.CommandContext(ctx, "")
 	}
-	c := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
+	c := proc.CommandContext(ctx, cmd[0], cmd[1:]...)
 	c.Env = os.Environ()
 	// A HOST spawn: the child's PWD must agree with its working directory
 	// (proc.SetWorkDir). This driver has no image whose own PWD could — left

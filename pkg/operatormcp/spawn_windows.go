@@ -5,12 +5,19 @@ package operatormcp
 import (
 	"fmt"
 	"syscall"
+
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
-// detachedSysProcAttr is a Windows stub: no session/process-group
-// detachment (mirrors runview's detached_windows.go — detached-run
-// support is Unix-first).
-func detachedSysProcAttr() *syscall.SysProcAttr { return nil }
+// detachedSysProcAttr is a Windows stub for the session/process-group
+// detachment (mirrors runview's detached_windows.go — detached-run support
+// is Unix-first). It still carries CREATE_NO_WINDOW: the caller assigns this
+// struct over cmd.SysProcAttr, so returning nil would drop the no-window flag
+// proc.Command set and the runner (and every console program it starts)
+// would open a console window.
+func detachedSysProcAttr() *syscall.SysProcAttr {
+	return &syscall.SysProcAttr{CreationFlags: proc.HiddenWindowFlags}
+}
 
 // terminateProcessGroup is unsupported on Windows.
 func terminateProcessGroup(pid int) error {

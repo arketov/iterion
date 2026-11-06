@@ -304,7 +304,7 @@ func spawnProcess(ctx context.Context, cliPath string, args []string, opts spawn
 			return nil, fmt.Errorf("claude: CommandBuilder returned nil cmd")
 		}
 	} else {
-		cmd = exec.CommandContext(ctx, cliPath, args...)
+		cmd = proc.CommandContext(ctx, cliPath, args...)
 		cmd.Env = mergeCmdEnv(os.Environ(), opts.Env)
 		// Env BEFORE the working directory: the shared gesture appends PWD
 		// to the environment the child will get, so a CLI that resolves

@@ -95,7 +95,7 @@ func Detect() (CLI, error) {
 // stop consulting. It is refused on the Cmd itself, so the caller reports
 // it where it ran.
 func (c CLI) command(ctx context.Context, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, c.path, args...)
+	cmd := proc.CommandContext(ctx, c.path, args...)
 	if c.path == "" {
 		cmd.Err = fmt.Errorf("docker: no path resolved for runtime %q — build the invocation from Detect, never from the runtime's bare name", string(c.rt))
 	}

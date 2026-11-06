@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -155,7 +154,7 @@ func mergeGitAuthArgs(token string) []string {
 func runMergeGit(ctx context.Context, dir, token string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, mergeGitTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", gitlib.NoAutoMaintenance(gitlib.NoRunHooks(append(mergeGitAuthArgs(token), args...)...)...)...)
+	cmd := proc.CommandContext(ctx, "git", gitlib.NoAutoMaintenance(gitlib.NoRunHooks(append(mergeGitAuthArgs(token), args...)...)...)...)
 	// fetch/push fork git-remote-https, which inherits the pipes
 	// CombinedOutput reads: killing only git leaves the helper holding them
 	// and mergeGitTimeout would bound nothing. Same reason the runner's own

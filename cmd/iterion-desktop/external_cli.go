@@ -63,7 +63,9 @@ func (realLooker) LookPath(name string) (string, error) {
 	return exec.LookPath(name)
 }
 func (realLooker) Run(ctx context.Context, name string, args ...string) (string, error) {
-	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
+	cmd := exec.CommandContext(ctx, name, args...)
+	hideConsoleWindow(cmd) // the GUI has no console: without this each probe flashes a terminal on Windows
+	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
 

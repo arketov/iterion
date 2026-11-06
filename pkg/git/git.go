@@ -13,13 +13,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // gitCommandTimeout bounds every `git` subprocess spawned by this
@@ -244,7 +244,7 @@ func gitEnv() []string {
 func run(dir string, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), gitCommandTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", NoRunHooks(args...)...)
+	cmd := proc.CommandContext(ctx, "git", NoRunHooks(args...)...)
 	cmd.Dir = dir
 	cmd.Env = gitEnv()
 	var stderr strings.Builder

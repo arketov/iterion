@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -100,7 +99,7 @@ func validateCodexWebSearchCapability(ctx context.Context, explicitCommand strin
 	// warning, so allow extra headroom for npm shims and cold filesystems.
 	versionCtx, cancel := context.WithTimeout(ctx, codexWebSearchVersionTimeout)
 	defer cancel()
-	versionCmd := exec.CommandContext(versionCtx, path, "--version")
+	versionCmd := proc.CommandContext(versionCtx, path, "--version")
 	// Before Start, which Output performs.
 	drainBound := proc.SetWaitDelay(versionCmd, codexVersionDrainBound)
 	out, err := versionCmd.Output()

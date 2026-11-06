@@ -2,7 +2,11 @@
 
 package runview
 
-import "syscall"
+import (
+	"syscall"
+
+	"github.com/arketov/iterion/pkg/internal/proc"
+)
 
 // newDetachedSysProcAttr is the Windows fallback. The studio's detached
 // runner mode is not validated on Windows; release.yml still cross-
@@ -10,9 +14,15 @@ import "syscall"
 // keep the package building. A future Windows port should swap them
 // for real implementations using the Win32 console-control APIs
 // (GenerateConsoleCtrlEvent + OpenProcess).
+//
+// The runner starts in its own process group AND without a console window:
+// the caller assigns this struct over cmd.SysProcAttr, so the no-window flag
+// has to be part of it or the runner (a console program, started by a
+// console-less studio) opens a visible console and every git/PowerShell/
+// claude process it starts opens another.
 func newDetachedSysProcAttr() *syscall.SysProcAttr {
 	return &syscall.SysProcAttr{
-		CreationFlags: 0x00000200, // CREATE_NEW_PROCESS_GROUP
+		CreationFlags: 0x00000200 | proc.HiddenWindowFlags, // CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
 	}
 }
 
