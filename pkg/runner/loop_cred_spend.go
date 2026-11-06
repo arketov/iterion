@@ -70,48 +70,20 @@ func (r *Runner) recordCredentialSpend(ctx context.Context, msg *queue.RunMessag
 	repoID := r.repoForSpend(bg, msg)
 	for route, totals := range routes {
 		// An env-funded route drops BEFORE the declined warnings: the
-		// deployment's gateway books on nobody by design — the route meter
+		// deployment's gateway, the pod's env, a host login or a backend's
+		// own config books on nobody by design — the route meter
 		// (loop_metrics/loop_spend) and the org bucket already carry its
-		// spend, and "no credential iterion can name" would be a lie about
-		// a route iterion names exactly. Once per route, same as the
-		// declines, so an operator sees the shape and only once.
-		if modelroute.Parse(route.model).Gateway() {
-			// A STAMPED run's gateway route books on the run's own held
-			// credential: the stamp declares the deployment's env gateway
-			// outside the run's trust domain, so the spend is the tenant
-			// key's, metered and fingerprinted like any vendor route.
-			// Unstamped, the decline below keeps the env gateway's
-			// books-on-nobody semantics.
-			if creds.AmbientRefused {
-				if slot := heldForRoute(creds, string(secrets.ProviderOpenAICompatible)); slot != "" {
-					spend := credusage.Spend{
-						Key: credusage.Key{
-							Fingerprint: creds.Fingerprint(slot),
-							Provider:    slot,
-							Tier:        credentialTier(creds, slot),
-							TenantID:    msg.TenantID,
-							RepoID:      repoID,
-						},
-						Nature:          credentialNature(slot),
-						Backend:         route.backend,
-						CostUSD:         totals.costUSD,
-						InputTokens:     totals.inputTokens,
-						OutputTokens:    totals.outputTokens,
-						AggregateTokens: totals.aggregateTokens,
-					}
-					if err := r.cfg.CredUsage.AddSpend(bg, at, spend); err != nil && r.cfg.Logger != nil {
-						r.cfg.Logger.Warn("runner: credential spend record for %s (run %s): %v", creds.Fingerprint(slot), msg.RunID, err)
-					}
-					continue
-				}
-			}
+		// spend, and "no credential iterion can name" would be a lie about a
+		// route iterion names exactly. Once per route, same as the declines,
+		// so an operator sees the shape and only once.
+		slot, envFunded := ledgerSlot(creds, route)
+		if envFunded {
 			if r.cfg.Logger != nil && usage.noteDeclinedRoute(route) {
-				r.cfg.Logger.Info("runner: run %s spent %d tokens on %s/%s — env-funded (the deployment's gateway), not metered per credential",
-					msg.RunID, totals.tokens(), route.backend, route.model)
+				r.cfg.Logger.Info("runner: run %s spent %d tokens on %s/%s — env-funded (%s), not metered per credential",
+					msg.RunID, totals.tokens(), route.backend, route.model, envFundedChannel(route))
 			}
 			continue
 		}
-		slot := routeSlot(creds, route)
 		if slot == "" {
 			// Declined for good: the attempt is over and nothing will name
 			// this route's credential later, so the decline is a warning —
@@ -235,18 +207,25 @@ const gatewayWire = "openai_compatible"
 // Within a wire the slot follows the backend's own precedence: claude_code's
 // is secrets.AnthropicWireSlotOrder, the list anthropicCredEnvForCLI is
 // itself written against; claw's anthropic provider spends the Anthropic
-// key, then — sandboxed — the z.ai key, then the forfait, never a Moonshot
-// key (model.clawAnthropicProviderSlots) — in process it skips the z.ai key,
-// which a route that carries no sandbox verdict cannot tell, so the
-// sandbox's order is booked; pi on `anthropic/…` or `openai/…` reads only
-// that provider's key, the run's default one then one pinned for the route
-// (piRouteEnv) — never a forfait nor a facade (its `openai-codex/…` provider,
-// which spends the ChatGPT forfait, is no iterion provider id and books on
-// nobody); on the openai wire, the API key then the codex forfait — for a
-// claw `openai/…` route, the forfait only while the runner lets it serve,
-// then a key pinned for the route. Reading it differently here would credit
-// a credential the backend did not use.
-func credentialSlotForRoute(creds secrets.Credentials, backend, modelName string) string {
+// key, then the forfait where its walk under hint spends it
+// (model.ClawForfaitServes: not behind a destination other than the real
+// Anthropic wire, not under the subscription switch), in process and
+// sandboxed alike — past both the pod's env, no slot of the run's — never a
+// Moonshot key, and never the run's z.ai key on a claude id: a GLM id is
+// z.ai's (below), and any other id the registry resolves past the z.ai key,
+// which the crossing hands to a GLM node alone; pi
+// on `anthropic/…` or `openai/…` reads only that provider's key, the run's
+// default one then one pinned for the route (piRouteEnv) — never a forfait
+// nor a facade (its `openai-codex/…` provider, which spends the ChatGPT
+// forfait, is no iterion provider id and books on nobody); on the openai
+// wire, the API key then the codex forfait — for a claw `openai/…` route,
+// the forfait only while the runner lets it serve, then a key pinned for the
+// route. Reading it differently here would credit a credential the backend
+// did not use.
+//
+// hint is the route's provider hint where its caller carries one (the
+// pre-flight); "" reads the hint-less walk.
+func credentialSlotForRoute(creds secrets.Credentials, backend, modelName, hint string) string {
 	// A gateway-served route is env-funded: the deployment's
 	// OPENAI_COMPATIBLE_* pair, no credential slot — booking it on a held
 	// key would charge a credential that never served it.
@@ -279,11 +258,13 @@ func credentialSlotForRoute(creds secrets.Credentials, backend, modelName string
 					return slot
 				}
 			}
-			return firstHeldSlot(creds,
-				string(secrets.ProviderAnthropic),
-				string(secrets.ProviderZAI),
-				string(secrets.OAuthKindClaudeCode),
-			)
+			if slot := firstHeldSlot(creds, string(secrets.ProviderAnthropic)); slot != "" {
+				return slot
+			}
+			if model.ClawForfaitServes(creds, modelName, hint) {
+				return string(secrets.OAuthKindClaudeCode)
+			}
+			return ""
 		case delegate.BackendPi:
 			if providerFromModel(modelName) == anthropicWire {
 				return heldForRoute(creds, string(secrets.ProviderAnthropic))
@@ -323,19 +304,56 @@ func credentialSlotForRoute(creds secrets.Credentials, backend, modelName string
 	}
 }
 
-// routeSlot names the credential slot one route spent. A claude_code session
-// names it itself: the source label it stamped (delegate_finished's
-// `fingerprint`) carries what its provider hint decided — a node pinned
-// `provider: zai` spends the z.ai key whatever holds the wire's default. Every
-// other route, and a session whose label names no slot, is read from its
-// (backend, model) pair.
+// ledgerSlot names the run slot one route's spend books on, and whether that
+// spend is the environment's — a credential the runner's environment holds
+// (or a backend's own config), which books on nobody by design.
+//
+// A route whose events carried the credential keys (ADR-161 decision 8) books
+// on their slot, never re-derived: the process that built the call named it,
+// and a spend on no slot of the run's is the environment's. A route without
+// them keeps the derivation: a gateway-served route is the deployment's
+// OPENAI_COMPATIBLE_* pair — except on a STAMPED run, whose held gateway
+// credential is the only one its gateway routes can spend (the stamp declares
+// the deployment's env gateway outside the run's trust domain) — and every
+// other route is read by routeSlot.
+func ledgerSlot(creds secrets.Credentials, route routeKey) (slot string, envFunded bool) {
+	if route.credential.Channel != "" {
+		return route.credential.Slot, !route.credential.RunSlot()
+	}
+	if modelroute.Parse(route.model).Gateway() {
+		if creds.AmbientRefused {
+			if slot := heldForRoute(creds, string(secrets.ProviderOpenAICompatible)); slot != "" {
+				return slot, false
+			}
+		}
+		return "", true
+	}
+	return routeSlot(creds, route), false
+}
+
+// envFundedChannel names what funded an env-funded route, for its decline.
+func envFundedChannel(route routeKey) string {
+	if route.credential.Channel != "" {
+		return string(route.credential.Channel)
+	}
+	return "the deployment's gateway"
+}
+
+// routeSlot names the credential slot one route spent, for a route whose
+// events carried no credential keys (ledgerSlot reads those first). A
+// claude_code session names it itself: the source label it stamped
+// (delegate_finished's `fingerprint`) carries what its provider hint decided
+// — a node pinned `provider: zai` spends the z.ai key whatever holds the
+// wire's default. Every other route, and a session whose label names no
+// slot, is read from its (backend, model) pair, under the hint-less walk:
+// the route carries no hint.
 func routeSlot(creds secrets.Credentials, route routeKey) string {
 	if route.backend == delegate.BackendClaudeCode {
 		if slot, named := slotOfSource(route.source); named {
 			return slot
 		}
 	}
-	return credentialSlotForRoute(creds, route.backend, route.model)
+	return credentialSlotForRoute(creds, route.backend, route.model, "")
 }
 
 // slotOfSource maps a claude_code session's source label onto the slot it
@@ -343,6 +361,12 @@ func routeSlot(creds secrets.Credentials, route routeKey) string {
 // reading (runCredKeys.slotForSource) an unstamped label is never answered
 // with the bundle's precedence: the ledger charges what it can name.
 // "anthropic-env" names the pod's ambient env — no bundle credential, "" .
+// The fingerprinted members of the family (delegate.AmbientSourceFingerprint)
+// name the inherited account for the USAGE meter; the ledger books slots, and
+// an ambient spend holds no slot of the run — so they are named-no-slot like
+// the bare form. Left unnamed, the label would fall through to the
+// (backend, model) booking and charge the pod's or a node's own spend to the
+// bundle default the session never touched.
 func slotOfSource(source string) (slot string, named bool) {
 	switch {
 	case strings.HasPrefix(source, "facade:"):
@@ -353,7 +377,7 @@ func slotOfSource(source string) (slot string, named bool) {
 		return string(secrets.ProviderAnthropic), true
 	case source == "anthropic-oauth":
 		return string(secrets.OAuthKindClaudeCode), true
-	case source == "anthropic-env":
+	case delegate.IsAmbientSource(source):
 		return "", true
 	}
 	return "", false

@@ -47,6 +47,19 @@ type workspaceOwnerRecord struct {
 	IssueID       string              `json:"issue_id"`
 	RunID         string              `json:"run_id,omitempty"`
 	State         workspaceOwnerState `json:"state"`
+	// SeedPending is true from the moment CreateForDispatch creates the
+	// directory until ClearSeedPending says the seeding step (after_create)
+	// finished. A directory still marked pending on the next dispatch is the
+	// leftover of an after_create that failed or was interrupted: it is
+	// recreated empty and seeded again instead of being handed to the bot
+	// half-built. Absent (false) on markers written before this field and on
+	// those made by CreateForRun: such a directory is taken as seeded.
+	SeedPending bool `json:"seed_pending,omitempty"`
+	// SeedTracked is true on a marker written by CreateForDispatch (and after
+	// ClearSeedPending): its SeedPending is then the whole truth. A marker
+	// without it predates the seed-pending mark, so an empty directory under it
+	// may be the leftover of a failed after_create (SeedUntracked).
+	SeedTracked bool `json:"seed_tracked,omitempty"`
 }
 
 // NewWorkspaces returns a manager rooted at the given path. The root
@@ -93,69 +106,167 @@ func (w *Workspaces) Create(issueID string) (path string, created bool, err erro
 // reports whether this call created it, so callers run after_create exactly
 // once. The returned path is guaranteed to remain under the configured root.
 func (w *Workspaces) CreateForRun(issueID, runID string) (path string, created bool, err error) {
+	path, created, _, err = w.createForRun(issueID, runID, false)
+	return path, created, err
+}
+
+// CreateForDispatch is CreateForRun for a dispatch that seeds the workspace
+// (after_create): the directory it creates is marked seed-pending until the
+// caller reports the seeding done with ClearSeedPending. A directory still
+// pending from an earlier dispatch — its after_create failed, or the daemon
+// died in it — is emptied and recreated, and created and reseeded are both
+// true: the caller runs after_create again and the bot never starts in a
+// half-seeded or empty folder. Only a directory this dispatcher created and
+// never declared seeded is reset; one without the pending mark is left alone.
+func (w *Workspaces) CreateForDispatch(issueID, runID string) (path string, created, reseeded bool, err error) {
+	return w.createForRun(issueID, runID, true)
+}
+
+// ClearSeedPending records that the workspace's seeding step finished: the
+// next CreateForDispatch for this generation hands it back as is. A no-op for
+// an absent marker or one already recorded as seeded, so it is safe to call
+// after every seeding step, with or without an after_create hook.
+func (w *Workspaces) ClearSeedPending(issueID, runID string) error {
 	if issueID == "" {
-		return "", false, errors.New("workspace: issue id required")
+		return errors.New("workspace: issue id required")
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	ownerPath := w.ownerPathForRun(issueID, runID)
+	owner, err := readWorkspaceOwner(ownerPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("workspace: read ownership marker %s: %w", ownerPath, err)
+	}
+	if err := verifyWorkspaceOwnerID(owner, issueID, runID); err != nil {
+		return fmt.Errorf("workspace: verify ownership marker %s: %w", ownerPath, err)
+	}
+	if !owner.SeedPending && owner.SeedTracked {
+		return nil
+	}
+	// Also upgrades a marker that predates the mark: from here on its
+	// SeedPending is the whole truth (see SeedTracked).
+	owner.SeedPending = false
+	owner.SeedTracked = true
+	if err := replaceWorkspaceOwner(ownerPath, owner); err != nil {
+		return fmt.Errorf("workspace: record %s as seeded: %w", ownerPath, err)
+	}
+	return nil
+}
+
+// SeedUntracked reports whether the workspace's ownership marker predates the
+// seed-pending mark (it was written by a build that did not track seeding). An
+// empty directory under such a marker is the one case where a failed
+// after_create cannot be told apart by the marker itself.
+func (w *Workspaces) SeedUntracked(issueID, runID string) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	owner, err := readWorkspaceOwner(w.ownerPathForRun(issueID, runID))
+	return err == nil && owner.State == workspaceOwnerActive && !owner.SeedTracked
+}
+
+// dirIsEmpty reports whether path is a directory with no entry in it. A path
+// that cannot be read is not reported empty.
+func dirIsEmpty(path string) bool {
+	entries, err := os.ReadDir(path)
+	return err == nil && len(entries) == 0
+}
+
+// resetUnseededTarget empties a seed-pending workspace and recreates the bare
+// directory: the leftover of a failed after_create. A git worktree the seed
+// step registered for the path is deregistered, so the next seed can add it
+// again. The caller holds w.mu and has verified ownership.
+func resetUnseededTarget(target string) error {
+	gitCommonDir, _ := workspaceGitCommonDir(target)
+	if err := os.RemoveAll(target); err != nil {
+		return fmt.Errorf("workspace: reset unseeded workspace %s: %w — a process still holds a file in it "+
+			"(OneDrive, an antivirus, a process the hook left running): close it, or delete the folder by hand", target, err)
+	}
+	// The registration goes while the path is absent (`git worktree remove`
+	// deletes a path that exists). Its failure must not leave the directory
+	// missing under an active marker — that state refuses every later attempt —
+	// so the directory is recreated first and the failure reported after.
+	var regErr error
+	if gitCommonDir != "" {
+		regErr = removeGitWorktreeRegistration(gitCommonDir, target)
+	}
+	if err := os.Mkdir(target, 0o755); err != nil {
+		return errors.Join(fmt.Errorf("workspace: recreate unseeded workspace %s: %w", target, err), regErr)
+	}
+	if regErr != nil {
+		return fmt.Errorf("workspace: reset unseeded workspace %s: %w (run `git worktree prune` in the host repository)", target, regErr)
+	}
+	return nil
+}
+
+func (w *Workspaces) createForRun(issueID, runID string, trackSeed bool) (path string, created, reseeded bool, err error) {
+	if issueID == "" {
+		return "", false, false, errors.New("workspace: issue id required")
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	if err := os.MkdirAll(w.root, 0o755); err != nil {
-		return "", false, fmt.Errorf("workspace: mkdir root: %w", err)
+		return "", false, false, fmt.Errorf("workspace: mkdir root: %w", err)
 	}
 	rootCanon, err := filepath.EvalSymlinks(w.root)
 	if err != nil {
-		return "", false, fmt.Errorf("workspace: canonicalize root: %w", err)
+		return "", false, false, fmt.Errorf("workspace: canonicalize root: %w", err)
 	}
 
 	namespace := filepath.Join(w.root, workspaceKeyNamespace)
 	if err := os.Mkdir(namespace, 0o755); err != nil && !errors.Is(err, os.ErrExist) {
-		return "", false, fmt.Errorf("workspace: mkdir key namespace: %w", err)
+		return "", false, false, fmt.Errorf("workspace: mkdir key namespace: %w", err)
 	}
 	namespaceInfo, err := os.Lstat(namespace)
 	if err != nil {
-		return "", false, fmt.Errorf("workspace: stat key namespace: %w", err)
+		return "", false, false, fmt.Errorf("workspace: stat key namespace: %w", err)
 	}
 	if !namespaceInfo.IsDir() || namespaceInfo.Mode()&os.ModeSymlink != 0 {
-		return "", false, fmt.Errorf("workspace: key namespace %s is not a real directory", namespace)
+		return "", false, false, fmt.Errorf("workspace: key namespace %s is not a real directory", namespace)
 	}
 	namespaceCanon, err := filepath.EvalSymlinks(namespace)
 	if err != nil {
-		return "", false, fmt.Errorf("workspace: canonicalize key namespace: %w", err)
+		return "", false, false, fmt.Errorf("workspace: canonicalize key namespace: %w", err)
 	}
 	if !isWithin(namespaceCanon, rootCanon) {
-		return "", false, fmt.Errorf("workspace: key namespace %q escapes root %q", namespaceCanon, rootCanon)
+		return "", false, false, fmt.Errorf("workspace: key namespace %q escapes root %q", namespaceCanon, rootCanon)
 	}
 
 	ownersDir := filepath.Join(namespace, workspaceOwnersDir)
 	if err := os.Mkdir(ownersDir, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
-		return "", false, fmt.Errorf("workspace: mkdir ownership namespace: %w", err)
+		return "", false, false, fmt.Errorf("workspace: mkdir ownership namespace: %w", err)
 	}
 	ownersInfo, err := os.Lstat(ownersDir)
 	if err != nil {
-		return "", false, fmt.Errorf("workspace: stat ownership namespace: %w", err)
+		return "", false, false, fmt.Errorf("workspace: stat ownership namespace: %w", err)
 	}
 	if !ownersInfo.IsDir() || ownersInfo.Mode()&os.ModeSymlink != 0 {
-		return "", false, fmt.Errorf("workspace: ownership namespace %s is not a real directory", ownersDir)
+		return "", false, false, fmt.Errorf("workspace: ownership namespace %s is not a real directory", ownersDir)
 	}
 	ownersCanon, err := filepath.EvalSymlinks(ownersDir)
 	if err != nil {
-		return "", false, fmt.Errorf("workspace: canonicalize ownership namespace: %w", err)
+		return "", false, false, fmt.Errorf("workspace: canonicalize ownership namespace: %w", err)
 	}
 	if !isWithin(ownersCanon, rootCanon) {
-		return "", false, fmt.Errorf("workspace: ownership namespace %q escapes root %q", ownersCanon, rootCanon)
+		return "", false, false, fmt.Errorf("workspace: ownership namespace %q escapes root %q", ownersCanon, rootCanon)
 	}
 
 	target := w.PathForRun(issueID, runID)
 	ownerPath := w.ownerPathForRun(issueID, runID)
 	targetInfo, targetErr := os.Lstat(target)
 	owner, ownerErr := readWorkspaceOwner(ownerPath)
+	resetUnseeded := false
 	if errors.Is(targetErr, os.ErrNotExist) && ownerErr == nil && runID == "" {
 		// The stable API can be retried after a crash between deleting a
 		// retired target and deleting its marker. Active orphan markers remain
 		// fail-closed: only an explicit retirement proves deletion was allowed.
 		if verifyErr := verifyWorkspaceOwner(owner, issueID, runID, workspaceOwnerRetired); verifyErr == nil {
 			if err := os.Remove(ownerPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-				return "", false, fmt.Errorf("workspace: clear retired ownership marker %s: %w", ownerPath, err)
+				return "", false, false, fmt.Errorf("workspace: clear retired ownership marker %s: %w", ownerPath, err)
 			}
 			ownerErr = os.ErrNotExist
 		}
@@ -164,27 +275,31 @@ func (w *Workspaces) CreateForRun(issueID, runID string) (path string, created b
 	switch {
 	case targetErr == nil:
 		if ownerErr != nil {
-			return "", false, fmt.Errorf(
+			return "", false, false, fmt.Errorf(
 				"workspace: refusing to adopt existing target %s without valid ownership marker %s: %w; "+
 					"manual recovery: inspect the unowned target and remove or relocate it before retrying",
 				target, ownerPath, ownerErr,
 			)
 		}
 		if err := verifyWorkspaceOwner(owner, issueID, runID, workspaceOwnerActive); err != nil {
-			return "", false, fmt.Errorf("workspace: verify ownership marker %s: %w", ownerPath, err)
+			return "", false, false, fmt.Errorf("workspace: verify ownership marker %s: %w", ownerPath, err)
 		}
+		// The directory is ours and was never declared seeded: the leftover of
+		// an after_create that failed or was interrupted. Reset below, once the
+		// target is known to be a real directory under the root.
+		resetUnseeded = trackSeed && owner.SeedPending
 	case !errors.Is(targetErr, os.ErrNotExist):
-		return "", false, fmt.Errorf("workspace: stat target: %w", targetErr)
+		return "", false, false, fmt.Errorf("workspace: stat target: %w", targetErr)
 	case ownerErr == nil:
-		return "", false, fmt.Errorf(
+		return "", false, false, fmt.Errorf(
 			"workspace: owned target %s is missing while marker %s is %q; inspect or remove that marker for manual recovery",
 			target, ownerPath, owner.State,
 		)
 	case !errors.Is(ownerErr, os.ErrNotExist):
-		return "", false, fmt.Errorf("workspace: read ownership marker %s: %w", ownerPath, ownerErr)
+		return "", false, false, fmt.Errorf("workspace: read ownership marker %s: %w", ownerPath, ownerErr)
 	default:
 		if err := os.Mkdir(target, 0o755); err != nil {
-			return "", false, fmt.Errorf("workspace: mkdir target: %w", err)
+			return "", false, false, fmt.Errorf("workspace: mkdir target: %w", err)
 		}
 		// os.Mkdir is the creation authority. Unlike a Stat+MkdirAll
 		// sequence, exactly one concurrent caller can observe success and
@@ -195,32 +310,40 @@ func (w *Workspaces) CreateForRun(issueID, runID string) (path string, created b
 			IssueID:       issueID,
 			RunID:         runID,
 			State:         workspaceOwnerActive,
+			SeedPending:   trackSeed,
+			SeedTracked:   trackSeed,
 		}
 		if err := createWorkspaceOwner(ownerPath, record); err != nil {
 			// Never remove the target here: even in this narrow failure
 			// window another process may already have written into it.
-			return "", false, fmt.Errorf(
+			return "", false, false, fmt.Errorf(
 				"workspace: publish ownership marker %s (target preserved unowned at %s for manual recovery): %w",
 				ownerPath, target, err,
 			)
 		}
 		targetInfo, targetErr = os.Lstat(target)
 		if targetErr != nil {
-			return "", false, fmt.Errorf("workspace: stat freshly-created target: %w", targetErr)
+			return "", false, false, fmt.Errorf("workspace: stat freshly-created target: %w", targetErr)
 		}
 	}
 
 	if !targetInfo.IsDir() || targetInfo.Mode()&os.ModeSymlink != 0 {
-		return "", false, fmt.Errorf("workspace: %s exists and is not a real directory", target)
+		return "", false, false, fmt.Errorf("workspace: %s exists and is not a real directory", target)
 	}
 	canon, err := filepath.EvalSymlinks(target)
 	if err != nil {
-		return "", false, fmt.Errorf("workspace: canonicalize target: %w", err)
+		return "", false, false, fmt.Errorf("workspace: canonicalize target: %w", err)
 	}
 	if !isWithin(canon, rootCanon) {
-		return "", false, fmt.Errorf("workspace: target %q escapes root %q (symlink or traversal)", canon, rootCanon)
+		return "", false, false, fmt.Errorf("workspace: target %q escapes root %q (symlink or traversal)", canon, rootCanon)
 	}
-	return canon, created, nil
+	if resetUnseeded {
+		if err := resetUnseededTarget(canon); err != nil {
+			return "", false, false, err
+		}
+		created, reseeded = true, true
+	}
+	return canon, created, reseeded, nil
 }
 
 // RetireForRun revokes the exact issue/run generation before teardown. Once

@@ -18,9 +18,10 @@ with nothing the engine routes left outside it unnamed:
   is routable, not decoration — `botregistry.DefaultPaths` is
   `[bots examples .botz]`, the roots the zero-config dispatcher, the studio
   and the server discover, so an issue whose assignee names one runs it;
-- the dispatcher's zero-config fallback
-  (`pkg/cli/templates/dispatch_bots_default.bot`), compiled into every binary
-  and run against a raw issue body;
+- the dispatcher's former zero-config fallback
+  (`pkg/cli/templates/dispatch_bots_default.bot`): no longer embedded or run
+  by anything (the preset has no fallback workflow); it stays in the corpus,
+  parsed, until it is deleted together with its census entries;
 - the operator scripts under `scripts/adhoc/`.
 
 Each root carries its own floor, because a total cannot see a root: a layout

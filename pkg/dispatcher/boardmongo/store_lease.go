@@ -711,6 +711,7 @@ func (s *Store) Reopen(id, toState string) (*native.Issue, error) {
 	// card, and its launch retries start afresh.
 	reopenSet := stateSet(toState, "")
 	reopenSet["issue.launchrefusal"] = nil
+	reopenSet["issue.launchfailures"] = nil
 	res := s.issues.FindOneAndUpdate(ctx,
 		bson.M{"_id": id, "tenant_id": s.tenant, "issue.state": iss.State},
 		bson.M{"$set": reopenSet},

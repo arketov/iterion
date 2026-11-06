@@ -74,7 +74,7 @@ go build -mod=vendor -o iterion ./cmd/iterion
 go test ./...
 ```
 
-Prefer `task build` after editing studio assets or any of the nine embedded dispatcher bots because it runs `studio:build` and `templates:dispatch-bots` first.
+Prefer `task build` after editing studio assets because it runs `studio:build` first.
 
 Targeted Go tests (the CI suite at full size is minutes; a change usually
 concerns one tree):
@@ -264,7 +264,7 @@ The labels `schedule-related`, `cloud-related`, and `extensions/state` above are
 
 - DSL syntax lives in `pkg/dsl/parser`; compilation/semantic validation lives in the split files under `pkg/dsl/ir`. Diagnostics use sparse DSL ranges C001–C199 and async C240–C242; bundle checks use C200–C234.
 - `pkg/server` registers the HTTP route table that generates `openapi.json`; `task openapi:check` guards the committed spec and studio types.
-- `bots/` is the editable full catalogue. `pkg/cli/templates/dispatch_bots/` is generated for the embedded zero-config subset; do not hand-maintain the copies.
+- `bots/` is the editable full catalogue; the binary does not embed it.
 - Studio's production build is copied into `pkg/server/static` and embedded into the Go binary.
 - The module vendors [`claw-code-go`](https://github.com/SocialGouv/claw-code-go) for in-process multi-provider execution. Keep `go.mod`, `go.sum`, and `vendor/` consistent.
 - Bump the claw-code-go pin **only** with [`scripts/bump-claw.sh`](../scripts/bump-claw.sh): it pushes the claw commit if needed, then runs `go get @<sha>`, tidy, vendor, verify and commits. Never hand-write the pseudo-version — a locally computed, non-UTC timestamp fails `go mod verify` ("does not match version-control timestamp") and turns `vendor-check` red on `main` and on every PR merge ref (three times on 2026-07-11). claw-code-go is developed by this team (sibling worktrees under `.works/`): improving it while touching a seam that crosses it is in scope.

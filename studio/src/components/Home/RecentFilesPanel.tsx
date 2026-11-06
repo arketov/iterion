@@ -1,5 +1,5 @@
 import { ClampText } from "@/components/ui/ClampText";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import {
   FilePlusIcon,
@@ -10,9 +10,11 @@ import {
 } from "@radix-ui/react-icons";
 
 import type { BotEntryWithSchema } from "@/api/bots";
+import { openFileInNewTab } from "@/lib/openInEditorTab";
 import { useRecentsStore } from "@/store/recents";
 import { useTabsStore } from "@/store/tabs";
 import { useBotsStore } from "@/store/bots";
+import { useUIStore } from "@/store/ui";
 import { countBots, projectFileRows, BOT_SOURCE_HINT } from "@/lib/botOrigin";
 import { useConfirm } from "@/hooks/useConfirm";
 import { basename } from "@/lib/format";
@@ -48,7 +50,7 @@ function botEditorFile(b: BotEntryWithSchema): string | null {
 export default function RecentFilesPanel({ variant = "card" }: Props) {
   const [, setLocation] = useLocation();
   const recents = useRecentsStore((s) => s.recents);
-  const pushRecent = useRecentsStore((s) => s.pushRecent);
+  const addToast = useUIStore((s) => s.addToast);
   const removeRecent = useRecentsStore((s) => s.removeRecent);
   const clearRecents = useRecentsStore((s) => s.clearRecents);
 
@@ -80,17 +82,16 @@ export default function RecentFilesPanel({ variant = "card" }: Props) {
     setLocation("/editor");
   }, [setLocation]);
 
+  const deps = useMemo(() => ({ navigate: setLocation, addToast }), [setLocation, addToast]);
+
+  // The file is read before its tab opens: one that is gone from disk opens no
+  // tab and leaves the Recent list (see openFileInNewTab); one already open is
+  // focused.
   const handleOpenRecent = useCallback(
     (path: string) => {
-      // Opening a file routes through openTab — EditorTabHost
-      // will fetch the document via api.openFile on mount and bind it
-      // to the per-tab store. Re-clicking the same path focuses the
-      // existing tab instead of reloading.
-      useTabsStore.getState().openTab("editor", { file: path });
-      pushRecent(path);
-      setLocation(`/editor?file=${encodeURIComponent(path)}`);
+      void openFileInNewTab(path, deps);
     },
-    [pushRecent, setLocation],
+    [deps],
   );
 
   const handleOpenBot = useCallback(

@@ -445,7 +445,7 @@ func (s *Server) handleValidate(w http.ResponseWriter, r *http.Request) {
 
 // appendMCPCatalogIssues is what `iterion validate` says about the host's MCP
 // catalog, for the studio: plugins skipped at load and `tools:` entries naming
-// an MCP server the catalog lacks (C332). Local/desktop servers only — the
+// an MCP server the catalog lacks (C337). Local/desktop servers only — the
 // catalog is the project's .mcp.json plus the operator's plugins, and a cloud
 // server's WorkDir is not the tenant's project, so there it would warn about
 // servers that exist where the bot runs. Everything is a warning: an
@@ -696,9 +696,9 @@ func (s *Server) handleLoadExample(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Try on-disk first (lets a project's <ExamplesDir>/<name>
-	// override an embedded recipe of the same basename), then fall
-	// back to the binary-embedded recipe set (bots/embed.go).
+	// An example is a file of the project's <ExamplesDir>. The binary no
+	// longer carries a built-in recipe set to fall back to: a name the
+	// project does not hold is not found.
 	if dir := s.cfg.ExamplesDir; dir != "" {
 		abs := filepath.Join(dir, filepath.FromSlash(name))
 		if data, err := os.ReadFile(abs); err == nil {
@@ -706,16 +706,7 @@ func (s *Server) handleLoadExample(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	src, ok, err := embeddedRecipe(name)
-	if err != nil {
-		httpError(w, http.StatusInternalServerError, "%v", err)
-		return
-	}
-	if !ok {
-		httpError(w, http.StatusNotFound, "example not found: %s", name)
-		return
-	}
-	writeExample(w, name, src, "", "")
+	httpError(w, http.StatusNotFound, "example not found: %s", name)
 }
 
 // exampleResponse is what /api/examples/{name} answers for one program:

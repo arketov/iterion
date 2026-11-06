@@ -480,12 +480,24 @@ const (
 	// the empty value and is not refused.
 	DiagMintedVarInScriptBody DiagCode = "C331" // a `{{vars.x}}` naming a server-minted credential (the forge publish grant) in a tool node's `script:` body — refused at run before the temp file exists (warning)
 
-	// DiagUnknownMCPServer is C332: a node's `tools:` names an MCP server
+	DiagToolCapabilitiesInert DiagCode = "C332" // a tool node declares `capabilities:` but nothing reads it (a shell recipe, an HTTP action authorized by its connection, a registry recipe naming no host tool) — only a native action or a registry recipe naming an iterion host tool reads the grant (ADR-151) (warning)
+
+	DiagActionConnectionOnNative DiagCode = "C333" // `connection:` on an action whose connector is native and credential-free (board.*, ADR-151) — nothing reads the alias (warning)
+
+	DiagNativeActionWithoutGrant DiagCode = "C334" // a native board action whose capability is declared neither on the node nor on the workflow — refused CAPABILITY_DENIED at run time (warning)
+
+	DiagActionRetryOnNative DiagCode = "C335" // `retry:` on an action served by a native transport — the ladder's guards are HTTP-answer semantics, so the property is inert (warning)
+
+	DiagNativeVerbNotExposed DiagCode = "C336" // a native action (board.*) names a verb the native facade does not expose — every launch is refused at admission (warning)
+
+	// DiagUnknownMCPServer is C337: a node's `tools:` names an MCP server
 	// (`mcp.<server>.<tool>`, `mcp.<server>.*` or `mcp__<server>__<tool>`) that
 	// no `mcp_server` block, project `.mcp.json` entry or enabled plugin
 	// declares. The compiler cannot know the host's catalog, so `iterion
 	// validate` and POST /api/validate raise it after mcp.PrepareWorkflow has
 	// resolved the catalog; a run only finds out at node build. A warning: the
 	// catalog is the host's, and the same file may be clean where the server exists.
-	DiagUnknownMCPServer DiagCode = "C332" // a node's `tools:` names an MCP server that no `mcp_server` block, `.mcp.json` entry or enabled plugin declares (warning)
+	// (Fork-only. It was C332 until the upstream v5.11.0 merge, which took
+	// C332–C336 for the board-action diagnostics.)
+	DiagUnknownMCPServer DiagCode = "C337" // a node's `tools:` names an MCP server that no `mcp_server` block, `.mcp.json` entry or enabled plugin declares (warning)
 )

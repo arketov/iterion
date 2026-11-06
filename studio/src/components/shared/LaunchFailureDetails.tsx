@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { CopyButton } from "@/components/ui/CopyButton";
 import { describeLaunchFailure } from "@/lib/launchFailure";
+import { shellLabel } from "@/lib/retryError";
 import type { LaunchFailure } from "@/api/native";
 
 // LaunchFailureDetails renders one dispatch attempt that never became a run:
@@ -10,6 +11,11 @@ import type { LaunchFailure } from "@/api/native";
 // run exists under the attempt's id.
 export function LaunchFailureDetails({ failure }: { failure: LaunchFailure }) {
   const [open, setOpen] = useState(false);
+  const shell = shellLabel(
+    failure.shell,
+    failure.shell_path,
+    failure.shell_source,
+  );
   const when = Number.isFinite(Date.parse(failure.at))
     ? new Date(failure.at).toLocaleString()
     : failure.at;
@@ -32,6 +38,11 @@ export function LaunchFailureDetails({ failure }: { failure: LaunchFailure }) {
           {open ? "Hide full error" : "Show full error"}
         </button>
       </div>
+      {shell && (
+        <div className="text-fg-muted" data-testid="launch-failure-shell">
+          Shell: <code className="break-all">{shell}</code>
+        </div>
+      )}
       {open && (
         <div className="space-y-1">
           <pre className="whitespace-pre-wrap break-words text-danger-fg bg-surface-2/40 rounded p-1.5">

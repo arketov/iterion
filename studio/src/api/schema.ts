@@ -7101,6 +7101,9 @@ export interface components {
             hook?: string;
             log_path?: string;
             run_id?: string;
+            shell?: string;
+            shell_path?: string;
+            shell_source?: string;
             stderr?: string;
         };
         LaunchRefusal: {

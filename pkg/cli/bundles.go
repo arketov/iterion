@@ -12,9 +12,7 @@ import (
 
 // requireWorkflowPathExists fails early with a clear, actionable error
 // when path (a `.bot` file, `.botz` archive, or bundle directory) does
-// not exist. It MUST be called on the already-resolved path (i.e. after
-// ResolveRecipePath), so embedded catalog-bot names — which resolve to
-// an existing cache file — are never rejected.
+// not exist.
 //
 // Only the not-exist case is handled here; any other stat error
 // (permission, etc.) returns nil so the downstream openers surface their

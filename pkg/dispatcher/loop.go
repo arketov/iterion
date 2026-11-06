@@ -380,11 +380,10 @@ func (c *Dispatcher) dispatch(ctx context.Context, iss tracker.Issue) {
 		iss.Bot = bot
 	}
 
-	// A card with a pending retry already started under an earlier policy
-	// (e.g. before an upgrade): let its retry/resume run its course.
-	if _, retrying := c.state.retries[iss.ID]; cfg.RequireAssignee && !retrying && iss.Bot == "" && iss.Assignee == "" {
-		c.recordDispatchSkipKind(iss, DispatchSkipNoAssignee,
-			"no assignee: assign a bot to this card to run it (the dispatcher does not fall back to the default bot)")
+	// require_assignee: a card with no bot executor does not start — no
+	// assignee at all, or an assignee that is not a routable bot (see
+	// refuseWithoutBot).
+	if c.refuseWithoutBot(cfg, iss) {
 		return
 	}
 
@@ -1080,11 +1079,28 @@ func (c *Dispatcher) runDispatchSetup(plan dispatchSetupPlan) (created bool, ok 
 		}
 	}
 
+	// CreateForDispatch marks the directory seed-pending until runWorker has run
+	// after_create to the end, and recreates one a previous attempt left
+	// unseeded (a failed or interrupted after_create — under persist: keep the
+	// directory outlives the attempt), so the hook runs again and the bot
+	// never starts in an empty or half-seeded folder.
 	var err error
-	if plan.workspaceGeneration == "" {
-		_, created, err = c.workspaces.Create(plan.issueID)
-	} else {
-		_, created, err = c.workspaces.CreateForRun(plan.issueID, plan.workspaceGeneration)
+	var reseeded bool
+	var wsPath string
+	wsPath, created, reseeded, err = c.workspaces.CreateForDispatch(plan.issueID, plan.workspaceGeneration)
+	if err == nil && reseeded {
+		c.logger.Warn("dispatcher: %s workspace was left unseeded by an after_create that failed or was interrupted — recreated it; after_create runs again", plan.identifier)
+	}
+	if err == nil && !created && c.cfg.Load().Hooks.AfterCreate != nil &&
+		c.workspaces.SeedUntracked(plan.issueID, plan.workspaceGeneration) && dirIsEmpty(wsPath) {
+		// A directory a build before the seed-pending mark left behind carries
+		// no mark to read; an EMPTY one under such a marker, with an
+		// after_create configured, is the unmistakable case of that failure
+		// (nothing was ever put in it), so the hook runs again rather than the
+		// bot starting in nothing. Once the hook has finished the marker is
+		// upgraded (ClearSeedPending) and this never applies again.
+		created = true
+		c.logger.Warn("dispatcher: %s workspace %s is empty — running after_create again", plan.identifier, wsPath)
 	}
 	if err != nil {
 		c.logger.Warn("dispatcher: workspace create %s: %v", plan.identifier, err)
@@ -1124,17 +1140,13 @@ func (c *Dispatcher) buildSpec(cfg *Config, iss tracker.Issue, runID, wsPath str
 	if iss.Bot != "" {
 		routeAssignee = iss.Bot
 	}
-	// Per-assignee overrides win wholesale: when a bot has its own
-	// AssigneeDispatch entry, its var/attachment map replaces the global
-	// one rather than merging. Keyed by routeAssignee (not raw iss.Assignee)
-	// so a per-ticket Bot override binds THAT bot's inputs — otherwise an
-	// issue with Assignee=X + Bot=Y ran Y's workflow with X's var bindings.
-	dc := cfg.Dispatch
-	if routeAssignee != "" {
-		if ov, ok := cfg.AssigneeDispatch[routeAssignee]; ok {
-			dc = ov
-		}
-	}
+	// Per-bot overrides win wholesale: an explicit AssigneeDispatch entry, or
+	// else the bot's own manifest dispatch_vars read live (dispatchConfigFor),
+	// replaces the global map rather than merging. Keyed by routeAssignee (not
+	// raw iss.Assignee) so a per-ticket Bot override binds THAT bot's inputs —
+	// otherwise an issue with Assignee=X + Bot=Y ran Y's workflow with X's var
+	// bindings.
+	dc := c.dispatchConfigFor(cfg, routeAssignee)
 	vars := map[string]any{}
 	for k, src := range dc.Vars {
 		tpl, err := ParseTemplate(src)
@@ -1257,6 +1269,7 @@ func (c *Dispatcher) recordDispatchSkipKind(iss tracker.Issue, kind, reason stri
 		IssueID:    iss.ID,
 		Identifier: iss.Identifier,
 		Bot:        iss.Bot,
+		Assignee:   iss.Assignee,
 		Reason:     reason,
 		Kind:       kind,
 	}
@@ -1278,10 +1291,22 @@ func (c *Dispatcher) runWorker(ctx context.Context, entry *runningEntry, created
 	// after_run, and the before_remove run inside cleanupWorkspace (F-CD-10).
 	hooks := c.cfg.Load().Hooks
 
-	if created && hooks.AfterCreate != nil {
-		if err := hooks.AfterCreate.Run(ctx, c.logger, "after_create", entry.WorkspacePath, env); err != nil {
+	if created {
+		if hooks.AfterCreate != nil {
+			if err := hooks.AfterCreate.Run(ctx, c.logger, "after_create", entry.WorkspacePath, env); err != nil {
+				// The workspace stays seed-pending: the next attempt recreates
+				// it and runs after_create again (CreateForDispatch).
+				entry.neverStarted.Store(true)
+				c.postFinished(entry.IssueID, fmt.Errorf("after_create hook: %w", err))
+				return
+			}
+		}
+		// Seeded: from here on the directory is the bot's. Not recorded =
+		// not safe to start the bot, since the next attempt would wipe the
+		// directory it worked in as an unseeded leftover.
+		if err := c.workspaces.ClearSeedPending(entry.IssueID, entry.WorkspaceGeneration); err != nil {
 			entry.neverStarted.Store(true)
-			c.postFinished(entry.IssueID, fmt.Errorf("after_create hook: %w", err))
+			c.postFinished(entry.IssueID, fmt.Errorf("after_create: record the workspace as seeded: %w", err))
 			return
 		}
 	}

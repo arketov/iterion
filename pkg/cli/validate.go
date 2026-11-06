@@ -255,7 +255,6 @@ func RunValidateWith(path string, p *Printer, opts ValidateOptions) error {
 // RunValidateWithContext is RunValidateWith under a context that bounds the
 // dry run — its passes and the children they simulate.
 func RunValidateWithContext(ctx context.Context, path string, p *Printer, opts ValidateOptions) error {
-	path = ResolveRecipePath(path)
 	if err := requireWorkflowPathExists(path); err != nil {
 		return err
 	}
@@ -596,7 +595,7 @@ func RunValidateWithContext(ctx context.Context, path string, p *Printer, opts V
 			})
 			result.Valid = false
 		} else {
-			// C332 reads the catalog PrepareWorkflow just resolved, so it
+			// C337 reads the catalog PrepareWorkflow just resolved, so it
 			// runs only when that succeeded. Warnings, kept out of
 			// CompileDiagnostics for the reason the plugin warning above is.
 			for _, d := range mcp.UnknownToolServerDiagnostics(cr.Workflow) {

@@ -204,10 +204,9 @@ var writableBotVars = map[string]string{
 }
 
 // buildOutputs are the gitignored trees a local build writes under pkg: the
-// dispatch copies of the catalog bots (their knobs are the bots' side, read
-// by TestEveryShippedBotKnobIsABotVar) and the studio bundle. Reading them
-// would make the scan depend on whether `task test` ran first.
-var buildOutputs = []string{"../../pkg/cli/templates/dispatch_bots", "../../pkg/server/static"}
+// studio bundle. Reading it would make the scan depend on whether the studio
+// was built first.
+var buildOutputs = []string{"../../pkg/server/static"}
 
 // classificationTables are the declarations whose own spellings are cut out
 // of the scan before it reads a file: a name a CLASSIFICATION spells is not
@@ -414,7 +413,7 @@ var knobsReadFromTheEnv = map[string]string{
 }
 
 // shippedBotRoots hold every bot iterion ships: the catalog, the examples,
-// the scaffold templates and the default dispatch bot embedded in the binary.
+// the scaffold templates and the dispatcher's former default bot (no longer embedded: a candidate for removal).
 var shippedBotRoots = []string{"../../bots", "../../examples", "../../pkg/botscaffold/templates", "../../pkg/cli/templates/dispatch_bots_default.bot"}
 
 // The other side of the rule: a knob a shipped bot reads through

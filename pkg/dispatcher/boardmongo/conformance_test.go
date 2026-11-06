@@ -359,11 +359,24 @@ func runBoardStoreSuite(t *testing.T, store native.BoardStore) {
 	if err := store.ReleaseOwned(lrCard.ID, dispTok); err != nil {
 		t.Fatalf("LaunchRefusal: release: %v", err)
 	}
+	lfRec, ok := store.(native.LaunchFailureRecorder)
+	if !ok {
+		t.Fatal("LaunchRefusal: the store does not record launch failures")
+	}
+	if err := lfRec.RecordLaunchFailure(lrCard.ID, native.LaunchFailure{Attempt: 1, Hook: "after_create", Error: "boom"}); err != nil {
+		t.Fatalf("LaunchRefusal: record launch failure: %v", err)
+	}
+	if got := mustGetIssue(t, store, lrCard.ID); len(got.LaunchFailures) != 1 {
+		t.Fatalf("LaunchFailures before Reopen = %+v, want the recorded attempt", got.LaunchFailures)
+	}
 	if _, err := store.Reopen(lrCard.ID, native.StateReady); err != nil {
 		t.Fatalf("LaunchRefusal: Reopen: %v", err)
 	}
 	if got := ledgerOf("after Reopen"); got != nil {
 		t.Errorf("LaunchRefusal survived an operator Reopen: %+v", got)
+	}
+	if got := mustGetIssue(t, store, lrCard.ID); len(got.LaunchFailures) != 0 {
+		t.Errorf("LaunchFailures survived an operator Reopen: %+v", got.LaunchFailures)
 	}
 	if err := store.Delete(lrCard.ID); err != nil {
 		t.Fatalf("LaunchRefusal: delete: %v", err)

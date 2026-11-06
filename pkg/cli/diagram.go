@@ -35,7 +35,6 @@ func RunDiagram(opts DiagramOptions, p *Printer) error {
 	if opts.File == "" {
 		return fmt.Errorf("no file specified")
 	}
-	opts.File = ResolveRecipePath(opts.File)
 	document := workflowfile.IsAuthorDocument(opts.File)
 	if !document && !workflowfile.IsWorkflowFile(opts.File) {
 		return fmt.Errorf("diagram file %q must end in .bot, or be an author document (.bot.yaml)", opts.File)

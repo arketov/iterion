@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { getOrCreateDocumentStore } from "@/store/document";
@@ -20,6 +20,13 @@ vi.mock("@/api/client", async (importOriginal) => {
         { name: "bots/review.bot", size: 20 },
       ],
     })),
+    // A project file is read before its tab opens.
+    openFile: vi.fn(async (path: string) => ({
+      path,
+      source: "",
+      document: { version: "1", workflows: [] },
+      diagnostics: [],
+    })),
   };
 });
 
@@ -35,6 +42,8 @@ function renderPanel() {
 afterEach(cleanup);
 beforeEach(() => {
   window.history.replaceState({}, "", "/");
+  // The picker's open flag is shared state (the command palette raises it).
+  useUIStore.setState({ filePickerOpen: false, toasts: [] });
 });
 
 describe("ProjectFilesPanel", () => {
@@ -52,6 +61,28 @@ describe("ProjectFilesPanel", () => {
     fireEvent.keyDown(window, { key: "o", ctrlKey: true });
     expect(await screen.findByRole("dialog")).toBeTruthy();
     expect(screen.getByText("Open workflow")).toBeTruthy();
+  });
+
+  it("opens the file picker when the shared flag is raised (Cmd+K → Open file…)", async () => {
+    renderPanel();
+    await screen.findByText("dev-flow.bot");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    act(() => useUIStore.getState().setFilePickerOpen(true));
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+    expect(screen.getByText("Open workflow")).toBeTruthy();
+  });
+
+  it("a project file that is gone from disk opens no tab", async () => {
+    vi.mocked(client.openFile).mockRejectedValueOnce(new Error("file not found: dev-flow.bot"));
+    renderPanel();
+    const before = useTabsStore.getState().tabs.length;
+    fireEvent.click(await screen.findByText("dev-flow.bot"));
+    await waitFor(() => {
+      expect(useUIStore.getState().toasts.map((t) => t.message).join(" ")).toContain(
+        "Removed missing file from recents: dev-flow.bot",
+      );
+    });
+    expect(useTabsStore.getState().tabs.length).toBe(before);
   });
 
   it("a file imported from disk keeps its own name for Save As", async () => {

@@ -42,7 +42,17 @@ dispatcher and schedule hooks, plugin lifecycle commands and
   config. A hook you wrote yourself that is plainly `sh` and has no `shell:` is
   not rewritten: it runs under `sh` or `bash` when one is on `PATH`, and
   otherwise fails before starting with a message to add `shell:` or rewrite it.
-  The details are in [dispatcher](dispatcher.md#hooks).
+  The studio writes that choice into the saved config (`shell: sh`), so it no
+  longer depends on guessing from the text. The details are in
+  [dispatcher](dispatcher.md#hooks).
+- **A hook's `path:`:** a script file named by `path:` is run by the interpreter
+  its `shell:`, its `#!` line or its extension names (`.ps1` PowerShell, `.sh`
+  `sh`, `.py` `python` …), and an unknown one is an error that says what to
+  set — it is no longer handed to PowerShell, which ignored the shebang and
+  reported success without running the script.
+- **When a hook fails:** the error, the Retry queue and the card's *Did not
+  start* panel say which shell the hook ran under (name, path, and why it was
+  chosen), even when no shell could be started.
 - **A script's interpreter:** `language: powershell` (aliases `pwsh`, `ps1`) runs
   the body as a `.ps1` file with `-ExecutionPolicy Bypass`. `language: sh` or
   `bash` runs that shell wherever it is found; on Windows it must be on `PATH`,
