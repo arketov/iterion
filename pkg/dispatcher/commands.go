@@ -586,6 +586,22 @@ func (c *Dispatcher) finishRun(ctx context.Context, issueID string, err error) {
 		c.stopClaimSession(r)
 		c.fireSnapshot()
 		return
+	case r.movedExternally && errors.Is(err, runtime.ErrRunInterrupted):
+		// The operator dragged the card out of running_state and
+		// refreshRunningStates interrupted the run for that reason. It is not a
+		// failed attempt: no scheduleRetry (so max_attempts is not spent and no
+		// give-up fires), and the card must stay where the operator put it.
+		// finishRevert is a compare-and-swap from running_state, so it skips
+		// the move once the card was dragged. A stall reap carries the same
+		// ErrRunInterrupted cause but no marker — it still retries (default arm).
+		c.logger.Info("dispatcher: %s interrupted after the operator moved it (run=%s) — not counted as a failed attempt; the card stays where it was moved", r.Identifier, r.RunID)
+		if cur, ok := c.state.retries[issueID]; ok {
+			if cur.Timer != nil {
+				cur.Timer.Stop()
+			}
+			delete(c.state.retries, issueID)
+		}
+		plan.kind = finishRevert
 	case errors.Is(err, context.Canceled):
 		// Only the force-reap paths pass a literal context.Canceled
 		// (finishRun(ctx, id, context.Canceled) after a worker refused to

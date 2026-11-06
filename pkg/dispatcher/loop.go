@@ -332,7 +332,9 @@ func (c *Dispatcher) refreshRunningStates(ctx context.Context) {
 		if newState != expected {
 			c.logger.Info("dispatcher: %s moved %s → %s externally — cancelling", r.Identifier, expected, newState)
 			// Interrupt, not cancel: if the card comes back to an eligible
-			// state the ticket resumes from its checkpoint.
+			// state the ticket resumes from its checkpoint. Mark the entry so
+			// finishRun does not count the interruption as a failed attempt.
+			r.movedExternally = true
 			if r.Cancel != nil {
 				r.Cancel(runtime.ErrRunInterrupted)
 			}

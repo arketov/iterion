@@ -172,6 +172,14 @@ type runningEntry struct {
 	// not stall-reaped on its claim-time watermark. Actor-owned; no mutex.
 	setupPending bool
 
+	// movedExternally is set by refreshRunningStates when the operator moved
+	// the card out of the in-flight state and the run was interrupted for
+	// that reason. finishRun reads it to tell that interruption apart from a
+	// stall reap (same ErrRunInterrupted cause, still retried): the operator's
+	// move is neither a failed attempt nor a reason to overwrite the state they
+	// chose. Actor-owned (written and read on the actor); no mutex.
+	movedExternally bool
+
 	// TransitionedFromState is the issue's tracker state at Claim time
 	// IFF the dispatcher then successfully moved it to
 	// cfg.Agent.RunningState. Empty when no transition occurred
