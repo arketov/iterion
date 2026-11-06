@@ -114,6 +114,15 @@ func TestRunGuard_TheOperatorsBoundIsTheOneThatRuns(t *testing.T) {
 	dir := t.TempDir()
 	holder := newPipeHoldingGuard(t, dir)
 
+	// What a guard with nothing to drain costs here: a host shell's own start
+	// is part of the clock (Git Bash on Windows is far slower than sh), so
+	// the bound is judged over it, not over zero.
+	baseStart := time.Now()
+	if base := RunGuard(context.Background(), GuardSpec{Command: "exit 0", Dir: dir}); base.Kind != GuardOK {
+		t.Fatalf("baseline Kind = %v (err=%v), want GuardOK", base.Kind, base.Err)
+	}
+	baseline := time.Since(baseStart)
+
 	start := time.Now()
 	res := RunGuard(context.Background(), GuardSpec{Command: holder.command, Dir: dir})
 	elapsed := time.Since(start)
@@ -124,9 +133,9 @@ func TestRunGuard_TheOperatorsBoundIsTheOneThatRuns(t *testing.T) {
 	if !holder.stillHolding() {
 		t.Fatalf("the descendant was gone before the bound: nothing bounded this wait")
 	}
-	if elapsed >= guardDrainBound/2 {
-		t.Fatalf("the guard came back after %s with %s=150ms set — this site's compiled %s bound is what ran",
-			elapsed, proc.WaitDelayEnv, guardDrainBound)
+	if elapsed >= baseline+guardDrainBound/2 {
+		t.Fatalf("the guard came back after %s (a guard with nothing to drain takes %s) with %s=150ms set — this site's compiled %s bound is what ran",
+			elapsed, baseline, proc.WaitDelayEnv, guardDrainBound)
 	}
 	if res.Duration <= 0 {
 		t.Errorf("Duration = %s, want the wall clock of the bounded run", res.Duration)
