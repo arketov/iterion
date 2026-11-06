@@ -1,10 +1,14 @@
 package hostshell
 
 import (
+	"context"
 	"errors"
+	"io"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func fakeLook(found ...string) func(string) (string, error) {
@@ -105,8 +109,53 @@ func TestPowerShellArgvInlineAndStreamsLongScripts(t *testing.T) {
 	}
 	long := strings.Repeat("a", psInlineLimit)
 	argv, stdin = sh.Argv(long, false)
-	if stdin == nil || argv[len(argv)-2] != "-Command" || argv[len(argv)-1] != "-" {
+	if stdin == nil || argv[len(argv)-2] != "-Command" {
 		t.Fatalf("long script not streamed: %q", argv)
+	}
+	if last := argv[len(argv)-1]; last == "-" || !strings.Contains(last, psStdinBootstrap) {
+		t.Fatalf("long script must be read by the bootstrap, not by -Command -: %q", last)
+	}
+	streamed, err := io.ReadAll(stdin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(streamed) != long+psEpilogue {
+		t.Fatalf("stdin must carry only the script and the epilogue, got %d bytes", len(streamed))
+	}
+}
+
+func TestPowerShellLongScriptNativeStdinDoesNotEatScript(t *testing.T) {
+	path, err := exec.LookPath("pwsh")
+	if err != nil {
+		if path, err = exec.LookPath("powershell"); err != nil {
+			t.Skip("no PowerShell on this host")
+		}
+	}
+	reader, fail := "cat", "sh -c 'exit 7'"
+	if runtime.GOOS == "windows" {
+		reader, fail = "cmd /c more", "cmd /c exit 7"
+	}
+	script := "Write-Output 'Привет'\n" + reader + "\n"
+	tail := "Write-Output 'после'\n" + fail + "\n"
+	for len([]rune(psPrelude+script+tail+psEpilogue)) <= psInlineLimit {
+		script += "# xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+	}
+	script += tail
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := Shell{Kind: KindPowerShell, Path: path}.Command(ctx, script, false)
+	var out strings.Builder
+	cmd.Stdout = OutputFor(cmd, &out)
+	err = cmd.Run()
+	var ee *exec.ExitError
+	if ctx.Err() != nil || !errors.As(err, &ee) || ee.ExitCode() != 7 {
+		t.Fatalf("want exit 7 without a hang, got %v (ctx %v)", err, ctx.Err())
+	}
+	for _, want := range []string{"Привет", "после"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("stdout %q lacks %q: the rest of the script was eaten or garbled", out.String(), want)
+		}
 	}
 }
 
