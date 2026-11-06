@@ -161,7 +161,7 @@ on `windows-latest`. By hand the steps are:
    CLI first: `task cli:build:windows:amd64` (or `arm64`) does
    `go build -o build\windows\installer\iterion.exe ./cmd/iterion` with the
    same `LDFLAGS`. The `desktop:build:windows:<arch>` targets run it as a
-   dependency; it is not written to `buildbin` because `wails build -clean`
+   dependency; it is not written to `build\bin` because `wails build -clean`
    wipes that directory.
 
 `cmd\iterion-desktop\build` is a symlink to `..\..\build`. A checkout made without
