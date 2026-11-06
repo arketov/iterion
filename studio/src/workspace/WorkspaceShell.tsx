@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import BootLoading from "@/components/shared/BootLoading";
+import { useConfirm } from "@/hooks/useConfirm";
 import {
   desktop,
   isBrowserWorkspace,
@@ -85,6 +86,15 @@ export default function WorkspaceShell() {
   const [openingIds, setOpeningIds] = useState<string[]>([]);
   const [openError, setOpenError] = useState<{ id: string; message: string } | null>(null);
   const openingRef = useRef(new Map<string, Promise<boolean>>());
+  // removingIds: connections whose removal is running (their × is disabled);
+  // removeError: why a removal failed (a cloud sign-out the server refused, a
+  // config write), shown until dismissed or until the next removal of that
+  // same connection starts.
+  const [removingIds, setRemovingIds] = useState<string[]>([]);
+  const [removeError, setRemoveError] = useState<{ id: string; message: string } | null>(null);
+  const removingRef = useRef(new Set<string>());
+  const openIdsRef = useRef<string[]>([]);
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const bootstrapped = useRef(false);
   // Live refs read by the native-event handlers (which subscribe once) so a
   // menu forward / focus always targets the CURRENT active pane iframe.
@@ -98,6 +108,9 @@ export default function WorkspaceShell() {
   useEffect(() => {
     splitIdRef.current = splitId;
   }, [splitId]);
+  useEffect(() => {
+    openIdsRef.current = openIds;
+  }, [openIds]);
   // The route each pane first loaded on. Fixed per pane for as long as it is
   // open: the iframe's `src` must not follow the pane's own navigation, or
   // every route change inside it would reload it.
@@ -132,6 +145,9 @@ export default function WorkspaceShell() {
   const openPane = useCallback((id: string): Promise<boolean> => {
     const inFlight = openingRef.current.get(id);
     if (inFlight) return inFlight;
+    // A connection being removed is not opened from under its removal (a
+    // pane's hand-off, an Add local project landing on the same folder).
+    if (removingRef.current.has(id)) return Promise.resolve(false);
     // The body starts on the next microtask, after the entry below is in the
     // map: its `finally` must never run before the `set` it undoes.
     const opening = Promise.resolve().then(async () => {
@@ -151,6 +167,10 @@ export default function WorkspaceShell() {
       // worth recording (a failed bootstrap open must not erase the record).
       setRestoreArmed(true);
       setOpenIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+      // Synchronously, beside activeIdRef: a removal confirmed in the same
+      // tick must already see this connection as open (the effect that
+      // mirrors openIds runs only after the next render).
+      if (!openIdsRef.current.includes(id)) openIdsRef.current = [...openIdsRef.current, id];
       activeIdRef.current = id;
       setActiveId(id);
       setMenuOpen(false);
@@ -175,6 +195,51 @@ export default function WorkspaceShell() {
       setOpenError({ id: "", message: errorMessage(err) });
     }
   }, [loadConnections, openPane]);
+
+  // removeConnection forgets a connection that is not open: a stale entry (a
+  // project folder that moved) or one the author no longer wants. Only the
+  // ENTRY goes — the desktop's RemoveConnection drops the config/MRU record
+  // and stops the project's daemon (a cloud connection signs out first, and
+  // refuses the removal with its reason when the sign-out cannot be made);
+  // nothing on disk or on the cloud server is deleted.
+  const removeConnection = useCallback(
+    async (p: Project) => {
+      const id = p.id;
+      if (removingRef.current.has(id) || openingRef.current.has(id)) return;
+      const cloud = isCloudConnection(p);
+      const confirmed = await confirm({
+        title: `Remove connection “${p.name}”?`,
+        message: cloud
+          ? `You will be signed out of ${p.cloud_url || "the cloud"} and this connection will be removed from the list. Nothing on the cloud server is deleted; you can connect again later.`
+          : `Only the connection entry is removed from Iterion's list${p.dir ? ` (${p.dir})` : ""}. The project files on disk are not deleted.`,
+        confirmLabel: "Remove",
+        confirmVariant: "danger",
+      });
+      // The question was open while the shell kept running: the connection may
+      // have been opened meanwhile (a pane's hand-off), and an open one is not
+      // removed from under its pane.
+      if (!confirmed || openIdsRef.current.includes(id) || openingRef.current.has(id)) return;
+      removingRef.current.add(id);
+      setRemovingIds((prev) => [...prev, id]);
+      setRemoveError((prev) => (prev?.id === id ? null : prev));
+      try {
+        await desktop.removeConnection(id);
+        setOpenError((prev) => (prev?.id === id ? null : prev));
+        clearPaneLocation(id);
+        delete paneStartRef.current[id];
+      } catch (err) {
+        console.error("[workspace] removeConnection failed", err);
+        setRemoveError({ id, message: errorMessage(err) });
+      } finally {
+        removingRef.current.delete(id);
+        setRemovingIds((prev) => prev.filter((x) => x !== id));
+      }
+      // Success or not, re-read the list: the desktop may have removed the
+      // entry before it failed (a daemon that would not stop).
+      await loadConnections();
+    },
+    [confirm, loadConnections],
+  );
 
   const closePane = useCallback(
     (id: string) => {
@@ -573,18 +638,34 @@ export default function WorkspaceShell() {
                 <div className="px-2 py-1 text-caption uppercase tracking-wider text-fg-subtle">Open connection</div>
               )}
               {notOpen.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  className="w-full text-left px-3 py-1.5 hover:bg-surface-2 flex items-center gap-2 disabled:opacity-60"
-                  disabled={openingIds.includes(p.id)}
-                  onClick={() => void openPane(p.id)}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${isCloudConnection(p) ? "bg-accent" : "bg-fg-subtle"}`} />
-                  <span className="truncate flex-1">{p.name}</span>
-                  {openingIds.includes(p.id) && <span className="text-caption text-fg-subtle">Opening…</span>}
-                  {isCloudConnection(p) && <span className="text-caption uppercase text-fg-subtle">cloud</span>}
-                </button>
+                // The row is a container, not a button: the open and remove
+                // controls are siblings (a button inside a button is
+                // nested-interactive, and a click on × must not open).
+                <div key={p.id} className="flex items-center hover:bg-surface-2">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left pl-3 py-1.5 flex items-center gap-2 disabled:opacity-60"
+                    disabled={openingIds.includes(p.id) || removingIds.includes(p.id)}
+                    onClick={() => void openPane(p.id)}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${isCloudConnection(p) ? "bg-accent" : "bg-fg-subtle"}`} />
+                    <span className="truncate flex-1">{p.name}</span>
+                    {openingIds.includes(p.id) && <span className="text-caption text-fg-subtle">Opening…</span>}
+                    {isCloudConnection(p) && <span className="text-caption uppercase text-fg-subtle">cloud</span>}
+                  </button>
+                  {!browserWorkspace && (
+                    <button
+                      type="button"
+                      aria-label={`Remove connection ${p.name}`}
+                      title="Remove connection"
+                      className="mx-1.5 w-5 h-5 shrink-0 flex items-center justify-center rounded text-fg-subtle hover:bg-surface-0 hover:text-danger-fg disabled:opacity-40"
+                      disabled={openingIds.includes(p.id) || removingIds.includes(p.id)}
+                      onClick={() => void removeConnection(p)}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               ))}
               <div className="my-1 border-t border-border-default" />
               <button type="button" className="w-full text-left px-3 py-1.5 hover:bg-surface-2" onClick={() => void onAddLocal()}>
@@ -646,6 +727,24 @@ export default function WorkspaceShell() {
         </div>
       )}
 
+      {removeError && (
+        <div
+          role="alert"
+          data-testid="workspace-remove-error"
+          className="flex items-start gap-2 px-3 py-2 border-b border-danger bg-danger-soft text-danger-fg text-xs shrink-0"
+        >
+          <span className="flex-1 break-words">Could not remove the connection: {removeError.message}</span>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="w-4 h-4 flex items-center justify-center rounded hover:bg-surface-2"
+            onClick={() => setRemoveError(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Panes: every open connection stays mounted (hidden panes keep their
           runs streaming); layout shows the active pane, or two in split. */}
       <div className="flex-1 flex min-h-0">
@@ -698,6 +797,8 @@ export default function WorkspaceShell() {
           );
         })}
       </div>
+
+      {confirmDialog}
 
       <Suspense fallback={null}>
         {!browserWorkspace && (
