@@ -68,6 +68,7 @@ export default function RecentFilesPanel({ variant = "card" }: Props) {
   const botsLoaded = catalogBots !== null;
   const botTotal = countBots(catalogBots, extraBots).total;
   const fetchBots = useBotsStore((s) => s.fetch);
+  const refetchBots = useBotsStore((s) => s.refetch);
   useEffect(() => {
     if (!botsLoaded) void fetchBots();
   }, [botsLoaded, fetchBots]);
@@ -119,6 +120,11 @@ export default function RecentFilesPanel({ variant = "card" }: Props) {
           tone="warning"
           layout="inline"
           title="Bot catalog unavailable"
+          action={
+            <Button variant="secondary" size="sm" onClick={() => void refetchBots()}>
+              Retry
+            </Button>
+          }
         >
           {botsError}
         </InlineBanner>
