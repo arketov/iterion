@@ -836,6 +836,15 @@ The set of references is **closed at parse time**: typos like
 `{{issue.tilte}}` fail config validation rather than silently rendering
 an empty string at dispatch.
 
+The **keys** of `dispatch.vars` (and of `assignee_dispatch[].vars`) are
+workflow var names: identifiers, as in the DSL's `vars:`. Config validation
+checks only the values, so a template typed into the name field (for example
+`{"{{issue.title}}": ""}` instead of `{"task": "{{issue.title}}"}`) loads, and
+the bot then gets a var with a strange name. The Settings drawer labels the
+name and template columns and shows a warning under a row whose name is empty,
+contains `{{` or is not an identifier. It is a warning only: the form still
+saves, in line with "warn rather than reject".
+
 ## Routing by issue assignee
 
 By default the dispatcher dispatches a single workflow (`workflow:`)
