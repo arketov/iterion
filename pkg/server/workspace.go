@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -59,6 +60,9 @@ type WorkspaceHost struct {
 	// files serves the bytes of static with the tree's cache policy
 	// (static_cache.go); one per host, so each unhashed static is hashed once.
 	files http.Handler
+	// relocateMu serialises "move the data of a moved project" requests: each
+	// one stops and restarts the target runtime.
+	relocateMu sync.Mutex
 }
 
 type WorkspaceRuntimeStatus struct {
@@ -235,6 +239,28 @@ func (h *WorkspaceHost) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		h.writeJSON(w, h.statuses())
 		return
+	}
+	if id, action, ok := strings.Cut(strings.TrimPrefix(r.URL.Path, "/api/projects/"), "/"); ok && strings.HasPrefix(r.URL.Path, "/api/projects/") {
+		switch action {
+		case "relocation":
+			if r.Method != http.MethodGet {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+			h.relocationOffer(w, id)
+			return
+		case "relocate":
+			if r.Method != http.MethodPost {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+			if !workspaceSafeOrigin(r) {
+				h.writeError(w, http.StatusForbidden, "cross-origin workspace mutation rejected")
+				return
+			}
+			h.relocate(w, r, id)
+			return
+		}
 	}
 	if strings.HasPrefix(r.URL.Path, "/api/projects/") && r.Method == http.MethodDelete {
 		if !workspaceSafeOrigin(r) {
@@ -519,6 +545,99 @@ func (h *WorkspaceHost) addProject(w http.ResponseWriter, r *http.Request) {
 	}
 	h.switchCurrent(project.ID)
 	h.currentProject(w)
+}
+
+// relocationOffer answers whether the data of a moved project can be carried
+// over to this one: the registry entries whose folder is gone but whose store
+// still holds a board, dispatcher settings or runs. An empty list means there
+// is nothing to offer.
+func (h *WorkspaceHost) relocationOffer(w http.ResponseWriter, id string) {
+	h.mu.RLock()
+	target := h.registry.ByID(id)
+	var sources []projects.RelocationSource
+	if target != nil {
+		sources = h.registry.RelocationSources(*target)
+	}
+	h.mu.RUnlock()
+	if target == nil {
+		h.writeError(w, http.StatusNotFound, "project not found")
+		return
+	}
+	empty, err := projects.SlotIsEmpty(target.StoreDir)
+	if err != nil {
+		h.writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if sources == nil {
+		sources = []projects.RelocationSource{}
+	}
+	h.writeJSON(w, map[string]any{"sources": sources, "destination_empty": empty})
+}
+
+// relocate copies a moved project's board, dispatcher settings and runs into
+// this project's empty store, after the owner confirmed which old project it is.
+// The source is looked up in the registry and never taken from the request.
+// The target's runtime is stopped for the copy (it holds the store lease and
+// the board open) and always started again, so a refused or failed copy never
+// leaves the project stopped.
+func (h *WorkspaceHost) relocate(w http.ResponseWriter, r *http.Request, id string) {
+	var req struct {
+		SourceID string `json:"source_id"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil {
+		h.writeError(w, http.StatusBadRequest, "invalid request")
+		return
+	}
+	h.relocateMu.Lock()
+	defer h.relocateMu.Unlock()
+
+	h.mu.RLock()
+	target := h.registry.ByID(id)
+	var source *projects.RelocationSource
+	if target != nil {
+		for _, s := range h.registry.RelocationSources(*target) {
+			if s.ID == req.SourceID {
+				s := s
+				source = &s
+				break
+			}
+		}
+	}
+	var srcProject *projects.Project
+	if source != nil {
+		srcProject = h.registry.ByID(source.ID)
+	}
+	h.mu.RUnlock()
+	if target == nil {
+		h.writeError(w, http.StatusNotFound, "project not found")
+		return
+	}
+	if srcProject == nil {
+		h.writeError(w, http.StatusNotFound, "no data to move from that project")
+		return
+	}
+
+	if rt := h.runtime(id); rt != nil {
+		h.stopRuntime(rt)
+	}
+	err := projects.Relocate(*srcProject, *target)
+	h.startRuntime(*target)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, projects.ErrDestinationNotEmpty) || errors.Is(err, projects.ErrSourceBusy) {
+			status = http.StatusConflict
+		} else if errors.Is(err, projects.ErrNoSource) {
+			status = http.StatusNotFound
+		}
+		h.logger.Warn("workspace: moving the data of %s into %s failed: %v", srcProject.Dir, target.Dir, err)
+		h.writeError(w, status, err.Error())
+		return
+	}
+	h.logger.Info("workspace: moved the data of %s (%s) into %s (%s)", srcProject.Dir, srcProject.StoreDir, target.Dir, target.StoreDir)
+	h.writeJSON(w, map[string]any{
+		"copied":     map[string]int{"cards": source.Cards, "runs": source.Runs},
+		"dispatcher": "stopped",
+	})
 }
 
 func regularFile(name string) bool {
