@@ -15,10 +15,15 @@ import (
 
 // Workspaces manages per-issue workspace directories under a single
 // root. It enforces filename sanitization and refuses to traverse
-// outside the root via symlinks or pathological IDs.
+// outside the root via symlinks or pathological IDs. Operations are serialised
+// per issue/run generation (lockGeneration), never globally, so a git call that
+// hangs in one card's workspace does not delay other cards. A Workspaces must
+// not be copied.
 type Workspaces struct {
 	root string
-	mu   sync.Mutex
+	// locks holds one refcounted lock per generation in use; guarded by locksMu.
+	locksMu sync.Mutex
+	locks   map[string]*generationLock
 	// seedConfigured reports whether the dispatcher runs an after_create hook.
 	// Unset (the zero value) means it does not. Only the move of a long-named
 	// legacy workspace to the short name reads it (see legacyIsUnseeded).
@@ -34,6 +39,39 @@ func (w *Workspaces) SetSeedConfigured(fn func() bool) {
 		return
 	}
 	w.seedConfigured.Store(&fn)
+}
+
+type generationLock struct {
+	mu   sync.Mutex
+	refs int
+}
+
+// lockGeneration serialises operations on one issue/run generation and returns
+// the unlock func. The short and the legacy directory name of a generation share
+// one lock; different generations never wait for each other.
+func (w *Workspaces) lockGeneration(issueID, runID string) (unlock func()) {
+	key, _ := workspaceKeys(issueID, runID)
+	w.locksMu.Lock()
+	if w.locks == nil {
+		w.locks = make(map[string]*generationLock)
+	}
+	gl := w.locks[key]
+	if gl == nil {
+		gl = &generationLock{}
+		w.locks[key] = gl
+	}
+	gl.refs++
+	w.locksMu.Unlock()
+	gl.mu.Lock()
+	return func() {
+		gl.mu.Unlock()
+		w.locksMu.Lock()
+		gl.refs--
+		if gl.refs == 0 {
+			delete(w.locks, key)
+		}
+		w.locksMu.Unlock()
+	}
 }
 
 func (w *Workspaces) seedHookConfigured() bool {
@@ -171,8 +209,7 @@ func (w *Workspaces) ClearSeedPending(issueID, runID string) error {
 	if issueID == "" {
 		return errors.New("workspace: issue id required")
 	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	defer w.lockGeneration(issueID, runID)()
 
 	ownerPath := w.ownerPathForRun(issueID, runID)
 	owner, err := readWorkspaceOwner(ownerPath)
@@ -203,8 +240,7 @@ func (w *Workspaces) ClearSeedPending(issueID, runID string) error {
 // empty directory under such a marker is the one case where a failed
 // after_create cannot be told apart by the marker itself.
 func (w *Workspaces) SeedUntracked(issueID, runID string) bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	defer w.lockGeneration(issueID, runID)()
 	owner, err := readWorkspaceOwner(w.ownerPathForRun(issueID, runID))
 	return err == nil && owner.State == workspaceOwnerActive && !owner.SeedTracked
 }
@@ -218,7 +254,7 @@ func dirIsEmpty(path string) bool {
 
 // discardUnseededTarget deletes an unseeded workspace directory and deregisters
 // the git worktree the seed step may have registered for it. An absent
-// directory is fine. The caller holds w.mu and has verified ownership.
+// directory is fine. The caller holds the generation lock and has verified ownership.
 func discardUnseededTarget(target string) error {
 	gitCommonDir, _ := workspaceGitCommonDir(target)
 	if err := os.RemoveAll(target); err != nil {
@@ -237,7 +273,7 @@ func discardUnseededTarget(target string) error {
 // resetUnseededTarget empties a seed-pending workspace and recreates the bare
 // directory: the leftover of a failed after_create. A git worktree the seed
 // step registered for the path is deregistered, so the next seed can add it
-// again. The caller holds w.mu and has verified ownership.
+// again. The caller holds the generation lock and has verified ownership.
 func resetUnseededTarget(target string) error {
 	// Same as discardUnseededTarget, then the bare directory is put back; the
 	// registration failure is reported only after that (see below).
@@ -267,8 +303,7 @@ func (w *Workspaces) createForRun(issueID, runID string, trackSeed bool) (path s
 	if issueID == "" {
 		return "", false, false, errors.New("workspace: issue id required")
 	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	defer w.lockGeneration(issueID, runID)()
 
 	if err := os.MkdirAll(w.root, 0o755); err != nil {
 		return "", false, false, fmt.Errorf("workspace: mkdir root: %w", err)
@@ -423,8 +458,7 @@ func (w *Workspaces) RetireForRun(issueID, runID string) error {
 	if issueID == "" {
 		return errors.New("workspace: issue id required")
 	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	defer w.lockGeneration(issueID, runID)()
 
 	ownerPath := w.ownerPathForRun(issueID, runID)
 	owner, err := readWorkspaceOwner(ownerPath)
@@ -476,8 +510,7 @@ func (w *Workspaces) RemoveForRun(issueID, runID string) error {
 	if issueID == "" {
 		return errors.New("workspace: issue id required")
 	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	defer w.lockGeneration(issueID, runID)()
 
 	target := w.PathForRun(issueID, runID)
 	ownerPath := w.ownerPathForRun(issueID, runID)
@@ -607,7 +640,7 @@ func (w *Workspaces) legacyIsUnseeded(namespace, legacy, issueID, runID string) 
 // made seed-pending (a marker without the mark could not be told apart from a
 // seeded one once its directory is gone), then the directory goes, then the
 // marker: an interruption at any point is retried by the next call. The caller
-// holds w.mu.
+// holds the generation lock.
 func (w *Workspaces) discardUnseededLegacy(issueID, runID, rootCanon string) (bool, error) {
 	short, legacy := workspaceKeys(issueID, runID)
 	namespace := filepath.Join(w.root, workspaceKeyNamespace)
@@ -891,7 +924,7 @@ func replaceWorkspaceOwner(path string, owner workspaceOwnerRecord) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpPath, path)
+	return renameReplace(tmpPath, path)
 }
 
 var sanitizeKeyRe = regexp.MustCompile(`[^a-zA-Z0-9._-]`)
