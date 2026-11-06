@@ -110,4 +110,36 @@ func runOwnedFromSuite(t *testing.T, store native.BoardStore) {
 	if _, _, err := store.SetStateOwnedFrom("native:00000000-0000-0000-0000-000000000000", native.StateReady, native.StateDone, tok2); !errors.Is(err, tracker.ErrNotFound) {
 		t.Fatalf("missing card: err=%v, want ErrNotFound", err)
 	}
+
+	// The reasoned variant: the same CAS stamping a descriptive provenance
+	// on the card AND the event (the dispatcher's run_finished return); an
+	// empty reason is the marker-derived one, i.e. none for a plain marker.
+	rc, err := store.Create(native.Issue{Title: "reasoned card", State: native.StateInProgress})
+	if err != nil {
+		t.Fatalf("Create (reasoned): %v", err)
+	}
+	rtok, err := store.Claim(rc.ID, "worker-r")
+	if err != nil {
+		t.Fatalf("Claim (reasoned): %v", err)
+	}
+	got, changed, err = store.SetStateOwnedFromReason(rc.ID, native.StateInProgress, native.StateReview, rtok, tracker.ReasonRunFinished)
+	if err != nil || !changed || got == nil || got.State != native.StateReview || got.StateReason != tracker.ReasonRunFinished {
+		t.Fatalf("SetStateOwnedFromReason: got=%+v changed=%v err=%v, want the move stamped %q", got, changed, err, tracker.ReasonRunFinished)
+	}
+	if cur, _ := store.Get(rc.ID); cur.StateReason != tracker.ReasonRunFinished {
+		t.Fatalf("persisted StateReason = %q, want %q", cur.StateReason, tracker.ReasonRunFinished)
+	}
+	if p := lastStatePayload(t, store, rc.ID); p["reason"] != tracker.ReasonRunFinished {
+		t.Fatalf("event payload = %v, want reason=%s", p, tracker.ReasonRunFinished)
+	}
+	got, changed, err = store.SetStateOwnedFromReason(rc.ID, native.StateReview, native.StateReady, rtok, "")
+	if err != nil || !changed || got == nil || got.StateReason != "" {
+		t.Fatalf("empty reason: got=%+v changed=%v err=%v, want the move with no provenance", got, changed, err)
+	}
+	if _, _, err := store.SetStateOwnedFromReason(rc.ID, native.StateReady, native.StateReview, tok, tracker.ReasonRunFinished); !errors.Is(err, tracker.ErrClaimConflict) {
+		t.Fatalf("stale token on the reasoned CAS: err=%v, want ErrClaimConflict", err)
+	}
+	if _, changed, err := store.SetStateOwnedFromReason(rc.ID, native.StateInProgress, native.StateReview, rtok, tracker.ReasonRunFinished); err != nil || changed {
+		t.Fatalf("drifted reasoned CAS: changed=%v err=%v, want changed=false and no error", changed, err)
+	}
 }
