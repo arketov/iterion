@@ -242,10 +242,11 @@ func TestCleanupWorkspace_RemovesLinkedWorktreeRegistration(t *testing.T) {
 	if _, err := os.Stat(wsPath); !os.IsNotExist(err) {
 		t.Fatalf("workspace %q not removed (stat err=%v)", wsPath, err)
 	}
-	if listed := runCleanupGit(t, hostRepo, "worktree", "list", "--porcelain"); strings.Contains(listed, wsPath) {
+	// Git prints forward-slash paths on Windows; normalise before comparing.
+	if listed := runCleanupGit(t, hostRepo, "worktree", "list", "--porcelain"); strings.Contains(filepath.ToSlash(listed), filepath.ToSlash(wsPath)) {
 		t.Fatalf("deleted workspace still registered in host repo:\n%s", listed)
 	}
-	if listed := runCleanupGit(t, hostRepo, "worktree", "list", "--porcelain"); !strings.Contains(listed, otherPath) {
+	if listed := runCleanupGit(t, hostRepo, "worktree", "list", "--porcelain"); !strings.Contains(filepath.ToSlash(listed), filepath.ToSlash(otherPath)) {
 		t.Fatalf("cleanup removed unrelated missing worktree registration:\n%s", listed)
 	}
 	// A legacy/custom before_remove hook may have deregistered the path first.
