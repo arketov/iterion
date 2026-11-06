@@ -76,7 +76,13 @@ func DirPrefix(p string) string {
 	if i < 0 {
 		return ""
 	}
-	return trimmed[:i+1]
+	prefix := trimmed[:i+1]
+	// `/` (the parent of `/x`) or `C:\` is a filesystem root: cutting it out of a
+	// message would delete every separator in it.
+	if strings.Trim(prefix, `/\`) == "" || (hasDrivePrefix(prefix) && len(prefix) == 3) {
+		return ""
+	}
+	return prefix
 }
 
 // Strict rewrites every absolute path in s to its last element, keeping the
@@ -283,14 +289,15 @@ func redactRoots(s string, rs []string) string {
 					continue
 				}
 				end := i + len(r)
+				bare := false
 				switch {
 				case end < len(s) && isSep(s[end]):
 					for end < len(s) && isSep(s[end]) {
 						end++
 					}
 					// The remainder stays: it is relative to the root.
-				case end == len(s) || !isNameByte(s[end]):
-					b.WriteByte('.')
+				case end == len(s) || !isNameByte(s[end]) || endsSentence(s, end):
+					bare = true
 				default:
 					continue // `/a/bc` is not under `/a/b`
 				}
@@ -298,6 +305,9 @@ func redactRoots(s string, rs []string) string {
 					b.Grow(len(s))
 					b.WriteString(s[:i])
 					changed = true
+				}
+				if bare {
+					b.WriteByte('.')
 				}
 				i = end
 				matched = true
@@ -316,6 +326,16 @@ func redactRoots(s string, rs []string) string {
 		return s
 	}
 	return b.String()
+}
+
+// endsSentence reports whether s[i] is a period (or the like) closing a clause
+// rather than continuing a file name: the text ends there, or a space or
+// another closing mark follows ("cannot open /work/proj.").
+func endsSentence(s string, i int) bool {
+	if s[i] != '.' {
+		return false
+	}
+	return i+1 == len(s) || !isNameByte(s[i+1])
 }
 
 // isRootStart reports whether a path may begin at s[i]: the start of the text

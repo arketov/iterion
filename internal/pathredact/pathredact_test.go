@@ -1,6 +1,9 @@
 package pathredact
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestIsAbs_BothSpellingsOnEveryOS(t *testing.T) {
 	for _, tc := range []struct {
@@ -121,6 +124,38 @@ func TestHost_RegisteredRootBecomesRelativeAndSpacesSurvive(t *testing.T) {
 		if got := Host(tc.in); got != tc.want {
 			t.Errorf("Host(%q) = %q, want %q", tc.in, got, tc.want)
 		}
+	}
+}
+
+// A root named on its own, before any path under it, must come out where it
+// stood: the first cut once wrote the "." ahead of the text it follows.
+func TestHost_ABareRootFirstInTheMessageKeepsItsPlace(t *testing.T) {
+	AddRoots("/srv/zz-store")
+	for _, tc := range []struct{ in, want string }{
+		{"stat /srv/zz-store: permission denied", "stat .: permission denied"},
+		{"cannot open /srv/zz-store.", "cannot open .."}, // the root as ".", then the sentence's own period
+		{"/srv/zz-store is full", ". is full"},
+		{"x /srv/zz-store/a/b.bot y", "x a/b.bot y"},
+		{"cannot open /srv/zz-store.bak", "cannot open zz-store.bak"},
+	} {
+		if got := Host(tc.in); got != tc.want {
+			t.Errorf("Host(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+// The parent of `/x` is the filesystem root: no prefix to cut out of a text.
+func TestDirPrefix_NeverAFilesystemRoot(t *testing.T) {
+	for _, in := range []string{"/x", `C:\x`, `\\host\x`} {
+		if got := DirPrefix(in); got != "" && strings.Trim(got, `/\`) == "" {
+			t.Errorf("DirPrefix(%q) = %q, a separator-only prefix", in, got)
+		}
+	}
+	if got := DirPrefix("/x"); got != "" {
+		t.Errorf("DirPrefix(/x) = %q, want empty", got)
+	}
+	if got := DirPrefix(`C:\x`); got != "" {
+		t.Errorf(`DirPrefix(C:\x) = %q, want empty`, got)
 	}
 }
 

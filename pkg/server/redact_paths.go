@@ -1,6 +1,8 @@
 package server
 
 import (
+	"path/filepath"
+
 	"github.com/arketov/iterion/internal/httpx"
 	"github.com/arketov/iterion/internal/pathredact"
 )
@@ -23,7 +25,20 @@ import (
 // old ones stay (the registry is bounded), because an error may still quote a
 // path of the project just left. The redactor itself is process-wide and
 // idempotent, like the logger it sits beside.
-func installPathRedaction(workDir, storeDir string) {
-	pathredact.AddRoots(workDir, storeDir)
+func installPathRedaction(workDir, storeDir string, extra ...string) {
+	roots := make([]string, 0, 2+len(extra))
+	for _, p := range append([]string{workDir, storeDir}, extra...) {
+		if p == "" {
+			continue
+		}
+		// A relative root (`--store-dir .iterion`, a relative WorkDir) is the
+		// process's own directory spelled short: register the absolute path
+		// an error will quote.
+		if abs, err := filepath.Abs(p); err == nil {
+			p = abs
+		}
+		roots = append(roots, p)
+	}
+	pathredact.AddRoots(roots...)
 	httpx.SetErrorRedactor(pathredact.Host)
 }

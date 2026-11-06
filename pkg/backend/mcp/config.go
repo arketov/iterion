@@ -144,8 +144,11 @@ func FromIRAuth(auth *ir.MCPAuth) *AuthConfig {
 // catalog, with a warning on the optional logger (and in PrepareWorkflowReport's
 // result, for a caller that shows it), instead of refusing the whole catalog:
 // one stray entry used to take every other server, and the validator's C337
-// check, down with it. Left out, it can place no tool in the infrastructure
-// namespace, which is all the refusal protected. A server the BOT declares
+// check, down with it. Left out, the launcher never starts it, so it can place
+// no tool in the infrastructure namespace — which is all the refusal protected
+// (a claude_code CLI the operator told to read `.mcp.json` itself, with
+// ITERION_CLAUDE_CODE_STRICT_MCP=0, still reads the entry: that is the
+// operator's choice). A server the BOT declares
 // (`mcp_server`) is still refused: its author chose the name, and silently
 // running without a server the bot declared is the wrong failure.
 func PrepareWorkflow(wf *ir.Workflow, projectDir, workspace string, logger ...*iterlog.Logger) error {
@@ -204,8 +207,8 @@ func reservedNameSkip(key string, cfg *ServerConfig) (SkippedServer, bool) {
 	s := SkippedServer{
 		Name:   key,
 		Origin: cfg.Origin,
-		Reason: `its name is in iterion's reserved internal namespace (a name starting with "iterion" is the engine's own)`,
-		Hint:   `rename it to a name that does not start with "iterion" (for example "engine") where it is declared`,
+		Reason: `its name is in iterion's reserved internal namespace (a name starting with "iterion", or one with no letters, collides with the engine's own)`,
+		Hint:   `rename it to a plain name that does not start with "iterion" (for example "engine") where it is declared`,
 	}
 	if cfg.Name != key {
 		s.DeclaredName = cfg.Name
