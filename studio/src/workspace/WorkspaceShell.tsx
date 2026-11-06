@@ -88,7 +88,8 @@ export default function WorkspaceShell() {
   const openingRef = useRef(new Map<string, Promise<boolean>>());
   // removingIds: connections whose removal is running (their × is disabled);
   // removeError: why a removal failed (a cloud sign-out the server refused, a
-  // config write), shown until dismissed or until that connection goes.
+  // config write), shown until dismissed or until the next removal of that
+  // same connection starts.
   const [removingIds, setRemovingIds] = useState<string[]>([]);
   const [removeError, setRemoveError] = useState<{ id: string; message: string } | null>(null);
   const removingRef = useRef(new Set<string>());
@@ -144,6 +145,9 @@ export default function WorkspaceShell() {
   const openPane = useCallback((id: string): Promise<boolean> => {
     const inFlight = openingRef.current.get(id);
     if (inFlight) return inFlight;
+    // A connection being removed is not opened from under its removal (a
+    // pane's hand-off, an Add local project landing on the same folder).
+    if (removingRef.current.has(id)) return Promise.resolve(false);
     // The body starts on the next microtask, after the entry below is in the
     // map: its `finally` must never run before the `set` it undoes.
     const opening = Promise.resolve().then(async () => {
@@ -163,6 +167,10 @@ export default function WorkspaceShell() {
       // worth recording (a failed bootstrap open must not erase the record).
       setRestoreArmed(true);
       setOpenIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+      // Synchronously, beside activeIdRef: a removal confirmed in the same
+      // tick must already see this connection as open (the effect that
+      // mirrors openIds runs only after the next render).
+      if (!openIdsRef.current.includes(id)) openIdsRef.current = [...openIdsRef.current, id];
       activeIdRef.current = id;
       setActiveId(id);
       setMenuOpen(false);
@@ -202,7 +210,7 @@ export default function WorkspaceShell() {
       const confirmed = await confirm({
         title: `Remove connection “${p.name}”?`,
         message: cloud
-          ? `You will be signed out of ${p.cloud_url ?? "the cloud"} and this connection will be removed from the list. Nothing on the cloud server is deleted; you can connect again later.`
+          ? `You will be signed out of ${p.cloud_url || "the cloud"} and this connection will be removed from the list. Nothing on the cloud server is deleted; you can connect again later.`
           : `Only the connection entry is removed from Iterion's list${p.dir ? ` (${p.dir})` : ""}. The project files on disk are not deleted.`,
         confirmLabel: "Remove",
         confirmVariant: "danger",

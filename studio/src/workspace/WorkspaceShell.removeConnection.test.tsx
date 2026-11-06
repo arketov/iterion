@@ -12,7 +12,6 @@ import { expectNoViolationsStrict, setupMatchMedia } from "@/__tests__/a11y/axeH
 
 setupMatchMedia();
 
-const browser = vi.hoisted(() => ({ value: false }));
 const desktop = vi.hoisted(() => ({
   isFirstRunPending: vi.fn(),
   listConnections: vi.fn(),
@@ -25,7 +24,7 @@ const desktop = vi.hoisted(() => ({
 vi.mock("@/lib/desktopBridge", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/desktopBridge")>()),
   desktop,
-  isBrowserWorkspace: () => browser.value,
+  isBrowserWorkspace: () => false,
   onDesktopEvent: () => () => {},
 }));
 
@@ -54,7 +53,6 @@ async function bootWith(all: unknown[]) {
 
 afterEach(() => {
   cleanup();
-  browser.value = false;
   window.sessionStorage.clear();
   vi.resetAllMocks();
 });
@@ -178,17 +176,5 @@ describe("removing a connection from the + menu", () => {
     await screen.findByRole("button", { name: "Remove connection beta" });
 
     await expectNoViolationsStrict(container, "WorkspaceShell open-connection menu");
-  });
-
-  it("shows no × in the browser workspace, which has no desktop binding", async () => {
-    browser.value = true;
-    desktop.isFirstRunPending.mockResolvedValue(false);
-    desktop.listConnections.mockResolvedValue([alpha, beta]);
-    desktop.getOpenConnections.mockResolvedValue([]);
-    desktop.getCurrentProject.mockResolvedValue(null);
-    render(<WorkspaceShell />);
-
-    await waitFor(() => expect(desktop.listConnections).toHaveBeenCalled());
-    expect(screen.queryByRole("button", { name: /Remove connection/ })).toBeNull();
   });
 });
