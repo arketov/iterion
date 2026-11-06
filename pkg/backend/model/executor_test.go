@@ -894,7 +894,7 @@ func TestResolveCommandTemplate(t *testing.T) {
 			name:    "slice with shell metacharacters stays quoted",
 			command: "rm -- {{input.paths}}",
 			input:   map[string]any{"paths": []string{"a b.go", "c'd.go", "$HOME/x"}},
-			want:    `rm -- 'a b.go' 'c'\''d.go' '$HOME/x'`,
+			want:    "rm -- 'a b.go' 'c" + hostshell.EscapeSingleQuoted("'") + "d.go' '$HOME/x'",
 		},
 		{
 			name:    "empty slice substitutes as empty string",

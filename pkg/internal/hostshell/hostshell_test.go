@@ -143,11 +143,13 @@ func TestPowerShellLiteralRoundTripsTypographicQuotes(t *testing.T) {
 		"x‚y‛z‘w",
 		"it's ’",
 	}
+	ran := 0
 	for _, name := range []string{"pwsh", "powershell"} {
 		path, err := exec.LookPath(name)
 		if err != nil {
 			continue
 		}
+		ran++
 		sh := Shell{Kind: KindPowerShell, Path: path}
 		for _, v := range values {
 			t.Run(name+"/"+v, func(t *testing.T) {
@@ -161,6 +163,9 @@ func TestPowerShellLiteralRoundTripsTypographicQuotes(t *testing.T) {
 				}
 			})
 		}
+	}
+	if ran == 0 {
+		t.Skip("no pwsh/powershell on PATH")
 	}
 }
 
