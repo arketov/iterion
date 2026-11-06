@@ -1528,6 +1528,7 @@ func TestMongoStore_Conformance(t *testing.T) {
 	runAdjustLabelsSuite(t, boardmongo.New(db, "adjust-labels-tenant"))
 	runCardGrantSuite(t, boardmongo.New(db, "card-grant-tenant"))
 	runRunOutcomeSuite(t, boardmongo.New(db, "run-outcome-tenant"))
+	runPruneRunRefsSuite(t, boardmongo.New(db, "prune-tenant"))
 	runEffectOutboxKindSuite(t, boardmongo.New(db, "effect-kind-tenant"), "effect-kind-tenant")
 	runLegacyEffectRowSuite(ctx, t, db)
 
