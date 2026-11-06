@@ -74,7 +74,7 @@ func (s *Server) handlePreviewProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := s.runs.LoadRunCtx(r.Context(), runID); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 

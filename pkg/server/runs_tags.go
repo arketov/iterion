@@ -26,7 +26,7 @@ func (s *Server) handleGetRunTags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := s.runs.LoadRunCtx(r.Context(), id); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	tags, err := s.runs.GetRunTagsCtx(r.Context(), id)
@@ -71,7 +71,7 @@ func (s *Server) handleSetRunTags(w http.ResponseWriter, r *http.Request) {
 	// the (tenant-blind on run_id) write, mirroring the other sub-resource
 	// handlers.
 	if _, err := s.runs.LoadRunCtx(r.Context(), id); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	if err := s.runs.SetRunTagsCtx(r.Context(), id, tags); err != nil {

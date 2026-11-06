@@ -110,7 +110,7 @@ func (s *Server) handleRunShell(w http.ResponseWriter, r *http.Request) {
 			s.httpErrorFor(w, r, http.StatusGone, "run was deleted")
 			return
 		}
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	if !shellEligible(run.Status) {

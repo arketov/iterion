@@ -24,7 +24,7 @@ func (s *Server) handleListAllArtifacts(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if _, err := s.runs.LoadRunCtx(r.Context(), id); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	out, err := s.runs.ListAllArtifactsCtx(r.Context(), id)
@@ -50,7 +50,7 @@ func (s *Server) handleListArtifacts(w http.ResponseWriter, r *http.Request) {
 	// touch the filesystem-backed ListArtifacts (which has no tenant
 	// awareness of its own).
 	if _, err := s.runs.LoadRunCtx(r.Context(), id); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	out, err := s.runs.ListArtifactsCtx(r.Context(), id, node)
@@ -82,7 +82,7 @@ func (s *Server) handleGetArtifact(w http.ResponseWriter, r *http.Request) {
 	// blob in cloud mode — so the run is loaded under the caller's
 	// context first.
 	if _, err := s.runs.LoadRunCtx(r.Context(), id); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	a, err := s.runs.LoadArtifactCtx(r.Context(), id, node, version)
@@ -127,7 +127,7 @@ func (s *Server) handleGetToolBlob(w http.ResponseWriter, r *http.Request) {
 	// (run, tool call) from a store with no tenant awareness — S3 in
 	// cloud mode — so the run is loaded under the caller's context first.
 	if _, err := s.runs.LoadRunCtx(r.Context(), id); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	q := r.URL.Query()
@@ -189,7 +189,7 @@ func (s *Server) handleListArtifactFiles(w http.ResponseWriter, r *http.Request)
 	// under the caller's tenant ctx first — mirrors handleGetToolBlob.
 	// Without it a caller could list another team's artifact files.
 	if _, err := s.runs.LoadRunCtx(r.Context(), id); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	files, err := s.runs.ListArtifactFilesCtx(r.Context(), id)

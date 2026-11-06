@@ -30,7 +30,7 @@ func (s *Server) handleListNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := s.runs.LoadRunCtx(r.Context(), id); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	notes, err := s.runs.ListRunNotesCtx(r.Context(), id)
@@ -71,7 +71,7 @@ func (s *Server) handleAddNote(w http.ResponseWriter, r *http.Request) {
 	}
 	// Tenant gate: reject a cross-tenant write before persisting.
 	if _, err := s.runs.LoadRunCtx(r.Context(), id); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	author := strings.TrimSpace(req.Author)

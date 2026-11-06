@@ -96,7 +96,7 @@ func (s *Server) handleListRunTouchedFiles(w http.ResponseWriter, r *http.Reques
 	}
 	run, err := s.runs.LoadRunCtx(r.Context(), id)
 	if err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	rs := s.runs.RunStore()

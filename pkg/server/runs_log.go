@@ -33,7 +33,7 @@ func (s *Server) handleGetRunLog(w http.ResponseWriter, r *http.Request) {
 	// path-component sanitiser rejects a traversal-shaped id, before any
 	// log bytes are read for it.
 	if _, err := s.runs.LoadRunCtx(r.Context(), id); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	from, _ := strconv.ParseInt(r.URL.Query().Get("from"), 10, 64)

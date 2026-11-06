@@ -69,7 +69,7 @@ func (s *Server) handleGetRun(w http.ResponseWriter, r *http.Request) {
 	} else if xs != nil {
 		snap, err := runview.BuildSnapshot(r.Context(), xs, id)
 		if err != nil {
-			s.httpErrorFor(w, r, http.StatusNotFound, "run not found in cross-store: %v", err)
+			s.runNotFound(w, r, err)
 			return
 		}
 		attachRunViewer(r, snap)
@@ -85,7 +85,7 @@ func (s *Server) handleGetRun(w http.ResponseWriter, r *http.Request) {
 			s.httpErrorFor(w, r, http.StatusGone, "run was deleted")
 			return
 		}
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	attachRunViewer(r, snap)
@@ -228,6 +228,18 @@ func (s *Server) handleGetRunWorkflow(w http.ResponseWriter, r *http.Request) {
 	s.writeJSONFor(w, r, wf)
 }
 
+// runNotFound answers the 404 of a run whose load failed. The body is the
+// fixed "run not found": the store's error text names its own layout and, on a
+// read failure, the absolute path of run.json — an operator's detail, not the
+// caller's. A failure that is not absence goes to the log instead; absence (the
+// common case) adds no noise.
+func (s *Server) runNotFound(w http.ResponseWriter, r *http.Request, err error) {
+	if !store.RunAbsent(err) {
+		s.logger.Warn("server: %s %q: load run: %v", r.Method, r.URL.Path, err)
+	}
+	s.httpErrorFor(w, r, http.StatusNotFound, "run not found")
+}
+
 func (s *Server) runWorkflowError(w http.ResponseWriter, r *http.Request, err error) {
 	var missing *runview.WorkflowUnavailable
 	if errors.As(err, &missing) {
@@ -260,7 +272,7 @@ func (s *Server) handleListPlans(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := s.runs.LoadRunCtx(r.Context(), id); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	plans, err := s.runs.ListPlanSnapshotsCtx(r.Context(), id)
