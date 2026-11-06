@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/arketov/iterion/internal/pathredact"
 	"github.com/arketov/iterion/pkg/auth"
 	"github.com/arketov/iterion/pkg/botinstall"
 	"github.com/arketov/iterion/pkg/botregistry"
@@ -78,9 +79,13 @@ func (s *Server) handleBotsList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	inc := parseBotInclude(r)
-	// A team-scoped caller (cloud) must not see the server's own working
-	// tree: the project-file scan is a local-workspace feature.
-	if id, _ := auth.FromContext(r.Context()); id.TeamID != "" {
+	// The project-file scan is a local-workspace feature: it walks the
+	// server's own working tree. A team-scoped caller must not see it, and
+	// neither must anyone of a cloud server — a caller with no team (a
+	// user between teams, a service token) is no more entitled to the
+	// platform's file tree than one with a team. appendManifestlessBots
+	// holds the same rule itself, so a later caller of it is as safe.
+	if id, _ := auth.FromContext(r.Context()); id.TeamID != "" || s.cfg.Mode == "cloud" {
 		inc.files = false
 	}
 	entries = s.appendManifestlessBots(entries, inc)
@@ -117,53 +122,43 @@ func (s *Server) handleBotsList(w http.ResponseWriter, r *http.Request) {
 func redactAbsoluteDiscoveryPaths(diags []botregistry.DiscoveryError) []botregistry.DiscoveryError {
 	out := append([]botregistry.DiscoveryError(nil), diags...)
 	for i := range out {
-		if filepath.IsAbs(out[i].Path) {
-			path := filepath.Clean(out[i].Path)
-			prefix := filepath.Dir(path) + string(filepath.Separator)
-			out[i].Path = filepath.Base(path)
-			out[i].Error = strings.ReplaceAll(out[i].Error, prefix, "")
+		// Recognised by spelling, not by filepath.IsAbs: on Windows that is
+		// false for `/srv/catalog/x`, and a catalog path the server read on
+		// one host may be quoted in either spelling.
+		if pathredact.IsAbs(out[i].Path) {
+			prefix := pathredact.DirPrefix(out[i].Path)
+			out[i].Path = pathredact.Base(out[i].Path)
+			if prefix != "" {
+				out[i].Error = strings.ReplaceAll(out[i].Error, prefix, "")
+				// The same prefix in the other slash spelling.
+				out[i].Error = strings.ReplaceAll(out[i].Error, flipSlashes(prefix), "")
+			}
 		}
 		out[i].Error = redactAbsolutePathsInText(out[i].Error)
 	}
 	return out
 }
 
+// flipSlashes returns p with its separators in the other spelling: `/` where
+// there was a backslash, a backslash where there was `/`.
+func flipSlashes(p string) string {
+	if strings.Contains(p, `\`) {
+		return strings.ReplaceAll(p, `\`, "/")
+	}
+	return strings.ReplaceAll(p, "/", `\`)
+}
+
 // redactAbsolutePathsInText rewrites every absolute path in a diagnostic
 // message to its last element, keeping the punctuation the sentence wrapped it
 // in (quotes, brackets, a trailing comma or period) so the prose still reads.
 // Whitespace and its runs are preserved.
+//
+// A path is recognised by how it is spelled (pathredact.Strict), on every OS:
+// `/srv/catalog/x` and `C:\srv\catalog\x` alike. It used to ask
+// filepath.IsAbs, which is false for the first on Windows, so a Windows studio
+// kept those paths in the text of its errors.
 func redactAbsolutePathsInText(s string) string {
-	var b strings.Builder
-	b.Grow(len(s))
-	isSpace := func(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }
-	for i := 0; i < len(s); {
-		j := i
-		for j < len(s) && !isSpace(s[j]) {
-			j++
-		}
-		b.WriteString(redactAbsolutePathToken(s[i:j]))
-		k := j
-		for k < len(s) && isSpace(s[k]) {
-			k++
-		}
-		b.WriteString(s[j:k])
-		i = k
-	}
-	return b.String()
-}
-
-// redactAbsolutePathToken returns one whitespace-delimited token with its
-// absolute path, if that is what it holds, reduced to the path's last element.
-func redactAbsolutePathToken(tok string) string {
-	const openers = `"'([{<`
-	const closers = `"')]}>,;:.`
-	inner := strings.TrimLeft(tok, openers)
-	open := tok[:len(tok)-len(inner)]
-	body := strings.TrimRight(inner, closers)
-	if !filepath.IsAbs(body) {
-		return tok
-	}
-	return open + filepath.Base(filepath.Clean(body)) + inner[len(body):]
+	return pathredact.Strict(s)
 }
 
 // handleBotsGet returns one bot with its full schema. Returns 404 when

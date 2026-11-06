@@ -592,6 +592,18 @@ func (s *Server) handleListFiles(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, resp)
 }
 
+// errCodeNotWorkflowFile is the `error_code` of an open that names a file that
+// is not a workflow source (workflowfile.IsWorkflowFile): the editor opens
+// `.bot` files, and nothing else of the workspace is served through it.
+const errCodeNotWorkflowFile = "not_workflow_file"
+
+// refuseNonWorkflowOpen answers an open of a file that is not a workflow
+// source: 400, the one answer whether or not the file exists.
+func (s *Server) refuseNonWorkflowOpen(w http.ResponseWriter, r *http.Request, reqPath string) {
+	s.httpErrorCode(w, r, http.StatusBadRequest, errCodeNotWorkflowFile,
+		"only workflow files (%s) open here: %s", strings.Join(workflowfile.Extensions, ", "), reqPath)
+}
+
 func (s *Server) handleOpenFile(w http.ResponseWriter, r *http.Request) {
 	if !s.requireSafeOrigin(w, r) {
 		return
@@ -600,9 +612,27 @@ func (s *Server) handleOpenFile(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
+	// Only a workflow file opens here. The route answers the editor, and it
+	// answers with the file's BYTES even when the file does not parse
+	// (writeRefusedOpen hands the author the text of what the reader refused),
+	// so a path that names `.env`, a key or a config file inside the workspace
+	// would be read back whole. The name is judged before anything touches the
+	// disk, so the answer for a file that exists and one that does not is the
+	// same — the route is no probe for what the project holds.
+	if !workflowfile.IsWorkflowFile(req.Path) {
+		s.refuseNonWorkflowOpen(w, r, req.Path)
+		return
+	}
 	absPath, err := s.safePath(req.Path)
 	if err != nil {
 		httpError(w, http.StatusBadRequest, "invalid path: %v", err)
+		return
+	}
+	// ...and the file it RESOLVES to is judged too: safePath follows symlinks
+	// inside the workspace, and `x.bot` linked to `.env` is a workflow by name
+	// only.
+	if !workflowfile.IsWorkflowFile(absPath) {
+		s.refuseNonWorkflowOpen(w, r, req.Path)
 		return
 	}
 	data, err := os.ReadFile(absPath)

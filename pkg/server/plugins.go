@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/arketov/iterion/internal/httpx"
 	"github.com/arketov/iterion/pkg/plugin"
 )
 
@@ -52,7 +53,7 @@ func (s *Server) handlePluginEnable(enabled bool) http.HandlerFunc {
 			return
 		}
 		if err := reg.SetEnabled(name, enabled); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, httpx.RedactError(err.Error()), http.StatusBadRequest)
 			return
 		}
 		s.writeJSONFor(w, r, map[string]any{"name": name, "enabled": enabled})
@@ -79,7 +80,7 @@ func (s *Server) handlePluginInstall(w http.ResponseWriter, r *http.Request) {
 	}
 	name, err := plugin.Install(r.Context(), src)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, httpx.RedactError(err.Error()), http.StatusBadRequest)
 		return
 	}
 	// Reload so the freshly-installed plugin is in the registry, then return its
@@ -106,7 +107,7 @@ func (s *Server) handlePluginUninstall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := plugin.Uninstall(name); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, httpx.RedactError(err.Error()), http.StatusBadRequest)
 		return
 	}
 	s.writeJSONFor(w, r, map[string]any{"name": name, "removed": true})
@@ -141,7 +142,7 @@ func (s *Server) handlePluginConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	// ApplyConfig accepts only declared fields and keeps a secret left blank.
 	if err := reg.ApplyConfig(name, body.Values); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, httpx.RedactError(err.Error()), http.StatusBadRequest)
 		return
 	}
 	view, _ := reg.ViewFor(name)

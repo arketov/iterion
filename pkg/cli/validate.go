@@ -574,7 +574,20 @@ func RunValidateWithContext(ctx context.Context, path string, p *Printer, opts V
 				Message:  fmt.Sprintf("cannot resolve the run workspace from the process cwd: %v — plugin {{workspace}} placeholders are reported unresolved", wdErr),
 			})
 		}
-		if err := mcp.PrepareWorkflow(cr.Workflow, filepath.Dir(path), workspace); err != nil {
+		skippedServers, prepErr := mcp.PrepareWorkflowReport(cr.Workflow, filepath.Dir(path), workspace)
+		// A server left out of the catalog (a reserved name in `.mcp.json`) is
+		// a warning, structured-list only for the reason the plugin warning
+		// above is: the workflow is not invalid, and the C332 check below still
+		// runs over what the catalog resolved.
+		for _, sk := range skippedServers {
+			result.Diagnostics = append(result.Diagnostics, ValidateDiagnostic{
+				Source:   "compile",
+				Severity: "warning",
+				Message:  sk.Message(),
+				Hint:     sk.Hint,
+			})
+		}
+		if err := prepErr; err != nil {
 			result.CompileDiagnostics = append(result.CompileDiagnostics, err.Error())
 			result.Diagnostics = append(result.Diagnostics, ValidateDiagnostic{
 				Source:   "compile",

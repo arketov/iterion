@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -137,14 +138,100 @@ func FromIRAuth(auth *ir.MCPAuth) *AuthConfig {
 // swallows: a plugin registry that cannot load takes EVERY plugin MCP server
 // off every node of the run, and that must not look like "no plugins are
 // enabled". Callers that have a run-scoped logger should pass it.
+//
+// A server of the ambient catalog — a project `.mcp.json` entry or a plugin's —
+// whose name is in iterion's reserved internal namespace is left OUT of the
+// catalog, with a warning on the optional logger (and in PrepareWorkflowReport's
+// result, for a caller that shows it), instead of refusing the whole catalog:
+// one stray entry used to take every other server, and the validator's C332
+// check, down with it. Left out, it can place no tool in the infrastructure
+// namespace, which is all the refusal protected. A server the BOT declares
+// (`mcp_server`) is still refused: its author chose the name, and silently
+// running without a server the bot declared is the wrong failure.
 func PrepareWorkflow(wf *ir.Workflow, projectDir, workspace string, logger ...*iterlog.Logger) error {
+	skipped, err := PrepareWorkflowReport(wf, projectDir, workspace, logger...)
+	if len(logger) > 0 && logger[0] != nil {
+		for _, s := range skipped {
+			logger[0].Warn("mcp: %s", s.Message())
+		}
+	}
+	return err
+}
+
+// SkippedServer is an ambient MCP server PrepareWorkflowReport left out of the
+// catalog, and why.
+type SkippedServer struct {
+	// Name is the server's key in its source (`.mcp.json`, plugin manifest).
+	Name string
+	// DeclaredName is the `name` the entry carries when it is another than the
+	// key (only a plugin's can differ); empty otherwise.
+	DeclaredName string
+	// Origin is who controls the definition (OriginProject, OriginPlugin).
+	Origin Origin
+	// Reason says why the server is not in the catalog.
+	Reason string
+	// Hint says how to bring it back.
+	Hint string
+}
+
+// Message renders the skip as one sentence for a log line or a validator
+// warning: what was skipped, where it came from, why, how to fix it, and that
+// everything else is still resolved and checked.
+func (s SkippedServer) Message() string {
+	where := "the MCP catalog"
+	switch s.Origin {
+	case OriginProject:
+		where = ".mcp.json"
+	case OriginPlugin:
+		where = "an enabled plugin"
+	}
+	name := fmt.Sprintf("%q", s.Name)
+	if s.DeclaredName != "" && s.DeclaredName != s.Name {
+		name += fmt.Sprintf(" (declared name %q)", s.DeclaredName)
+	}
+	return fmt.Sprintf("MCP server %s from %s is skipped: %s — %s; the other servers are still resolved and checked", name, where, s.Reason, s.Hint)
+}
+
+// reservedNameSkip returns the skip record for an ambient server whose key or
+// declared name is reserved, or ok=false when it may stay.
+func reservedNameSkip(key string, cfg *ServerConfig) (SkippedServer, bool) {
+	if cfg == nil {
+		return SkippedServer{}, false
+	}
+	if !permission.IsReservedMCPServerName(key) && !permission.IsReservedMCPServerName(cfg.Name) {
+		return SkippedServer{}, false
+	}
+	s := SkippedServer{
+		Name:   key,
+		Origin: cfg.Origin,
+		Reason: `its name is in iterion's reserved internal namespace (a name starting with "iterion" is the engine's own)`,
+		Hint:   `rename it to a name that does not start with "iterion" (for example "engine") where it is declared`,
+	}
+	if cfg.Name != key {
+		s.DeclaredName = cfg.Name
+	}
+	return s, true
+}
+
+// unknownServerError is a `servers:` or `disable:` entry naming a server the
+// catalog does not hold. A typed error so the caller can say that the server
+// was skipped, not absent (PrepareWorkflowReport).
+type unknownServerError struct{ Name string }
+
+func (e *unknownServerError) Error() string { return fmt.Sprintf("unknown MCP server %q", e.Name) }
+
+// PrepareWorkflowReport is PrepareWorkflow that also returns the ambient
+// servers it left out of the catalog (reserved names), so a validator can show
+// each as a warning and still check what the rest of the catalog resolves.
+// The skips are returned even when err is not nil.
+func PrepareWorkflowReport(wf *ir.Workflow, projectDir, workspace string, logger ...*iterlog.Logger) ([]SkippedServer, error) {
 	if wf == nil {
-		return nil
+		return nil, nil
 	}
 
 	projectServers, projectNames, err := loadProjectServers(projectDir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Enabled plugins that contribute MCP servers (e.g. the repo-falcon
@@ -164,14 +251,38 @@ func PrepareWorkflow(wf *ir.Workflow, projectDir, workspace string, logger ...*i
 		projectNames = append(projectNames, name)
 	}
 
+	// Ambient servers (project and plugin) with a reserved name leave the
+	// catalog here, before the merge refuses it whole.
+	var skipped []SkippedServer
+	for _, name := range slices.Sorted(maps.Keys(projectServers)) {
+		if s, drop := reservedNameSkip(name, projectServers[name]); drop {
+			skipped = append(skipped, s)
+			delete(projectServers, name)
+			projectNames = slices.DeleteFunc(projectNames, func(n string) bool { return n == name })
+		}
+	}
+	// A bot that NAMES a skipped server in `servers:`/`disable:` is told why it
+	// is not there, not only that it is unknown.
+	explainSkipped := func(err error) error {
+		var unknown *unknownServerError
+		if errors.As(err, &unknown) {
+			for _, s := range skipped {
+				if s.Name == unknown.Name {
+					return fmt.Errorf("%w (it was skipped: %s — %s)", err, s.Reason, s.Hint)
+				}
+			}
+		}
+		return err
+	}
+
 	catalog, err := mergeCatalog(projectServers, wf.MCPServers)
 	if err != nil {
-		return err
+		return skipped, err
 	}
 
 	workflowActive, err := resolveWorkflowActiveServers(wf.MCP, projectNames, catalog)
 	if err != nil {
-		return err
+		return skipped, explainSkipped(err)
 	}
 
 	wf.ActiveMCPServers = workflowActive
@@ -202,7 +313,7 @@ func PrepareWorkflow(wf *ir.Workflow, projectDir, workspace string, logger ...*i
 		}
 		active, err := resolveNodeActiveServers(mcpCfg, workflowActive, catalog)
 		if err != nil {
-			return fmt.Errorf("mcp: node %q: %w", node.NodeID(), err)
+			return skipped, fmt.Errorf("mcp: node %q: %w", node.NodeID(), explainSkipped(err))
 		}
 		switch n := node.(type) {
 		case *ir.AgentNode:
@@ -212,7 +323,7 @@ func PrepareWorkflow(wf *ir.Workflow, projectDir, workspace string, logger ...*i
 		}
 	}
 
-	return nil
+	return skipped, nil
 }
 
 func AutoLoadProjectEnabled() bool {
@@ -348,13 +459,13 @@ func applyServerOverrides(set *orderedSet, cfg *ir.MCPConfig, catalog map[string
 	}
 	for _, name := range cfg.Servers {
 		if _, ok := catalog[name]; !ok {
-			return fmt.Errorf("unknown MCP server %q", name)
+			return &unknownServerError{Name: name}
 		}
 		set.Add(name)
 	}
 	for _, name := range cfg.Disable {
 		if _, ok := catalog[name]; !ok {
-			return fmt.Errorf("unknown MCP server %q", name)
+			return &unknownServerError{Name: name}
 		}
 		set.Remove(name)
 	}

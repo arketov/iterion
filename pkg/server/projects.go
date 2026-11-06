@@ -323,6 +323,9 @@ func (s *Server) swapWorkDir(ctx context.Context, newDir string) error {
 	// Build the new run-console service first; if construction fails
 	// we abort before touching any live state.
 	storeDir := store.ResolveStoreDir(abs, "")
+	// The new project's directories are the host's too: an error about them
+	// must not name them (installPathRedaction; the old roots stay registered).
+	installPathRedaction(abs, storeDir)
 
 	// Rebuild the local secret store for the NEW project so its project layer
 	// (<store-dir>/secrets.json) follows the switch; the global layer + master

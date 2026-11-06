@@ -540,10 +540,45 @@ func TestRedactAbsolutePathsInText(t *testing.T) {
 		{"broken-chat/manifest.yaml: chat: node has no text_field", "broken-chat/manifest.yaml: chat: node has no text_field"},
 		{"two paths /a/b/one and /c/d/two\nand a newline /e/f/three", "two paths one and two\nand a newline three"},
 		{"", ""},
+		// The Windows spelling, which the redaction must know on every OS (it
+		// asked filepath.IsAbs, so a Windows studio kept `/srv/...` paths and
+		// no test spelled a drive path at all).
+		{`bot name "revi" is already claimed by C:\srv\catalog\revi, so nothing routes`, `bot name "revi" is already claimed by revi, so nothing routes`},
+		{`open "C:\srv\catalog\a\manifest.yaml": no such file`, `open "manifest.yaml": no such file`},
+		{`open "C:/srv/catalog/a/manifest.yaml": no such file`, `open "manifest.yaml": no such file`},
+		{`lstat (\\fileserver\share\deep) failed.`, `lstat (deep) failed.`},
+		{"two paths /a/b/one and C:\\c\\d\\two\nand a newline /e/f/three", "two paths one and two\nand a newline three"},
+		{`claimed by ..\bots\revi, so nothing routes`, `claimed by ..\bots\revi, so nothing routes`},
 	} {
 		if got := redactAbsolutePathsInText(tc.in); got != tc.want {
 			t.Errorf("redactAbsolutePathsInText(%q) = %q, want %q", tc.in, got, tc.want)
 		}
+	}
+}
+
+// TestRedactAbsoluteDiscoveryPaths_EitherSpellingOnEveryOS: the diagnostic's
+// own path and every path its message quotes go, whether the source sits at a
+// `/srv/...` or a `C:\...` root and whichever slash the message quotes it with.
+func TestRedactAbsoluteDiscoveryPaths_EitherSpellingOnEveryOS(t *testing.T) {
+	in := []botregistry.DiscoveryError{
+		{Path: "/srv/catalog/revi-copy", Error: `bot name "revi" is already claimed by /srv/other/revi: /srv/catalog/revi-copy/manifest.yaml is shadowed`},
+		{Path: `C:\srv\catalog\broken`, Error: `C:\srv\catalog\broken\manifest.yaml: bad; also C:/srv/catalog/broken/main.bot and \\nas\share\revi`},
+		{Path: "relative/ok", Error: "relative/ok/manifest.yaml: fine"},
+	}
+	got := redactAbsoluteDiscoveryPaths(in)
+	want := []botregistry.DiscoveryError{
+		{Path: "revi-copy", Error: `bot name "revi" is already claimed by revi: revi-copy/manifest.yaml is shadowed`},
+		{Path: "broken", Error: `broken\manifest.yaml: bad; also broken/main.bot and revi`},
+		{Path: "relative/ok", Error: "relative/ok/manifest.yaml: fine"},
+	}
+	for i := range want {
+		if got[i].Path != want[i].Path || got[i].Error != want[i].Error {
+			t.Errorf("[%d] = {%q, %q}, want {%q, %q}", i, got[i].Path, got[i].Error, want[i].Path, want[i].Error)
+		}
+	}
+	// The input is a copy: the caller's slice keeps its own (logged) paths.
+	if in[0].Path != "/srv/catalog/revi-copy" {
+		t.Errorf("the input slice was edited in place: %q", in[0].Path)
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/arketov/iterion/internal/httpx"
 	"github.com/arketov/iterion/pkg/auth"
 	"github.com/arketov/iterion/pkg/bundle"
 	"github.com/arketov/iterion/pkg/errtrack"
@@ -209,7 +210,7 @@ func (s *Server) handleRunWebSocket(w http.ResponseWriter, r *http.Request) {
 	// clean HTTP 400 instead of a WS error envelope at first message.
 	xStore, xStorePath, err := s.resolveCrossStore(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, httpx.RedactError(err.Error()), http.StatusBadRequest)
 		return
 	}
 	// Authorize access to runID BEFORE upgrading. requireAuth has

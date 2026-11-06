@@ -462,9 +462,16 @@ func (s *Server) appendMCPCatalogIssues(resp *validateResponse, wf *ir.Workflow,
 	if err := mcp.PluginServersUnavailable(); err != nil {
 		add(DiagnosticDTO{Severity: "warning", Message: err.Error()})
 	}
-	// PrepareWorkflow fills wf's resolved catalog in place; this compile is
-	// the request's own, discarded after the response.
-	if err := mcp.PrepareWorkflow(wf, projectDir, s.cfg.WorkDir); err != nil {
+	// PrepareWorkflowReport fills wf's resolved catalog in place; this compile
+	// is the request's own, discarded after the response. A server it leaves
+	// out (a reserved name in `.mcp.json`) is a warning of its own and the
+	// catalog it still resolved is checked below: one stray entry no longer
+	// takes C332 down with it.
+	skipped, err := mcp.PrepareWorkflowReport(wf, projectDir, s.cfg.WorkDir)
+	for _, sk := range skipped {
+		add(DiagnosticDTO{Severity: "warning", Message: sk.Message(), Hint: sk.Hint})
+	}
+	if err != nil {
 		add(DiagnosticDTO{Severity: "warning", Message: "MCP catalog could not be resolved, tool servers were not checked: " + err.Error()})
 		return
 	}
