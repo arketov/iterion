@@ -113,9 +113,9 @@ from — its *origin*:
 | **Project file** | A single `.bot` file without a manifest | Anywhere in the project folder outside the catalog folders (the walk skips dot-folders, `node_modules`, `vendor` and build output; at most 500 files) |
 | **Team**, **Platform** | Bots of your team or of the whole instance | Cloud only |
 
-The recipes embedded in the `iterion` binary are not listed anywhere (owner
-decision, 2026-11-05); the zero-config dispatcher still uses its own embedded
-default bots ([dispatcher](dispatcher.md#quick-start-zero-config)). A bundle and
+The `iterion` binary carries no bots of its own (owner decision, 2026-11-05):
+the zero-config dispatcher runs the bots of your project
+([dispatcher](dispatcher.md#quick-start-zero-config)). A bundle and
 a loose file already covered by it are listed once. *Enabled* / *Disabled* is the manifest's catalog flag: a
 disabled bot is not offered by routing, the board picker or the assistant but
 can still be launched by hand. A project file has no
@@ -144,8 +144,9 @@ override it are in [Where iterion keeps data](where-iterion-keeps-data.md).
   resume from. Runs are listed on the studio's **Runs** page.
 - A **board** is a kanban of **cards** (issues). A card can name a bot — its
   *assignee* or *bot* field — and the **dispatcher** polls the board and runs
-  that bot for each ready card. A card with neither is not run by the zero-config
-  dispatcher ([dispatcher](dispatcher.md), [native tracker](native-tracker.md)).
+  that bot for each ready card. A card with neither — or whose assignee is not a
+  bot of the project — is not run by the zero-config dispatcher
+  ([dispatcher](dispatcher.md), [native tracker](native-tracker.md)).
 - A **worktree** is a separate git checkout a run can work in (`worktree:
   auto`), so your own working tree is never edited; the result lands as a branch
   you merge ([merge policy](merge-policy.md)).

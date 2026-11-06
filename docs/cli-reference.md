@@ -668,7 +668,7 @@ iterion dispatch iterion.dispatcher.yaml --port 4892
 iterion dispatch iterion.dispatcher.yaml --no-server
 ```
 
-No argument selects the native tracker, embedded bot catalogue, and HTTP `:4892` defaults. See [dispatcher](dispatcher.md).
+No argument selects the native tracker, the current project's own bots (`bots/`, `examples/`, `.botz/`), and HTTP `:4892` defaults. See [dispatcher](dispatcher.md).
 
 ### `iterion schedule`
 

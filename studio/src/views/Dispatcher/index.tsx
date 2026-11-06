@@ -304,7 +304,7 @@ export default function DispatcherView() {
           className="flex-1"
           title="No dispatcher running"
           // POST /dispatcher/defaults/apply builds the zero-config dispatcher
-          // (embedded bot catalogue, native board) and starts it. The server
+          // (the project's own bots, native board) and starts it. The server
           // answers 409 when a config already exists, so the button is only
           // offered while there is none.
           action={
@@ -313,7 +313,7 @@ export default function DispatcherView() {
                 variant="primary"
                 size="sm"
                 onClick={() => void actionRun(async () => { setStatus(await applyDefaults()); })}
-                title="Create a default dispatcher from the built-in bots and start it"
+                title="Create a default dispatcher that runs your project's bots, and start it"
               >
                 Use default settings
               </Button>

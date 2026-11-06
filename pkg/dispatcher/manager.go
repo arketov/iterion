@@ -59,8 +59,8 @@ type ManagerOptions struct {
 	// hooks and every engine the manager creates.
 	RunEnv []string
 	// DefaultsFn builds a zero-config dispatcher Config from the
-	// host environment (typically by extracting the embedded bot
-	// catalogue under <storeDir>/dispatcher/bots/). When set, the
+	// host environment (typically the project's own bots as the routable
+	// assignees, see cli.BuildDefaultConfig). When set, the
 	// Manager exposes POST /defaults/apply which saves the returned
 	// config and starts the dispatcher in one call. nil = the
 	// endpoint returns 501 Not Implemented.

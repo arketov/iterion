@@ -98,16 +98,17 @@ From the **Bots** page, **Launch** on a bot's page skips steps 1–2.
 Goal: hand a task to a bot through the Board and let the dispatcher run it.
 
 1. **Board → + New issue.** Give it a title and a body (the bot reads both).
-2. **Assign a bot.** Set the **Assignee** (a catalog bot name, such as
-   `feature-dev`) or the **Bot** field, then save. *A card with neither is not
-   run*: the zero-config dispatcher refuses to guess, and the card shows
-   **⚠ no assignee — won't start**, plus a row in the Dispatcher's *Won't
-   dispatch* table.
+2. **Assign a bot.** Set the **Assignee** (the name of one of your project's
+   bots, such as `my-helper`) or the **Bot** field, then save. *A card with
+   neither is not run*: the zero-config dispatcher refuses to guess, and the card
+   shows **⚠ no assignee — won't start**, plus a row in the Dispatcher's *Won't
+   dispatch* table. An assignee that is not one of your bots (a person's name, a
+   typo) is not run either: **⚠ no bot — won't start**.
 3. **Move it to Ready** (drag the card to the Ready column). Ready and In progress are
    the columns the dispatcher takes cards from.
 4. **Make sure the dispatcher is running.** Open **Dispatcher**. If it says *No
    dispatcher running*, press **Use default settings**: it builds the default
-   configuration from the built-in bots and starts it. A dispatcher that was
+   configuration from your project's own bots (`bots/`) and starts it. A dispatcher that was
    configured before resumes by itself when the studio starts.
 5. Within one poll (30 s by default) the card moves to **In progress** and shows
    a live run chip. Click it to open the run console; the run is also under
