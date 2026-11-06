@@ -2,9 +2,13 @@ package server
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -184,6 +188,91 @@ func TestSwapWorkDir_LeavesOnePeriodicWorkerPerKind(t *testing.T) {
 			t.Errorf("%s: the one live worker (goroutine %d) belongs to a service a switch REPLACED — the switch stopped the service the server now serves, which scans nothing, and the store it no longer serves is still scanned once per interval", kind, live[0])
 		}
 	}
+}
+
+// The Home's "Bots" list reads <ExamplesDir>, which the studio derives from the
+// project folder (bots/, else examples/). A swap that leaves it on the boot
+// project lists the previous project's bots; one that rewrites an operator's
+// explicit folder overrides a deliberate choice.
+func TestSwapWorkDir_ExamplesDirFollowsTheProject(t *testing.T) {
+	t.Setenv("ITERION_HOME", t.TempDir())
+
+	writeBundleBot := func(dir, name string) {
+		t.Helper()
+		bot := filepath.Join(dir, name)
+		if err := os.MkdirAll(bot, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(bot, "main.bot"), []byte("workflow "+name+":\n  entry: done\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(bot, "manifest.yaml"), []byte("name: "+name+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	listed := func(srv *Server) []string {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		srv.handleListExamples(rec, httptest.NewRequest(http.MethodGet, "/api/examples", nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+		}
+		var entries []exampleEntry
+		if err := json.Unmarshal(rec.Body.Bytes(), &entries); err != nil {
+			t.Fatalf("decode: %v\n%s", err, rec.Body.String())
+		}
+		names := make([]string, 0, len(entries))
+		for _, e := range entries {
+			names = append(names, e.Name)
+		}
+		return names
+	}
+	newServer := func(workDir, examplesDir string) *Server {
+		t.Helper()
+		srv := New(Config{
+			WorkDir:                 workDir,
+			ExamplesDir:             examplesDir,
+			SkipProjectRegistration: true,
+		}, iterlog.New(iterlog.LevelError, nil))
+		srv.bgJoinBudget = 30 * time.Second
+		shutdownOnCleanup(t, srv)
+		return srv
+	}
+
+	dirA, dirB, dirC := t.TempDir(), t.TempDir(), t.TempDir()
+	writeBundleBot(filepath.Join(dirA, "bots"), "alpha")
+	writeBundleBot(filepath.Join(dirB, "examples"), "beta")
+
+	t.Run("derived folder follows the swap", func(t *testing.T) {
+		srv := newServer(dirA, filepath.Join(dirA, "bots"))
+		if got := listed(srv); len(got) != 1 || !strings.Contains(got[0], "alpha") {
+			t.Fatalf("boot project: examples = %v, want [alpha/main.bot]", got)
+		}
+		if err := srv.swapWorkDir(context.Background(), dirB); err != nil {
+			t.Fatalf("swap to B: %v", err)
+		}
+		if got := listed(srv); len(got) != 1 || !strings.Contains(got[0], "beta") {
+			t.Fatalf("after the swap: examples = %v, want [beta/main.bot] — the previous project's catalog is still served", got)
+		}
+		if err := srv.swapWorkDir(context.Background(), dirC); err != nil {
+			t.Fatalf("swap to C: %v", err)
+		}
+		if got := listed(srv); len(got) != 0 {
+			t.Fatalf("a project with no bots/ or examples/ lists %v, want nothing", got)
+		}
+	})
+
+	t.Run("explicit folder stays pinned", func(t *testing.T) {
+		pinned := t.TempDir()
+		writeBundleBot(pinned, "gamma")
+		srv := newServer(dirA, pinned)
+		if err := srv.swapWorkDir(context.Background(), dirB); err != nil {
+			t.Fatalf("swap: %v", err)
+		}
+		if got := listed(srv); len(got) != 1 || !strings.Contains(got[0], "gamma") {
+			t.Fatalf("after the swap: examples = %v, want the operator's folder [gamma/main.bot]", got)
+		}
+	})
 }
 
 // mkProjectDir makes a directory swapWorkDir accepts as a project.
