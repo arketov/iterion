@@ -35,6 +35,8 @@ export function BoardColumnsArea({
   onSelectColumn,
   onLabelToggle,
   onCancelRun,
+  onForceResume,
+  onRestartFresh,
   onOpenRun,
   onClearSelection,
 }: {
@@ -55,6 +57,8 @@ export function BoardColumnsArea({
   onSelectColumn: (stateName: string) => void;
   onLabelToggle: (label: string) => void;
   onCancelRun: (issueID: string) => void;
+  onForceResume?: (issueID: string) => void;
+  onRestartFresh?: (issueID: string) => void;
   onOpenRun: (runId: string) => void;
   /** Fired when a click lands in empty board space while a selection exists. */
   onClearSelection: () => void;
@@ -89,6 +93,8 @@ export function BoardColumnsArea({
       onLabelClick={onLabelToggle}
       activeLabels={activeLabels}
       onCancelRun={onCancelRun}
+      onForceResume={onForceResume}
+      onRestartFresh={onRestartFresh}
       onOpenRun={onOpenRun}
       dimmed={dispatcherPaused}
       onEditColumn={manage ? columns.onEditColumn : undefined}
@@ -120,6 +126,8 @@ export function BoardColumnsArea({
         onLabelClick={onLabelToggle}
         activeLabels={activeLabels}
         onCancelRun={onCancelRun}
+        onForceResume={onForceResume}
+        onRestartFresh={onRestartFresh}
         onOpenRun={onOpenRun}
         dimmed={dispatcherPaused}
       />
