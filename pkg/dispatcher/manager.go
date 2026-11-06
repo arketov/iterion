@@ -1088,7 +1088,7 @@ func (m *Manager) handleReload(w http.ResponseWriter, _ *http.Request) {
 func (m *Manager) handleIssueDetail(w http.ResponseWriter, r *http.Request) {
 	cur := m.Current()
 	if cur == nil {
-		http.Error(w, "dispatcher not running", http.StatusNotFound)
+		WriteErr(w, http.StatusNotFound, errors.New("dispatcher not running"))
 		return
 	}
 	id := r.PathValue("id")
@@ -1105,7 +1105,7 @@ func (m *Manager) handleIssueDetail(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	http.Error(w, "issue not tracked by dispatcher", http.StatusNotFound)
+	WriteErr(w, http.StatusNotFound, errors.New("issue not tracked by dispatcher"))
 }
 
 func (m *Manager) handleIssueCancel(w http.ResponseWriter, r *http.Request) {
