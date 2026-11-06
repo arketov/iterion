@@ -430,10 +430,10 @@ func validateProjectDir(dir string) (string, error) {
 // silent CurrentProjectID flip left modjo's WebView talking to the
 // dead git-ai-trace daemon URL.
 func (a *App) RemoveProject(id string) error {
+	a.mu.Lock()
 	// Snapshot the project's Dir before mutation so we can stop its
 	// daemon and clear its discovery file after the config write.
 	removed := a.config.ProjectByID(id)
-	a.mu.Lock()
 	prevCurrent := a.config.CurrentProjectID
 	if !a.config.RemoveProject(id) {
 		a.mu.Unlock()
