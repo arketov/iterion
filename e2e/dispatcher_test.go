@@ -52,7 +52,7 @@ func newDispatcherFixture(t *testing.T, polling time.Duration) (
 		Polling:   dispatcher.PollingConfig{IntervalMS: int(polling.Milliseconds())},
 		Agent:     dispatcher.AgentConfig{MaxConcurrent: 2, MaxRetryBackoffMS: 500},
 		Workspace: dispatcher.WorkspaceConfig{Root: dir + "/dispatcher/workspaces"},
-		Stall:     dispatcher.StallConfig{TimeoutMS: 0},
+		Stall:     dispatcher.StallConfig{},
 	}
 	// Apply defaults manually so the cfg is internally consistent
 	// without going through Load (which checks the workflow file).

@@ -28,7 +28,7 @@ func newCleanupTestDispatcher(t *testing.T, persist WorkspacePersistPolicy, wsRo
 		Polling:   PollingConfig{IntervalMS: 50},
 		Agent:     AgentConfig{MaxConcurrent: 4, MaxRetryBackoffMS: 1000, RunningState: "in_progress"},
 		Workspace: WorkspaceConfig{Root: wsRoot, Persist: persist},
-		Stall:     StallConfig{TimeoutMS: 0},
+		Stall:     StallConfig{},
 	}
 	cfg.applyDefaults()
 	ws, err := NewWorkspaces(wsRoot)

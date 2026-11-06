@@ -163,6 +163,7 @@ export interface HooksConfig {
 }
 
 export interface StallConfig {
+  /** Omitted = 600000 ms default; 0 or negative = stall detection disabled. */
   timeout_ms?: number;
 }
 

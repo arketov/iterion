@@ -72,7 +72,7 @@ func TestFinishRun_PausedForInputIsParkedNotRetried(t *testing.T) {
 					MaxAttempts:       tc.maxAttempts,
 				},
 				Workspace: WorkspaceConfig{Root: wsDir},
-				Stall:     StallConfig{TimeoutMS: 0},
+				Stall:     StallConfig{},
 			}
 			cfg.applyDefaults()
 			ws, err := NewWorkspaces(wsDir)

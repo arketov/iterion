@@ -330,8 +330,12 @@ func (p WorkspacePersistPolicy) shouldCleanupOnSuccess() bool {
 }
 
 // StallConfig is the inactivity timeout for running issues.
+//
+// TimeoutMS is a pointer to tell "unset" from an explicit 0: nil means
+// DefaultStallTimeoutMS, 0 (or a negative value, a legacy synonym) disables
+// stall detection.
 type StallConfig struct {
-	TimeoutMS int `yaml:"timeout_ms,omitempty" json:"timeout_ms,omitempty"`
+	TimeoutMS *int `yaml:"timeout_ms,omitempty" json:"timeout_ms,omitempty"`
 }
 
 // ServerConfig opens the dispatcher's HTTP/WS surface.
@@ -540,8 +544,17 @@ func (c *Config) applyDefaults() {
 	} else if c.Agent.MaxAttempts < 0 {
 		c.Agent.MaxAttempts = 0
 	}
-	if c.Stall.TimeoutMS == 0 {
-		c.Stall.TimeoutMS = DefaultStallTimeoutMS
+	// Stall: unset → the default; an explicit 0 is the operator's "off" and is
+	// kept; a negative value is the same escape, normalised to 0 like
+	// max_attempts above. Always assign a fresh pointer: Config is copied by
+	// value, so writing through the existing one would leak into the copies.
+	switch {
+	case c.Stall.TimeoutMS == nil:
+		def := DefaultStallTimeoutMS
+		c.Stall.TimeoutMS = &def
+	case *c.Stall.TimeoutMS < 0:
+		zero := 0
+		c.Stall.TimeoutMS = &zero
 	}
 	if c.Tracker.Kind == TrackerKindGitHub && c.Tracker.GitHub != nil && c.Tracker.GitHub.ClaimedLabel == "" {
 		c.Tracker.GitHub.ClaimedLabel = DefaultGitHubClaimedLabel
@@ -785,12 +798,13 @@ func (c *Config) MaxRetryBackoff() time.Duration {
 }
 
 // StallTimeout returns the stall timeout as a time.Duration. Zero
-// disables stall detection.
+// disables stall detection (an explicit 0 or negative timeout_ms, or a
+// config built in code without defaults).
 func (c *Config) StallTimeout() time.Duration {
-	if c.Stall.TimeoutMS <= 0 {
+	if c.Stall.TimeoutMS == nil || *c.Stall.TimeoutMS <= 0 {
 		return 0
 	}
-	return time.Duration(c.Stall.TimeoutMS) * time.Millisecond
+	return time.Duration(*c.Stall.TimeoutMS) * time.Millisecond
 }
 
 // ---------------------------------------------------------------------------

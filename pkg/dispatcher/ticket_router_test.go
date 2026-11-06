@@ -51,7 +51,7 @@ func routerTestDispatcher(t *testing.T, ft tracker.Tracker) *Dispatcher {
 		Polling:      PollingConfig{IntervalMS: 100},
 		Agent:        AgentConfig{MaxConcurrent: 4, MaxRetryBackoffMS: 1000},
 		Workspace:    WorkspaceConfig{Root: wsDir},
-		Stall:        StallConfig{TimeoutMS: 0},
+		Stall:        StallConfig{},
 		TicketRouter: TicketRouterConfig{Enabled: true},
 	}
 	cfg.applyDefaults()

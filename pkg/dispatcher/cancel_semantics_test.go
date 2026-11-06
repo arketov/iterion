@@ -99,7 +99,7 @@ func TestReconcileStalled_InterruptsWithCause(t *testing.T) {
 	ft := newFakeTracker()
 	c := newTestDispatcher(t, &StubRunner{}, ft, time.Hour)
 	cfg := c.cfg.Load()
-	cfg.Stall.TimeoutMS = 1 // anything stalls
+	cfg.Stall.TimeoutMS = new(1) // anything stalls
 
 	runCtx, cancel := context.WithCancelCause(context.Background())
 	entry := &runningEntry{

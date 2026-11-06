@@ -416,7 +416,7 @@ function Form({ cfg, setCfg }: FormProps) {
       <Section title="Stall detection">
         <Field
           label="Timeout (ms)"
-          hint="If a run is silent for this long, the dispatcher cancels and retries it. -1 disables stall detection (0 means the 600 000 ms default)."
+          hint="If a run is silent for this long, the dispatcher cancels and retries it. 0 (or any negative value) disables stall detection; the default is 600 000 ms."
         >
           <Input
             size="sm"

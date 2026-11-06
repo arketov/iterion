@@ -93,7 +93,7 @@ func TestFinishRun_StampsLastRunOnNativeTracker(t *testing.T) {
 		Polling:   PollingConfig{IntervalMS: 50},
 		Agent:     AgentConfig{MaxConcurrent: 4, MaxRetryBackoffMS: 1000, RunningState: "in_progress"},
 		Workspace: WorkspaceConfig{Root: wsDir},
-		Stall:     StallConfig{TimeoutMS: 0},
+		Stall:     StallConfig{},
 	}
 	cfg.applyDefaults()
 	ws, err := NewWorkspaces(wsDir)
@@ -186,7 +186,7 @@ func TestFinishRun_StampsOnFailureToo(t *testing.T) {
 		Polling:   PollingConfig{IntervalMS: 50},
 		Agent:     AgentConfig{MaxConcurrent: 4, MaxRetryBackoffMS: 1000, RunningState: "in_progress"},
 		Workspace: WorkspaceConfig{Root: wsDir},
-		Stall:     StallConfig{TimeoutMS: 0},
+		Stall:     StallConfig{},
 	}
 	cfg.applyDefaults()
 	ws, err := NewWorkspaces(wsDir)
@@ -265,7 +265,7 @@ func TestFinishRun_AwaitingInputBadge(t *testing.T) {
 			Polling:   PollingConfig{IntervalMS: 50},
 			Agent:     AgentConfig{MaxConcurrent: 4, MaxRetryBackoffMS: 1000, RunningState: "in_progress"},
 			Workspace: WorkspaceConfig{Root: wsDir},
-			Stall:     StallConfig{TimeoutMS: 0},
+			Stall:     StallConfig{},
 		}
 		cfg.applyDefaults()
 		ws, err := NewWorkspaces(wsDir)
@@ -532,7 +532,7 @@ func TestDispatch_SkipsUnresolvableExplicitBot(t *testing.T) {
 		Polling:   PollingConfig{IntervalMS: 50},
 		Agent:     AgentConfig{MaxConcurrent: 4, MaxRetryBackoffMS: 1000, RunningState: "in_progress"},
 		Workspace: WorkspaceConfig{Root: filepath.Join(dir, "ws")},
-		Stall:     StallConfig{TimeoutMS: 0},
+		Stall:     StallConfig{},
 	}
 	cfg.applyDefaults()
 	// Bots.Paths points at an empty dir → "no-such-bot-xyz" is unresolvable.
@@ -625,7 +625,7 @@ func TestDispatchSkip_SurfacedThenPruned(t *testing.T) {
 		Polling:   PollingConfig{IntervalMS: 50},
 		Agent:     AgentConfig{MaxConcurrent: 4, MaxRetryBackoffMS: 1000, RunningState: "in_progress"},
 		Workspace: WorkspaceConfig{Root: filepath.Join(dir, "ws")},
-		Stall:     StallConfig{TimeoutMS: 0},
+		Stall:     StallConfig{},
 	}
 	cfg.applyDefaults()
 	cfg.Bots.Paths = []string{filepath.Join(dir, "empty-bots")} // unresolvable
@@ -700,7 +700,7 @@ func TestDispatch_StampsLastRunAtStart(t *testing.T) {
 		Polling:   PollingConfig{IntervalMS: 30},
 		Agent:     AgentConfig{MaxConcurrent: 4, MaxRetryBackoffMS: 1000, RunningState: "in_progress"},
 		Workspace: WorkspaceConfig{Root: filepath.Join(dir, "ws")},
-		Stall:     StallConfig{TimeoutMS: 0},
+		Stall:     StallConfig{},
 	}
 	cfg.applyDefaults()
 	ws, err := NewWorkspaces(filepath.Join(dir, "ws"))
@@ -765,7 +765,7 @@ func TestFinishRun_WarnsOnZeroCommit(t *testing.T) {
 			Polling:   PollingConfig{IntervalMS: 50},
 			Agent:     AgentConfig{MaxConcurrent: 4, MaxRetryBackoffMS: 1000, RunningState: "in_progress"},
 			Workspace: WorkspaceConfig{Root: wsDir},
-			Stall:     StallConfig{TimeoutMS: 0},
+			Stall:     StallConfig{},
 		}
 		cfg.applyDefaults() // CompletedState defaults to "review"
 		ws, err := NewWorkspaces(wsDir)
