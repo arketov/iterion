@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { FileIcon, UploadIcon } from "@radix-ui/react-icons";
@@ -10,14 +10,9 @@ import { ClampText } from "@/components/ui/ClampText";
 import { EmptyState } from "@/components/ui/EmptyState";
 import FilePicker from "@/components/FilePicker/FilePicker";
 import { HiddenFileInput } from "@/components/shared/HiddenFileInput";
-import { openExampleIntoStore } from "@/lib/openExample";
-import { errorMessage, toastError } from "@/lib/errorHints";
+import { errorMessage } from "@/lib/errorHints";
+import { importFileInNewTab, isBotFile, openFileInNewTab, pickIntoNewTab } from "@/lib/openInEditorTab";
 import { basename } from "@/lib/format";
-import { replaceDocument } from "@/lib/replaceDocument";
-import { applyParsedSource, refuseReadRefusal } from "@/lib/salvage";
-import { getOrCreateDocumentStore, stampEditor, stampHolds } from "@/store/document";
-import { useRecentsStore } from "@/store/recents";
-import { useTabsStore } from "@/store/tabs";
 import { useUIStore } from "@/store/ui";
 
 const EMPTY_FILES: FileEntry[] = [];
@@ -33,10 +28,13 @@ const EMPTY_FILES: FileEntry[] = [];
 // with no tab open there is no Toolbar to listen for it.
 export default function ProjectFilesPanel() {
   const [, setLocation] = useLocation();
-  const pushRecent = useRecentsStore((s) => s.pushRecent);
   const addToast = useUIStore((s) => s.addToast);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  // The shared flag, not local state: the command palette's "Open file…"
+  // (Cmd+K) raises it, and with no tab open this pane is the only reader.
+  const pickerOpen = useUIStore((s) => s.filePickerOpen);
+  const setPickerOpen = useUIStore((s) => s.setFilePickerOpen);
+  const deps = useMemo(() => ({ navigate: setLocation, addToast }), [setLocation, addToast]);
 
   const filesQuery = useQuery({
     // Not ["workspace-files"]: that cache holds the bare entry array for the
@@ -55,11 +53,9 @@ export default function ProjectFilesPanel() {
 
   const openProjectFile = useCallback(
     (path: string) => {
-      useTabsStore.getState().openTab("editor", { file: path });
-      pushRecent(path);
-      setLocation(`/editor?file=${encodeURIComponent(path)}`);
+      void openFileInNewTab(path, deps);
     },
-    [pushRecent, setLocation],
+    [deps],
   );
 
   // The pane is mounted only on the editor home, so the key is this pane's
@@ -74,24 +70,11 @@ export default function ProjectFilesPanel() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [setPickerOpen]);
 
   const handlePick = useCallback(
-    async (kind: "file" | "example", path: string) => {
-      if (kind === "file") {
-        openProjectFile(path);
-        return;
-      }
-      const tabId = useTabsStore.getState().newEditorTab(path);
-      const store = getOrCreateDocumentStore(tabId);
-      try {
-        if ((await openExampleIntoStore(path, store)) !== "superseded") setLocation("/editor");
-      } catch (err) {
-        useTabsStore.getState().closeTab(tabId);
-        toastError(addToast, err, "Failed to open example");
-      }
-    },
-    [openProjectFile, addToast, setLocation],
+    (kind: "file" | "example", path: string) => pickIntoNewTab(kind, path, deps),
+    [deps],
   );
 
   const handleOpenFromDisk = useCallback(
@@ -99,64 +82,15 @@ export default function ProjectFilesPanel() {
       const input = e.target;
       const file = input.files?.[0];
       if (!file) return;
-      if (!file.name.endsWith(".bot")) {
+      if (!isBotFile(file)) {
         addToast("Only .bot files can be opened", "error");
         input.value = "";
         return;
       }
-      // The tab keeps its default label until the file has loaded: a named
-      // tab with no bound file would read as a lost binding after a reload.
-      const tabId = useTabsStore.getState().newEditorTab();
-      const store = getOrCreateDocumentStore(tabId);
-      // The tab is editable at once; what it held when made is all a failure
-      // may throw away (see RecentFilesPanel.handleOpenExample).
-      const created = stampEditor(store.getState());
-      const dropIfUntouched = () => {
-        const holds = stampHolds(created, store.getState());
-        if (holds.path && holds.generation && holds.source) {
-          useTabsStore.getState().closeTab(tabId);
-          return true;
-        }
-        return false;
-      };
-      try {
-        const outcome = await replaceDocument(
-          store,
-          file.name,
-          async (signal) => {
-            const text = await file.text();
-            const result = await api.parseSource(text, { signal });
-            refuseReadRefusal(result);
-            return { text, result };
-          },
-          ({ text, result }, s) => {
-            s.setDiagnostics(result.diagnostics);
-            s.setCurrentFilePath(null);
-            applyParsedSource(result, store.getState());
-            s.setCurrentSource(text);
-            // No path, but the file's own name: Save As proposes it.
-            s.setImportedFileName(file.name);
-          },
-        );
-        if (outcome === "applied") {
-          useTabsStore.getState().rename(tabId, file.name);
-          setLocation("/editor");
-        } else if (outcome === "refused") {
-          // Nothing was applied: do not leave an empty tab posing as the file.
-          dropIfUntouched();
-        }
-      } catch (err) {
-        const dropped = dropIfUntouched();
-        toastError(
-          addToast,
-          err,
-          dropped ? "Open failed" : "Open failed — the tab you had started editing is kept",
-        );
-        if (!dropped) setLocation("/editor");
-      }
+      await importFileInNewTab(file, deps);
       input.value = "";
     },
-    [addToast, setLocation],
+    [addToast, deps],
   );
 
   return (

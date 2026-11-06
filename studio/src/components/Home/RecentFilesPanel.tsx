@@ -1,5 +1,5 @@
 import { ClampText } from "@/components/ui/ClampText";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -11,15 +11,14 @@ import {
 } from "@radix-ui/react-icons";
 
 import * as api from "@/api/client";
-import { getOrCreateDocumentStore, stampEditor, stampHolds } from "@/store/document";
-import { openExampleIntoStore } from "@/lib/openExample";
+import { openExampleInNewTab, openFileInNewTab } from "@/lib/openInEditorTab";
 import { useRecentsStore } from "@/store/recents";
 import { useTabsStore } from "@/store/tabs";
 import { useUIStore } from "@/store/ui";
 import { useBotsStore } from "@/store/bots";
 import { countBots, BOT_SOURCE_HINT } from "@/lib/botOrigin";
 import { useConfirm } from "@/hooks/useConfirm";
-import { errorMessage, toastError } from "@/lib/errorHints";
+import { errorMessage } from "@/lib/errorHints";
 import { basename } from "@/lib/format";
 import { botIdentity } from "@/lib/personas";
 import { Button, IconButton, InlineBanner } from "@/components/ui";
@@ -47,7 +46,6 @@ interface Props {
 export default function RecentFilesPanel({ variant = "card" }: Props) {
   const [, setLocation] = useLocation();
   const recents = useRecentsStore((s) => s.recents);
-  const pushRecent = useRecentsStore((s) => s.pushRecent);
   const removeRecent = useRecentsStore((s) => s.removeRecent);
   const clearRecents = useRecentsStore((s) => s.clearRecents);
   const addToast = useUIStore((s) => s.addToast);
@@ -97,58 +95,32 @@ export default function RecentFilesPanel({ variant = "card" }: Props) {
     setLocation("/editor");
   }, [setLocation]);
 
+  const deps = useMemo(() => ({ navigate: setLocation, addToast }), [setLocation, addToast]);
+
+  // A recent file is read before its tab opens: one that is gone from disk
+  // opens no tab and leaves the list (see openFileInNewTab).
   const handleOpenRecent = useCallback(
-    (path: string) => {
-      // Opening a recent file routes through openTab — EditorTabHost
-      // will fetch the document via api.openFile on mount and bind it
-      // to the per-tab store. Re-clicking the same path focuses the
-      // existing tab instead of reloading.
-      useTabsStore.getState().openTab("editor", { file: path });
-      pushRecent(path);
-      setLocation(`/editor?file=${encodeURIComponent(path)}`);
+    async (path: string) => {
+      setBusy(true);
+      try {
+        await openFileInNewTab(path, deps);
+      } finally {
+        setBusy(false);
+      }
     },
-    [pushRecent, setLocation],
+    [deps],
   );
 
   const handleOpenExample = useCallback(
     async (name: string) => {
       setBusy(true);
-      // Open the bot in a fresh editor tab. Create the tab first so its
-      // per-tab document store exists, then load + apply via the shared
-      // helper (binds the served path, else bots/<name>, keeps
-      // source/diagnostics, marks the loaded state as the clean baseline).
-      // On failure, close
-      // the empty tab so a load error doesn't strand an untitled tab.
-      const tabId = useTabsStore.getState().newEditorTab(name);
-      const store = getOrCreateDocumentStore(tabId);
-      // The tab is active and editable at once — from the editor's home pane
-      // the author can be typing into it while the example loads. What it
-      // held when it was made is what a failure may throw away, and nothing
-      // else.
-      const created = stampEditor(store.getState());
       try {
-        // Applied or refused, the tab is kept — the example in it, or the work
-        // the author typed into it while the example loaded — and what is said
-        // about it speaks of the editor: that is where the author goes. Not
-        // when a newer request in that tab superseded it: that request is the
-        // author's, made from wherever they are.
-        if ((await openExampleIntoStore(name, store)) !== "superseded") setLocation("/editor");
-      } catch (err) {
-        const holds = stampHolds(created, store.getState());
-        if (holds.path && holds.generation && holds.source) {
-          useTabsStore.getState().closeTab(tabId);
-          toastError(addToast, err, "Failed to open example");
-        } else {
-          toastError(addToast, err, "Failed to open example — the tab you had started editing is kept", {
-            persistent: true,
-          });
-          setLocation("/editor");
-        }
+        await openExampleInNewTab(name, deps);
       } finally {
         setBusy(false);
       }
     },
-    [addToast, setLocation],
+    [deps],
   );
 
   const body = (

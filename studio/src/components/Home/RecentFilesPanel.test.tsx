@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createEmptyDocument } from "@/lib/defaults";
 import { getOrCreateDocumentStore } from "@/store/document";
 import { replaceDocumentNow } from "@/lib/replaceDocument";
+import { useRecentsStore } from "@/store/recents";
 import { useTabsStore } from "@/store/tabs";
 import { useUIStore } from "@/store/ui";
 import * as client from "@/api/client";
@@ -197,5 +198,63 @@ describe("RecentFilesPanel — an example a newer request in its tab superseded"
     );
     expect(window.location.pathname).toBe("/runs");
     expect(toasts()).toBe("");
+  });
+});
+
+describe("RecentFilesPanel — a recent file that is gone from disk", () => {
+  function renderPanel() {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={qc}>
+        <RecentFilesPanel />
+      </QueryClientProvider>,
+    );
+  }
+
+  it("leaves the recent list, opens no tab and says so", async () => {
+    useRecentsStore.setState({ recents: ["gone/flow.bot", "kept.bot"] });
+    vi.mocked(client.openFile).mockRejectedValueOnce(new Error("file not found: gone/flow.bot"));
+    renderPanel();
+    const tabsBefore = useTabsStore.getState().tabs.length;
+
+    fireEvent.click(await screen.findByTitle("gone/flow.bot"));
+
+    await waitFor(() => expect(useRecentsStore.getState().recents).toEqual(["kept.bot"]));
+    expect(toasts()).toContain("Removed missing file from recents: gone/flow.bot");
+    expect(useTabsStore.getState().tabs.length).toBe(tabsBefore);
+    expect(window.location.pathname).toBe("/");
+  });
+
+  it("keeps the entry when the open failed for another reason", async () => {
+    useRecentsStore.setState({ recents: ["flaky.bot"] });
+    vi.mocked(client.openFile).mockRejectedValueOnce(new Error("connection reset"));
+    renderPanel();
+
+    fireEvent.click(await screen.findByTitle("flaky.bot"));
+
+    await waitFor(() => expect(toasts()).toContain("Open failed"));
+    expect(useRecentsStore.getState().recents).toEqual(["flaky.bot"]);
+  });
+
+  it("opens an existing recent file in a tab already holding its reading", async () => {
+    useRecentsStore.setState({ recents: ["here.bot"] });
+    vi.mocked(client.openFile).mockResolvedValueOnce({
+      source: "agent a:
+  system: hi
+",
+      document: createEmptyDocument(),
+      diagnostics: [],
+      path: "here.bot",
+    });
+    renderPanel();
+
+    fireEvent.click(await screen.findByTitle("here.bot"));
+
+    await waitFor(() => {
+      const tab = useTabsStore.getState().tabs.find((t) => t.params.file === "here.bot");
+      expect(tab).toBeTruthy();
+      expect(getOrCreateDocumentStore(tab!.id).getState().currentFilePath).toBe("here.bot");
+    });
+    expect(window.location.pathname).toBe("/editor");
   });
 });
