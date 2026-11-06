@@ -77,6 +77,17 @@ type DiagnosticDTO struct {
 	NodeID   string `json:"node_id,omitempty"`
 	EdgeID   string `json:"edge_id,omitempty"`
 	Hint     string `json:"hint,omitempty"`
+	// File, Line, Column, EndLine, EndColumn and Property place the
+	// diagnostic like `iterion validate --json`: 1-based, 0/absent = no
+	// position, End* only on a property span. They are present only when
+	// the compiled AST carried spans — never for the studio's JSON
+	// document, which carries none.
+	File      string `json:"file,omitempty"`
+	Line      int    `json:"line,omitempty"`
+	Column    int    `json:"column,omitempty"`
+	EndLine   int    `json:"end_line,omitempty"`
+	EndColumn int    `json:"end_column,omitempty"`
+	Property  string `json:"property,omitempty"`
 }
 
 func irDiagToDTO(d ir.Diagnostic) DiagnosticDTO {
@@ -91,6 +102,13 @@ func irDiagToDTO(d ir.Diagnostic) DiagnosticDTO {
 		NodeID:   d.NodeID,
 		EdgeID:   d.EdgeID,
 		Hint:     d.Hint,
+
+		File:      d.File,
+		Line:      d.Line,
+		Column:    d.Column,
+		EndLine:   d.EndLine,
+		EndColumn: d.EndColumn,
+		Property:  d.Property,
 	}
 }
 

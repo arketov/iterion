@@ -165,8 +165,11 @@ print(result["valid"], [i.get("code") for i in result.get("issues", [])])
 
 `/api/parse` reports syntax problems (`issues`; `bindable: false` means the
 document is only what the parser could salvage). `/api/validate` returns
-`valid`, `issues` (each with `code`, `severity`, `message`, `hint`, `node_id`)
-and `warnings`, the same findings the CLI prints. For a `main.bot` that lives in
+`valid`, `issues` (each with `code`, `severity`, `message`, `hint`, `node_id`
+and, when known, `file`, `line`, `column`, `end_line`, `end_column`,
+`property`) and `warnings`. The findings are the CLI's, but the position fields
+are filled only when the compiled program carries source positions; the JSON
+document you send carries none, so its issues come back without them. For a `main.bot` that lives in
 a bundle, add `"path": "bots/my-bot/main.bot"` (workspace-relative) so its
 `prompts/*.md` are in scope. This is the compile check only; the `--exec` dry
 run is a CLI feature. The full route list of the running studio is its own
