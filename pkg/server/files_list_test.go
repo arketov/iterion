@@ -58,6 +58,9 @@ func TestListWorkflowFiles_Scope(t *testing.T) {
 	writeListFixture(t, root, "examples/wt/.git") // .git as a file, like a worktree
 	// A nested clone of the whole project below the root is never reached.
 	writeListFixture(t, root, "build-desktop/src/bots/y/main.bot")
+	// Test inputs and hidden directories are no workflows of the project.
+	writeListFixture(t, root, "bots/testdata/t.bot")
+	writeListFixture(t, root, "bots/.hid/h.bot")
 
 	files, _, truncated, _ := listWorkflowFiles(root, botregistry.DefaultPaths(root), 0)
 	if truncated {
