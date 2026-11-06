@@ -309,6 +309,9 @@ func (r *TemplateResolver) ResolveRef(ref string, input map[string]any, td *Temp
 // and said to unresolved when a caller listens — the rendered text is not
 // the place to look for it, a value may carry braces of its own.
 //
+// The preview shows the portable form; a legacy PowerShell host adds a
+// backslash before each `"` at run time.
+//
 // shapes carries the workflow's own declarations (DeclaredShapes) so a
 // `json` value renders as one token and a `string[]` as argv words, exactly
 // as the run will render them; nil renders every reference undeclared.
