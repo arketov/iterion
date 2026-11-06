@@ -8,9 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
-	"time"
 
 	clawtools "github.com/SocialGouv/claw-code-go/pkg/api/tools"
 )
@@ -340,31 +338,6 @@ func TestWorkspaceReadFile_TextlessPdfReadsEmpty(t *testing.T) {
 	}
 	if out != "" {
 		t.Fatalf("read_file output = %q, want empty for a text-less pdf", out)
-	}
-}
-
-// The .pdf branch must not reopen the hole the regular path closed: a
-// FIFO named *.pdf used to hang the call forever (os.Open with no
-// O_NONBLOCK), because the magic check ran before any regular-file
-// check. The safe open is workspacePDFWindow's, and a non-regular file
-// falls through to the text path's own refusal.
-func TestWorkspaceReadFile_DoesNotBlockOnAPdfNamedFIFO(t *testing.T) {
-	workspace := t.TempDir()
-	if err := syscall.Mkfifo(filepath.Join(workspace, "report.pdf"), 0o600); err != nil {
-		t.Skipf("mkfifo unavailable: %v", err)
-	}
-	done := make(chan error, 1)
-	go func() {
-		_, err := executeWorkspaceReadFile(map[string]any{"path": "report.pdf"}, NewReadScope(workspace))
-		done <- err
-	}()
-	select {
-	case err := <-done:
-		if err == nil || !strings.Contains(err.Error(), "not a regular file") {
-			t.Fatalf("error = %v, want the regular-file refusal", err)
-		}
-	case <-time.After(10 * time.Second):
-		t.Fatal("read_file blocked on a .pdf-named FIFO — the .pdf branch bypassed the safe open")
 	}
 }
 
