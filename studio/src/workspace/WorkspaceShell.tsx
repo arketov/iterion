@@ -10,6 +10,15 @@ import {
 } from "@/lib/desktopBridge";
 import { DesktopEvent } from "@/lib/desktopEvents";
 import { STUDIO_BASE } from "@/lib/scope";
+import {
+  clearPaneLocation,
+  paneInitialPath,
+  readActivePane,
+  readPaneOrder,
+  sortByPaneOrder,
+  writeActivePane,
+  writePaneOrder,
+} from "@/lib/workspacePaneRestore";
 import { showRunAlertNotification, type RunAlertPayload } from "@/lib/desktopNotify";
 import {
   WORKSPACE_SWITCH_REQUEST,
@@ -89,6 +98,20 @@ export default function WorkspaceShell() {
   useEffect(() => {
     splitIdRef.current = splitId;
   }, [splitId]);
+  // The route each pane first loaded on. Fixed per pane for as long as it is
+  // open: the iframe's `src` must not follow the pane's own navigation, or
+  // every route change inside it would reload it.
+  const paneStartRef = useRef<Record<string, string>>({});
+  // What a window reload (Ctrl+R) restores: which connection tab is focused,
+  // and the order of the tabs. Written only once the bootstrap has settled, so
+  // the empty state it starts from does not overwrite the record it reads.
+  const [restoreArmed, setRestoreArmed] = useState(false);
+  useEffect(() => {
+    if (restoreArmed) writeActivePane(activeId);
+  }, [activeId, restoreArmed]);
+  useEffect(() => {
+    if (restoreArmed) writePaneOrder(openIds);
+  }, [openIds, restoreArmed]);
 
   const loadConnections = useCallback(async (): Promise<Project[]> => {
     try {
@@ -153,6 +176,9 @@ export default function WorkspaceShell() {
   const closePane = useCallback(
     (id: string) => {
       void desktop.closeConnection(id).catch(() => {});
+      // A tab the author closed reopens at the home, not where it was left.
+      delete paneStartRef.current[id];
+      clearPaneLocation(id);
       setOpenIds((prev) => prev.filter((x) => x !== id));
       setHandoffTickets((current) => {
         if (!(id in current)) return current;
@@ -198,12 +224,23 @@ export default function WorkspaceShell() {
       } catch {
         open = [];
       }
+      // What the last load of this window left: the focused tab and the order
+      // of the tabs (see workspacePaneRestore). Nothing recorded = a first load.
+      const savedActive = readActivePane();
+      const savedOrder = readPaneOrder();
       if (browserWorkspace) {
         const ready = listed.filter((project) => project.runtime_ready === true);
         const readyIds = new Set(ready.map((project) => project.id));
-        const persisted = open.filter((id) => readyIds.has(id));
+        const persisted = sortByPaneOrder(
+          open.filter((id) => readyIds.has(id)),
+          savedOrder,
+        );
         const current = await desktop.getCurrentProject().catch(() => null);
+        // This window's own focus beats the server's "current project": that is
+        // one value shared by every browser window, so another window's switch
+        // would otherwise move this one on reload.
         const target =
+          (savedActive && readyIds.has(savedActive) ? savedActive : null) ??
           (current?.runtime_ready === true && readyIds.has(current.id)
             ? current.id
             : null) ??
@@ -218,17 +255,22 @@ export default function WorkspaceShell() {
           activeIdRef.current = null;
           setActiveId(null);
         }
+        setRestoreArmed(true);
         return;
       }
       if (open.length === 0) {
         const first = (await desktop.listConnections().catch(() => [] as Project[]))[0];
         if (first) {
           await openPane(first.id);
+          setRestoreArmed(true);
           return;
         }
       }
-      setOpenIds(open);
-      setActiveId((a) => a ?? open[0] ?? null);
+      // The registry lists its open connections in no stable order.
+      const ordered = sortByPaneOrder(open, savedOrder);
+      setOpenIds(ordered);
+      setActiveId((a) => a ?? (savedActive && ordered.includes(savedActive) ? savedActive : (ordered[0] ?? null)));
+      setRestoreArmed(true);
     })();
   }, [browserWorkspace, loadConnections, openPane]);
 
@@ -413,6 +455,14 @@ export default function WorkspaceShell() {
   }, [activeId, browserWorkspace, openIds, splitId]);
 
   const projectById = (id: string) => connections.find((p) => p.id === id);
+  // A pane opens on a hand-off ticket if one is waiting, else on the route its
+  // last load recorded (the home for a pane never opened in this window).
+  const paneSrc = (id: string): string => {
+    const ticket = handoffTickets[id];
+    if (ticket) return `/x/${id}${STUDIO_BASE}/?handoff=${encodeURIComponent(ticket)}`;
+    paneStartRef.current[id] ??= paneInitialPath(id);
+    return `/x/${id}${STUDIO_BASE}${paneStartRef.current[id]}`;
+  };
   const notOpen = connections.filter((p) => !openIds.includes(p.id));
   const visibleIds = browserWorkspace
     ? activeId
@@ -636,7 +686,7 @@ export default function WorkspaceShell() {
               // Straight into the studio: a pane is always an authenticated
               // studio surface, so loading "/x/<id>/" would render the root and
               // bounce, showing the wrong view for a frame first.
-              src={`/x/${id}${STUDIO_BASE}/${handoffTickets[id] ? `?handoff=${encodeURIComponent(handoffTickets[id])}` : ""}`}
+              src={paneSrc(id)}
               title={projectById(id)?.name ?? id}
               className="h-full w-full border-0 min-w-0"
               style={{ display: visible ? "block" : "none" }}

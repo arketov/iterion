@@ -64,6 +64,7 @@ async function openFromMenu(name: string) {
 
 afterEach(() => {
   cleanup();
+  window.sessionStorage.clear(); // the shell records its focus and order there
   vi.resetAllMocks(); // also drops a *Once queue a failed test left behind
 });
 

@@ -95,6 +95,26 @@ first paint) to render the [WorkspaceShell](../studio/src/workspace/WorkspaceShe
 in the main frame vs. the normal `App` (under a `wouter` base of the
 scope) in a pane.
 
+**A window reload (Ctrl+R) keeps the author where they were.** A reload
+re-creates the shell and every pane from scratch, so what to put back is
+recorded in the window's `sessionStorage` (private to one window, shared by the
+shell and its same-origin panes; every access is guarded, so unavailable storage
+only means the defaults): `iterion.workspace.active` (the focused connection
+tab), `iterion.workspace.pane-order` (the tabs in their order — the desktop
+registry lists open connections in no stable order) and
+`iterion.workspace.pane-location:<connID>` (a pane's route, relative to the
+studio base, written by each pane on every navigation and read by the shell as
+the iframe's first `src`). The shell writes the first two only after its
+bootstrap has read them. A hand-off ticket is spent by the first load and is
+never recorded; a closed tab forgets its route and reopens on the home. A
+recorded route is accepted only if it starts with a single `/` and carries no
+scheme, backslash or control character, because it ends up in an iframe `src`.
+In the browser workspace the window's own focused tab wins over the server's
+"current project", which is one value shared by every window. Open editor
+tabs come back from `iterion.tabs` in `localStorage`; unsaved buffers are not
+kept. See
+[workspacePaneRestore.ts](../studio/src/lib/workspacePaneRestore.ts).
+
 Auth in a cloud pane is desktop-owned: the demux strips the request Cookie
 and injects a Bearer refreshed off the OS-held jar, so a pane never runs its
 own `/auth/refresh` (it can't — no cookie); a 401 that reaches the pane means
