@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -24,20 +25,27 @@ func TestLookPathResolvesNothingUnderAPlantedPATH(t *testing.T) {
 	t.Setenv(EnvPlantedNames, "")
 
 	dir := t.TempDir()
-	bin := filepath.Join(dir, "envtrust-probe-bin")
+	// exec.LookPath on Windows resolves only names with a PATHEXT extension;
+	// it never reads the content, so the probe needs the extension, not a
+	// real executable.
+	probe := "envtrust-probe-bin"
+	if runtime.GOOS == "windows" {
+		probe += ".exe"
+	}
+	bin := filepath.Join(dir, probe)
 	if err := os.WriteFile(bin, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir)
 
 	// The operator's own PATH resolves, as exec.LookPath always did.
-	if _, err := LookPath("envtrust-probe-bin"); err != nil {
+	if _, err := LookPath(probe); err != nil {
 		t.Fatalf("an unplanted PATH must resolve: %v", err)
 	}
 
 	// The repository's does not.
 	MarkPlanted("PATH")
-	if _, err := LookPath("envtrust-probe-bin"); !errors.Is(err, exec.ErrNotFound) {
+	if _, err := LookPath(probe); !errors.Is(err, exec.ErrNotFound) {
 		t.Errorf("under a planted PATH LookPath = %v, want a loud ErrNotFound — the repository does not choose the executable", err)
 	}
 
