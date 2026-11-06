@@ -115,7 +115,7 @@ iterion validate my.bot --explain   # per claude_code node: which built-in tools
 - **`validate`** compiles the program. A bundle folder, a `.botz` or a lone
   `.bot` are all accepted; for a bundle it also cross-checks `manifest.yaml`
   against the workflow (`dispatch_vars` keys that name no var, and so on).
-  Findings carry a code (`C128`, `C200`, `C332`); the
+  Findings carry a code (`C128`, `C200`, `C337`); the
   [catalogue](references/diagnostics.md) says what each means.
 - **`validate --exec`** is the dry run: the program is run twice under a
   simulation (every condition true, then false) with no model, no shell and no

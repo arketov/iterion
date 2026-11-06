@@ -5,7 +5,7 @@ bars documentation server as the worked example, and the
 five rules that decide whether it works — most of them invisible until a run
 quietly goes without the tools.
 
-Status: the `.bot` below compiles and `iterion validate` raises `C332` on a
+Status: the `.bot` below compiles and `iterion validate` raises `C337` on a
 misspelled server (both run against this tree). The runtime rules are taken from
 [backends](backends.md#claude_code), [sandbox](sandbox.md#mcp-servers-under-a-sandbox)
 and [permissions](permissions.md); a live run with the real server was not made
@@ -122,10 +122,10 @@ the tool over `http`/`sse`, which a container can reach. Details:
 `iterion validate` and `POST /api/validate` read every `mcp.<server>.<tool>`
 in a node's `tools:` against the servers the host knows: the `.bot`'s
 `mcp_server` blocks, the project's `.mcp.json`, and the enabled plugins. A name
-that matches none raises `C332`:
+that matches none raises `C337`:
 
 ```
-warning [C332]: node "ask": tool "mcp.barz.bars_read" names MCP server "barz",
+warning [C337]: node "ask": tool "mcp.barz.bars_read" names MCP server "barz",
 but no `mcp_server` block, `.mcp.json` entry or enabled plugin declares it;
 known servers: bars, … — at run time the node fails to build or runs without the tool
 ```
@@ -136,7 +136,7 @@ that the tool exists on the server or that the server starts. The cloud studio
 does not run it (there is no per-tenant catalogue). When the host's catalogue
 cannot be built at all — for instance a server named `iterion`, a reserved name
 — the studio's `/api/validate` answers *MCP catalog could not be resolved, tool
-servers were not checked* as a warning and the `C332` check is skipped, so read
+servers were not checked* as a warning and the `C337` check is skipped, so read
 that line; `iterion validate` treats the same failure as an error.
 
 ## Troubleshooting
@@ -144,7 +144,7 @@ that line; `iterion validate` treats the same failure as an error.
 | Symptom | Likely rule |
 |---|---|
 | The agent says it has no such tool, or answers without searching | The server is not in the node's set: not declared (1), or an ambient plugin server that failed to start (2). Name its tools in `tools:` to turn the silence into a failure (3) |
-| The node fails at build: *unknown tool* / refused server | Rule 3 doing its job: the server is dead or the name is wrong. `C332` shows the typo before the run |
+| The node fails at build: *unknown tool* / refused server | Rule 3 doing its job: the server is dead or the name is wrong. `C337` shows the typo before the run |
 | The agent lost `Bash`, `Edit`, `WebFetch` after you added `tools:` | Rule 4: list the built-ins you still want |
 | Works with `sandbox: none`, fails in the sandbox | Rule 5 |
 | `iterion plugin list` shows the plugin but the tools are absent | Plugin enabled for the operator but its server needs a credential the runner lacks (2) |

@@ -133,7 +133,7 @@ var hostSideEnvReads = map[string]hostSideRead{
 	"ITERION_NODE_MAX_RETRIES":             {whyBudget, []string{"RetryPolicyFromEnv"}},
 	"ITERION_NODE_MAX_TRANSIENT_RETRIES":   {whyBudget, []string{"RetryPolicyFromEnv"}},
 	"ITERION_DEFAULT_BACKEND":              {whyExecutor, []string{"(*ClawExecutor).resolveBackendName"}},
-	"ITERION_DEFAULT_SUPERVISOR_MODEL":     {whyExecutor, []string{"(*ClawExecutor).executeLLMRouterUnified"}},
+	"ITERION_DEFAULT_SUPERVISOR_MODEL":     {whyExecutor, []string{"routerModelFallback"}},
 	"ITERION_VERIFIED_ACTION_MODEL":        {whyExecutor, []string{"recoveryModelFallback"}},
 	"ITERION_ROUTE_COOLDOWN":               {whyExecutor, []string{"NewClawExecutor"}},
 	"ITERION_SECRETS_REDACT":               {whySinkGuard, []string{"secretGuardConfigFromEnv"}},
@@ -176,6 +176,8 @@ var dynamicEnvReads = map[[2]string]string{
 // table does not know fails the scan).
 var envEnumerations = map[string]string{
 	"envEnviron":                            "the env seam's whole-env read (#2808): answers the context-carried environment, or the process's by default, for every consumer below",
+	"(*ClawBackend).Execute":                "the attempt's posture (ADR-161): the whole environment captured once and pinned on the attempt's context, which every read of the attempt answers from — in the container, the env the crossing composed, which is the point",
+	"resolveClawCall":                       "the claw arm's posture (ADR-161): the attempt's capture when one is pinned, else the whole environment captured for this one resolution — read below through the seam, name by name",
 	"BuildSecretGuard":                      whySinkGuard + ": every value in the env is a secret candidate",
 	"(*ClawExecutor).toolNodeCommand":       whyHostTool,
 	"(*ClawExecutor).toolNodeScriptCommand": whyHostTool,
@@ -453,18 +455,24 @@ func assertRunnerHomeShape(t *testing.T, home, hostHome, workDir string) {
 // at a read of it. A road from anywhere else to a reader that also answers
 // from envStateConsults would go unseen.
 var crossingSpellings = map[string]string{
-	"var providerCredentialEnvVars":    "the forwarding list itself",
-	"var providerRoutingEnvVars":       "the routing subset, which forwardableProviderEnv forwards as explicit empties when the host leaves them unset",
-	"var clawSandboxCredentialEnvKeys": "the #1768 admission probe's own key list: ClawSandboxCredential reads the composed dispatch env through it (env[key] over the range), naming the first entry that carries a value",
-	"ClawSandboxCredential":            "reads the composed dispatch env over that range's keys, naming the first entry that carries a value — a map read the scan cannot see",
-	"var clawStreamTimeoutEnvVars":     "the watchdog knobs, which forwardableProviderEnv crosses as the host's planted-as-unset answer, explicit empty included",
-	"forwardableProviderEnv":           "sets the crossing: a refusal, the run's own credentials, the host's resolved values — and never a value envtrust.Planted reads as a workspace .env's: the forwarding loop crosses the explicit empty instead (named in crossingRefusals.planted), and the gateway branch reads envtrust.Inherited (consultsHandoffs), so a planted gateway route fails the node loudly, by name",
-	"forwardableToolEnv":               "sets the crossing for the tool names that cross as-is when the launcher sets them (#2802)",
-	"var byokEnvVar":                   "the variable a run's own key crosses as, which forwardableProviderEnv sets",
-	"anthropicWireShadowEnv":           "the ambient keys the crossing blanks, so the run's forfait outranks them",
-	"deliverHostCodexForfait":          "sets the crossing beside the host's forfait it wrote into the container, which a host-wide \"1\" orders",
-	"hostCodexForfait":                 "asks whether a project .env planted the switch, and names it in the refusal: a planted order ships nothing into the container",
-	"workspaceAgentMaxBytes":           "asks whether a project .env planted the ceiling override, and denies a planted value its authority — the host resolves the default, and forwardableProviderEnv's branch crosses the explicit empty in its place",
+	"var providerCredentialEnvVars":      "the forwarding list itself",
+	"var providerRoutingEnvVars":         "the routing subset, which forwardableProviderEnv forwards as explicit empties when the host leaves them unset",
+	"var clawSandboxCredentialEnvKeys":   "the crossing's credential channels, which stampedCrossingFunds reads a stamped run's composed dispatch env over (env[key] over the range) — a map read the scan cannot see, nothing is forwarded",
+	"var clawEnvFactories":               "the credential each env factory of the in-container registry reads, which containerSpend reads the composed dispatch env under (env[factory.key]) — a map read the scan cannot see, nothing is forwarded",
+	"containerSpend":                     "reads the composed dispatch env the container's walk lands on — the credential names its walk takes, the forfait dirs the crossing points at, the gateway pair — and the channel the crossing recorded for each (crossingFacts.funds): map reads the scan cannot see, nothing is forwarded",
+	"var clawStreamTimeoutEnvVars":       "the watchdog knobs, which forwardableProviderEnv crosses as the host's planted-as-unset answer, explicit empty included",
+	"forwardableProviderEnv":             "sets the crossing: a refusal, the run's own credentials, the host's resolved values — and never a value envtrust.Planted reads as a workspace .env's: the forwarding loop crosses the explicit empty instead (named in crossingFacts.planted), and the gateway branch reads envtrust.Inherited (consultsHandoffs), so a planted gateway route fails the node loudly, by name",
+	"forwardableToolEnv":                 "sets the crossing for the tool names that cross as-is when the launcher sets them (#2802)",
+	"var byokEnvVar":                     "the variable a run's own key crosses as, which forwardableProviderEnv sets",
+	"anthropicWireShadowEnv":             "the ambient keys the crossing blanks, so the run's forfait outranks them",
+	"deliverHostCodexForfait":            "sets the crossing beside the host's forfait it wrote into the container, which a host-wide \"1\" orders",
+	"hostCodexForfait":                   "asks whether a project .env planted the switch, and names it in the refusal: a planted order ships nothing into the container",
+	"workspaceAgentMaxBytes":             "asks whether a project .env planted the ceiling override, and denies a planted value its authority — the host resolves the default, and forwardableProviderEnv's branch crosses the explicit empty in its place",
+	"(anthropicEnvWalk).liveCredentials": "names the env channel each credential of a built walk came from, as a map key the usage-cap meter digests (delegate.AmbientCredentialSetFingerprint) — no read: the walk's values were read where the factory reads them",
+	"stampedCrossingFunds":               "reads a stamped run's composed dispatch env over clawSandboxCredentialEnvKeys, asking whether a channel of the run is set — a map read the scan cannot see; the answer decides the typed refusal, nothing is forwarded",
+	"stampWithheldEnvName":               "names the subscription refusal a stamped run's crossing keeps forwarding while it blanks the pod's credentials — a comparison, no read",
+	"(anthropicEnvWalk).envName":         "names the env variable a built walk's credential came from, as the key containerSpend reads the crossing's funds under — no read: the walk's values were read where the walk reads them",
+	"envFactoryCredential":               "names, beside its reads, the env variable the env factory's walk took its credential from, as the key a sandbox runner reads the crossing's record under (Registry.envSpend) — CODEX_HOME included, which it names and never reads: the login's own reader is secrets.LoadCodexCredentialsFromDisk",
 }
 
 // envStateConsults answer for a name from state other than the process env,
@@ -543,6 +551,10 @@ var envEnumerators = map[string]bool{
 	"syscall.Environ":               true,
 	"golang.org/x/sys/unix.Environ": true,
 	"envEnviron":                    true,
+	// The resolver's posture (ADR-161): the seam's carried environment, or
+	// the process's whole environment captured with its provenance.
+	"pkg/backend/credroute.Environ": true,
+	"pkg/backend/credroute.Capture": true,
 }
 
 const (

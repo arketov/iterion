@@ -163,6 +163,10 @@ var classification = map[store.FailureCode]Disposition{
 	store.FailureSchemaUnusable:         DispositionDeterministic,
 	store.FailureProviderRequestInvalid: DispositionDeterministic,
 	store.FailureCapabilityUnsupported:  DispositionDeterministic,
+	// The node's declared grant was refused (ADR-151): the same IR meets
+	// the same `capabilities:` on every attempt, so a retry hears the same
+	// no — and the cure is an author's declaration, not a redelivery.
+	store.FailureCapabilityDenied: DispositionDeterministic,
 	// The workflow requested an EXPLICIT sandbox mode (`sandbox: { mode:
 	// inline, image/build: … }`) and the host has no driver that can
 	// honour it. Every redelivery reaches the same absent runtime — a
@@ -177,6 +181,11 @@ var classification = map[store.FailureCode]Disposition{
 	// automatic retry can change; an operator adds a credential or stops
 	// admitting the lane.
 	store.FailureSandboxCredentialUnreachable: DispositionDeterministic,
+	// Its two typed siblings (ADR-161 decision 7): a stamp that refuses the
+	// pod's money, a switch that refuses the subscription — a redelivery
+	// meets the same run credentials and the same switch.
+	store.FailureCredentialAmbientRefused:        DispositionDeterministic,
+	store.FailureCredentialSubscriptionForbidden: DispositionDeterministic,
 	// The driver can neither bind nor copy the run's attachments: a
 	// redelivery meets the same driver.
 	store.FailureAttachmentsUndeliverable: DispositionDeterministic,
