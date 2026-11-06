@@ -466,7 +466,7 @@ func (s *Server) appendMCPCatalogIssues(resp *validateResponse, wf *ir.Workflow,
 	// is the request's own, discarded after the response. A server it leaves
 	// out (a reserved name in `.mcp.json`) is a warning of its own and the
 	// catalog it still resolved is checked below: one stray entry no longer
-	// takes C332 down with it.
+	// takes C337 down with it.
 	skipped, err := mcp.PrepareWorkflowReport(wf, projectDir, s.cfg.WorkDir)
 	for _, sk := range skipped {
 		add(DiagnosticDTO{Severity: "warning", Message: sk.Message(), Hint: sk.Hint})

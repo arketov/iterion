@@ -143,7 +143,7 @@ func FromIRAuth(auth *ir.MCPAuth) *AuthConfig {
 // whose name is in iterion's reserved internal namespace is left OUT of the
 // catalog, with a warning on the optional logger (and in PrepareWorkflowReport's
 // result, for a caller that shows it), instead of refusing the whole catalog:
-// one stray entry used to take every other server, and the validator's C332
+// one stray entry used to take every other server, and the validator's C337
 // check, down with it. Left out, it can place no tool in the infrastructure
 // namespace, which is all the refusal protected. A server the BOT declares
 // (`mcp_server`) is still refused: its author chose the name, and silently

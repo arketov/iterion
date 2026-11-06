@@ -576,7 +576,7 @@ func RunValidateWithContext(ctx context.Context, path string, p *Printer, opts V
 		skippedServers, prepErr := mcp.PrepareWorkflowReport(cr.Workflow, filepath.Dir(path), workspace)
 		// A server left out of the catalog (a reserved name in `.mcp.json`) is
 		// a warning, structured-list only for the reason the plugin warning
-		// above is: the workflow is not invalid, and the C332 check below still
+		// above is: the workflow is not invalid, and the C337 check below still
 		// runs over what the catalog resolved.
 		for _, sk := range skippedServers {
 			result.Diagnostics = append(result.Diagnostics, ValidateDiagnostic{

@@ -133,11 +133,32 @@ known servers: bars, … — at run time the node fails to build or runs without
 It is a warning, not an error, because the catalogue is the host's: the same
 file is clean where the server exists. It checks the **server name**, never
 that the tool exists on the server or that the server starts. The cloud studio
-does not run it (there is no per-tenant catalogue). When the host's catalogue
-cannot be built at all — for instance a server named `iterion`, a reserved name
-— the studio's `/api/validate` answers *MCP catalog could not be resolved, tool
-servers were not checked* as a warning and the `C337` check is skipped, so read
-that line; `iterion validate` treats the same failure as an error.
+does not run it (there is no per-tenant catalogue).
+
+A `.mcp.json` entry (or a plugin's server) whose name is in iterion's reserved
+internal namespace — any name starting with `iterion`, such as `iterion` or
+`iterion_board` — is **skipped with a warning**, not a failure: the other
+servers are still resolved and `C337` still runs over them, in the studio's
+`/api/validate`, in `iterion validate` and in a run (where the skip is a log
+line). The warning names the entry and says how to fix it:
+
+```
+warning: MCP server "iterion" from .mcp.json is skipped: its name is in
+iterion's reserved internal namespace (a name starting with "iterion" is the
+engine's own) — rename it to a name that does not start with "iterion" (for
+example "engine") where it is declared; the other servers are still resolved
+and checked
+```
+
+Rename the key and the warning goes away. A `tools:` or `mcp: servers:` entry
+that names the skipped server still fails as *unknown MCP server*, with the same
+explanation appended. A server **the `.bot` itself declares** (`mcp_server`)
+under a reserved name is different: its author chose the name, so the catalogue
+is refused as before. When the catalogue cannot be built for another reason (a
+malformed `.mcp.json`, an invalid transport), the studio's `/api/validate`
+answers *MCP catalog could not be resolved, tool servers were not checked* as a
+warning and `C337` is skipped, so read that line; `iterion validate` treats that
+failure as an error.
 
 ## Troubleshooting
 

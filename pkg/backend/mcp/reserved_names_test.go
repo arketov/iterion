@@ -38,7 +38,7 @@ func TestPrepareWorkflowRefusesInternalMCPNames(t *testing.T) {
 
 // TestPrepareWorkflowSkipsAReservedProjectServerAndKeepsTheRest is the witness
 // of the card: one `.mcp.json` entry named "iterion" took the whole catalog down
-// (the studio then warned once and the unknown-server check C332 vanished).
+// (the studio then warned once and the unknown-server check C337 vanished).
 // Now the entry is left out — it can place no tool in the infrastructure
 // namespace, which is all the refusal protected — the others resolve, and the
 // skip is reported with how to rename it.
