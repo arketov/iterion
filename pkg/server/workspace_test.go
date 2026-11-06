@@ -385,3 +385,116 @@ func TestWorkspaceScopedApiIsRecognisedThroughAnUncleanedPath(t *testing.T) {
 		t.Fatalf("scoped client route lost the shell: %d %q", rec.Code, rec.Body.String())
 	}
 }
+
+func TestWorkspaceRelocateRoute(t *testing.T) {
+	parent := t.TempDir()
+	oldDir := filepath.Join(parent, "old", "proj") // never created: the folder moved away
+	newDir := filepath.Join(parent, "new", "proj")
+	oldStore, newStore := filepath.Join(parent, "slot-old"), filepath.Join(parent, "slot-new")
+	for _, dir := range []string{newDir, newStore} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	card := filepath.Join(oldStore, "dispatcher", "issues", "a.json")
+	if err := os.MkdirAll(filepath.Dir(card), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(card, []byte(`{"id":"a"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	registry := &projects.Config{
+		Version: 1,
+		RecentProjects: []projects.Project{
+			{ID: "new", Name: "proj", Dir: newDir, StoreDir: newStore},
+			{ID: "old", Name: "proj", Dir: oldDir, StoreDir: oldStore},
+		},
+		CurrentProjectID: "new",
+	}
+	host, err := NewWorkspaceHost(registry, func(projects.Project) (*Server, error) {
+		return New(Config{DisableAuth: true, SkipProjectRegistration: true}, iterlog.Nop()), nil
+	}, iterlog.Nop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = host.Shutdown(ctx)
+	})
+	do := func(method, target, body, origin string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, target, strings.NewReader(body))
+		if origin != "" {
+			req.Header.Set("Origin", origin)
+		}
+		rec := httptest.NewRecorder()
+		host.ServeHTTP(rec, req)
+		return rec
+	}
+	runtimeReady := func() bool {
+		var got WorkspaceRuntimeStatus
+		rec := do(http.MethodGet, "/x/new/api/project/identity", "", "")
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatal(err)
+		}
+		return got.RuntimeReady
+	}
+
+	rec := do(http.MethodGet, "/x/new/api/projects/new/relocation", "", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("relocation offer = %d: %s", rec.Code, rec.Body.String())
+	}
+	var offer struct {
+		Sources []struct {
+			ID    string `json:"id"`
+			Cards int    `json:"cards"`
+		} `json:"sources"`
+		DestinationEmpty bool `json:"destination_empty"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &offer); err != nil {
+		t.Fatal(err)
+	}
+	if len(offer.Sources) != 1 || offer.Sources[0].ID != "old" || offer.Sources[0].Cards != 1 || !offer.DestinationEmpty {
+		t.Fatalf("offer = %+v, want the old project's slot with one card and an empty destination", offer)
+	}
+	if rec := do(http.MethodGet, "/api/projects/missing/relocation", "", ""); rec.Code != http.StatusNotFound {
+		t.Errorf("offer for an unknown project = %d, want 404", rec.Code)
+	}
+
+	post := `{"source_id":"old"}`
+	if rec := do(http.MethodPost, "/api/projects/new/relocate", post, "http://evil.example"); rec.Code != http.StatusForbidden {
+		t.Errorf("cross-origin relocate = %d, want 403", rec.Code)
+	}
+	if rec := do(http.MethodPost, "/api/projects/new/relocate", `{"source_id":"nope"}`, ""); rec.Code != http.StatusNotFound {
+		t.Errorf("relocate from an unknown source = %d, want 404", rec.Code)
+	}
+	if rec := do(http.MethodGet, "/api/projects/new/relocate", "", ""); rec.Code != http.StatusMethodNotAllowed {
+		t.Errorf("GET relocate = %d, want 405", rec.Code)
+	}
+
+	rec = do(http.MethodPost, "/api/projects/new/relocate", post, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("relocate = %d: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"dispatcher":"stopped"`) {
+		t.Errorf("relocate body = %s, want the dispatcher reported stopped", rec.Body.String())
+	}
+	if got, err := os.ReadFile(filepath.Join(newStore, "dispatcher", "issues", "a.json")); err != nil || string(got) != `{"id":"a"}` {
+		t.Errorf("moved card = %q, %v", got, err)
+	}
+	if _, err := os.Stat(card); err != nil {
+		t.Errorf("the source card is gone: %v", err)
+	}
+	if !runtimeReady() {
+		t.Error("the target runtime was not restarted after the relocation")
+	}
+
+	// The slot now holds data: a second request is refused and the project
+	// keeps running.
+	if rec := do(http.MethodPost, "/api/projects/new/relocate", post, ""); rec.Code != http.StatusConflict {
+		t.Errorf("second relocate = %d, want 409: %s", rec.Code, rec.Body.String())
+	}
+	if !runtimeReady() {
+		t.Error("a refused relocation left the target runtime stopped")
+	}
+}
