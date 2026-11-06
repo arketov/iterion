@@ -24,7 +24,7 @@ describe("workflowFileKind", () => {
 describe("normalizeWorkflowPath", () => {
   it("keeps a project-relative path and turns Windows separators into slashes", () => {
     expect(normalizeWorkflowPath("workflows/dev-flow.bot")).toEqual({ ok: true, path: "workflows/dev-flow.bot" });
-    expect(normalizeWorkflowPath("workflows\dev-flow.bot")).toEqual({ ok: true, path: "workflows/dev-flow.bot" });
+    expect(normalizeWorkflowPath("workflows\\dev-flow.bot")).toEqual({ ok: true, path: "workflows/dev-flow.bot" });
     expect(normalizeWorkflowPath("./tests/a.bot")).toEqual({ ok: true, path: "tests/a.bot" });
   });
 
@@ -41,7 +41,7 @@ describe("normalizeWorkflowPath", () => {
 
   it("compares a Windows drive path without regard to case", () => {
     expect(
-      normalizeWorkflowPath("c:\Users\me\Proj\docs\a.bot", "C:\Users\me\proj"),
+      normalizeWorkflowPath("c:\\Users\\me\\Proj\\docs\\a.bot", "C:\\Users\\me\\proj"),
     ).toEqual({ ok: true, path: "docs/a.bot" });
   });
 

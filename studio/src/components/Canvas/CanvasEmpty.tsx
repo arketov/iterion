@@ -63,8 +63,7 @@ export default function CanvasEmpty() {
     try {
       // Shared helper: load + bind the path the server names, else
       // bots/<name> (where a save lands) + keep the example's
-      // source/diagnostics + markSaved. Same path as RecentFilesPanel and
-      // Toolbar.handlePickFile.
+      // source/diagnostics + markSaved. Same path as Toolbar.handlePickFile.
       // Anything but "applied" leaves the list open: a refusal has said why,
       // and the author may pick again.
       if ((await openExampleIntoStore(name, documentStore)) === "applied") setExamplesOpen(false);
@@ -141,8 +140,7 @@ function ExamplesPicker({
   onPick: (name: string) => void;
   onOpenFile: () => void;
 }) {
-  // Shares the ["example-entries"] cache with RecentFilesPanel and
-  // FilePicker. isFetching (not isLoading) so every open shows the
+  // Shares the ["example-entries"] cache with FilePicker. isFetching (not isLoading) so every open shows the
   // loading line rather than a possibly-stale cached list.
   const query = useQuery({
     queryKey: ["example-entries"],

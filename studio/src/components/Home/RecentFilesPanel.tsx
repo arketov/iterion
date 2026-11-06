@@ -123,7 +123,7 @@ export default function RecentFilesPanel({ variant = "card" }: Props) {
         </InlineBanner>
       )}
 
-      {(!botsLoaded || botTotal > 0) && (
+      {((!botsLoaded && !botsError) || botTotal > 0) && (
         <div>
           <div className="flex items-center justify-between px-1">
             <button

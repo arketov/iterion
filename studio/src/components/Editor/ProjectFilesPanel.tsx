@@ -114,7 +114,7 @@ export default function ProjectFilesPanel() {
       const tabId = useTabsStore.getState().newEditorTab();
       const store = getOrCreateDocumentStore(tabId);
       // The tab is editable at once; what it held when made is all a failure
-      // may throw away (see RecentFilesPanel.handleOpenExample).
+      // may throw away (an open that fails while the author types into the new tab keeps the tab).
       const created = stampEditor(store.getState());
       const dropIfUntouched = () => {
         const holds = stampHolds(created, store.getState());

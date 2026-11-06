@@ -102,7 +102,10 @@ func projectRootFiles(workDir string, roots []string) []string {
 			return nil
 		}
 	}
-	if claimed, _, _ := bundle.DirClaim(workDir); claimed {
+	// Only a folder that really opens as a bundle (claimed AND main.bot beside
+	// it) owns its root files; a skills/ or presets/ directory alone, with no
+	// main.bot, makes no bundle and its neighbours stay loose files.
+	if claimed, openable, _ := bundle.DirClaim(workDir); claimed && openable {
 		return nil
 	}
 	var out []string
@@ -223,6 +226,11 @@ func ListProjectWorkflows(workDir string, roots []string, limit int) ProjectWork
 	}
 
 	for _, root := range roots {
+		// A relative --bots-path (`flows`) walks to relative paths, which
+		// cannot be made workDir-relative: walk the absolute spelling.
+		if abs, err := filepath.Abs(root); err == nil {
+			root = abs
+		}
 		info, err := os.Stat(root)
 		if err != nil {
 			// An absent root is the normal case for the optimistic defaults.
@@ -241,7 +249,9 @@ func ListProjectWorkflows(workDir string, roots []string, limit int) ProjectWork
 		_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				// One unreadable branch must not blank the rest of the list.
-				skip(path, DiscoveryErrorWalk, walkErr.Error())
+				// The error text names absolute paths: keep the project-relative
+				// spelling, as the catalog's diagnostics do.
+				skip(path, DiscoveryErrorWalk, strings.ReplaceAll(walkErr.Error(), workDir+string(filepath.Separator), ""))
 				return nil
 			}
 			if d.IsDir() {

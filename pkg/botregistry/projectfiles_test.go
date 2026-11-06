@@ -240,3 +240,41 @@ func TestListProjectWorkflows_EmptyWorkDir(t *testing.T) {
 		t.Fatalf("got %+v", res)
 	}
 }
+
+// A skills/ directory in the project root with no main.bot beside it makes no
+// bundle: the project's loose files stay listed (this very repository has a
+// root skills/ folder).
+func TestRootWorkflowFiles_ASkillsFolderAloneDoesNotHideTheLooseFiles(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "skills"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeProjectFile(t, filepath.Join(root, "flow.bot"), "workflow f:\n")
+	got := RootWorkflowFiles(root, defaultRootsOf(root))
+	if len(got) != 1 || got[0].RelPath != "flow.bot" {
+		t.Fatalf("got %+v", got)
+	}
+	res := ListProjectWorkflows(root, defaultRootsOf(root), 0)
+	if got := relsOf(res.Items); !reflect.DeepEqual(got, []string{"flow.bot"}) {
+		t.Fatalf("items = %v", got)
+	}
+}
+
+// --bots-path may be relative (the flag is passed as typed): the walk still
+// lists the files, project-relative.
+func TestListProjectWorkflows_ARelativeRootIsListed(t *testing.T) {
+	root := t.TempDir()
+	writeProjectFile(t, filepath.Join(root, "flows", "dev-flow.bot"), "workflow d:\n")
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(wd) }()
+	res := ListProjectWorkflows(".", []string{"flows"}, 0)
+	if got := relsOf(res.Items); !reflect.DeepEqual(got, []string{"flows/dev-flow.bot"}) {
+		t.Fatalf("got %v", got)
+	}
+}

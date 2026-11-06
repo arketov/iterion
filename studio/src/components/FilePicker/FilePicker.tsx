@@ -88,7 +88,10 @@ export default function FilePicker({ open, onOpenChange, onPick }: FilePickerPro
     // Files tab) are the way in. Returning users keep Recents as the default
     // once they've opened anything.
     setTab(recents.length > 0 ? "recents" : "files");
-  }, [open, recents.length]);
+    // Only opening the dialog resets it: removing a recent while it is open
+    // must not throw away what the author typed or the tab they are on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const isSearching = query.trim() !== "";
 
@@ -297,7 +300,7 @@ export default function FilePicker({ open, onOpenChange, onPick }: FilePickerPro
             },
             {
               value: "files",
-              label: `Files${files.length ? ` (${files.length})` : ""}`,
+              label: `Files${files.length ? ` (${files.length}${filesCut ? "+" : ""})` : ""}`,
               icon: <FileIcon />,
             },
             {
