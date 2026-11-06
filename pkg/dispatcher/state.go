@@ -77,8 +77,11 @@ type state struct {
 	degradedWarned map[string]bool
 	// sourceHolds are the cards whose last_run refused to resume because the
 	// bot source changed (see source_hold.go). Keyed by issueID.
-	// Actor-goroutine-owned; in-memory by design — lost on daemon restart,
-	// which costs one extra refusal cycle.
+	// Actor-goroutine-owned. A not-yet-adopted hold is memory-only: a restart
+	// costs one extra claim → refusal → hold cycle. An ADOPTED hold (the card
+	// sits in an eligible column with no claim) is journalled to
+	// dispatcher/source-holds.json and seeded in New, so a restart does not
+	// turn the finished run into a fresh sibling.
 	sourceHolds map[string]*sourceHold
 }
 

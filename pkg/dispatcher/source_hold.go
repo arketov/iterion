@@ -15,16 +15,22 @@ import (
 // keyed by the run id — stops dispatch before Claim so there is no
 // Claim/Release churn and no repeated refusal on every tick.
 //
-// Actor-goroutine-owned. In-memory by design: a daemon restart loses it and
-// costs exactly one extra claim → refusal → hold cycle (no durable state, so no
-// cloud twin).
+// Actor-goroutine-owned. The not-yet-adopted hold is memory-only: a daemon
+// restart loses it and costs one extra claim → refusal → hold cycle (which also
+// lets a reverted bot source resume normally). The ADOPTED hold is journalled
+// to dispatcher/source-holds.json (source_hold_journal.go) because the adopted
+// card sits in an eligible column (in_progress) with no claim, and a claim
+// cannot protect it: the boot sweep drops a dead pid's claim on Unix, Windows
+// never sweeps it and the watchdog is opt-in. A restart reloads the hold, so
+// the run's end files the card instead of minting a fresh sibling.
 type sourceHold struct {
 	identifier string
 	runID      string
 	// sourceState is the column the card was taken from (r.TransitionedFromState).
 	sourceState string
 	// adopted: the run was continued from outside (resume --force from the run
-	// console) and the card was moved to RunningState to follow it.
+	// console) and the card was moved to RunningState to follow it. Adopted
+	// holds are the only ones persisted (see sourceHoldJournal).
 	adopted bool
 }
 
@@ -69,7 +75,7 @@ func (c *Dispatcher) sourceHoldBeforeClaim(iss tracker.Issue, prev string) bool 
 		return false
 	}
 	if prev != h.runID {
-		delete(c.state.sourceHolds, iss.ID)
+		c.forgetSourceHold(iss.ID)
 		return false
 	}
 	if !h.adopted {
@@ -78,9 +84,26 @@ func (c *Dispatcher) sourceHoldBeforeClaim(iss tracker.Issue, prev string) bool 
 	return true
 }
 
+// persistSourceHolds rewrites the journal of adopted holds.
+func (c *Dispatcher) persistSourceHolds() {
+	c.holdJournal.Save(c.state.sourceHolds)
+}
+
+// forgetSourceHold deletes the hold and, when it was adopted, the journal entry.
+func (c *Dispatcher) forgetSourceHold(issueID string) {
+	h, ok := c.state.sourceHolds[issueID]
+	if !ok {
+		return
+	}
+	delete(c.state.sourceHolds, issueID)
+	if h.adopted {
+		c.persistSourceHolds()
+	}
+}
+
 // dropSourceHold forgets the hold and its source_changed skip.
 func (c *Dispatcher) dropSourceHold(issueID string) {
-	delete(c.state.sourceHolds, issueID)
+	c.forgetSourceHold(issueID)
 	if s, ok := c.state.dispatchSkips[issueID]; ok && s.Kind == DispatchSkipSourceChanged {
 		delete(c.state.dispatchSkips, issueID)
 	}
@@ -89,7 +112,8 @@ func (c *Dispatcher) dropSourceHold(issueID string) {
 // reconcileSourceHolds follows held cards through what the operator does
 // outside the dispatcher: a force-resume moves the card to in_progress and
 // clears the badge; the run's end moves it to its terminal column; a reset of
-// last_run drops the hold. Local disk I/O only, safe on the actor.
+// last_run drops the hold. An adopted hold is journalled so the follow-up
+// survives a daemon restart. Local disk I/O only, safe on the actor.
 func (c *Dispatcher) reconcileSourceHolds(ctx context.Context) {
 	if len(c.state.sourceHolds) == 0 {
 		return
@@ -128,6 +152,10 @@ func (c *Dispatcher) reconcileSourceHolds(ctx context.Context) {
 				delete(c.state.dispatchSkips, id)
 			}
 			h.adopted = true
+			// Move first, persist second: persisting before the move would
+			// rewrite the file on every tick for a card that cannot be moved.
+			// The crash window is two local writes inside one actor call.
+			c.persistSourceHolds()
 			moved = true
 			c.logger.Info("dispatcher: %s run %s was resumed out-of-band — card moved to %q and followed to its end", h.identifier, h.runID, cfg.Agent.RunningState)
 		case store.RunStatusFinished, store.RunStatusFailed:
@@ -157,6 +185,7 @@ func (c *Dispatcher) reconcileSourceHolds(ctx context.Context) {
 			// dispatch pass restores the badge.
 			if c.moveHeldCard(ctx, id, h.identifier, cfg.Agent.RunningState, h.sourceState) {
 				h.adopted = false
+				c.persistSourceHolds()
 				moved = true
 			}
 		case store.RunStatusCancelled:
