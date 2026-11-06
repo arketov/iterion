@@ -31,6 +31,13 @@ export const DesktopEvent = {
   // refresh failed / server revoked). Payload: the connection id. The
   // shell prompts the operator to log back in.
   CloudAuthExpired: "cloud:auth-expired",
+
+  // The desktop window was minimised / restored. Payload: boolean (true =
+  // minimised). Emitted only on a change by the Go poller in
+  // cmd/iterion-desktop/window_minimised.go; WebView2 keeps
+  // document.visibilityState "visible" while minimised, so the shell relays
+  // this to the panes to pause the canvas animations (lib/viewIdle.ts).
+  WindowMinimised: "window:minimised",
 } as const;
 
 export type DesktopEventName = (typeof DesktopEvent)[keyof typeof DesktopEvent];

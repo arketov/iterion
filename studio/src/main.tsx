@@ -20,6 +20,7 @@ import { initializeBackendDetect } from "./store/backendDetect";
 import { initializeServerInfo } from "./store/serverInfo";
 import { isBrowserWorkspace, isWailsHosted } from "./lib/desktopBridge";
 import { isScopedPane, scopePrefix } from "./lib/scope";
+import { installViewIdle } from "./lib/viewIdle";
 
 // Desktop workspace shell vs. studio app. The DESKTOP main frame (a Wails
 // origin with NO scope) renders the WorkspaceShell — the tab/split chrome that
@@ -36,6 +37,9 @@ const isWorkspaceShell =
 installChunkReload();
 
 initializeTheme();
+// Pauses the canvas animations while the page is hidden or the window is
+// minimised (both the shell and a pane document carry their own attribute).
+installViewIdle();
 // The workspace shell talks to no single backend, so skip the boot-time
 // backend/server probes (they'd hit the legacy /api primary); each pane runs
 // its own probes scoped to its connection.

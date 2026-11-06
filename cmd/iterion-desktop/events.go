@@ -36,4 +36,11 @@ const (
 	// token is rejected (silent refresh failed / server revoked it). The SPA
 	// shell surfaces a re-login prompt. Payload: the connection id (string).
 	eventCloudAuthExpired = "cloud:auth-expired"
+
+	// eventWindowMinimised fires when the window is minimised or restored.
+	// Payload: bool (true = minimised), emitted only on a change by
+	// watchWindowMinimised. WebView2 keeps document.visibilityState
+	// "visible" while minimised, so the SPA shell relays this to its panes
+	// to pause the canvas animations.
+	eventWindowMinimised = "window:minimised"
 )

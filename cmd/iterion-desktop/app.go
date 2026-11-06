@@ -114,6 +114,12 @@ func (a *App) onStartup(ctx context.Context) {
 		wruntime.WindowUnminimise(a.ctx)
 	})
 
+	// Tell the SPA when the window is minimised: WebView2 does not hide
+	// itself, so the canvas animations would keep painting.
+	go watchWindowMinimised(ctx, windowMinimisedPollInterval,
+		func() bool { return wruntime.WindowIsMinimised(ctx) },
+		func(minimised bool) { wruntime.EventsEmit(a.ctx, eventWindowMinimised, minimised) })
+
 	// Apply persisted window state, if any.
 	if a.config.Window.Width > 0 && a.config.Window.Height > 0 {
 		applyWindowState(ctx, a.config.Window)
