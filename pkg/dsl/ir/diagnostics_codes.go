@@ -500,4 +500,14 @@ const (
 	// (Fork-only. It was C332 until the upstream v5.11.0 merge, which took
 	// C332–C336 for the board-action diagnostics.)
 	DiagUnknownMCPServer DiagCode = "C337" // a node's `tools:` names an MCP server that no `mcp_server` block, `.mcp.json` entry or enabled plugin declares (warning)
+
+	// DiagUnknownModel is C338: a node (agent, judge, LLM router, or one of its
+	// `fallbacks:` routes) names a literal `anthropic/<id>` or `openai/<id>`
+	// model that neither the live model table nor the embedded models.dev
+	// snapshot lists. The compiler cannot consult the registry (pkg/backend/model
+	// imports this package), so `iterion validate` and POST /api/validate raise
+	// it after Compile via model.UnknownModelDiagnostics; without it a typo reads
+	// "usable" and fails only at the first paid call. A warning: a model newer
+	// than the snapshot, or a custom endpoint, is a false positive.
+	DiagUnknownModel DiagCode = "C338" // a literal anthropic/* or openai/* model that neither the live model table nor the embedded snapshot lists (warning)
 )

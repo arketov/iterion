@@ -308,6 +308,7 @@ var Catalog = map[DiagCode]DiagInfo{
 	DiagNativeActionWithoutGrant:      {"Native board action without its capability", "Declare the capability the message names — in the node's `capabilities:` list, or the workflow's if the node declares none; when the node's declared list replaced a granting workflow (a declared `capabilities: []` grants NOTHING), drop the node's line to inherit. Without the grant the native transport refuses the call at run time (CAPABILITY_DENIED)."},
 	DiagActionRetryOnNative:           {"Retry on a native action", "Drop `retry:` — the retry ladder is the HTTP transport's (Retry-After, idempotency keys); a native action fails once, and the engine's recovery owns the longer wait."},
 	DiagNativeVerbNotExposed:          {"Native action verb the facade does not expose", "Name one of the verbs the message lists; a board act the facade does not serve (closing, commenting, assigning, …) goes through an agent or judge node's board tools under its `capabilities:` grant."},
+	DiagUnknownModel:                  {"Model is not in the registry", "Check the spelling against `iterion models` (the registry lists what the provider publishes); a brand-new id newer than the embedded snapshot is fine — run `iterion models --refresh` to load the live table; a custom endpoint or an alias the provider accepts needs no change."},
 }
 
 // HintFor returns the catalogue fix line for code, or "" when the code has
