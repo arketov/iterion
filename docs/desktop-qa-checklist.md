@@ -35,6 +35,8 @@ For every platform row, walk every scenario column. Mark `✓` (pass), `✗` (fa
 - [ ] Project switch reloads the SPA, re-binds the WebSocket, invalidates the AssetServer proxy cache (no stale pages).
 - [ ] Close project B → reopen → restored cleanly.
 - [ ] Close all projects → Welcome wizard appears (or stays visible).
+- [ ] With two projects open and the second focused on a non-home page (e.g. an open file in the editor), `Ctrl+R` / `Cmd+R` keeps the second tab focused, the tab order, and each project on the page it was on.
+- [ ] With every editor tab closed, `Cmd/Ctrl+K` → **Open file…** opens the file picker; choosing a file that was deleted from disk opens no tab and removes it from Recent.
 
 ### 3. Settings
 

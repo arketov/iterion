@@ -9,6 +9,7 @@ import { useActiveRepo } from "@/hooks/useActiveRepo";
 import { useRuns } from "@/hooks/useRuns";
 import { useRecentsStore } from "@/store/recents";
 import { useServerInfoStore } from "@/store/serverInfo";
+import { selectEditorTabs, useTabsStore } from "@/store/tabs";
 import { useThemeStore } from "@/store/theme";
 import { useUIStore } from "@/store/ui";
 
@@ -17,12 +18,14 @@ import { useUIStore } from "@/store/ui";
 // theme toggle. The editor route owns its own Canvas-scoped palette
 // (Canvas.tsx) because those actions depend on canvas-local handlers
 // (undo/redo wired to React Flow, fitView, layer toggles, …); App
-// suppresses its own listener while the editor is mounted to avoid
-// double-firing on Cmd+K.
+// suppresses its own listener while an editor TAB is on screen to avoid
+// double-firing on Cmd+K. The editor's start pane (no tab open) mounts no
+// Canvas, so this palette answers there.
 export default function GlobalCommandPalette() {
   const [location, setLocation] = useLocation();
   const open = useUIStore((s) => s.commandPaletteOpen);
   const setOpen = useUIStore((s) => s.setCommandPaletteOpen);
+  const setFilePickerOpen = useUIStore((s) => s.setFilePickerOpen);
   const recents = useRecentsStore((s) => s.recents);
   const { runs } = useRuns({ limit: 5, enabled: open });
   const serverInfo = useServerInfoStore((s) => s.info);
@@ -32,12 +35,18 @@ export default function GlobalCommandPalette() {
   // so reading it here piggybacks on that query — no extra fetch on Cmd+K.
   const { repos, choose, enabled: cloudRepos } = useActiveRepo();
 
-  // The Canvas Cmd+K listener handles the editor route. Everywhere
-  // else, App intercepts Cmd+K and opens this palette.
-  const inEditor = location === "/editor";
+  // The Canvas Cmd+K listener handles an editor tab on screen. Everywhere
+  // else — including the editor's start pane, where no tab is open and so no
+  // Canvas is mounted — this palette answers. Same test as EditorTabsView's
+  // showHome: the active editor tab of the current project exists.
+  const editorTabShown = useTabsStore(
+    (s) =>
+      location === "/editor" &&
+      selectEditorTabs(s).some((t) => t.id === s.activeEditorTabId),
+  );
 
   useEffect(() => {
-    if (inEditor) return;
+    if (editorTabShown) return;
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
@@ -48,7 +57,7 @@ export default function GlobalCommandPalette() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [inEditor, setOpen]);
+  }, [editorTabShown, setOpen]);
 
   const actions: CommandAction[] = useMemo(
     () => [
@@ -67,6 +76,21 @@ export default function GlobalCommandPalette() {
         // Cloud has no editor save path (the Editor is out of the cloud nav).
         disabled: cloud,
         run: () => setLocation("/editor"),
+      },
+      {
+        id: "file.open",
+        group: "File",
+        title: "Open file…",
+        keywords: ["recents", "examples", "browse"],
+        // Local files only: cloud has no editor save path.
+        disabled: cloud,
+        // The picker is rendered by whichever editor surface is mounted (the
+        // Toolbar in a tab, the start pane without one), so go to the editor
+        // first and raise the shared flag.
+        run: () => {
+          if (location !== "/editor") setLocation("/editor");
+          setFilePickerOpen(true);
+        },
       },
       {
         id: "nav.runs",
@@ -208,7 +232,7 @@ export default function GlobalCommandPalette() {
             run: () => setLocation(`/runs/new?file=${encodeURIComponent(path)}`),
           }))),
     ],
-    [runs, recents, serverInfo, setLocation, cycleTheme, cloud, cloudRepos, repos, choose],
+    [runs, recents, serverInfo, setLocation, location, setFilePickerOpen, cycleTheme, cloud, cloudRepos, repos, choose],
   );
 
   return (

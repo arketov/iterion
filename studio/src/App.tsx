@@ -72,6 +72,7 @@ import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { LegalLinks } from "@/views/Legal/LegalLinks";
 import FeatureUnavailable from "@/components/shared/FeatureUnavailable";
 import GlobalCommandPalette from "@/components/shared/GlobalCommandPalette";
+import { usePaneLocationMemory } from "@/lib/workspacePaneRestore";
 import ToastContainer from "@/components/shared/Toast";
 import MissingCLIBanner from "@/components/MissingCLIBanner";
 import CloudLanding, { PublicTopBar } from "@/views/CloudLanding";
@@ -530,6 +531,9 @@ function StudioShell({
   isRestricted: boolean;
 }) {
   useDocumentTitle();
+  // A workspace pane records its route so a window reload (Ctrl+R) reopens it
+  // where the author was, not on the home. No-op outside a pane.
+  usePaneLocationMemory();
   return (
     <>
       {

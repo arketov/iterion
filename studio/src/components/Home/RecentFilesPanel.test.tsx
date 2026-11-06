@@ -1,13 +1,32 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
+import * as client from "@/api/client";
 import type { BotEntryWithSchema } from "@/api/bots";
+import { createEmptyDocument } from "@/lib/defaults";
+import { getOrCreateDocumentStore } from "@/store/document";
 import { useBotsStore } from "@/store/bots";
 import { useRecentsStore } from "@/store/recents";
 import { useTabsStore } from "@/store/tabs";
+import { useUIStore } from "@/store/ui";
 
 import RecentFilesPanel from "./RecentFilesPanel";
+
+// A file is read before its tab opens, so every open goes through openFile:
+// by default the file exists and reads back as an empty document.
+vi.mock("@/api/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/client")>();
+  return {
+    ...actual,
+    openFile: vi.fn(async (path: string) => ({
+      path,
+      source: "",
+      document: { version: "1", workflows: [] },
+      diagnostics: [],
+    })),
+  };
+});
 
 // Not under test; rendering it bare would be harmless but we keep the test
 // hermetic (no catalog fetch on mount).
@@ -40,7 +59,10 @@ afterEach(() => {
 beforeEach(() => {
   window.history.replaceState({}, "", "/");
   useRecentsStore.setState({ recents: [] });
+  useTabsStore.setState({ tabs: [], activeEditorTabId: null, currentProjectKey: null });
+  useUIStore.setState({ toasts: [] });
 });
+const toasts = () => useUIStore.getState().toasts.map((t) => t.message).join(" | ");
 
 describe("RecentFilesPanel — the Bots block is the Bots page's own list", () => {
   it("shows no number until the list has loaded", () => {
@@ -85,27 +107,30 @@ describe("RecentFilesPanel — the Bots block is the Bots page's own list", () =
     expect(screen.getByText(/No recent files yet — create a new workflow\./)).toBeTruthy();
   });
 
-  it("opens a bundle's main.bot in an editor tab bound to the path", () => {
+  it("opens a bundle's main.bot in an editor tab bound to the path", async () => {
     setStore({
       bots: [bot({ name: "review", rel_path: "bots/review", is_bundle: true })],
       extraBots: [],
     });
     render(<RecentFilesPanel />);
     fireEvent.click(screen.getByText("review"));
-    const tab = useTabsStore.getState().tabs.find((t) => t.params.file === "bots/review/main.bot");
-    expect(tab).toBeTruthy();
+    await waitFor(() =>
+      expect(useTabsStore.getState().tabs.some((t) => t.params.file === "bots/review/main.bot")).toBe(true),
+    );
     expect(useRecentsStore.getState().recents).toContain("bots/review/main.bot");
     expect(window.location.pathname).toBe("/editor");
   });
 
-  it("opens a single project file by its workspace path", () => {
+  it("opens a single project file by its workspace path", async () => {
     setStore({
       bots: [],
       extraBots: [bot({ name: "dev-flow", origin: "file", rel_path: "dev-flow.bot" })],
     });
     render(<RecentFilesPanel />);
     fireEvent.click(screen.getByText("dev-flow"));
-    expect(useTabsStore.getState().tabs.some((t) => t.params.file === "dev-flow.bot")).toBe(true);
+    await waitFor(() =>
+      expect(useTabsStore.getState().tabs.some((t) => t.params.file === "dev-flow.bot")).toBe(true),
+    );
   });
 
   it("sends a bot with no file in this workspace to its bot page", () => {
@@ -123,5 +148,55 @@ describe("RecentFilesPanel — the Bots block is the Bots page's own list", () =
     render(<RecentFilesPanel />);
     expect(screen.getByText("Bot catalog unavailable")).toBeTruthy();
     expect(screen.getByText("boom")).toBeTruthy();
+  });
+});
+
+describe("RecentFilesPanel — a recent file that is gone from disk", () => {
+  it("leaves the recent list, opens no tab and says so", async () => {
+    setStore({ bots: [], extraBots: [] });
+    useRecentsStore.setState({ recents: ["gone/flow.bot", "kept.bot"] });
+    vi.mocked(client.openFile).mockRejectedValueOnce(new Error("file not found: gone/flow.bot"));
+    render(<RecentFilesPanel />);
+
+    fireEvent.click(await screen.findByTitle("gone/flow.bot"));
+
+    await waitFor(() => expect(useRecentsStore.getState().recents).toEqual(["kept.bot"]));
+    expect(toasts()).toContain("Removed missing file from recents: gone/flow.bot");
+    expect(useTabsStore.getState().tabs).toHaveLength(0);
+    expect(window.location.pathname).toBe("/");
+  });
+
+  it("keeps the entry when the open failed for another reason", async () => {
+    setStore({ bots: [], extraBots: [] });
+    useRecentsStore.setState({ recents: ["flaky.bot"] });
+    vi.mocked(client.openFile).mockRejectedValueOnce(new Error("connection reset"));
+    render(<RecentFilesPanel />);
+
+    fireEvent.click(await screen.findByTitle("flaky.bot"));
+
+    await waitFor(() => expect(toasts()).toContain("Open failed"));
+    expect(useRecentsStore.getState().recents).toEqual(["flaky.bot"]);
+    expect(useTabsStore.getState().tabs).toHaveLength(0);
+  });
+
+  it("opens an existing recent file in a tab already holding its reading", async () => {
+    setStore({ bots: [], extraBots: [] });
+    useRecentsStore.setState({ recents: ["here.bot"] });
+    vi.mocked(client.openFile).mockResolvedValueOnce({
+      source: "agent a:\n  system: hi\n",
+      document: createEmptyDocument(),
+      diagnostics: [],
+      path: "here.bot",
+    });
+    render(<RecentFilesPanel />);
+
+    fireEvent.click(await screen.findByTitle("here.bot"));
+
+    await waitFor(() => {
+      const tab = useTabsStore.getState().tabs.find((t) => t.params.file === "here.bot");
+      expect(tab).toBeTruthy();
+      expect(getOrCreateDocumentStore(tab!.id).getState().currentFilePath).toBe("here.bot");
+    });
+    expect(window.location.pathname).toBe("/editor");
   });
 });

@@ -28,7 +28,7 @@ import { downloadBlob } from "@/lib/download";
 import { DISCARD_CHANGES_PROMPT } from "@/lib/copy";
 import { errorMessage, toastError } from "@/lib/errorHints";
 import { openExampleIntoStore } from "@/lib/openExample";
-import { applyParsedSource, refuseReadRefusal, salvageRefusal } from "@/lib/salvage";
+import { salvageRefusal } from "@/lib/salvage";
 import { isSharedBundleFilePath } from "@/lib/sharedBundle";
 
 import type { ConfirmOptions } from "@/hooks/useConfirm";
@@ -66,7 +66,8 @@ export interface UseDocumentFileOpsResult {
   handleRemoveWorkflow: () => void;
 }
 import { applyOpenedFile } from "@/lib/openedFile";
-import { ReplaceDeadlineError, replaceDocument, replaceDocumentNow } from "@/lib/replaceDocument";
+import { importFileIntoStore, isMissingFileError } from "@/lib/openInEditorTab";
+import { replaceDocument, replaceDocumentNow } from "@/lib/replaceDocument";
 import { offerReload } from "@/lib/reloadOffer";
 import { stampEditor, stampHolds } from "@/store/document";
 
@@ -166,9 +167,7 @@ export function useDocumentFileOps({
         // doesn't contain it). Pruning here means the next time the
         // picker opens, the dead row is gone — instead of the user
         // having to manually click the trash icon on every stale row.
-        const message = errorMessage(err) ?? "";
-        const isMissing = !(err instanceof ReplaceDeadlineError) && /file not found|no such file|404/i.test(message);
-        if (kind === "file" && isMissing) {
+        if (kind === "file" && isMissingFileError(err)) {
           removeRecent(path);
           addToast(`Removed missing file from recents: ${path}`, "warning");
         } else {
@@ -195,38 +194,9 @@ export function useDocumentFileOps({
         return;
       }
       try {
-        // The file is read inside the load: the confirm was answered for the
-        // work present NOW, and an edit made while the file is read or
-        // parsed is work nobody was asked about.
-        await replaceDocument(
-          documentStore,
-          file.name,
-          async (signal) => {
-            const text = await file.text();
-            const result = await api.parseSource(text, { signal });
-            // Refused before the replacement applies anything: an import
-            // the server's reader cut short has no program to install.
-            refuseReadRefusal(result);
-            return { text, result };
-          },
-          ({ text, result }, s) => {
-            s.setDiagnostics(result.diagnostics);
-            // The path first — it clears the salvage flag — then the document
-            // and the verdict together. Unbinding does NOT protect an import:
-            // Save As is the only write an unbound buffer offers, and it would
-            // put a file missing what the parser could not read under the name
-            // the author chose.
-            s.setCurrentFilePath(null);
-            // The store as the unbinding left it: `s` is the state before.
-            applyParsedSource(result, documentStore.getState());
-            // Imported files are off-disk; the original text is the source.
-            s.setCurrentSource(text);
-            // The picker names no path, but it does name the file: Save As
-            // proposes that name, not the workflow block's (dev-flow.bot
-            // must not come back as dev_flow.bot).
-            s.setImportedFileName(file.name);
-          },
-        );
+        // The shared import: the file is read inside the load, and the
+        // imported file keeps its own name for Save As.
+        await importFileIntoStore(documentStore, file);
       } catch (err) {
         console.error("Import failed:", err);
         toastError(addToast, err, "Import failed");
