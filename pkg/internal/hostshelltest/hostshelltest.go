@@ -17,7 +17,7 @@ import (
 
 // PreferPosix, for a TestMain, makes the host shell a POSIX one when the
 // platform default is PowerShell and an operator has not chosen already:
-// ITERION_SHELL is set to sh (else bash) when either is on PATH. Where none is
+// ITERION_SHELL is set to the resolved path of sh (else bash) when either is on PATH. Where none is
 // found nothing changes and the sh fixtures fail loudly, naming the missing
 // shell. It does nothing off Windows, so Linux and macOS keep running the
 // platform default.
@@ -35,7 +35,9 @@ func PreferPosix() {
 		if strings.Contains(strings.ToLower(path), `\system32\`) {
 			continue
 		}
-		_ = os.Setenv(hostshell.EnvVar, name)
+		// Hand over the path the lookup resolved, not the name: a name would
+		// be resolved again against a PATH that may have moved in between.
+		_ = os.Setenv(hostshell.EnvVar, path)
 		return
 	}
 }
@@ -51,8 +53,8 @@ func UsePowerShell(t testing.TB) {
 		names = []string{only}
 	}
 	for _, name := range names {
-		if _, err := envtrust.LookPath(name); err == nil {
-			t.Setenv(hostshell.EnvVar, name)
+		if path, err := envtrust.LookPath(name); err == nil {
+			t.Setenv(hostshell.EnvVar, path)
 			return
 		}
 	}
