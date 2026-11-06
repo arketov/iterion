@@ -115,6 +115,9 @@ no context window, no price — and still lists `claude_code` as usable, because
 credential for the provider exists. Read the source, the context window and
 `price_known`, not the last column alone; the recipe is in
 [the quickstart](quickstart.md#name-a-model-and-check-the-name).
+`iterion validate` and `POST /api/validate` warn (`C338`) about such a literal
+`anthropic/` or `openai/` id before any run; `usable` itself is unchanged (a
+credential only) and the `/api/models` contract is too.
 
 A zero price means **no published price**, never free. The `price_known` flag
 (`—` in the CLI, in the picker) is what distinguishes the two.
