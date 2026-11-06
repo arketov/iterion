@@ -172,9 +172,12 @@ describe("removing a connection from the + menu", () => {
   });
 
   it("has no axe violations in the open menu (nested-interactive among them)", async () => {
-    const { container } = await bootWith([alpha, beta, cloud]);
+    await bootWith([alpha, beta, cloud]);
     await screen.findByRole("button", { name: "Remove connection beta" });
 
-    await expectNoViolationsStrict(container, "WorkspaceShell open-connection menu");
+    // The shell also renders the panes' iframes, which axe cannot enter under
+    // jsdom ("Respondable target must be a frame"): audit the open menu itself.
+    const menu = screen.getByText("Open connection").parentElement!;
+    await expectNoViolationsStrict(menu, "WorkspaceShell open-connection menu");
   });
 });
