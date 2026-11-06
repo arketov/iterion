@@ -140,8 +140,9 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
         {noConfig && !loading && (
           <InlineBanner tone="info" title="No dispatcher configured yet">
             <p>
-              Fill in the form below, or let iterion create a ready-made dispatcher: it uses
-              the default bots and the local board, and starts at once.
+              Fill in the form below, or let iterion create a ready-made dispatcher: it runs the
+              bots of this project (the <code>bots/</code> folder) from the local board, and starts
+              at once. With no bots yet, cards wait marked “no bot” until you add one.
             </p>
             <Button
               variant="secondary"
@@ -158,8 +159,8 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
         {!noConfig && !loading && cfg && (
           <InlineBanner tone="info" title="Something wrong with these settings?">
             <p>
-              Go back to the ready-made dispatcher: the local board, the default hooks for this
-              computer, started at once. The saved settings are overwritten.
+              Go back to the ready-made dispatcher: your project&apos;s bots, the local board, the
+              default hooks for this computer, started at once. The saved settings are overwritten.
             </p>
             <Button
               variant="secondary"
@@ -183,6 +184,8 @@ function defaultConfig(): dispatcher.DispatcherConfig {
   return {
     name: "",
     workflow: "",
+    // A new dispatcher runs only cards assigned to a bot of the project.
+    require_assignee: true,
     tracker: { kind: "native" },
     dispatch: { vars: {} },
     polling: { interval_ms: 30000 },
@@ -229,6 +232,34 @@ function Form({ cfg, setCfg }: FormProps) {
         <AssigneeWorkflowsField
           value={cfg.assignee_workflows ?? {}}
           onChange={(v) => update("assignee_workflows", v)}
+        />
+      </Section>
+
+      <Section title="Routing">
+        <label className="flex items-start gap-2 text-xs">
+          <Checkbox
+            className="mt-0.5"
+            checked={cfg.require_assignee ?? false}
+            onChange={(e) => update("require_assignee", e.target.checked)}
+          />
+          <span>
+            <span className="font-medium text-fg-default">
+              Only run cards assigned to a project bot
+            </span>
+            <span className="block text-fg-muted">
+              A card with no assignee, or whose assignee is not one of the bots below (a person&apos;s
+              name, a typo), is not run: it waits marked “no assignee” / “no bot”. Turn it off to run
+              such cards on the fallback workflow above, if there is one.
+            </span>
+          </span>
+        </label>
+        <BotPathsField
+          value={cfg.bots?.paths ?? []}
+          onChange={(paths) => update("bots", { ...(cfg.bots ?? {}), paths })}
+        />
+        <AssigneeDispatchField
+          value={cfg.assignee_dispatch ?? {}}
+          onChange={(v) => update("assignee_dispatch", v)}
         />
       </Section>
 
@@ -373,12 +404,12 @@ function Form({ cfg, setCfg }: FormProps) {
       <Section title="Stall detection">
         <Field
           label="Timeout (ms)"
-          hint="If a run is silent for this long, the dispatcher cancels and retries it. 0 disables stall detection."
+          hint="If a run is silent for this long, the dispatcher cancels and retries it. -1 disables stall detection (0 means the 600 000 ms default)."
         >
           <Input
             size="sm"
             type="number"
-            min={0}
+            min={-1}
             value={cfg.stall?.timeout_ms ?? 600000}
             onChange={(e) => update("stall", { timeout_ms: Number(e.target.value) })}
           />
@@ -402,10 +433,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 const WORKFLOW_PATH_HINT =
-  "Pick a bot: the studio fills in its full path for you. A path typed by hand " +
-  "(.bot, .botz or an unpacked bundle folder) is best written absolute: a relative path is " +
-  "resolved against the dispatcher config folder (~/.iterion/projects/<key>/dispatcher/), " +
-  "not against the project root.";
+  "Fallback for a card that names no bot — used only when “Only run cards assigned to a " +
+  "project bot” (Routing) is off, and may be left empty. Pick a bot: the studio fills in its " +
+  "full path for you. A path typed by hand (.bot, .botz or an unpacked bundle folder) may be " +
+  "relative: it is resolved against the project root.";
 
 /** BotWorkflowSelect is the searchable replacement for a workflow-path text
  *  box: the operator picks a bot by name and the studio stores its full path.
@@ -513,6 +544,130 @@ function AssigneeWorkflowsField({
       ))}
       <Button variant="ghost" size="sm" onClick={() => setRows([...rows, { k: "", v: "" }])}>
         + Add assignee bot
+      </Button>
+    </div>
+  );
+}
+
+/** BotPathsField edits bots.paths: the folders the dispatcher discovers bots in
+ *  (a relative path is taken from the project root). Empty = the project's
+ *  bots/, examples/ and .botz/. Rows live in local state so a half-typed path
+ *  keeps its place; empty rows are not saved. */
+function BotPathsField({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const [rows, setRows] = useState<string[]>(() => [...value]);
+  const commit = (next: string[]) => {
+    setRows(next);
+    onChange(next.map((p) => p.trim()).filter(Boolean));
+  };
+  return (
+    <div className="space-y-2">
+      <span className="text-xs font-medium text-fg-default">Bot folders (bots.paths)</span>
+      <span className="block text-xs text-fg-muted">
+        Where the dispatcher looks for bots. A relative path is taken from the project root. Leave
+        empty for the project&apos;s <code>bots/</code>, <code>examples/</code> and{" "}
+        <code>.botz/</code>.
+      </span>
+      {rows.map((p, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <Input
+            size="sm"
+            className="flex-1"
+            value={p}
+            aria-label={`Bot folder ${i + 1}`}
+            placeholder="./bots"
+            onChange={(e) => commit(rows.map((x, j) => (j === i ? e.target.value : x)))}
+          />
+          <IconButton
+            size="sm"
+            variant="danger"
+            label={p ? `Remove ${p}` : "Remove row"}
+            onClick={() => commit(rows.filter((_, j) => j !== i))}
+          >
+            ×
+          </IconButton>
+        </div>
+      ))}
+      <Button variant="ghost" size="sm" onClick={() => setRows([...rows, ""])}>
+        + Add bot folder
+      </Button>
+    </div>
+  );
+}
+
+/** AssigneeDispatchField edits assignee_dispatch: input vars for one bot that
+ *  replace the bot's own manifest `dispatch_vars` (and the global vars). Most
+ *  bots need no row — their manifest is read at every dispatch. Rows live in
+ *  local state; a row with no name is not saved; fields the form does not edit
+ *  (attachments) stay on their entry. */
+function AssigneeDispatchField({
+  value,
+  onChange,
+}: {
+  value: Record<string, dispatcher.AssigneeDispatchConfig>;
+  onChange: (v: Record<string, dispatcher.AssigneeDispatchConfig>) => void;
+}) {
+  type Row = { k: string; entry: dispatcher.AssigneeDispatchConfig };
+  const [rows, setRows] = useState<Row[]>(() =>
+    Object.entries(value).map(([k, entry]) => ({ k, entry })),
+  );
+  const commit = (next: Row[]) => {
+    setRows(next);
+    const out: Record<string, dispatcher.AssigneeDispatchConfig> = {};
+    for (const r of next) {
+      const k = r.k.trim();
+      if (k) out[k] = r.entry;
+    }
+    onChange(out);
+  };
+  return (
+    <div className="space-y-2">
+      <span className="text-xs font-medium text-fg-default">Per-bot input vars</span>
+      <span className="block text-xs text-fg-muted">
+        Overrides the <code>dispatch_vars</code> of the bot&apos;s manifest for cards run by that
+        bot. Leave empty to use the manifest. The name must be a bot of this project.
+      </span>
+      {rows.map((r, i) => (
+        <div key={i} className="space-y-2 rounded border border-border-default bg-surface-2 p-2">
+          <div className="flex items-center gap-2">
+            <Input
+              size="sm"
+              className="flex-1"
+              value={r.k}
+              aria-label={`Bot name for vars row ${i + 1}`}
+              placeholder="bot name"
+              onChange={(e) => commit(rows.map((x, j) => (j === i ? { ...x, k: e.target.value } : x)))}
+            />
+            <IconButton
+              size="sm"
+              variant="danger"
+              label={r.k ? `Remove ${r.k}` : "Remove row"}
+              onClick={() => commit(rows.filter((_, j) => j !== i))}
+            >
+              ×
+            </IconButton>
+          </div>
+          <KVTable
+            rows={r.entry.vars ?? {}}
+            onChange={(vars) =>
+              commit(rows.map((x, j) => (j === i ? { ...x, entry: { ...x.entry, vars } } : x)))
+            }
+            keyPlaceholder="task"
+            valuePlaceholder="{{issue.title}}: {{issue.body}}"
+          />
+        </div>
+      ))}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setRows([...rows, { k: "", entry: { vars: {} } }])}
+      >
+        + Add per-bot vars
       </Button>
     </div>
   );

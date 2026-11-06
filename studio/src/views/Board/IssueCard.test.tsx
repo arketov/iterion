@@ -236,3 +236,39 @@ describe("IssueCard activation paths", () => {
     await expectNoViolationsStrict(container, "IssueCard");
   });
 });
+
+// With require_assignee on, a ready card the dispatcher will not run says why:
+// no assignee at all, or an assignee that is not a bot (a person's name, a
+// typo). The second used to start the paid default bot without a word.
+describe("IssueCard no-bot badge", () => {
+  const renderWithSkip = (skip: { kind?: string; assignee?: string; reason: string }) =>
+    render(
+      <IssueCard
+        iss={{ ...baseIssue, state: "ready" }}
+        selected={false}
+        skip={{ issue_id: baseIssue.id, identifier: "T-1", ...skip }}
+        activeLabels={new Set()}
+        onClick={() => {}}
+        onOpen={() => {}}
+        onDragStart={() => {}}
+        onLabelClick={() => {}}
+        onCancelRun={() => {}}
+        onOpenRun={() => {}}
+        onShowRetryDetails={() => {}}
+      />,
+    );
+
+  it("renders “no bot — won't start” for an assignee that is not a bot", () => {
+    renderWithSkip({ kind: "no_bot", assignee: "artem", reason: 'assignee "artem" is not a bot of this project' });
+    expect(screen.getByText(/no bot — won't start/i)).toBeTruthy();
+    expect(screen.queryByText(/no assignee — won't start/i)).toBeNull();
+    const badge = screen.getByRole("button", { name: /no bot/i });
+    expect(badge.getAttribute("title") ?? "").toContain("artem");
+  });
+
+  it("keeps “no assignee — won't start” for a card with no assignee", () => {
+    renderWithSkip({ kind: "no_assignee", reason: "no assignee" });
+    expect(screen.getByText(/no assignee — won't start/i)).toBeTruthy();
+    expect(screen.queryByText(/no bot — won't start/i)).toBeNull();
+  });
+});

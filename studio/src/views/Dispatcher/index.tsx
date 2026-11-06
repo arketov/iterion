@@ -433,9 +433,9 @@ function DispatchSkipsTable({
       <header className="px-4 py-2 border-b border-danger/30 text-sm font-semibold text-danger-fg flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span>⚠ Won&apos;t dispatch ({rows.length})</span>
         <span className="text-micro font-normal text-danger-fg">
-          eligible issues the dispatcher refuses to claim — pick an assignee or
-          fix the <code>bot</code> in the issue editor, or add it to{" "}
-          <code>assignee_workflows</code>
+          eligible issues the dispatcher refuses to claim — pick one of the
+          project&apos;s bots in the issue editor (Bot tab), or fix the{" "}
+          <code>bot</code> name
         </span>
       </header>
       <Table
@@ -461,6 +461,10 @@ function DispatchSkipsTable({
               <Td className="font-mono">
                 {s.kind === "no_assignee" ? (
                   <span className="text-warning-fg">no assignee</span>
+                ) : s.kind === "no_bot" ? (
+                  <span className="text-warning-fg">
+                    no bot{s.assignee ? ` (${s.assignee})` : ""}
+                  </span>
                 ) : s.bot ? (
                   s.bot
                 ) : (

@@ -48,12 +48,12 @@ export function resume(): Promise<ManagerStatus> {
   return request("/resume", { method: "POST" });
 }
 
-// applyDefaults asks the server to build a zero-config dispatcher
-// Config from the embedded bot catalogue, persist it, and start the
-// dispatcher in one call. Returns 409 if a config already exists
-// (caller should DELETE or PUT to overwrite first), 501 if the
-// running binary was built without the defaults closure wired (out-
-// of-process dispatch mode), 400 if the embedded catalogue is empty.
+// applyDefaults asks the server to build the default dispatcher Config for
+// this project (its own bots under bots/, examples/ and .botz/, the local
+// board, require_assignee on), persist it, and start the dispatcher in one
+// call. Returns 409 if a config already exists (pass `replace: true` to reset
+// it, or PUT /config to edit it), 501 if the running binary was built without
+// the defaults closure wired (out-of-process dispatch mode).
 //
 // `replace: true` is the operator's explicit "back to the default
 // settings": the server overwrites the saved config (and live-reloads a
@@ -70,7 +70,7 @@ export function applyDefaults(opts?: { replace?: boolean }): Promise<ManagerStat
 
 // Mirror pkg/dispatcher/config.go. snake_case throughout — same wire
 // shape on both YAML and JSON sides.
-export type TrackerKind = "native" | "github" | "forgejo";
+export type TrackerKind = "native" | "github" | "forgejo" | "gitlab";
 
 export interface LabelSelector {
   labels_include?: string[];
@@ -96,11 +96,22 @@ export interface ForgejoTrackerConfig {
   exclude_labels?: string[];
 }
 
+export interface GitLabTrackerConfig {
+  host: string;
+  repo: string;
+  token?: string;
+  state_mapping?: Record<string, LabelSelector>;
+  claimed_label?: string;
+  include_labels?: string[];
+  exclude_labels?: string[];
+}
+
 export interface TrackerConfig {
   kind: TrackerKind;
   native?: Record<string, never>;
   github?: GitHubTrackerConfig;
   forgejo?: ForgejoTrackerConfig;
+  gitlab?: GitLabTrackerConfig;
 }
 
 export interface DispatchConfig {
@@ -117,6 +128,13 @@ export interface AgentConfig {
   max_concurrent_by_state?: Record<string, number>;
   max_turns?: number;
   max_retry_backoff_ms?: number;
+  /** Total attempts per card; a negative value retries forever. */
+  max_attempts?: number;
+  /** Board states the dispatcher moves a card through; "none" opts out. */
+  running_state?: string;
+  completed_state?: string;
+  merged_state?: string;
+  failed_state?: string;
 }
 
 export type WorkspacePersistPolicy = "" | "keep" | "cleanup_on_done" | "cleanup_on_terminal";
@@ -149,13 +167,46 @@ export interface ServerConfig {
   port?: number;
 }
 
+/** Where the dispatcher looks for bots: discovery roots, relative ones taken
+ *  from the project root. Empty = the project's bots/, examples/ and .botz/. */
+export interface BotsConfig {
+  paths?: string[];
+}
+
+/** Per-bot input vars (var name → template) that replace the bot's manifest
+ *  `dispatch_vars` and the global `dispatch.vars` for that bot. */
+export interface AssigneeDispatchConfig {
+  vars?: Record<string, string>;
+  attachments?: Record<string, string>;
+}
+
+export interface TicketRouterConfig {
+  enabled: boolean;
+  implement_bot?: string;
+}
+
+export interface LimitsConfig {
+  max_cost_per_day_usd?: number;
+}
+
 export interface DispatcherConfig {
   name?: string;
+  /** Fallback workflow for a card that names no bot. May be empty when
+   *  `require_assignee` is on: the dispatcher then runs only bots it can route
+   *  to. A relative path is resolved against the project root. */
   workflow: string;
   /** assignee name → workflow path: a card assigned to that name runs the
    *  given workflow instead of `workflow`. Relative paths are resolved
-   *  against the dispatcher config folder, like `workflow`. */
+   *  against the project root, like `workflow`. */
   assignee_workflows?: Record<string, string>;
+  /** Per-bot dispatch vars (see AssigneeDispatchConfig). */
+  assignee_dispatch?: Record<string, AssigneeDispatchConfig>;
+  /** A card that names no bot — or whose assignee is not a bot of the
+   *  project — is not run (it waits as "no assignee" / "no bot"). */
+  require_assignee?: boolean;
+  bots?: BotsConfig;
+  ticket_router?: TicketRouterConfig;
+  limits?: LimitsConfig;
   tracker: TrackerConfig;
   dispatch?: DispatchConfig;
   polling?: PollingConfig;
@@ -225,7 +276,10 @@ export interface DispatchSkipView {
   identifier: string;
   bot?: string;
   reason: string;
+  /** The card's assignee, so the UI can say which name is not a bot. */
+  assignee?: string;
   // "no_assignee": a ready card with no assignee/bot (require_assignee on).
+  // "no_bot": its assignee is not a bot the dispatcher can route to.
   // Absent for the bot-misconfiguration family.
   kind?: string;
 }
