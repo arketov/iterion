@@ -672,7 +672,7 @@ func (r *Runner) runGitOutEnv(ctx context.Context, dir, tok string, extraEnv []s
 		ctx, cancel = context.WithTimeout(ctx, gitOpTimeout)
 		defer cancel()
 	}
-	cmd := exec.CommandContext(ctx, "git", gitlib.NoAutoMaintenance(gitlib.NoRunHooks(args...)...)...)
+	cmd := proc.CommandContext(ctx, "git", gitlib.NoAutoMaintenance(gitlib.NoRunHooks(args...)...)...)
 	if dir != "" {
 		cmd.Dir = dir
 	}

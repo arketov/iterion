@@ -6,11 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // StatusBetween lists files that differ between two commits inside repoRoot,
@@ -380,7 +381,7 @@ func showAt(dir, ref, relPath string) ([]byte, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), gitCommandTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", NoRunHooks("show", ref+":"+relPath)...)
+	cmd := proc.CommandContext(ctx, "git", NoRunHooks("show", ref+":"+relPath)...)
 	cmd.Dir = dir
 	cmd.Env = gitEnv()
 	var stderr bytes.Buffer

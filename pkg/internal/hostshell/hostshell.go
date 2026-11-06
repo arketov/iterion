@@ -33,6 +33,7 @@ import (
 	"strings"
 
 	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // EnvVar is the operator's global override of the shell choice: a name
@@ -383,7 +384,7 @@ func (s Shell) Argv(script string, login bool) (argv []string, stdin io.Reader) 
 // script is already attached as cmd.Stdin.
 func (s Shell) Command(ctx context.Context, script string, login bool) *exec.Cmd {
 	argv, stdin := s.Argv(script, login)
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd := proc.CommandContext(ctx, argv[0], argv[1:]...)
 	if stdin != nil {
 		cmd.Stdin = stdin
 	}

@@ -181,7 +181,10 @@ func (d *discoverer) checkVersion(ctx context.Context, cliPath string) {
 	vctx, cancel := context.WithTimeout(ctx, VersionCheckTimeout)
 	defer cancel()
 
-	out, err := exec.CommandContext(vctx, cliPath, "--version").Output()
+	versionCmd := exec.CommandContext(vctx, cliPath, "--version")
+	hideWindow(versionCmd)
+
+	out, err := versionCmd.Output()
 	if err != nil {
 		d.log.DebugContext(ctx, "CLI version check failed", slog.String("error", err.Error()))
 

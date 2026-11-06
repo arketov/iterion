@@ -21,6 +21,7 @@ import (
 	"github.com/arketov/iterion/pkg/botlock"
 	"github.com/arketov/iterion/pkg/bundle"
 	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // assistantDependencyBotsUpdateRequest is purposefully not a general command
@@ -735,7 +736,7 @@ func restoreAssistantDependencyLock(path string, contents []byte, mode os.FileMo
 }
 
 func assistantDependencyGit(ctx context.Context, workdir string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", workdir}, args...)...)
+	cmd := proc.CommandContext(ctx, "git", append([]string{"-C", workdir}, args...)...)
 	cmd.Env = gitlib.SanitizeEnv(os.Environ())
 	// The answer is stdout: these callers read a SHA, a path they then create
 	// a lock file at, a NUL-separated list, `git version` under Sscanf. git
@@ -754,7 +755,7 @@ func assistantDependencyGit(ctx context.Context, workdir string, args ...string)
 }
 
 func assistantDependencyGitQuiet(ctx context.Context, workdir string, args ...string) (bool, error) {
-	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", workdir}, args...)...)
+	cmd := proc.CommandContext(ctx, "git", append([]string{"-C", workdir}, args...)...)
 	cmd.Env = gitlib.SanitizeEnv(os.Environ())
 	out, err := cmd.CombinedOutput()
 	if err == nil {

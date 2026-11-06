@@ -158,7 +158,7 @@ func (h *Hook) Run(ctx context.Context, logger *iterlog.Logger, name, workspace 
 			return h.notStarted(name, ferr, false)
 		}
 		sh = fsh
-		cmd = exec.CommandContext(cctx, argv[0], argv[1:]...)
+		cmd = proc.CommandContext(cctx, argv[0], argv[1:]...)
 	} else {
 		var err error
 		sh, err = hostshell.Resolve(hostshell.Request{Name: h.Shell, Script: command})

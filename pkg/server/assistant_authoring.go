@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -24,6 +23,7 @@ import (
 	"github.com/arketov/iterion/pkg/botsource"
 	"github.com/arketov/iterion/pkg/bundle"
 	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/internal/proc"
 	"github.com/arketov/iterion/pkg/store"
 )
 
@@ -1038,7 +1038,7 @@ func validateAuthoringPythonSyntax(parent context.Context, path, source string) 
 	}
 	ctx, cancel := context.WithTimeout(parent, authoringPythonSyntaxTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, resolved, "-I", "-S", "-B", "-c", authoringPythonProgram, filepath.ToSlash(filepath.Clean(path)))
+	cmd := proc.CommandContext(ctx, resolved, "-I", "-S", "-B", "-c", authoringPythonProgram, filepath.ToSlash(filepath.Clean(path)))
 	cmd.Env = []string{"LC_ALL=C", "LANG=C", "PYTHONDONTWRITEBYTECODE=1", "PYTHONNOUSERSITE=1"}
 	cmd.Dir = os.TempDir()
 	configureAuthoringPythonCommand(cmd)
@@ -1460,7 +1460,7 @@ func (p authoringGitPublication) prePush(ctx context.Context, tree *treeHold) er
 }
 
 func runAuthoringGit(ctx context.Context, workDir string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", workDir}, gitlib.NoAutoMaintenance(args...)...)...)
+	cmd := proc.CommandContext(ctx, "git", append([]string{"-C", workDir}, gitlib.NoAutoMaintenance(args...)...)...)
 	// The C locale, as pkg/git.gitEnv already forces it: callers match on
 	// git's own diagnostics ("not a git repository"), which a localized
 	// build translates.

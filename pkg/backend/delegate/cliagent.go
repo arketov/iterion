@@ -628,7 +628,7 @@ func (b *CLIAgentBackend) preparePermissionHook(ctx context.Context, task Task, 
 	}
 	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	probe := exec.CommandContext(probeCtx, iterionBin, "__permission-hook", "--probe")
+	probe := proc.CommandContext(probeCtx, iterionBin, "__permission-hook", "--probe")
 	// Before Start, which CombinedOutput performs.
 	probeBound := proc.SetWaitDelay(probe, permissionHookProbeDrainBound)
 	output, err := probe.CombinedOutput()
@@ -1189,7 +1189,7 @@ func (b *CLIAgentBackend) runOnce(ctx context.Context, task Task, binary string,
 		// does not hold the node.
 		drainBound = proc.SetWaitDelay(cmd, cliAgentWaitDelay)
 	} else {
-		cmd = exec.CommandContext(runCtx, binary, args...) // #nosec G204 — binary/args are backend-configured, not attacker-controlled.
+		cmd = proc.CommandContext(runCtx, binary, args...) // #nosec G204 — binary/args are backend-configured, not attacker-controlled.
 		// Host arm only. A CLI agent forks its own tools (shells, language
 		// servers, MCP servers) which inherit outBuf/errBuf's pipes: killing
 		// the agent alone leaves them running and cmd.Run blocked, so the

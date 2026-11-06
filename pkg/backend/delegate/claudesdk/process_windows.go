@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"strconv"
 	"syscall"
+
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // setProcessGroup is a no-op on Windows. The runtime currently targets
@@ -30,7 +32,7 @@ func killProcessGroup(pid int, _ syscall.Signal) error {
 	p, err := exec.LookPath("taskkill")
 	if err == nil {
 		// /T = tree, /F = force.
-		_ = exec.Command(p, "/F", "/T", "/PID", strconv.Itoa(pid)).Run()
+		_ = proc.Command(p, "/F", "/T", "/PID", strconv.Itoa(pid)).Run()
 	}
 	return nil
 }

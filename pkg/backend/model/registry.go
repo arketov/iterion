@@ -17,7 +17,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -36,6 +35,7 @@ import (
 	"github.com/arketov/iterion/pkg/backend/credroute"
 	"github.com/arketov/iterion/pkg/backend/delegate"
 	"github.com/arketov/iterion/pkg/backend/modelroute"
+	"github.com/arketov/iterion/pkg/internal/proc"
 	iterlog "github.com/arketov/iterion/pkg/log"
 	"github.com/arketov/iterion/pkg/secrets"
 )
@@ -545,7 +545,7 @@ func codexCLIVersion() string {
 		// LLM call forever (sync.Once would cache the hang).
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		out, err := exec.CommandContext(ctx, bin, "--version").Output()
+		out, err := proc.CommandContext(ctx, bin, "--version").Output()
 		if err != nil {
 			return
 		}

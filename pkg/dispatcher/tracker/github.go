@@ -6,12 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/arketov/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/internal/proc"
 	iterlog "github.com/arketov/iterion/pkg/log"
 )
 
@@ -656,7 +656,7 @@ func parseGitHubID(repo, id string) (int, bool) {
 // stderr is bubbled up as part of the error so users see "gh: bad
 // credentials" rather than an opaque exit code.
 func runGH(ctx context.Context, args []string, env []string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, "gh", args...)
+	cmd := proc.CommandContext(ctx, "gh", args...)
 	if env != nil {
 		// Restrict the inherited environment to the variables gh and
 		// its children (git, ssh, openssl, …) actually need. Pulling

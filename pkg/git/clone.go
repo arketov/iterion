@@ -3,9 +3,10 @@ package git
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"regexp"
 	"strings"
+
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 var fullCommitSHA = regexp.MustCompile(`^[0-9a-f]{40}$`)
@@ -86,7 +87,7 @@ func runCloneGit(ctx context.Context, args ...string) error {
 }
 
 func cloneGitOutput(ctx context.Context, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", NoRunHooks(args...)...)
+	cmd := proc.CommandContext(ctx, "git", NoRunHooks(args...)...)
 	cmd.Env = gitEnv()
 	var stderr strings.Builder
 	cmd.Stderr = &stderr

@@ -61,7 +61,7 @@ const gitCmdTimeout = 60 * time.Second
 // regardless of whether cancel is ever called).
 func gitCmd(args ...string) (*exec.Cmd, context.CancelFunc) {
 	ctx, cancel := context.WithTimeout(context.Background(), gitCmdTimeout)
-	cmd := exec.CommandContext(ctx, "git", gitlib.NoRunHooks(args...)...)
+	cmd := proc.CommandContext(ctx, "git", gitlib.NoRunHooks(args...)...)
 	// Strip what would override the repository this command names for itself.
 	cmd.Env = append(gitlib.SanitizeEnv(os.Environ()), "LC_ALL=C", "LANG=C")
 	proc.DetachProcessGroup(cmd)

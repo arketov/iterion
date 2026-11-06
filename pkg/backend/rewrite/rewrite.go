@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/internal/proc"
 	"maps"
 	"os"
 	"os/exec"
@@ -28,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/arketov/iterion/pkg/internal/proc"
 	"github.com/arketov/iterion/pkg/internal/shellquote"
 	"github.com/arketov/iterion/pkg/plugin"
 )
@@ -267,7 +267,7 @@ func (r *Rewriter) Rewrite(ctx context.Context, m Mode, cmd string) (string, boo
 	for _, a := range r.spec.Invoke.Argv {
 		args = append(args, strings.ReplaceAll(a, plugin.CommandPlaceholder, cmd))
 	}
-	c := exec.CommandContext(rctx, bin, args...)
+	c := proc.CommandContext(rctx, bin, args...)
 	// The rewrite budget is small (hundreds of ms) and sits in front of every
 	// shell call an agent makes, so a rewriter that forks and lingers would
 	// stall each of them. Cancellation takes the subtree.

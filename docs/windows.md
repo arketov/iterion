@@ -74,6 +74,32 @@ To write bodies that work on Windows, or on both systems, follow the
 it lists the `sh` forms that do not survive PowerShell and when to put the logic
 in a `script:` with an explicit `language:`.
 
+## No console windows for child processes
+
+The desktop app is a GUI program, and the studio daemon it starts has no console
+either. Windows opens a visible console window for every console program such a
+process starts (`git`, `pwsh`/`powershell` for hooks and tool nodes, the `claude`
+and `codex` CLIs, `node`, MCP stdio servers, plugins), so a run that shells out
+used to show a burst of terminals that flashed and closed. Iterion now starts
+every child of the engine and the server with `CREATE_NO_WINDOW`, so none of them
+gets a window. Pipes, exit codes and cancellation behave as before, and Linux and
+macOS are unchanged.
+
+- **One seam.** `proc.Command` and `proc.CommandContext` (`pkg/internal/proc`)
+  replace `exec.Command` / `exec.CommandContext` in production code; the
+  descendants of such a child inherit its windowless console, so code that never
+  went through the seam (a hook's own `git` calls, `claw` tools inside a runner)
+  opens no window either.
+- **Detached runners.** The studio's detached run launcher and the operator MCP
+  spawner assign their own process attributes, and those carry
+  `CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW` (operator MCP: `CREATE_NO_WINDOW`).
+- **Not covered on purpose.** Opening the browser or Explorer (they start GUI
+  programs) and the macOS and cron-only calls.
+- **Adding a shell-out.** Use `proc.Command*`; `TestNoRawExecCommand`
+  (`pkg/internal/proc/nowindow_guard_test.go`) fails on a raw `exec.Command` in
+  `pkg/` unless the file is listed there with a reason. The `codex` SDK fork in
+  `third_party/` sets the flag in its own Windows files (see its `FORK.md`).
+
 ## Known limitations and workarounds
 
 | What you see | Why | What to do |

@@ -1188,7 +1188,7 @@ func (e *ClawExecutor) toolNodeScriptCommand(ctx context.Context, interpreter []
 	if e.sandbox != nil && !e.nodeOptsOutOfSandbox(toolNodeOptOut) {
 		return e.sandboxToolCommand(ctx, argv, sandbox.ExecOpts{Env: e.withEngineChildEnv(env)})
 	}
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd := proc.CommandContext(ctx, argv[0], argv[1:]...)
 	// A script body backgrounds jobs as freely as a shell recipe does, so
 	// its lifetime ends with the node's context the same way — see
 	// toolNodeCommand.
@@ -1434,15 +1434,15 @@ func (e *ClawExecutor) toolNodeCommand(ctx context.Context, resolved string, env
 	if sh, shErr := hostshell.Resolve(hostshell.Request{PosixDefault: hostshell.KindBash}); shErr != nil {
 		// No shell to start: a command that fails to start with the reason,
 		// so every caller reports it where it reports a failed start.
-		cmd = exec.CommandContext(ctx, "bash")
+		cmd = proc.CommandContext(ctx, "bash")
 		cmd.Err = shErr
 	} else if sh.Kind == hostshell.KindPowerShell {
 		var argv []string
 		argv, stdin = sh.Argv(resolved, false)
-		cmd = exec.CommandContext(ctx, argv[0], argv[1:]...)
+		cmd = proc.CommandContext(ctx, argv[0], argv[1:]...)
 	} else {
 		args[0] = sh.Path
-		cmd = exec.CommandContext(ctx, args[0], args[1:]...)
+		cmd = proc.CommandContext(ctx, args[0], args[1:]...)
 	}
 	// A tool node's lifetime is the node's. `bash -c` routinely backgrounds
 	// jobs (`&`, a daemon a build script starts), and those grandchildren

@@ -80,7 +80,7 @@ var (
 		// #nosec G204 — devboxBin comes from envtrust.LookPath("devbox") and
 		// projectDir from the run's own workspace/bundle resolution, not
 		// from request input.
-		cmd := exec.CommandContext(ctx, devboxBin, "install", "-c", projectDir)
+		cmd := proc.CommandContext(ctx, devboxBin, "install", "-c", projectDir)
 		// `devbox install` drives nix, which forks builders and substituters
 		// of its own. Cancelling the run — or hitting the 15-minute ceiling —
 		// has to stop them: they hold CombinedOutput's pipes, and a nix build

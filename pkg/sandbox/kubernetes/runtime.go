@@ -131,7 +131,7 @@ const kubectlDrainBound = 2 * time.Second
 // exactly the PATH this type exists to stop consulting. It is refused on
 // the Cmd itself, so the caller reports it where it ran.
 func (k Kubectl) command(ctx context.Context, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, string(k), args...)
+	cmd := proc.CommandContext(ctx, string(k), args...)
 	if k == "" {
 		cmd.Err = fmt.Errorf("kubernetes: no kubectl path resolved — build the invocation from Detect or PingContext, never from the bare %q", kubeBinaryName)
 	}

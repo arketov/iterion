@@ -7,6 +7,7 @@ import (
 	"os/exec"
 
 	"github.com/arketov/iterion/internal/envtrust"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // HostChromiumRunner launches Chromium directly on the host (no
@@ -94,7 +95,7 @@ func (r *HostChromiumRunner) Start(runID, nodeID string) (io.ReadWriteCloser, er
 	}
 	args = append(args, r.ExtraArgs...)
 
-	cmd := exec.Command(bin, args...)
+	cmd := proc.Command(bin, args...)
 	// The child receives a process-essential allowlist read as INHERITED
 	// (chromiumChildEnv), never the launcher's whole environment: a nil
 	// cmd.Env makes Go hand Chromium every variable of the launcher,

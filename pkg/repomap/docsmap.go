@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -16,6 +15,7 @@ import (
 	"github.com/arketov/iterion/internal/mdcode"
 	"github.com/arketov/iterion/internal/treeskip"
 	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // docsPages maps docs/ — 300-odd pages and 100-odd ADRs whose only index
@@ -47,7 +47,7 @@ func (d docsPages) Extract(root string) (string, error) {
 	// Outside a repository (a bare fixture, a non-git tree) the filesystem
 	// IS the corpus: the ls-files failure falls back to the walk.
 	var files []byte
-	cmd := exec.Command("git", gitlib.NoRunHooks("ls-files", "--cached", "-z", "--", "docs")...)
+	cmd := proc.Command("git", gitlib.NoRunHooks("ls-files", "--cached", "-z", "--", "docs")...)
 	cmd.Dir = root
 	cmd.Env = gitlib.SanitizeEnv(os.Environ())
 	if out, err := cmd.Output(); err == nil {

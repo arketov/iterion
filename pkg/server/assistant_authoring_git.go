@@ -13,6 +13,7 @@ import (
 	"time"
 
 	gitlib "github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // authoringGitIndex owns an alternate index, never the editor's index. Hooks
@@ -20,7 +21,7 @@ import (
 type authoringGitIndex struct{ root, index string }
 
 func (g authoringGitIndex) command(ctx context.Context, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", g.root}, gitlib.NoAutoMaintenance(args...)...)...)
+	cmd := proc.CommandContext(ctx, "git", append([]string{"-C", g.root}, gitlib.NoAutoMaintenance(args...)...)...)
 	cmd.Env = append(gitlib.SanitizeEnv(os.Environ()), "GIT_INDEX_FILE="+g.index, "GIT_EDITOR=:")
 	return cmd
 }

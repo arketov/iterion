@@ -13,10 +13,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/arketov/iterion/pkg/internal/proc"
 	"github.com/arketov/iterion/pkg/treenoise"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -1031,7 +1031,7 @@ func gitOutContextRaw(parent context.Context, dir string, args ...string) (strin
 	// status` otherwise refreshes and rewrites the worktree's index and
 	// takes index.lock, so even a dry run would collide with the git of
 	// an agent working in that same checkout.
-	cmd := exec.CommandContext(ctx, "git", gitlib.NoRunHooks(append([]string{"--no-optional-locks"}, args...)...)...)
+	cmd := proc.CommandContext(ctx, "git", gitlib.NoRunHooks(append([]string{"--no-optional-locks"}, args...)...)...)
 	cmd.Dir = dir
 	// LC_ALL/LANG pinned so callers may branch on git's own wording, and
 	// the environment sanitised so an inherited GIT_DIR cannot redirect

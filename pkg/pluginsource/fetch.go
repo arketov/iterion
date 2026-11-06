@@ -8,7 +8,6 @@ import (
 	gitlib "github.com/arketov/iterion/pkg/git"
 	"github.com/arketov/iterion/pkg/internal/proc"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -263,7 +262,7 @@ func (f *Fetcher) git(ctx context.Context, dir, cred string, args ...string) err
 	ctx, cancel := context.WithTimeout(ctx, FetchTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "git", gitlib.NoAutoMaintenance(gitlib.NoRunHooks(args...)...)...)
+	cmd := proc.CommandContext(ctx, "git", gitlib.NoAutoMaintenance(gitlib.NoRunHooks(args...)...)...)
 	// A network fetch forks git-remote-https, which inherits the pipes
 	// CombinedOutput reads. Killing only git leaves that helper running and
 	// the read blocked, so FetchTimeout would bound nothing.

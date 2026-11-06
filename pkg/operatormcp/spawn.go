@@ -137,7 +137,7 @@ func spawnDetachedRunner(st *store.FilesystemRunStore, spec runnerSpec) (pid int
 	if err != nil {
 		return 0, "", err
 	}
-	cmd := exec.Command(bin, args...)
+	cmd := proc.Command(bin, args...)
 	// Observability is events.jsonl + run.log, not the runner's stdio —
 	// and stdio MUST stay closed: an inherited stdout would let the
 	// runner corrupt this server's JSON-RPC stream.

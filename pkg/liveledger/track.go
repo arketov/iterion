@@ -3,7 +3,6 @@ package liveledger
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/arketov/iterion/pkg/git"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // EnvTarget names the env var each Taskfile target sets to identify the
@@ -330,7 +330,7 @@ func findModuleRoot() (string, bool) {
 // The ledger writer does not fail on a missing git — the row is still
 // useful without a ref.
 func currentRef() string {
-	cmd := exec.Command("git", git.NoRunHooks("rev-parse", "--short=12", "HEAD")...)
+	cmd := proc.Command("git", git.NoRunHooks("rev-parse", "--short=12", "HEAD")...)
 	cmd.Env = git.SanitizeEnv(os.Environ())
 	out, err := cmd.Output()
 	if err != nil {
