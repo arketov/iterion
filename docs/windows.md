@@ -66,8 +66,11 @@ dispatcher and schedule hooks, plugin lifecycle commands and
 - **Dry run:** there is no syntax check for PowerShell bodies. When a body
   would run under PowerShell, the dry run lists it as unchecked instead of
   reporting it valid.
-- **Long scripts:** a body of more than about 12000 characters is streamed to
-  PowerShell on stdin rather than passed on the command line.
+- **Long scripts:** a body of more than about 12000 characters is not passed on
+  the command line: PowerShell starts with a short bootstrap that reads the
+  script from stdin as UTF-8 up to EOF and runs it, so Cyrillic and other
+  non-ASCII text survive whatever the console code page, and a native program
+  the script starts sees an empty stdin, as in a short script.
 
 To write bodies that work on Windows, or on both systems, follow the
 [portability rule](workflow_authoring_pitfalls.md#shell-portability-for-tool-nodes):
