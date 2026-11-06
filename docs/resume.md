@@ -1072,6 +1072,13 @@ the next dispatcher tick re-parks the same card — it does not start the
 workflow over. To throw the work away, finish the run or let it fail
 hard: a `cancelled` run is resumed from its checkpoint, not replaced.
 
+If the bot source changed since the run started, the dispatcher does not
+resume it by itself and does not park the card in `awaiting_input` (nobody has
+anything to answer): the card stays in its column with a `source_changed`
+badge, and the operator either force-resumes the run — the card then moves to
+`in_progress` on its own — or resets `last_run` (*Start over*,
+`iterion issue update --clear-last-run`).
+
 See [dispatcher](dispatcher.md#paused-runs--the-awaiting_input-column--parked-sweep).
 
 ## Failure behavior

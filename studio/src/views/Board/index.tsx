@@ -9,6 +9,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useSearch } from "wouter";
 
 import { cancelIssue } from "@/api/dispatcher";
+import { resetPipelineTask } from "@/api/pipelineBoards";
+import { resumeRun } from "@/api/runs";
 import DispatcherControlBar from "@/components/shared/DispatcherControlBar";
 import TrackerErrorBanner from "@/components/shared/TrackerErrorBanner";
 import { useHeaderSlot } from "@/components/shared/useHeaderSlot";
@@ -92,6 +94,53 @@ export default function BoardView() {
       }
     },
     [setError],
+  );
+
+  // "bot source changed" refusal: the two explicit ways out. Never automatic —
+  // force only on the operator's click.
+  const onForceResume = useCallback(
+    async (issueID: string) => {
+      const iss = issues.find((i) => i.id === issueID);
+      if (!iss?.last_run_id) return;
+      if (
+        !(await confirm({
+          title: "Continue with the new bot version?",
+          message:
+            "The run resumes from its checkpoint with the new workflow source (resume --force).",
+          confirmLabel: "Continue (force)",
+        }))
+      )
+        return;
+      try {
+        await resumeRun(iss.last_run_id, { force: true });
+        await refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [issues, confirm, refresh, setError],
+  );
+
+  const onRestartFresh = useCallback(
+    async (issueID: string) => {
+      if (
+        !(await confirm({
+          title: "Start over?",
+          message:
+            "The card stops pointing at its last run, so the next launch starts from the beginning instead of resuming that checkpoint. The run itself is kept: its history, artifacts and logs stay readable in the run console.",
+          confirmLabel: "Start over",
+          confirmVariant: "danger",
+        }))
+      )
+        return;
+      try {
+        await resetPipelineTask(issueID, { fresh: true });
+        await refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [confirm, refresh, setError],
   );
 
   // Derived per-column data (filter → group-by-state → sort + the
@@ -327,6 +376,8 @@ export default function BoardView() {
         onSelectColumn={selectColumn}
         onLabelToggle={filters.onLabelToggle}
         onCancelRun={onCancelRun}
+        onForceResume={onForceResume}
+        onRestartFresh={onRestartFresh}
         onOpenRun={(runId) => setLocation(`/runs/${encodeURIComponent(runId)}`)}
         onClearSelection={() => setSingleSelection(null)}
       />

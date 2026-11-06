@@ -75,6 +75,11 @@ type state struct {
 	// at production log levels while they silently changed dispatch
 	// decisions. Actor-goroutine-owned; no mutex needed.
 	degradedWarned map[string]bool
+	// sourceHolds are the cards whose last_run refused to resume because the
+	// bot source changed (see source_hold.go). Keyed by issueID.
+	// Actor-goroutine-owned; in-memory by design — lost on daemon restart,
+	// which costs one extra refusal cycle.
+	sourceHolds map[string]*sourceHold
 }
 
 func newState() *state {
@@ -86,6 +91,7 @@ func newState() *state {
 		dispatchSkips:     map[string]DispatchSkipView{},
 		lastRunHoldWarned: map[string]string{},
 		degradedWarned:    map[string]bool{},
+		sourceHolds:       map[string]*sourceHold{},
 	}
 }
 
@@ -325,6 +331,12 @@ const DispatchSkipNoAssignee = "no_assignee"
 // not run: the dispatcher never falls back to a default bot for it.
 const DispatchSkipNoBot = "no_bot"
 
+// DispatchSkipSourceChanged is DispatchSkipView.Kind for a card whose last_run
+// cannot be resumed because the bot source changed since it started. The card
+// stays in its source column; the operator force-resumes the run or resets
+// last_run.
+const DispatchSkipSourceChanged = "source_changed"
+
 // DispatchSkipView is one entry of the "won't dispatch" surface: an
 // eligible issue the dispatcher refused to claim because its explicit
 // bot can't be resolved to a workflow file, or resolves but has no
@@ -341,7 +353,8 @@ type DispatchSkipView struct {
 	Reason   string `json:"reason"`
 	// Kind classifies the skip so the UI can give it its own state:
 	// "no_assignee" (ready card with no assignee/bot while require_assignee
-	// is on), "no_bot" (the assignee is not a routable bot, same policy), or
+	// is on), "no_bot" (the assignee is not a routable bot, same policy),
+	// "source_changed" (the last run cannot resume: the bot source changed), or
 	// empty for the bot-misconfiguration family.
 	Kind string `json:"kind,omitempty"`
 }

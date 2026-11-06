@@ -283,6 +283,8 @@ export interface DispatchSkipView {
   assignee?: string;
   // "no_assignee": a ready card with no assignee/bot (require_assignee on).
   // "no_bot": its assignee is not a bot the dispatcher can route to.
+  // "source_changed": the last run cannot resume because the bot source
+  // changed; the card stays in its column (force-resume or start over).
   // Absent for the bot-misconfiguration family.
   kind?: string;
 }

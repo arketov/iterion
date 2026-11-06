@@ -206,7 +206,7 @@ sibling planner from the workflow entry:
 | `paused_waiting_human` / `paused_operator` | Re-park: `awaiting_input`, same `last_run`, no auto-resume (no answers). Only dispatcher-owned runs move the card — a pipelines-launched paused run keeps its card in place for the admission sweep, and still blocks any fresh mint. |
 | `running` | Hold while the owner process lives (run lock held). A dead owner (SIGKILL, host crash — lock free, past the 2-minute grace window) is promoted by the dispatcher itself: checkpoint → `failed_resumable` (then resumed), none → `failed` (a fresh run becomes legitimate). This works in `--no-server` deployments too, which have no runview orphan reaper. |
 | `queued` | Hold without probing the run lock. Pipeline-queued runs deliberately have no lock owner until a concurrency slot opens; their queue owner advances their state machine. |
-| `failed_resumable` | Resume the **same** run id. Internal stops (stall reap, external state change, daemon shutdown) cancel the run context with `runtime.ErrRunInterrupted` as the cause, so the engine persists this status — which is what keeps stall/shutdown recovery automatic. |
+| `failed_resumable` | Resume the **same** run id — unless the resume is refused because the bot source changed: that is a [source-changed hold](#source-changed-hold), not a park. Internal stops (stall reap, external state change, daemon shutdown) cancel the run context with `runtime.ErrRunInterrupted` as the cause, so the engine persists this status — which is what keeps stall/shutdown recovery automatic. |
 | `cancelled` | Hold, **never auto-resume**: only an operator produces this status now, and resuming it would undo their decision. The card is held before the claim with a visible reason; the way out is an explicit resume, or dropping the pointer (⋯ → *Retry from zero* on the pipeline board, `iterion issue update --clear-last-run` from a terminal). |
 | `finished` | No hold: a fresh run is allowed — dragging the card back to an eligible column **is** the re-queue gesture. |
 | none, or hard `failed`, and the ticket is explicitly eligible | The only other legitimate fresh run. |
@@ -226,6 +226,31 @@ the pointer to make the restart deterministic: ⋯ → **Retry from zero** on th
 pipeline board, or `iterion issue update --clear-last-run`. Same for a
 `cancelled` `last_run`, which holds the ticket (no fresh sibling) but is
 never auto-resumed — resume it explicitly, or drop the pointer.
+
+#### Source-changed hold
+
+`awaiting_input` is only for `paused_*` runs: a human has something to
+answer. A resume refused because the bot source changed since the run started
+(`runtime.ErrWorkflowSourceChanged`) is not one, so on a tracker that persists
+`last_run` (native) the dispatcher does **not** park the card. It goes back to
+the column it was taken from (e.g. `ready`), the claim is released, `last_run`
+is kept, and an in-memory hold keyed by the run id refuses the card before the
+claim (no Claim/Release churn, no repeated refusal each tick). The board shows
+a `source_changed` badge on the card with two buttons:
+
+- **Continue with the new bot version (force)** — `resume --force` on the
+  card's `last_run`. The per-tick sweep (`reconcileSourceHolds`) sees the run
+  `running`/`queued`, moves the card to `in_progress`, clears the badge and
+  follows the run to `agent.completed_state` / `agent.failed_state`; if the
+  forced resume fails again the card returns to its column with the badge.
+- **Start over (reset last run)** — drops the pointer (same as
+  `iterion issue update --clear-last-run`); the next tick dispatches a fresh
+  run.
+
+The hold is memory only: a daemon restart costs one extra
+claim → refusal → hold cycle. A tracker without a `last_run` pointer
+(github/forgejo) keeps the legacy park in `awaiting_input`, since nothing
+could lift a hold there.
 
 ### In-progress transition (`agent.running_state`)
 
