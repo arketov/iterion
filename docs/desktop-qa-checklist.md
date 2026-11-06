@@ -104,7 +104,8 @@ Only for a build with a configured `updaterPublicKeyHex`. A build without one mu
 **Windows**:
 - [ ] SmartScreen does not block the .exe after download (post-Authenticode signing + reputation warmup).
 - [ ] NSIS installer creates Start Menu shortcut + uninstaller.
-- [ ] Uninstall removes the binary + Start Menu entry; user data in `%APPDATA%/iterion-desktop/` is preserved (or removed per uninstaller policy).
+- [ ] After install, `iterion.exe` sits next to `iterion-desktop.exe` and `iterion.exe --version` matches the desktop; `iterion.exe __mcp-board` starts.
+- [ ] Uninstall removes both binaries + Start Menu entry; user data in `%APPDATA%/iterion-desktop/` is preserved (or removed per uninstaller policy).
 
 **Linux (Ubuntu)**:
 - [ ] `chmod +x iterion-desktop-linux-amd64.AppImage && ./iterion-desktop-linux-amd64.AppImage` runs without prompting for fuse.

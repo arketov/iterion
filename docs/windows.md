@@ -16,7 +16,7 @@ macOS, and the known gaps with their workarounds.
 | Piece | Windows status |
 |---|---|
 | Desktop app | Portable `.exe` and a per-user installer, x64 and arm64; V1 builds are unsigned, so SmartScreen warns once. See [desktop](desktop.md). |
-| CLI | A native `iterion.exe` (amd64 and arm64). See [install](install.md#cli). |
+| CLI | A native `iterion.exe` (amd64 and arm64). See [install](install.md#cli). The desktop installer also puts an `iterion.exe` of the same version next to `iterion-desktop.exe`: the desktop spawns it for the hidden `__mcp-board` / `__mcp-ask-user` servers, found as the sibling of the running executable, then `ITERION_BIN`, then `%ProgramFiles%\Iterion\iterion.exe`. A portable `.exe` has no such neighbour: put `iterion.exe` in the same folder or set `ITERION_BIN`, otherwise `claude_code` nodes run without the board and `ask_user` MCP servers. On Windows a file counts as the CLI when it is a regular file with an `.exe` extension. |
 | Studio, runs, board, dispatcher | The same code as on Linux. |
 | Tool nodes, hooks, plugin commands | Run under PowerShell by default — see below. |
 | Sandbox | Needs Docker on the host; the commands that run *inside* the container stay `sh`/`bash`, because the container is Linux. |
@@ -157,6 +157,12 @@ on `windows-latest`. By hand the steps are:
 3. In `cmd\iterion-desktop` run
    `wails build -tags desktop -platform windows/amd64 -clean -trimpath -skipbindings -s -o iterion-desktop-windows-amd64.exe`.
    Add `-nsis` for the installer; it needs NSIS (`makensis`) on `PATH`.
+   The installer bundles `build\windows\installer\iterion.exe`, so build the
+   CLI first: `task cli:build:windows:amd64` (or `arm64`) does
+   `go build -o build\windows\installer\iterion.exe ./cmd/iterion` with the
+   same `LDFLAGS`. The `desktop:build:windows:<arch>` targets run it as a
+   dependency; it is not written to `buildin` because `wails build -clean`
+   wipes that directory.
 
 `cmd\iterion-desktop\build` is a symlink to `..\..\build`. A checkout made without
 the right to create symlinks leaves a plain text file there, and Wails then fails

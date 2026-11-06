@@ -13,6 +13,14 @@ Pushing a `v*` tag triggers two GitHub Actions workflows in parallel:
 The two workflows do not collide because every desktop artefact is
 prefixed `iterion-desktop-*`.
 
+The Windows installer (`iterion-desktop-windows-<arch>-installer.exe`) installs
+`iterion.exe` of the same version next to `iterion-desktop.exe`; the
+uninstaller removes it. The portable `.exe` has no neighbour, so its
+`claude_code` nodes get no board / `ask_user` MCP servers unless `iterion.exe`
+is placed beside it or `ITERION_BIN` is set. The CLI stays a separate release
+artefact, `iterion-windows-<arch>.exe`; it is not part of the desktop artefact
+list or manifest.
+
 ## Artefacts produced per release
 
 ```
