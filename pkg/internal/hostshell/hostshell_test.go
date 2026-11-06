@@ -285,3 +285,59 @@ func TestLooksPosixSkipsBlockCommentsAndNestedBraces(t *testing.T) {
 		t.Error("an sh line after a block comment must still be read")
 	}
 }
+
+func TestLegacyNativeArgs(t *testing.T) {
+	calls := map[string]int{}
+	modes := map[string]string{}
+	errs := map[string]error{}
+	old := psNativeArgMode
+	psNativeArgMode = func(path string) (string, error) {
+		calls[path]++
+		return modes[path], errs[path]
+	}
+	resetNativeArgModeCache()
+	t.Cleanup(func() {
+		psNativeArgMode = old
+		resetNativeArgModeCache()
+	})
+
+	ps51 := Shell{Kind: KindPowerShell, Path: `C:\win\powershell.exe`}
+	if !ps51.LegacyNativeArgs() {
+		t.Fatal("powershell 5.1 must be legacy")
+	}
+	if len(calls) != 0 {
+		t.Fatalf("powershell 5.1 must not be probed: %v", calls)
+	}
+
+	for _, tc := range []struct {
+		mode string
+		err  error
+		want bool
+	}{
+		{"Legacy", nil, true},
+		{"Windows", nil, false},
+		{"Standard", nil, false},
+		{"", errors.New("boom"), false},
+		{"", nil, false},
+	} {
+		path := `C:\ps\pwsh-` + tc.mode + `.exe`
+		if tc.err != nil {
+			path = `C:\ps\pwsh-broken.exe`
+		}
+		modes[path], errs[path] = tc.mode, tc.err
+		sh := Shell{Kind: KindPowerShell, Path: path}
+		if got := sh.LegacyNativeArgs(); got != tc.want {
+			t.Errorf("mode %q err %v: got %v, want %v", tc.mode, tc.err, got, tc.want)
+		}
+		sh.LegacyNativeArgs()
+		if calls[path] != 1 {
+			t.Errorf("mode %q: probe called %d times, want 1 (cached)", tc.mode, calls[path])
+		}
+	}
+
+	for _, k := range []Kind{KindSh, KindBash} {
+		if (Shell{Kind: k, Path: "sh"}).LegacyNativeArgs() {
+			t.Errorf("%s must not be legacy", k)
+		}
+	}
+}
