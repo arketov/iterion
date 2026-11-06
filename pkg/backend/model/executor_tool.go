@@ -943,7 +943,8 @@ func (e *ClawExecutor) scriptRecipe(ctx context.Context, node *ir.ToolNode, inpu
 			if len(interp) == 0 {
 				return toolCommand{}, nil, fmt.Errorf("model: tool node %q: unsupported language %q", node.ID, node.Language)
 			}
-			if !(e.sandbox != nil && !e.nodeOptsOutOfSandbox(toolNodeOptOut)) {
+			hostRun := !(e.sandbox != nil && !e.nodeOptsOutOfSandbox(toolNodeOptOut))
+			if hostRun {
 				// On the host the interpreter follows the platform rule
 				// (hostshell): an empty language is PowerShell on Windows.
 				hargv, hext, _, herr := hostshell.ScriptInterpreter(node.Language)
@@ -991,7 +992,15 @@ func (e *ClawExecutor) scriptRecipe(ctx context.Context, node *ir.ToolNode, inpu
 			// is written to, which a copy-based sandbox pushes into the
 			// workspace) carrying the credential in clear.
 			scriptEnv := e.secretGuard.AuthoredEnvForBody(body)
-			if _, werr := tmpFile.WriteString(body); werr != nil {
+			// What the file holds: the body, plus what the host interpreter needs
+			// around it (hostshell.ScriptFileContent — a .ps1's BOM and exit-code
+			// epilogue). A sandboxed interpreter gets the body as is, the same bytes
+			// the write-through below pushes.
+			content := body
+			if hostRun {
+				content = hostshell.ScriptFileContent(ext, body)
+			}
+			if _, werr := tmpFile.WriteString(content); werr != nil {
 				_ = tmpFile.Close()
 				cleanup()
 				return toolCommand{}, nil, fmt.Errorf("model: tool node %q: write temp script: %w", node.ID, werr)
@@ -1027,6 +1036,11 @@ func (e *ClawExecutor) scriptRecipe(ctx context.Context, node *ir.ToolNode, inpu
 						_, _ = sb.Exec(rmCtx, []string{"rm", "-f", base}, sandbox.ExecOpts{})
 					}
 				}
+			}
+			if hostRun {
+				// On the host the interpreter's last argument is hostshell's: the path,
+				// or PowerShell's `& '<path>'` command text.
+				scriptArg = hostshell.ScriptFileArg(ext, scriptArg)
 			}
 			// In the workspace, just the basename (the bind mount uses the same
 			// relative path); out of it, the absolute scratch path.

@@ -132,8 +132,11 @@ func TestOutputForNormalisesCRLFOnlyForPowerShell(t *testing.T) {
 func TestScriptInterpreter(t *testing.T) {
 	withSeams(t, fakeLook("pwsh"), "")
 	argv, ext, ok, err := scriptInterpreter("", "windows")
-	if err != nil || !ok || ext != ".ps1" || argv[len(argv)-1] != "-File" {
+	if err != nil || !ok || ext != ".ps1" || argv[len(argv)-1] != "-Command" || argv[1] != "-NoLogo" {
 		t.Fatalf("windows default: %q %s %v", argv, ext, err)
+	}
+	if joined := strings.Join(argv, " "); !strings.Contains(joined, "-ExecutionPolicy Bypass") || strings.Contains(joined, "-File") {
+		t.Fatalf("a script runs under -Command with the policy bypassed, never -File: %q", argv)
 	}
 	argv, ext, _, _ = scriptInterpreter("", "linux")
 	if len(argv) != 1 || argv[0] != "sh" || ext != ".sh" {
@@ -148,6 +151,36 @@ func TestScriptInterpreter(t *testing.T) {
 	argv, _, _, _ = scriptInterpreter("py", "windows")
 	if argv[0] != "python3" {
 		t.Fatalf("python: %q", argv)
+	}
+}
+
+func TestScriptFileContentAndArg(t *testing.T) {
+	b := "Write-Output 'привет'\ngit status"
+	if got := ScriptFileContent(".ps1", b); got != "\ufeff"+b+psEpilogue {
+		t.Fatalf("ps1 content = %q", got)
+	}
+	for _, ext := range []string{".sh", ".py", ".js"} {
+		if got := ScriptFileContent(ext, b); got != b {
+			t.Fatalf("%s content changed: %q", ext, got)
+		}
+	}
+	path := `C:\Users\o'brien\AppData\Local\Temp\.iterion-script-1.ps1`
+	want := psPrelude + `& 'C:\Users\o''brien\AppData\Local\Temp\.iterion-script-1.ps1'` + psEpilogue
+	if got := ScriptFileArg(".ps1", path); got != want {
+		t.Fatalf("ps1 arg = %q, want %q", got, want)
+	}
+	if got := ScriptFileArg(".sh", "/tmp/x.sh"); got != "/tmp/x.sh" {
+		t.Fatalf("sh arg = %q", got)
+	}
+
+	withSeams(t, fakeLook("powershell"), "")
+	argv, ext, _, err := scriptInterpreter("powershell", "windows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(argv[0], append(argv[1:], ScriptFileArg(ext, path))...)
+	if !IsPowerShell(cmd) || !strings.Contains(argv[0], "powershell") {
+		t.Fatalf("the script command must still be recognised as PowerShell (CRLF to LF): %q", cmd.Args)
 	}
 }
 

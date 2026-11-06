@@ -6,6 +6,7 @@ import (
 	"os"
 	osexec "os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -688,6 +689,67 @@ func TestScriptRecipe_PythonRunsIsolated(t *testing.T) {
 	}
 	if err != nil || strings.TrimSpace(string(out)) != `{"ok": true}` {
 		t.Fatalf("the script did not run: %v: %s", err, out)
+	}
+}
+
+// A PowerShell script body is read as UTF-8 by Windows PowerShell 5.1 (the file
+// carries a byte order mark), prints UTF-8, and a body whose last statement is
+// a failing program fails the node with that program's exit code instead of 0.
+func TestScriptRecipe_PowerShellReadsUTF8AndKeepsTheLastProgramsExitCode(t *testing.T) {
+	gitPath, err := osexec.LookPath("git")
+	if err != nil {
+		t.Skip("git not on PATH")
+	}
+	for _, name := range []string{"pwsh", "powershell"} {
+		t.Run(name, func(t *testing.T) {
+			if name == "powershell" && runtime.GOOS != "windows" {
+				t.Skip("Windows PowerShell exists on Windows only")
+			}
+			psPath, err := osexec.LookPath(name)
+			if err != nil {
+				t.Skipf("%s not on PATH", name)
+			}
+			scratch, wd := t.TempDir(), t.TempDir()
+			// Narrow PATH to this interpreter and git: the host shell prefers
+			// pwsh, so the powershell subtest really runs Windows PowerShell.
+			t.Setenv("PATH", filepath.Dir(psPath)+string(os.PathListSeparator)+filepath.Dir(gitPath))
+			t.Setenv("TMPDIR", scratch)
+			t.Setenv("TMP", scratch)
+			t.Setenv("TEMP", scratch)
+			e := newTestClawExecutor(NewRegistry(), &ir.Workflow{}, WithWorkDir(wd))
+			node := &ir.ToolNode{
+				BaseNode: ir.BaseNode{ID: "ps_node"},
+				Language: "powershell",
+				Script:   "Write-Output 'привет'\ngit --no-such-flag-xyz\n",
+			}
+			resolve, buildCmd := e.scriptRecipe(context.Background(), node, map[string]any{})
+			tc, cleanup, err := buildCmd(resolve())
+			if err != nil {
+				t.Fatalf("buildCmd: %v", err)
+			}
+			defer cleanup()
+
+			files, _ := filepath.Glob(filepath.Join(scratch, ".iterion-script-*.ps1"))
+			if len(files) != 1 {
+				t.Fatalf("script files in %s = %q, want exactly one", scratch, files)
+			}
+			content, err := os.ReadFile(files[0])
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.HasPrefix(string(content), "\ufeff"+node.Script) {
+				t.Fatalf("script file must start with a UTF-8 BOM and the body, got %q", content)
+			}
+
+			stdout, stderr, _, runErr := runWithSeparateStreams(tc.cmd)
+			var exitErr *osexec.ExitError
+			if !errors.As(runErr, &exitErr) || exitErr.ExitCode() == 0 || exitErr.ExitCode() == 1 {
+				t.Fatalf("want git's own exit code (not 0 or 1), got %v\nstdout: %s\nstderr: %s", runErr, stdout, stderr)
+			}
+			if got := strings.TrimSpace(string(stdout)); got != "привет" {
+				t.Fatalf("stdout = %q, want %q\nstderr: %s", got, "привет", stderr)
+			}
+		})
 	}
 }
 

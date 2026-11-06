@@ -54,7 +54,12 @@ dispatcher and schedule hooks, plugin lifecycle commands and
   start* panel say which shell the hook ran under (name, path, and why it was
   chosen), even when no shell could be started.
 - **A script's interpreter:** `language: powershell` (aliases `pwsh`, `ps1`) runs
-  the body as a `.ps1` file with `-ExecutionPolicy Bypass`. `language: sh` or
+  the body as a `.ps1` file with `-ExecutionPolicy Bypass`. The file is written
+  as UTF-8 with a byte order mark, so Windows PowerShell 5.1 reads non-ASCII
+  text in the body as written, and the body follows the same output and
+  exit-code rules as a `command:`: its output is UTF-8, and a body whose last
+  statement is a failing program fails the node with that program's exit code.
+  `language: sh` or
   `bash` runs that shell wherever it is found; on Windows it must be on `PATH`,
   and a missing one is an error that names the shell, not a silent fallback. An
   empty `language:` follows the platform shell above.
@@ -120,7 +125,6 @@ Linux and macOS are unchanged.
 | A node with `permission: deny` on the `grok` or `kimi` backend is refused on Windows. | The gate hook is quoted for a POSIX shell and the backend's home is linked with symlinks, which an unprivileged Windows process cannot create. Running such a node ungated would fail open, so iterion refuses. | Use `permission: off`, or the `claude_code` or `claw` backend, which gate in-process. |
 | Cancelling a run can leave a child of a tool node running. | Windows has no process-group signal; cancellation kills the direct child only (`pkg/internal/proc`). | End leftover processes in Task Manager, or `taskkill /F /T /PID <pid>`. |
 | `iterion schedule install` fails. | It writes the managed block into the host `crontab`, which Windows does not have. `schedule install --print` shows the block without needing one. | Point Windows Task Scheduler at `iterion schedule run <name>`, the command a cron line calls (`schedule install --print` shows the exact line; not tried here). The manifest commands (`add`, `list`, `remove`) do not need `crontab`. See [scheduling](scheduling.md). |
-| Non-ASCII text in a `language: powershell` body comes out garbled on Windows PowerShell 5.1. | The script file is written as UTF-8 without a BOM, and 5.1 reads a BOM-less file in the legacy code page. PowerShell 7 reads it as UTF-8. | Install PowerShell 7 (iterion prefers `pwsh`), or keep the body ASCII and read non-ASCII data from a file with an explicit `-Encoding UTF8`. |
 | A quote inside an argument to a program is lost: `node -e "…" 'say "hi"'` receives `say hi`. | Before PowerShell 7.3 (so in 5.1), embedded double quotes are stripped when calling a native program. | Use PowerShell 7.3 or later, or pass such values through an environment variable or a file. |
 | "Access is denied" when deleting, renaming or saving a file in a folder synced by OneDrive. | The sync client or an antivirus scanner briefly holds the file open without delete sharing. Iterion reads its board's card files with delete sharing, but cannot control a handle another program holds. | Keep the project, its worktrees and the store outside OneDrive-synced folders, or pause syncing while a run is active. |
 | `git` fails with "Filename too long" in a working copy. | A deep tree, a long OneDrive folder name and a worktree path pass 260 characters, which git on Windows refuses by default. | `git config --global core.longpaths true`, or per repository without `--global`. A run's workspace (`worktree: auto`) is a git worktree kept in the project's store, in a folder named after the project's whole path, so a deep project path lengthens every path inside it; the repository's setting covers those worktrees too. |
