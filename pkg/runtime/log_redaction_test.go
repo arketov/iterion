@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -50,6 +51,12 @@ func (f *failingCaptureTracker) Capture(_, workspaceDir, _ string) (*workspacetr
 		return nil, fmt.Errorf("read %s: %w", f.file, err)
 	}
 	return nil, fmt.Errorf("capture %s: %s", f.file, strings.TrimSpace(string(body)))
+}
+
+// CaptureContext is what the engine calls; route it to the overridden Capture
+// so the embedded Tracker's promoted method does not bypass this double.
+func (f *failingCaptureTracker) CaptureContext(_ context.Context, r, ws, l string) (*workspacetrack.Snapshot, error) {
+	return f.Capture(r, ws, l)
 }
 
 // TestRunLogRedactsTheWorkspaceSnapshotDiagnostic is iterion#2822's

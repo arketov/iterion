@@ -29,6 +29,13 @@ describe("normalizeSourceKind", () => {
     expect(normalizeSourceKind("studio_chat")).toBe("studio_chat");
   });
 
+  // Regression: board-launched runs carry an empty kind and rendered "Manual".
+  it("keeps pipeline board launches distinct from manual", () => {
+    expect(normalizeSourceKind("pipeline_board")).toBe("pipeline_board");
+    expect(runSourceKind({ source_kind: "pipeline_board" })).toBe("pipeline_board");
+    expect(metaForSource("pipeline_board").label).toBe("Pipeline board");
+  });
+
   it("falls back to manual for empty and unknown values", () => {
     expect(normalizeSourceKind(undefined)).toBe("manual");
     expect(normalizeSourceKind("")).toBe("manual");
