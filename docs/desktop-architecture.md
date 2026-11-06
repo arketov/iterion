@@ -101,7 +101,8 @@ recorded in the window's `sessionStorage` (private to one window, shared by the
 shell and its same-origin panes; every access is guarded, so unavailable storage
 only means the defaults): `iterion.workspace.active` (the focused connection
 tab), `iterion.workspace.pane-order` (the tabs in their order — the desktop
-registry lists open connections in no stable order) and
+registry lists open connections in the order they were opened, and the saved
+order wins whenever it differs) and
 `iterion.workspace.pane-location:<connID>` (a pane's route, relative to the
 studio base, written by each pane on every navigation and read by the shell as
 the iframe's first `src`). The shell writes the first two only after its
