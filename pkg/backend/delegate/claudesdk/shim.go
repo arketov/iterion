@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 )
 
@@ -14,13 +15,27 @@ import (
 // findCLI/spawn checks never see it): exec.CommandContext has already resolved
 // a bare "claude" through PATHEXT to the npm `claude.cmd` shim, and this
 // swaps cmd.Path for the native claude.exe the shim wraps. When the shim
-// cannot be resolved and an argument holds a line break, cmd.Err is set so
-// Start fails loudly instead of running a command cmd.exe has truncated. A
-// no-op off Windows and for any non-batch path; never call it for a sandbox
+// cannot be resolved (a node-based shim) and cmd.exe would mangle the command
+// line — a system prompt with a line break, or a command line past cmd.exe's
+// length limit — the --system-prompt / --append-system-prompt value moves to a
+// file made by spill and the flag becomes its --…-file form. A line break left
+// in any other argument sets cmd.Err so Start fails loudly instead of running a
+// command cmd.exe has truncated. A nil spill keeps only that refusal. A no-op
+// off Windows and for any non-batch path; never call it for a sandbox
 // (docker exec) command, whose Path is the runtime, not the CLI.
-func AdaptHostCmd(cmd *exec.Cmd) { adaptHostCmd(runtime.GOOS, cmd) }
+func AdaptHostCmd(cmd *exec.Cmd, spill SpillFunc) { adaptHostCmd(runtime.GOOS, cmd, spill) }
 
-func adaptHostCmd(goos string, cmd *exec.Cmd) {
+// SpillFunc writes content to a private file named after name and returns its
+// path. The caller owns the file's lifetime: it must outlive the CLI's start.
+type SpillFunc func(name string, content []byte) (path string, err error)
+
+// batchShimCmdLineBudget is the command-line length above which a batch-file
+// spawn spills the system prompt to a file. cmd.exe accepts 8191 characters
+// (Microsoft Learn, "Command prompt line string limitation"); the margin
+// leaves room for the shim path and `cmd /c`.
+const batchShimCmdLineBudget = 8000
+
+func adaptHostCmd(goos string, cmd *exec.Cmd, spill SpillFunc) {
 	if cmd == nil || cmd.Err != nil || !isBatchShim(goos, cmd.Path) {
 		return
 	}
@@ -29,10 +44,60 @@ func adaptHostCmd(goos string, cmd *exec.Cmd) {
 		return
 	}
 	if len(cmd.Args) > 1 {
+		if spill != nil && needsSpill(cmd.Args[1:]) {
+			args, err := spillSystemPromptArgs(cmd.Args[1:], spill)
+			if err != nil {
+				cmd.Err = err
+				return
+			}
+			cmd.Args = slices.Concat(cmd.Args[:1], args)
+		}
 		if err := checkBatchShimArgs(goos, cmd.Path, cmd.Args[1:]); err != nil {
 			cmd.Err = err
 		}
 	}
+}
+
+// needsSpill reports whether cmd.exe would fail on args: a line break in one
+// of them, or a command line over batchShimCmdLineBudget (each argument counts
+// its two quotes and the separating space).
+func needsSpill(args []string) bool {
+	total := 0
+	for _, a := range args {
+		if strings.ContainsAny(a, "\r\n") {
+			return true
+		}
+		total += len(a) + 3
+	}
+	return total > batchShimCmdLineBudget
+}
+
+// spillSystemPromptArgs returns args with each --system-prompt /
+// --append-system-prompt value moved to a file made by spill and the flag
+// swapped for its --…-file form (same replace/append semantics). Order and
+// every other argument are kept; args itself is not modified.
+func spillSystemPromptArgs(args []string, spill SpillFunc) ([]string, error) {
+	out := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		var name string
+		switch args[i] {
+		case "--system-prompt":
+			name = "system-prompt.md"
+		case "--append-system-prompt":
+			name = "append-system-prompt.md"
+		}
+		if name == "" || i+1 >= len(args) {
+			out = append(out, args[i])
+			continue
+		}
+		path, err := spill(name, []byte(args[i+1]))
+		if err != nil {
+			return nil, fmt.Errorf("claude: move %s off the cmd.exe command line: %w", args[i], err)
+		}
+		out = append(out, args[i]+"-file", path)
+		i++
+	}
+	return out, nil
 }
 
 // isBatchShim reports whether path is a Windows batch file, which the OS
@@ -149,7 +214,7 @@ func checkBatchShimArgs(goos, cliPath string, args []string) error {
 		if i > 0 {
 			flag = args[i-1]
 		}
-		return fmt.Errorf("claude: %s is a Windows batch shim and the argument after %q contains a line break; cmd.exe would cut the command line there and silently drop the flags that follow. Point the CLI path at the native claude.exe (for an npm install: <npm prefix>/node_modules/@anthropic-ai/claude-code/bin/claude.exe)", cliPath, flag)
+		return fmt.Errorf("claude: %s is a Windows batch shim and the argument after %q contains a line break that cannot be moved to a file; cmd.exe would cut the command line there and silently drop the flags that follow. Point the CLI path at the native claude.exe (for an npm install: <npm prefix>/node_modules/@anthropic-ai/claude-code/bin/claude.exe)", cliPath, flag)
 	}
 	return nil
 }
