@@ -49,6 +49,9 @@ type Options struct {
 	SnapshotPublisher func(Snapshot)
 }
 
+// runnerBox lets an interface value live in an atomic.Pointer.
+type runnerBox struct{ r Runner }
+
 // Dispatcher is the long-running dispatcher.
 type Dispatcher struct {
 	cfg     atomic.Pointer[Config]
@@ -58,7 +61,11 @@ type Dispatcher struct {
 	// record to fence) — announced in the log at startup, never a silent
 	// no-op (the ClaimLeaser contract).
 	leaser tracker.ClaimLeaser
-	runner Runner
+	// runner is read by the actor AND by the dispatch workers, so it is an
+	// atomic pointer. It is replaced only through cmdReload (a live routing
+	// change); the owner of the old runner (the Manager) closes it after the
+	// workers have drained, never the Dispatcher.
+	runner atomic.Pointer[runnerBox]
 
 	// snapshot holds the most-recently-published immutable Snapshot. The
 	// actor is the sole writer (via fireSnapshot); Snapshot() reads it
@@ -183,7 +190,6 @@ func New(opts Options) (*Dispatcher, error) {
 	}
 	c := &Dispatcher{
 		tracker:    opts.Tracker,
-		runner:     opts.Runner,
 		workspaces: opts.Workspaces,
 		logger:     opts.Logger,
 		storeDir:   opts.StoreDir,
@@ -202,6 +208,7 @@ func New(opts Options) (*Dispatcher, error) {
 	} else {
 		opts.Logger.Info("dispatcher: tracker %T has no claim-lease capability — lease heartbeats and the claim watchdog are disabled for this tracker (label-based claims cannot be fenced)", opts.Tracker)
 	}
+	c.setRunner(opts.Runner)
 	c.cfg.Store(opts.Config)
 	opts.Workspaces.SetSeedConfigured(func() bool { return c.cfg.Load().Hooks.AfterCreate != nil })
 	// Seed the published snapshot so Snapshot() never reads a nil pointer
@@ -434,10 +441,28 @@ func (c *Dispatcher) CancelByRunID(runID string) bool {
 // Reload swaps in a fresh config. Typically wired to ConfigWatcher.
 // No-op after Stop.
 func (c *Dispatcher) Reload(cfg *Config) {
+	c.ReloadWithRunner(cfg, nil)
+}
+
+// ReloadWithRunner is Reload that also swaps the runner (a routing change:
+// workflow, assignee_workflows, bots.paths) in the same command, so the actor
+// never checks a new config against the old routing. A nil r keeps the current
+// runner. The caller keeps ownership of the runner it replaced and closes it
+// once Stop has drained the workers still dispatching on it.
+func (c *Dispatcher) ReloadWithRunner(cfg *Config, r Runner) {
 	select {
-	case c.cmds <- cmdReload{cfg: cfg}:
+	case c.cmds <- cmdReload{cfg: cfg, runner: r}:
 	case <-c.stop:
 	}
+}
+
+// currentRunner is the runner new dispatches go to.
+func (c *Dispatcher) currentRunner() Runner {
+	return c.runner.Load().r
+}
+
+func (c *Dispatcher) setRunner(r Runner) {
+	c.runner.Store(&runnerBox{r: r})
 }
 
 // Pause stops new dispatches without touching runs already in flight

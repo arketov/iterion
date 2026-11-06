@@ -7,10 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -92,17 +94,24 @@ type Manager struct {
 	runEnv           []string
 	defaultsFn       func() (*Config, error)
 
-	mu sync.Mutex
+	// saveMu serialises SaveConfig end to end (routing compilation and the
+	// command to the actor included) so reloads reach the actor in save order.
+	saveMu sync.Mutex
+	mu     sync.Mutex
 	// raw is the config as saved on disk: `$GITHUB_TOKEN` stays a reference,
 	// relative paths stay relative, "none" stays "none". It is what GET /config
 	// shows (secrets masked) and what is written back on every save.
 	raw *Config
 	// cfg is the copy the dispatcher runs: env expanded, paths resolved,
 	// defaults applied (Config.Resolved). Never persisted.
-	cfg       *Config
-	state     ManagerState
-	cur       *Dispatcher
-	runner    ManagedRunner
+	cfg    *Config
+	state  ManagerState
+	cur    *Dispatcher
+	runner ManagedRunner
+	// retired are the runners a live routing change replaced: workers in flight
+	// may still be dispatching on them, so they are closed by teardown, after
+	// Stop has drained the workers.
+	retired   []ManagedRunner
 	cancel    context.CancelCauseFunc
 	lastErr   error
 	startedAt time.Time
@@ -301,6 +310,13 @@ func (m *Manager) Config() *Config {
 // dispatcher is running, it is reloaded with the new settings; if it's
 // idle, the config is saved for the next Start.
 //
+// A change of workflow, assignee_workflows or bots.paths on a running dispatcher
+// rebuilds its routing: the new runner is compiled BEFORE anything is written
+// (a workflow that does not compile rejects the save and leaves the previous
+// config in place) and handed to the actor with the config. Runs in flight
+// finish on the old runner, which is closed at teardown. tracker.kind,
+// workspace.root and tracker tokens still need Stop and Start.
+//
 // cfg is taken as the form to SAVE and is not modified: `$GITHUB_TOKEN` stays a
 // reference and relative paths stay relative on disk, while the dispatcher
 // runs the resolved copy (env expanded, paths made absolute against the
@@ -324,6 +340,18 @@ func (m *Manager) SaveConfig(cfg *Config) error {
 	if err != nil {
 		return err
 	}
+	m.saveMu.Lock()
+	defer m.saveMu.Unlock()
+	m.mu.Lock()
+	prevCfg, cur := m.cfg, m.cur
+	m.mu.Unlock()
+	var newRunner ManagedRunner
+	if cur != nil && prevCfg != nil && routingChanged(prevCfg, rt) {
+		newRunner, err = NewRoutingRunner(rt, m.logger, WithProjectRunEnv(m.runEnv))
+		if err != nil {
+			return fmt.Errorf("manager: dispatcher routing: %w", err)
+		}
+	}
 	// Serialise the disk write + in-memory swap under m.mu so two
 	// concurrent SaveConfig calls don't end with disk reflecting one
 	// race winner and m.cfg the other (F-CD-8). The actor's Reload is
@@ -332,17 +360,42 @@ func (m *Manager) SaveConfig(cfg *Config) error {
 	// concurrent Stop+Start doesn't make us call Reload on a freshly-
 	// killed actor.
 	m.mu.Lock()
+	if m.cur != cur {
+		m.mu.Unlock()
+		if newRunner != nil {
+			_ = newRunner.Close()
+		}
+		return errors.New("manager: the dispatcher was started or stopped while the config was being applied; save again")
+	}
 	if err := saveConfigJSON(m.configPath, raw); err != nil {
 		m.mu.Unlock()
+		if newRunner != nil {
+			_ = newRunner.Close()
+		}
 		return err
 	}
 	m.raw, m.cfg = raw, rt
-	cur := m.cur
+	if newRunner != nil {
+		m.retired = append(m.retired, m.runner)
+		m.runner = newRunner
+	}
 	m.mu.Unlock()
 	if cur != nil {
-		cur.Reload(rt)
+		// A nil runner (routing unchanged) keeps the current one.
+		if newRunner != nil {
+			cur.ReloadWithRunner(rt, newRunner)
+		} else {
+			cur.Reload(rt)
+		}
 	}
 	return nil
+}
+
+// routingChanged reports whether the fields NewRoutingRunner builds from differ.
+func routingChanged(a, b *Config) bool {
+	return a.Workflow != b.Workflow ||
+		!maps.Equal(a.AssigneeWorkflows, b.AssigneeWorkflows) ||
+		!slices.Equal(a.Bots.Paths, b.Bots.Paths)
 }
 
 // baseDir is what a relative path of the saved config resolves against: the
@@ -405,7 +458,8 @@ func (m *Manager) RawConfig() *Config {
 // caller starting explicitly on a store with a persisted config (e.g.
 // `iterion dispatch` re-run on the same store dir). Callers that just
 // need "a dispatcher is running with my config" should treat it as
-// success: SaveConfig live-reloads the running instance.
+// success: SaveConfig live-reloads the running instance (config and routing,
+// but not tracker.kind, workspace.root or tracker tokens).
 var ErrAlreadyRunning = errors.New("manager: already running")
 
 // Start spins up a fresh Dispatcher from the persisted config. Returns
@@ -533,7 +587,8 @@ func (m *Manager) Shutdown() {
 func (m *Manager) teardown() {
 	m.mu.Lock()
 	cur, runner, cancel := m.cur, m.runner, m.cancel
-	m.cur, m.runner, m.cancel = nil, nil, nil
+	retired := m.retired
+	m.cur, m.runner, m.cancel, m.retired = nil, nil, nil, nil
 	m.state = ManagerStateIdle
 	m.startedAt = time.Time{}
 	m.mu.Unlock()
@@ -546,8 +601,13 @@ func (m *Manager) teardown() {
 		// the per-run Cancel.
 		cancel(runtime.ErrRunInterrupted)
 	}
+	// Workers have drained (cur.Stop waited on them): the runners a routing
+	// change replaced can go too.
 	if runner != nil {
-		if err := runner.Close(); err != nil {
+		retired = append(retired, runner)
+	}
+	for _, r := range retired {
+		if err := r.Close(); err != nil {
 			m.logger.Warn("manager: runner close: %v", err)
 		}
 	}

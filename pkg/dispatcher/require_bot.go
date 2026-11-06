@@ -27,11 +27,12 @@ import (
 //
 // Runs on the actor goroutine, like the rest of dispatch().
 func (c *Dispatcher) refuseWithoutBot(cfg *Config, iss tracker.Issue) bool {
-	// A dispatcher built with no fallback workflow has nothing to run a card no
-	// bot routes to, whatever the setting says now: a live config reload does
-	// not rebuild the runner, so require_assignee switched off after the start
-	// would otherwise claim such a card and fail it on every retry.
-	if rr, ok := c.runner.(*RoutingRunner); ok && rr.Default == nil && iss.Bot == "" {
+	// A runner built with no fallback workflow has nothing to run a card no bot
+	// routes to, whatever the setting says now: require_assignee switched off
+	// without a workflow to fall back on would otherwise claim such a card and
+	// fail it on every retry. Saving a workflow rebuilds the runner (cmdReload),
+	// so this is the guard for a runner that still has no Default.
+	if rr, ok := c.currentRunner().(*RoutingRunner); ok && rr.Default == nil && iss.Bot == "" {
 		return c.refuseUnroutable(cfg, iss)
 	}
 	if !cfg.RequireAssignee || iss.Bot != "" {
@@ -46,7 +47,8 @@ func (c *Dispatcher) refuseUnroutable(cfg *Config, iss tracker.Issue) bool {
 	// before an upgrade): let its retry/resume run its course, when there is a
 	// default workflow to run it on.
 	hasDefault := cfg.Workflow != ""
-	if rr, ok := c.runner.(*RoutingRunner); ok && rr.Default == nil {
+	rn := c.currentRunner()
+	if rr, ok := rn.(*RoutingRunner); ok && rr.Default == nil {
 		hasDefault = false // the runner was built without one
 	}
 	if _, retrying := c.state.retries[iss.ID]; retrying && hasDefault {
@@ -57,7 +59,7 @@ func (c *Dispatcher) refuseUnroutable(cfg *Config, iss tracker.Issue) bool {
 			"no assignee: assign a bot to this card to run it (the dispatcher does not fall back to the default bot)")
 		return true
 	}
-	rc, ok := c.runner.(interface{ HasRoute(string) bool })
+	rc, ok := rn.(interface{ HasRoute(string) bool })
 	if !ok || rc.HasRoute(iss.Assignee) {
 		return false
 	}

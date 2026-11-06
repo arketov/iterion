@@ -708,7 +708,7 @@ func (c *Dispatcher) resolveExplicitBot(cfg *Config, iss tracker.Issue) bool {
 	// implements HasRoute; a plain single-workflow runner doesn't —
 	// there an explicit bot has no routing concept, so we don't gate
 	// it and preserve the legacy single-workflow behaviour.)
-	if rc, ok := c.runner.(interface{ HasRoute(string) bool }); ok && !rc.HasRoute(iss.Bot) {
+	if rc, ok := c.currentRunner().(interface{ HasRoute(string) bool }); ok && !rc.HasRoute(iss.Bot) {
 		c.logger.Warn("dispatcher: %s names bot %q which resolves to a file but has no active dispatch route — skipping (refusing to silently run the default workflow). Likely disabled in the catalog (enable it in the studio Catalog manager) or, with no bots discovery configured, missing from assignee_workflows.", iss.Identifier, iss.Bot)
 		c.recordDispatchSkip(iss, fmt.Sprintf("bot %q has no active dispatch route (disabled in catalog or unrouted)", iss.Bot))
 		return false
@@ -1241,7 +1241,7 @@ func (c *Dispatcher) buildSpec(cfg *Config, iss tracker.Issue, runID, wsPath str
 // shape). A nil result makes buildSpec skip bot_arg validation rather
 // than warn on everything — fail-open, since the validation is advisory.
 func (c *Dispatcher) declaredVarsFor(routeKey string) map[string]struct{} {
-	vd, ok := c.runner.(interface {
+	vd, ok := c.currentRunner().(interface {
 		DeclaredVars(string) map[string]struct{}
 	})
 	if !ok {
@@ -1325,7 +1325,7 @@ func (c *Dispatcher) runWorker(ctx context.Context, entry *runningEntry, created
 	// here never reaches the card's history.
 	c.stampLastRun(entry.IssueID, entry)
 
-	dispatchErr := c.runner.Dispatch(ctx, spec)
+	dispatchErr := c.currentRunner().Dispatch(ctx, spec)
 
 	// after_run is best-effort: log failures but don't override the
 	// dispatch result.
