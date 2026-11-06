@@ -11,7 +11,7 @@ The machine exists twice with one semantics: a local daemon (`pkg/dispatcher`) w
 ```mermaid
 flowchart TD
     tick["tick - polling.interval_ms, default 30s, on the actor"]
-    tick --> stalled["reconcileStalled - interrupt a run whose last event is older than stall.timeout_ms, default 10 min"]
+    tick --> stalled["reconcileStalled - interrupt a run whose last event is older than stall.timeout_ms, default 10 min; 0 disables"]
     stalled --> refresh["refreshRunningStates - interrupt a run whose card no longer reads the state we moved it to, another eligible column included, and force-reap one that vanished from the tracker"]
     refresh --> sweeps["reconcileParked and reconcileStrandedPaused - the sweeps that run even while paused"]
     sweeps --> paused{"paused?"}
