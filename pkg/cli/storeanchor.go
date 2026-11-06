@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/arketov/iterion/pkg/git"
 	"github.com/arketov/iterion/pkg/store"
 )
 
@@ -57,6 +58,41 @@ func legacyRunStoreDir(iterFile, override, resolved, runID string) string {
 		return ""
 	}
 	return legacy
+}
+
+// ancestorStoreHint returns the store of a parent folder the run missed, or ""
+// when there is none to point at.
+//
+// The store is keyed on the anchor directory, so `iterion run` from
+// project/bots/x writes to that subfolder's slot while the studio serving
+// project reads project's store. The rule is a documented contract and stays;
+// the hint only makes the split audible. It looks from the anchor's parent up
+// to the git root (never past it, so a stray ~/.iterion or the home slot raises
+// nothing) for the nearest folder whose resolved store already holds runs/.
+// Silent when the caller pinned --store-dir or the anchor carries its own
+// managed .iterion — both are explicit choices.
+func ancestorStoreHint(anchor, override, resolved string) string {
+	if override != "" || anchor == "" {
+		return ""
+	}
+	abs, err := filepath.Abs(anchor)
+	if err != nil || filepath.Dir(resolved) == abs {
+		return ""
+	}
+	root := git.FindRepoRoot(abs)
+	if root == "" || root == abs {
+		return ""
+	}
+	for dir := filepath.Dir(abs); ; dir = filepath.Dir(dir) {
+		if cand := store.ResolveStoreDir(dir, ""); cand != resolved {
+			if info, statErr := os.Stat(filepath.Join(cand, "runs")); statErr == nil && info.IsDir() {
+				return cand
+			}
+		}
+		if dir == root || filepath.Dir(dir) == dir {
+			return ""
+		}
+	}
 }
 
 func runStoreHas(storeDir, runID string) bool {

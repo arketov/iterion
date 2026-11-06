@@ -317,6 +317,9 @@ func RunRun(ctx context.Context, opts RunOptions, p *Printer) error {
 	if logCloser != nil {
 		defer logCloser.Close()
 	}
+	if parent := ancestorStoreHint(storeAnchorDir(iterFile), opts.StoreDir, storeDir); parent != "" {
+		logger.Warn("run store %s is keyed on the current directory; the project store %s is not used and the studio serving it will not list this run — run from the project root or pass --store-dir %s", storeDir, parent, parent)
+	}
 
 	// DSL-declared supervisors (`supervisor NAME:`): wire an in-process
 	// event hub onto the engine so each coordinator can observe this run
