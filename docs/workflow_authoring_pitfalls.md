@@ -611,7 +611,9 @@ apply to PowerShell.
 `pwsh` in Legacy argument-passing mode drop a `"` inside an argument handed to
 a native program. A default-form `{{input.x}}` / `{{vars.x}}` value is escaped
 for that case on the host (not in a sandbox); a raw `{{!x}}` ref and a `'…"…'`
-literal you write yourself are not.
+literal you write yourself are not. The escape covers the whole value, so a
+value with a `"` given to a cmdlet or stored in a PowerShell variable holds
+`\"` there; see [known limitations](windows.md#known-limitations-and-workarounds).
 
 A `.bot` `tool` node's `command:` string runs via `bash -c` on Linux and macOS
 (`pkg/backend/model/executor_tool.go`, `toolNodeCommand`) and inside a sandbox
