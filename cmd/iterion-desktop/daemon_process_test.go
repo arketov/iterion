@@ -4,7 +4,9 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -175,6 +177,50 @@ func TestSpawnDaemonForProject_ConcurrentSpawnsShareOneDaemon(t *testing.T) {
 	}
 	if n := starts.Load(); n != 1 {
 		t.Errorf("%d daemon children started for one project, want 1", n)
+	}
+}
+
+// A failed spawn falls back to the current daemon, but the error holds the
+// cause and the daemon log path: it must reach the GUI log, not be dropped.
+func TestGetDaemonURLForStore_LogsAFailedSpawn(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("ITERION_HOME", home)
+	t.Setenv("ITERION_DESKTOP_ATTACH_DAEMON", "1")
+	// The directory must exist: on Windows the key decode checks the disk.
+	project := filepath.Join(home, "project")
+	if err := os.MkdirAll(project, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	var starts atomic.Int32
+	orig := startDaemonChild
+	t.Cleanup(func() { startDaemonChild = orig })
+	startDaemonChild = func(dir string) (<-chan error, int, string, error) {
+		starts.Add(1)
+		exited := make(chan error, 1)
+		exited <- errors.New("exit status 1")
+		return exited, os.Getpid(), "stand-in-daemon.log", nil
+	}
+
+	var buf bytes.Buffer
+	prev := log.Writer()
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(prev) })
+
+	app := &App{serverURL: "http://127.0.0.1:2/"}
+	store := filepath.Join(home, "projects", encodeProjectDirKey(project))
+	got, err := app.GetDaemonURLForStore(store)
+	log.SetOutput(prev)
+
+	if err != nil || got != app.serverURL {
+		t.Fatalf("GetDaemonURLForStore = %q, %v; want the current daemon %q, nil", got, err, app.serverURL)
+	}
+	if n := starts.Load(); n != 1 {
+		t.Fatalf("%d daemon children started, want 1 (the spawn path was not reached)", n)
+	}
+	logged := buf.String()
+	if !strings.Contains(logged, "exited before serving") || !strings.Contains(logged, "stand-in-daemon.log") {
+		t.Errorf("a failed spawn logged %q, want the error with the daemon log path", logged)
 	}
 }
 
