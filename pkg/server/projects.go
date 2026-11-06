@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/arketov/iterion/pkg/assistantmission"
+	"github.com/arketov/iterion/pkg/botregistry"
 	"github.com/arketov/iterion/pkg/errtrack"
 	"github.com/arketov/iterion/pkg/runtime"
 	"github.com/arketov/iterion/pkg/runview"
@@ -170,6 +170,10 @@ func (s *Server) handleSwitchProject(w http.ResponseWriter, r *http.Request) {
 		s.httpErrorFor(w, r, http.StatusNotFound, "project not found: %s", req.ID)
 		return
 	}
+	if !s.servesDir(target.Dir) {
+		s.refuseProjectMove(w, r)
+		return
+	}
 	if !cfg.SetCurrent(req.ID) {
 		s.httpErrorFor(w, r, http.StatusInternalServerError, "set current: race")
 		return
@@ -178,12 +182,7 @@ func (s *Server) handleSwitchProject(w http.ResponseWriter, r *http.Request) {
 		s.httpErrorFor(w, r, http.StatusInternalServerError, "save projects: %v", err)
 		return
 	}
-	if err := s.swapWorkDir(r.Context(), target.Dir); err != nil {
-		s.httpErrorFor(w, r, http.StatusInternalServerError, "swap workdir: %v", err)
-		return
-	}
 	s.cacheCurrentProjectID(cfg.CurrentProjectID)
-	s.broadcastProjectSwitched(*target)
 	s.writeJSONFor(w, r, toProjectResponse(*target))
 }
 
@@ -209,16 +208,20 @@ func (s *Server) handleAddProject(w http.ResponseWriter, r *http.Request) {
 		s.httpErrorFor(w, r, http.StatusBadRequest, "dir is required")
 		return
 	}
-	// swapWorkDir owns the abs + stat + IsDir validation; on its
-	// failure we don't want to leak a half-registered project, so we
-	// run the swap first, then commit the registry change.
 	abs, err := filepath.Abs(req.Dir)
 	if err != nil {
 		s.httpErrorFor(w, r, http.StatusBadRequest, "abs path: %v", err)
 		return
 	}
-	if err := s.swapWorkDir(r.Context(), abs); err != nil {
-		s.httpErrorFor(w, r, http.StatusBadRequest, "%v", err)
+	if !s.servesDir(abs) {
+		s.refuseProjectMove(w, r)
+		return
+	}
+	// The served folder: register the spelling registerInitialProject uses,
+	// so a different case or short name cannot duplicate the entry.
+	served, err := filepath.Abs(s.currentWorkDir())
+	if err != nil {
+		s.httpErrorFor(w, r, http.StatusInternalServerError, "abs path: %v", err)
 		return
 	}
 	cfg, err := projects.Load()
@@ -226,13 +229,12 @@ func (s *Server) handleAddProject(w http.ResponseWriter, r *http.Request) {
 		s.httpErrorFor(w, r, http.StatusInternalServerError, "load projects: %v", err)
 		return
 	}
-	p := cfg.AddOrTouch(abs)
+	p := cfg.AddOrTouch(served)
 	if err := cfg.Save(); err != nil {
 		s.httpErrorFor(w, r, http.StatusInternalServerError, "save projects: %v", err)
 		return
 	}
 	s.cacheCurrentProjectID(cfg.CurrentProjectID)
-	s.broadcastProjectSwitched(p)
 	s.writeJSONFor(w, r, toProjectResponse(p))
 }
 
@@ -255,7 +257,17 @@ func (s *Server) handleRemoveProject(w http.ResponseWriter, r *http.Request) {
 		s.httpErrorFor(w, r, http.StatusInternalServerError, "load projects: %v", err)
 		return
 	}
-	wasCurrent := cfg.CurrentProjectID == id
+	target := cfg.ByID(id)
+	if target == nil {
+		s.httpErrorFor(w, r, http.StatusNotFound, "project not found: %s", id)
+		return
+	}
+	if s.servesDir(target.Dir) {
+		s.refuseProjectMove(w, r)
+		return
+	}
+	// The registry's current pointer is shared by every process; moving it
+	// must not move this server, which keeps serving its own folder.
 	if !cfg.Remove(id) {
 		s.httpErrorFor(w, r, http.StatusNotFound, "project not found: %s", id)
 		return
@@ -263,21 +275,6 @@ func (s *Server) handleRemoveProject(w http.ResponseWriter, r *http.Request) {
 	if err := cfg.Save(); err != nil {
 		s.httpErrorFor(w, r, http.StatusInternalServerError, "save projects: %v", err)
 		return
-	}
-	// If the removed project was current, hot-swap to the new MRU
-	// head so the operator doesn't end up viewing a directory that's
-	// no longer in the registry.
-	if wasCurrent {
-		if next := cfg.Current(); next != nil {
-			if err := s.swapWorkDir(r.Context(), next.Dir); err != nil {
-				s.httpErrorFor(w, r, http.StatusInternalServerError, "swap workdir: %v", err)
-				return
-			}
-			s.cacheCurrentProjectID(cfg.CurrentProjectID)
-			s.broadcastProjectSwitched(*next)
-		} else {
-			s.cacheCurrentProjectID("")
-		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -479,31 +476,30 @@ func (s *Server) swapWorkDir(ctx context.Context, newDir string) error {
 	return nil
 }
 
-// broadcastProjectSwitched pushes a `project_switched` envelope onto
-// the Hub's broadcast channel directly — we're in the same package so
-// the unexported channel is reachable, and we don't widen the Hub API
-// with a second event type the rest of the codebase doesn't need.
-// SPA-side discriminator: the JSON `type` field, same as FileEvent.
-func (s *Server) broadcastProjectSwitched(p projects.Project) {
-	if s.hub == nil {
-		return
+// projectSwitchUnsupported is the error_code of a project-registry request
+// that would move or orphan the folder this server serves.
+const projectSwitchUnsupported = "project_switch_unsupported"
+
+// servesDir reports whether dir is the folder this server serves. A studio
+// server is bound to one project at boot — its board, dispatcher, triggers and
+// coordinators are built from that folder and are not re-bound by
+// swapWorkDir — so the project routes only accept requests about this folder.
+// PathKey folds symlinks, Windows 8.3 names and case; an empty workdir serves
+// nothing (PathKey("") would resolve to the process cwd).
+func (s *Server) servesDir(dir string) bool {
+	cur := s.currentWorkDir()
+	if cur == "" {
+		return false
 	}
-	type payload struct {
-		Type    string          `json:"type"`
-		Current projectResponse `json:"current"`
-	}
-	data, err := json.Marshal(payload{
-		Type:    "project_switched",
-		Current: toProjectResponse(p),
-	})
-	if err != nil {
-		s.logger.Error("projects: marshal project_switched: %v", err)
-		return
-	}
-	select {
-	case s.hub.broadcast <- data:
-	case <-s.hub.done:
-	}
+	return botregistry.PathKey(dir) == botregistry.PathKey(cur)
+}
+
+// refuseProjectMove answers a request that would change the served folder.
+// It names no host path: the folder is the caller's own, the refusal is not
+// a place to echo it.
+func (s *Server) refuseProjectMove(w http.ResponseWriter, r *http.Request) {
+	s.httpErrorCode(w, r, http.StatusConflict, projectSwitchUnsupported,
+		"this studio serves one project folder; start another studio (iterion studio --dir <folder>) for another project, or use iterion studio --workspace or the desktop app")
 }
 
 // statDir returns the FileInfo for an absolute directory path,

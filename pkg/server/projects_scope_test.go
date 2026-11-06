@@ -177,8 +177,3 @@ func TestProjectRoutesNeverMoveTheServedFolder(t *testing.T) {
 		})
 	}
 }
-
-func jsonString(s string) string {
-	b, _ := json.Marshal(s)
-	return string(b)
-}
