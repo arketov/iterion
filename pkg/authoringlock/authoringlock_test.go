@@ -86,7 +86,9 @@ func TestTakeCreatesTheControlDirectoryTheContractDescribes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", dir, err)
 		}
-		if info.Mode().Perm()&0o077 != 0 {
+		// Windows reports 0777/0666 for every file; its protection is the
+		// ACL, witnessed by TestAControlDirectoryWithAnotherPrincipalIsRefused.
+		if runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0 {
 			t.Errorf("%s is %v, want a directory nobody else may enter", dir, info.Mode().Perm())
 		}
 	}
@@ -99,7 +101,7 @@ func TestTakeCreatesTheControlDirectoryTheContractDescribes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o600 {
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
 		t.Errorf("%s is %v, want 0600", ignore, info.Mode().Perm())
 	}
 }
@@ -223,37 +225,41 @@ func TestAnAliasPointingOutOfTheDirectoryIsRefused(t *testing.T) {
 
 func TestAControlDirectoryTheContractRefuses(t *testing.T) {
 	for _, c := range []struct {
-		name   string
-		break_ func(t *testing.T, control string)
-		want   string
+		name        string
+		skipWindows bool
+		break_      func(t *testing.T, control string)
+		want        string
 	}{
-		{"a directory anyone may enter", func(t *testing.T, control string) {
+		{"a directory anyone may enter", true, func(t *testing.T, control string) {
 			if err := os.Chmod(control, 0o777); err != nil {
 				t.Fatal(err)
 			}
 		}, "unsafe authoring ownership or permissions"},
-		{"an entry the directory may not hold", func(t *testing.T, control string) {
+		{"an entry the directory may not hold", false, func(t *testing.T, control string) {
 			if err := os.WriteFile(filepath.Join(control, "README"), []byte("mine\n"), 0o600); err != nil {
 				t.Fatal(err)
 			}
 		}, "unexpected authoring control entry"},
-		{"an ignore rule that says something else", func(t *testing.T, control string) {
+		{"an ignore rule that says something else", false, func(t *testing.T, control string) {
 			if err := os.WriteFile(filepath.Join(control, ExclusionName), []byte("!*\n"), 0o600); err != nil {
 				t.Fatal(err)
 			}
 		}, "unsafe authoring ignore file"},
-		{"an ignore rule anyone may read", func(t *testing.T, control string) {
+		{"an ignore rule anyone may read", true, func(t *testing.T, control string) {
 			if err := os.Chmod(filepath.Join(control, ExclusionName), 0o644); err != nil {
 				t.Fatal(err)
 			}
 		}, "unsafe authoring ownership or permissions"},
-		{"a lock anyone may write", func(t *testing.T, control string) {
+		{"a lock anyone may write", true, func(t *testing.T, control string) {
 			if err := os.Chmod(filepath.Join(control, LockFileName("main.bot")), 0o666); err != nil {
 				t.Fatal(err)
 			}
 		}, "unsafe authoring ownership or permissions"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
+			if c.skipWindows && runtime.GOOS == "windows" {
+				t.Skip("[platform] os.Chmod cannot grant world access on Windows; the ACL witness is TestAControlDirectoryWithAnotherPrincipalIsRefused")
+			}
 			path := authoringFile(t, "main.bot")
 			first, err := Take(t.Context(), path)
 			if err != nil {
