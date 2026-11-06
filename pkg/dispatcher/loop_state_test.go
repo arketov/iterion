@@ -405,7 +405,7 @@ func TestDispatchConsumesRetryOnlyAfterWorkspaceLifecycleProbeSucceeds(t *testin
 		Title: "go", WorkflowState: "ready",
 	}
 	ft.add(iss)
-	c, wsDir := newStateTestDispatcher(t, &StubRunner{}, ft, time.Hour, "in_progress")
+	c, _ := newStateTestDispatcher(t, &StubRunner{}, ft, time.Hour, "in_progress")
 
 	// PrevRunID="" is an authoritative retry decision: start fresh instead
 	// of falling back to a persisted last run whose source changed.
@@ -418,13 +418,14 @@ func TestDispatchConsumesRetryOnlyAfterWorkspaceLifecycleProbeSucceeds(t *testin
 	}
 	c.state.retries[iss.ID] = retry
 
-	namespace := filepath.Join(wsDir, workspaceKeyNamespace)
-	if err := os.MkdirAll(namespace, 0o755); err != nil {
-		t.Fatalf("mkdir workspace namespace: %v", err)
-	}
-	ownersPath := filepath.Join(namespace, workspaceOwnersDir)
-	if err := os.WriteFile(ownersPath, []byte("broken"), 0o600); err != nil {
-		t.Fatalf("plant invalid ownership namespace: %v", err)
+	// A directory where the stable ownership marker file belongs: Lstat sees
+	// the shape, ReadFile on it fails with a non-ENOENT error on every
+	// platform (EISDIR on Linux, "Incorrect function" on Windows). A file
+	// planted at .owners would not do: Windows reports ERROR_PATH_NOT_FOUND
+	// for a path below a regular file, which Go classifies as "absent".
+	ownersPath := c.workspaces.ownerPathForRun(iss.ID, "")
+	if err := os.MkdirAll(ownersPath, 0o755); err != nil {
+		t.Fatalf("plant unreadable ownership marker: %v", err)
 	}
 
 	ctx := context.Background()
