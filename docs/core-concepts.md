@@ -110,7 +110,7 @@ from — its *origin*:
 | Origin | What it is | Where it comes from |
 |---|---|---|
 | **Project** | A bundle with a manifest | Folders `bots/`, `examples/` and `.botz/` of the project, plus any `--bots-path` you gave `iterion studio` |
-| **Project file** | A single `.bot` file without a manifest | Anywhere in the project folder outside the catalog folders (the walk skips dot-folders, `node_modules`, `vendor` and build output; at most 500 files) |
+| **Project file** | A single `.bot` file without a manifest | Directly in the project folder, with no walk of its subfolders: a file in `workflows/` or `docs/`, a `lib/` fragment, test data and a nested clone of another project are not bots of this project (open such a file by its path, **Open…** → *Open by path*) |
 | **Team**, **Platform** | Bots of your team or of the whole instance | Cloud only |
 
 The `iterion` binary carries no bots of its own (owner decision, 2026-11-05):

@@ -21,6 +21,7 @@ import {
 } from "@/views/integrations/wizard/StepIndicator";
 
 import { Field } from "./Field";
+import { NoBotsHint } from "@/components/shared/NoBotsHint";
 
 const PROVIDERS: Array<{ id: WebhookProvider; label: string; available: boolean }> = [
   { id: "gitlab", label: "GitLab", available: true },
@@ -261,7 +262,7 @@ export function CreateWebhookDialog({
                   </div>
                   <div className="flex flex-wrap gap-1 max-h-48 overflow-auto border border-border-subtle rounded p-2">
                     {bots.length === 0 ? (
-                      <span className="text-xs text-fg-subtle">No bots discovered.</span>
+                      <span className="text-xs text-fg-subtle"><NoBotsHint cloud /></span>
                     ) : (
                       bots.map((b) => {
                         const checked = botIDs.includes(b.name);

@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -554,8 +555,13 @@ func (x *charEnvSpyExecutor) Execute(_ context.Context, _ ir.Node, _ map[string]
 }
 func (x *charEnvSpyExecutor) SetWorkDir(d string)      { x.workDirs = append(x.workDirs, d) }
 func (x *charEnvSpyExecutor) SetRepoRoot(r string)     { x.repoRoots = append(x.repoRoots, r) }
-func (x *charEnvSpyExecutor) SetScratchDir(d string)   { x.scratchDirs = append(x.scratchDirs, d) }
 func (x *charEnvSpyExecutor) SetVars(_ map[string]any) { x.varsCalls++ }
+
+// SetScratchDirs records the push as "base\x00run\x00shared" so the
+// assertion reads every part of the narrowed push (#2869).
+func (x *charEnvSpyExecutor) SetScratchDirs(base, run string, shared bool) {
+	x.scratchDirs = append(x.scratchDirs, fmt.Sprintf("%s\x00%s\x00%t", base, run, shared))
+}
 
 // TestResumeFromFailure_ExecutorEnvRestored pins restoreRunEnv +
 // pushExecutorVars: the persisted WorkDir/RepoRoot are pushed onto an
@@ -610,12 +616,15 @@ func TestResumeFromFailure_ExecutorEnvRestored(t *testing.T) {
 	if spy.varsCalls == 0 {
 		t.Error("SetVars never called — resolved vars must be pushed on resume")
 	}
-	// The scratch read root (#2650) is pushed on resume too, keyed off the
+	// The scratch read roots (#2650) are pushed on resume too, keyed off the
 	// restored repo root — the resumed run's agents must read the banked
-	// scratch the teardown preserved.
-	wantScratch := memory.WorkspaceScratchDir(repoRoot)
+	// scratch the teardown preserved. Narrowed (#2869): the run family's
+	// own subtree first; this workflow declares no var referencing
+	// ${PROJECT_SCRATCH_DIR}, so the shared root does not ride along.
+	base := memory.WorkspaceScratchDir(repoRoot)
+	wantScratch := base + "\x00" + filepath.Join(base, "runs", runID) + "\x00false"
 	if len(spy.scratchDirs) == 0 || spy.scratchDirs[len(spy.scratchDirs)-1] != wantScratch {
-		t.Errorf("SetScratchDir calls = %v, want last == %q", spy.scratchDirs, wantScratch)
+		t.Errorf("SetScratchDirs calls = %v, want last == run subtree %q with no shared root", spy.scratchDirs, wantScratch)
 	}
 }
 

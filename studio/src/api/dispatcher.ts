@@ -26,6 +26,9 @@ export interface ManagerStatus {
   has_config: boolean;
   started_at?: string;
   last_error?: string;
+  // Why the dispatcher was not restored at boot (ITERION_DISPATCHER_AUTOSTART=0
+  // kept a saved running/paused state from being resumed); absent otherwise.
+  boot_note?: string;
 }
 
 export function getStatus(): Promise<ManagerStatus> {
@@ -309,6 +312,12 @@ export interface RetryView {
   hook_exit_code?: number;
   // Tail of the failed hook's stderr.
   hook_stderr?: string;
+  // Shell or interpreter the failed hook ran under (or was asked for when none
+  // could be started), the executable started and why it was picked
+  // (explicit | env | default | posix-script | shebang | extension).
+  hook_shell?: string;
+  hook_shell_path?: string;
+  hook_shell_source?: string;
 }
 
 export interface SlotsView {
@@ -332,6 +341,23 @@ export function reload(): Promise<{ reloaded: boolean; polling_interval_s: numbe
 
 export function cancelIssue(id: string): Promise<{ status: string }> {
   return request(`/issues/${encodeURIComponent(id)}/cancel`, { method: "POST" });
+}
+
+// retryNow makes a queued retry due immediately (attempt count and resume
+// pointer kept). `paused` says dispatch is paused, so it runs after Resume.
+export function retryNow(
+  id: string,
+): Promise<{ issue_id: string; status: string; paused: boolean }> {
+  return request(`/retries/${encodeURIComponent(id)}/run-now`, { method: "POST" });
+}
+
+// dropRetry stops retrying a queued card: it is filed under the dispatcher's
+// failed state (default "blocked") and marked as given up; reopening it on the
+// board is the way back.
+export function dropRetry(
+  id: string,
+): Promise<{ issue_id: string; status: string; state: string }> {
+  return request(`/retries/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 // openWS returns a connected WebSocket that broadcasts Snapshot

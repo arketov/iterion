@@ -13,7 +13,8 @@ import { groupBotsByCategory } from "@/lib/botTaxonomy";
 import { botVisual } from "@/lib/personas";
 import { catalogToggleToast } from "@/lib/catalogStale";
 import { useBotsStore } from "@/store/bots";
-import { countBots } from "@/lib/botOrigin";
+import { countBots, projectFileRows } from "@/lib/botOrigin";
+import { NoBotsHint } from "@/components/shared/NoBotsHint";
 import { useServerInfoStore } from "@/store/serverInfo";
 import { HiddenFileInput } from "@/components/shared/HiddenFileInput";
 import { useTabsStore } from "@/store/tabs";
@@ -147,6 +148,16 @@ export function BotCatalogDialog({
   };
 
   const rows = useMemo(() => bots ?? [], [bots]);
+  // The project's single .bot files are listed here too, so this dialog shows
+  // the same set as the Bots page and the Home panel. They have no manifest,
+  // hence no overlay to switch: they are always on and only open in the editor.
+  const fileRows = useMemo(() => projectFileRows(extraBots, ""), [extraBots]);
+  const onOpenFile = (b: BotEntryWithSchema) => {
+    const file = b.rel_path || b.path;
+    useTabsStore.getState().openTab("editor", { file });
+    onOpenChange(false);
+    setLocation(`/editor?file=${encodeURIComponent(file)}`);
+  };
   // Grouped like the gallery — the manager reads by department ("where is
   // my verify crew?"), not alphabetically across the whole fleet.
   const groups = useMemo(() => groupBotsByCategory(rows), [rows]);
@@ -279,18 +290,20 @@ export function BotCatalogDialog({
         {loading && rows.length === 0 && (
           <p className="px-1 py-4 text-sm text-fg-subtle">Loading bots…</p>
         )}
-        {rows.length > 0 && (
+        {(rows.length > 0 || fileRows.length > 0) && (
           <p className="px-1 pb-1 text-caption text-fg-subtle">
             {(() => {
               const c = countBots(bots, extraBots);
               return c.files > 0
-                ? `${c.catalog} bot${c.catalog === 1 ? "" : "s"} can be switched on or off here (the ${c.files} single .bot file${c.files === 1 ? "" : "s"} have no manifest and are always on).`
-                : `${c.catalog} bot${c.catalog === 1 ? "" : "s"}.`;
+                ? `${c.total} bot${c.total === 1 ? "" : "s"}: ${c.catalog} can be switched on or off here; the ${c.files} single .bot file${c.files === 1 ? "" : "s"} below have no manifest and are always on.`
+                : `${c.total} bot${c.total === 1 ? "" : "s"}.`;
             })()}
           </p>
         )}
-        {!loading && rows.length === 0 && (
-          <p className="px-1 py-4 text-sm text-fg-subtle">No bots discovered in this workspace.</p>
+        {!loading && rows.length === 0 && fileRows.length === 0 && (
+          <p className="px-1 py-4 text-sm text-fg-subtle">
+            <NoBotsHint cloud={info?.mode === "cloud"} />
+          </p>
         )}
         {groups
           .filter((g) => g.bots.length > 0)
@@ -390,6 +403,45 @@ export function BotCatalogDialog({
               </ul>
             </section>
           ))}
+        {fileRows.length > 0 && (
+          <section className="mb-1" aria-label="Project files">
+            <div className="px-2 pb-1 pt-2 text-xs font-medium text-fg-muted">
+              Project files{" "}
+              <span className="font-normal text-fg-subtle">
+                — single .bot files in the project folder, no manifest · {fileRows.length}
+              </span>
+            </div>
+            <ul className="space-y-0.5">
+              {fileRows.map((b) => (
+                <li
+                  key={b.path}
+                  className="flex items-center gap-3 rounded px-2 py-2 hover:bg-surface-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm font-medium">{b.name}</span>
+                    {b.rel_path && (
+                      <span className="ml-2 truncate font-mono text-caption text-fg-subtle">
+                        {b.rel_path}
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => onOpenFile(b)}
+                    className="shrink-0"
+                    aria-label={`Open in editor: ${b.name}`}
+                  >
+                    Open
+                  </Button>
+                  <span className="shrink-0 text-caption text-fg-subtle" title="A single .bot file has no manifest, so there is nothing to switch off.">
+                    Always on
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     </Dialog>
   );

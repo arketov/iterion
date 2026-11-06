@@ -6,7 +6,7 @@ import { Table, THead, Th, TBody, Tr, Td } from "@/components/ui/Table";
 import { pointerRowProps } from "@/lib/a11y";
 import type { DispatcherSnapshot } from "@/api/dispatcher";
 
-import { hookFailureLabel, logHint } from "@/lib/retryError";
+import { hookFailureLabel, logHint, shellLabel } from "@/lib/retryError";
 
 import { relTime } from "./format";
 
@@ -47,6 +47,12 @@ export interface RetriesTableProps {
   pollTitle: string;
   onFocusIssue: (issueID: string) => void;
   onRefreshNow: () => void;
+  // Row actions. "Retry now" makes the retry due at once; "Remove from queue"
+  // stops retrying the card (it is filed under the failed state, reopen it on
+  // the board to try again). Both need a running dispatcher.
+  onRetryNow: (issueID: string) => void;
+  onDropRetry: (issueID: string) => void;
+  canActOnRetries: boolean;
 }
 
 export default function RetriesTable({
@@ -56,6 +62,9 @@ export default function RetriesTable({
   pollTitle,
   onFocusIssue,
   onRefreshNow,
+  onRetryNow,
+  onDropRetry,
+  canActOnRetries,
 }: RetriesTableProps) {
   // Tick every 1s when at least one retry is due in under 5 minutes so
   // the countdown is responsive without burning CPU on long-deferred
@@ -100,12 +109,15 @@ export default function RetriesTable({
             <Th>Attempt</Th>
             <Th className="whitespace-nowrap">Due</Th>
             <Th>Last error</Th>
+            <Th align="right">Actions</Th>
           </THead>
           <TBody>
             {rows!.map((r) => {
               const dueLabel = formatRetryDue(r.due_at, now);
               const isDue = dueLabel === "due";
               const hookLabel = hookFailureLabel(r);
+              const shell = shellLabel(r.hook_shell, r.hook_shell_path, r.hook_shell_source);
+              const rowName = r.identifier || r.issue_id;
               const expanded = open.has(r.issue_id);
               return (
               <Fragment key={r.issue_id}>
@@ -139,6 +151,14 @@ export default function RetriesTable({
                   {hookLabel && (
                     <div className="text-caption font-semibold">{hookLabel}</div>
                   )}
+                  {shell && (
+                    <div
+                      className="text-caption text-fg-muted font-mono break-all"
+                      data-testid="retry-shell"
+                    >
+                      Shell: {shell}
+                    </div>
+                  )}
                   <div className={expanded ? "whitespace-pre-wrap break-words" : "truncate"}>
                     {r.error}
                   </div>
@@ -156,10 +176,38 @@ export default function RetriesTable({
                     </button>
                   )}
                 </Td>
+                <Td align="right" className="whitespace-nowrap">
+                  {/* One pair per queued retry: the accessible name carries
+                      the row's identifier (visible word first, SC 2.5.3). */}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    aria-label={`Retry now ${rowName}`}
+                    disabled={!canActOnRetries}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRetryNow(r.issue_id);
+                    }}
+                  >
+                    Retry now
+                  </Button>{" "}
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    aria-label={`Remove from queue ${rowName}`}
+                    disabled={!canActOnRetries}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDropRetry(r.issue_id);
+                    }}
+                  >
+                    Remove from queue
+                  </Button>
+                </Td>
               </Tr>
               {expanded && (
                 <Tr>
-                  <Td colSpan={4} className="bg-surface-2/40">
+                  <Td colSpan={5} className="bg-surface-2/40">
                     {r.hook_stderr && (
                       <pre className="mt-1 whitespace-pre-wrap break-words text-xs text-fg-muted">
                         {r.hook_stderr}

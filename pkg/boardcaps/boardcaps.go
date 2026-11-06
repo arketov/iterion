@@ -25,6 +25,44 @@ const (
 	BoardComment = "board.comment"
 )
 
+// ConnectorID is the connector id the board's NATIVE action transport owns
+// (docs/adr/151, iterion#2834): the first segment of every `board.*` action
+// id a tool node writes, e.g. `board.issue.list`. It lives in this leaf for
+// the same reason the capability names do: the DSL compiler reads it to
+// know a `board.*` action needs no `connection:` (a native connector holds
+// no credential), and reading one string must not link the dispatcher into
+// every binary that compiles a .bot.
+const ConnectorID = "board"
+
+// NativeConnectorIDs is the set of connector ids a NATIVE action transport
+// owns (ADR-151): an in-process, credential-free connector the engine
+// executes itself rather than reaching over HTTP. Two readers, neither of
+// which may link the dispatcher: the DSL compiler (`connection:` optional
+// for these alone) and the connector-package validator (the id is RESERVED —
+// a catalog package squatting it would be hijacked where the transport is
+// registered and refused where it is not). A new native connector adds its
+// id HERE as part of its seam registration (G110: registration IS the seam),
+// never an `if` at a call site.
+var NativeConnectorIDs = map[string]bool{
+	ConnectorID: true,
+}
+
+// ActionCapability maps every action id the native board facade exposes to
+// the capability gating it — the compile-time half of the facade's grant:
+// the DSL compiler (C334) warns when a native board action's capability is
+// declared nowhere (neither the node nor the workflow) and C336 when an
+// action names a verb absent from it, and the runtime refusals they predict
+// are boardops' own caps.Has and the executor's admission. boardops' matrix
+// test holds this table to the facade's bindings and to the native registry,
+// in both directions.
+var ActionCapability = map[string]string{
+	"board.issue.get":        BoardRead,
+	"board.issue.list":       BoardRead,
+	"board.issue.create":     BoardCreate,
+	"board.issue.label":      BoardLabel,
+	"board.issue.transition": BoardMove,
+}
+
 // ToolCapability maps every bare tool name of the board MCP family
 // (`mcp.iterion_board.*`) to the capability gating it — the compile-time
 // half of the runtime's refusal: the DSL compiler (C328) warns when a node

@@ -159,7 +159,10 @@ func extractBackendFields(node ir.Node) (backendFields, error) {
 // buildTask, the EffectiveToolNames seam and the reserved-namespace grant
 // check (internalMCPToolGrant) all read it here, on the field
 // extractBackendFields produces, so no site can answer a different grant for
-// the same node.
+// the same node. A tool node reads it too, on the node's own list, through
+// nodeCapabilities — its registry recipe's host tools, its native action and
+// its rung-4 recovery agent (#78=A, ADR-151): one grant rule for every node
+// kind.
 func effectiveCapabilitiesOf(declared, wfCapabilities []string) []string {
 	if declared == nil {
 		return wfCapabilities
@@ -1109,6 +1112,17 @@ func (e *ClawExecutor) validateAndRetry(
 	}
 }
 
+// DetectedClawSpec is the model a claw node that names none sends: the
+// detector's suggestion over the providers this host holds, vetted against
+// the run's provider allowlist (allowlistedDetectorPick) — "" when the
+// detector suggests none. The dispatch builds such a node's task on it, the
+// launch's credential admission judges the same spec (ADR-161 decision 2: a
+// pod-detected pick is an input), and the usage-cap pre-flight keys it
+// (DetectedClawSpecUnder, the same pick for a reader with no executor).
+func (e *ClawExecutor) DetectedClawSpec(nodeID string) (string, error) {
+	return e.allowlistedDetectorPick(nodeID, e.detectorSuggestedModel())
+}
+
 // allowlistedDetectorPick vets the HOST's model pick against the run's
 // provider allowlist (ADR-129 §5): the detector reads the pod, a source no
 // chain element carried — the same vendor-call class the gateway skip in
@@ -1117,19 +1131,26 @@ func (e *ClawExecutor) validateAndRetry(
 // cannot check, or that names a provider outside it, returns the typed
 // refusal and the caller skips or fails with the truth.
 func (e *ClawExecutor) allowlistedDetectorPick(nodeID, spec string) (string, error) {
-	if e.allowedProviders == nil || spec == "" {
+	return allowlistedPick(e.allowedProviders, nodeID, spec)
+}
+
+// allowlistedPick is allowlistedDetectorPick over allowed, the run's provider
+// allowlist (nil: none): the one predicate the dispatch and every reader of
+// its pick apply (DetectedClawSpecUnder).
+func allowlistedPick(allowed map[string]bool, nodeID, spec string) (string, error) {
+	if allowed == nil || spec == "" {
 		return spec, nil
 	}
 	prov := providerOfModelSpec(spec)
-	if e.allowedProviders[prov] {
+	if allowed[prov] {
 		return spec, nil
 	}
 	if prov == "" {
 		return "", fmt.Errorf("node %q: the detected model %q names no provider — unchecked under this run's provider allowlist (%s): %w",
-			nodeID, spec, ProviderAllowlistNames(e.allowedProviders), ErrRouteUnreadableUnderAllowlist)
+			nodeID, spec, ProviderAllowlistNames(allowed), ErrRouteUnreadableUnderAllowlist)
 	}
 	return "", fmt.Errorf("node %q: the detected model %q spends provider %q, outside this run's provider allowlist (%s): %w",
-		nodeID, spec, prov, ProviderAllowlistNames(e.allowedProviders), ErrProviderOutsideAllowlist)
+		nodeID, spec, prov, ProviderAllowlistNames(allowed), ErrProviderOutsideAllowlist)
 }
 
 // extractStructuredViaClaw is the last-resort structured-output recovery. When
@@ -1191,13 +1212,14 @@ func (e *ClawExecutor) extractStructuredViaClaw(
 		e.logger.Warn("[%s] structured-output recovery skipped: %v", nodeID, err)
 		return delegate.Result{}, delegate.Result{}, false, nil
 	}
-	client, err := e.registry.ResolveWithContext(ctx, modelSpec)
+	client, credential, err := e.registry.resolveBeside(ctx, modelSpec)
 	if err != nil {
 		e.logger.Warn("[%s] structured-output recovery: resolve %q: %v", nodeID, modelSpec, err)
 		return delegate.Result{}, delegate.Result{}, false, nil
 	}
 	genOpts := GenerationOptions{
-		Model: modelSpec,
+		Model:      modelSpec,
+		Credential: credential,
 		System: "You convert an assistant's finished answer into the required structured JSON. " +
 			"Use ONLY information present in the answer — never invent, add, or drop data. Populate every required field.",
 		Messages: []api.Message{{Role: "user", Content: []api.ContentBlock{{
@@ -1207,8 +1229,17 @@ func (e *ClawExecutor) extractStructuredViaClaw(
 		ExplicitSchema: task.OutputSchema,
 	}
 	// The recovery is a claw call on the model this function picked, not on
-	// the node's own — pricing its usage is the task's only role here.
+	// the node's own — pricing its usage is the task's only role here. Its
+	// bill names what the call spent, the arm's Spend its client was built
+	// from: the recovery's own delegate event carries it as its credential
+	// keys (ADR-161 decision 8), and the ledger and the fine table book it
+	// there, never on the node's row by prediction.
 	recoveryTask := delegate.Task{Model: modelSpec}
+	bill := func(u Usage) delegate.Result {
+		r := meteredFailure(recoveryTask, u)
+		r.Credential = credential
+		return r
+	}
 	policy := outputCorrectionPolicy(ctx)
 	callCtx, cancelCall, err := policy.begin(ctx, primary.Output, validateStructuredResult(primary, schema))
 	if err != nil {
@@ -1218,7 +1249,7 @@ func (e *ClawExecutor) extractStructuredViaClaw(
 	obj, err := GenerateObjectDirect[map[string]any](callCtx, client, e.generationForModel(genOpts))
 	if err != nil {
 		e.logger.Warn("[%s] structured-output recovery via claw (%s) failed: %v", nodeID, modelSpec, err)
-		spent := meteredFailure(recoveryTask, objectUsage(obj))
+		spent := bill(objectUsage(obj))
 		persistErr := policy.After(callCtx, foldSpend(spent, primary, false).Output, err)
 		return delegate.Result{}, spent, false, persistErr
 	}
@@ -1227,7 +1258,7 @@ func (e *ClawExecutor) extractStructuredViaClaw(
 	out.ParseFallback = false
 	if verr := ValidateOutput(out.Output, schema); verr != nil {
 		e.logger.Warn("[%s] structured-output recovery via claw (%s) still invalid: %v", nodeID, modelSpec, verr)
-		spent := meteredFailure(recoveryTask, obj.TotalUsage)
+		spent := bill(obj.TotalUsage)
 		return delegate.Result{}, spent, false, policy.After(callCtx, foldSpend(spent, primary, false).Output, verr)
 	}
 	if out.Output == nil {
@@ -1239,7 +1270,7 @@ func (e *ClawExecutor) extractStructuredViaClaw(
 	stampDelegateOutputMeta(out.Output, out, sourceBackend)
 	e.logger.Info("[%s] structured output recovered via claw (%s) — %s produced free-form text but no schema JSON (forfait structured-output gap)",
 		nodeID, modelSpec, sourceBackend)
-	spent = meteredFailure(recoveryTask, obj.TotalUsage)
+	spent = bill(obj.TotalUsage)
 	return out, spent, true, policy.After(callCtx, foldSpend(spent, out, false).Output, nil)
 }
 
@@ -1344,7 +1375,7 @@ func (e *ClawExecutor) buildTask(ctx context.Context, node ir.Node, f backendFie
 		resolvedModel = ov.Model
 	}
 	if resolvedModel == "" && backendName == delegate.BackendClaw {
-		picked, err := e.allowlistedDetectorPick(f.id, e.detectorSuggestedModel())
+		picked, err := e.DetectedClawSpec(f.id)
 		if err != nil {
 			return delegate.Task{}, err
 		}
@@ -1362,6 +1393,7 @@ func (e *ClawExecutor) buildTask(ctx context.Context, node ir.Node, f backendFie
 			resolvedImages = append(resolvedImages, p)
 		}
 	}
+	scratchAnchor, scratchRoots := e.scratchScope()
 
 	task := delegate.Task{
 		NodeID:                f.id,
@@ -1404,6 +1436,14 @@ func (e *ClawExecutor) buildTask(ctx context.Context, node ir.Node, f backendFie
 		CompactThresholdRatio: compactRatio,
 		CompactPreserveRecent: compactPreserve,
 		Sandbox:               e.sandbox,
+		// The sandbox crossing's read roots (#2869): the run family's
+		// scratch subtree first, the shared project scratch behind it while
+		// the workflow still references it, and the project scratch they
+		// lie beneath. The launcher-side claw backend narrows the
+		// in-container runner's scope to this list; unsandboxed executions
+		// never read it (their scope is the registry's).
+		ScratchReadRoots: scratchRoots,
+		ScratchAnchor:    scratchAnchor,
 		// ProviderHint is set per-attempt by dispatchWithProviderFallback
 		// as it walks the node's provider chain.
 		Hooks:      e.delegateHooksFor(f.id, backendName, LoopIterationFromContext(ctx)),

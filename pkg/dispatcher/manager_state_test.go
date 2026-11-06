@@ -126,16 +126,26 @@ func TestAutoStartEnabled(t *testing.T) {
 }
 
 func TestResolveBootIntent(t *testing.T) {
-	// Persisted intent always wins, regardless of config or env. The
-	// env var only modulates the no-persistence default.
-	t.Run("persisted overrides everything", func(t *testing.T) {
-		t.Setenv("ITERION_DISPATCHER_AUTOSTART", "0")
+	// With ITERION_DISPATCHER_AUTOSTART on (the default), the persisted
+	// intent always wins, regardless of config.
+	t.Run("persisted wins when autostart is on", func(t *testing.T) {
+		t.Setenv("ITERION_DISPATCHER_AUTOSTART", "")
 		for _, persisted := range []DesiredState{DesiredRunning, DesiredPaused, DesiredStopped} {
 			if got := resolveBootIntent(persisted, true); got != persisted {
 				t.Errorf("hasConfig=true persisted=%s → %s, want %s", persisted, got, persisted)
 			}
 			if got := resolveBootIntent(persisted, false); got != persisted {
 				t.Errorf("hasConfig=false persisted=%s → %s, want %s", persisted, got, persisted)
+			}
+		}
+	})
+	// ITERION_DISPATCHER_AUTOSTART=0 is the process-wide opt-out: nothing is
+	// started at boot, a saved running/paused intent included.
+	t.Run("autostart off overrides a persisted running or paused intent", func(t *testing.T) {
+		t.Setenv("ITERION_DISPATCHER_AUTOSTART", "0")
+		for _, persisted := range []DesiredState{DesiredRunning, DesiredPaused, DesiredStopped, ""} {
+			if got := resolveBootIntent(persisted, true); got != DesiredStopped {
+				t.Errorf("persisted=%q → %s, want stopped", persisted, got)
 			}
 		}
 	})

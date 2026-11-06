@@ -9,6 +9,7 @@ import (
 
 	"github.com/arketov/iterion/pkg/backend/model"
 	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/connector/spec"
 	"github.com/arketov/iterion/pkg/dsl/ir"
 	"github.com/arketov/iterion/pkg/secrets"
 	"github.com/arketov/iterion/pkg/store"
@@ -28,8 +29,9 @@ import (
 //
 // Gated on the WORKFLOW rather than built always, exactly like the local
 // secret store and for the same reason: constructing the resolver reads the
-// catalog roots and the connection store, and a run with no `action:` node has
-// no use for either.
+// catalog roots and the connection store, and a run with no `action:` node the
+// catalog serves has no use for either — a native action (board.*) is
+// executed by its registered transport, with no catalog and no credential.
 //
 // The SEALER is a parameter rather than built here: a surface that already
 // holds one (the studio's, the dispatcher's lazy one) must not open a second,
@@ -43,7 +45,7 @@ import (
 // is what keeps an untrusted workspace from spending the tenant's connector
 // credential (#1802).
 func LocalConnectors(wf *ir.Workflow, workDir, storeDir string, sealer secrets.Sealer, trust connection.ActionTrust) (model.ConnectorResolver, *http.Client, error) {
-	if sealer == nil || !WorkflowHasAction(wf) {
+	if sealer == nil || !WorkflowHasCatalogAction(wf) {
 		return nil, nil, nil
 	}
 	// The workspace root is where a project may ship or pin its own
@@ -87,17 +89,15 @@ func (s *Service) localConnectors(wf *ir.Workflow, workDirOverride string, trust
 	return LocalConnectors(wf, workDir, s.storeDir, s.localSealer, trust)
 }
 
-// WorkflowHasAction reports whether any tool node declares a connector action.
-func WorkflowHasAction(wf *ir.Workflow) bool {
-	if wf == nil {
-		return false
-	}
-	for _, n := range wf.Nodes {
-		if t, ok := n.(*ir.ToolNode); ok && t.Action != "" {
-			return true
-		}
-	}
-	return false
+// WorkflowHasCatalogAction reports whether any tool node declares an action
+// the connector CATALOG serves — every action except a native connector's
+// (board.*, ADR-151), which a registered transport executes in process with
+// no catalog, no connection and no sealer. The gate every surface reads
+// before it opens the catalog or the local sealer: a workflow whose only
+// actions are native must not touch the OS keychain or mint key material
+// for a catalog it never consults.
+func WorkflowHasCatalogAction(wf *ir.Workflow) bool {
+	return len(CatalogActionNodes(wf)) > 0
 }
 
 // ActionNode is one tool node declaring a connector action, reduced to what a
@@ -113,6 +113,25 @@ type ActionNode struct {
 	// author wrote none (the compiler refuses that, C261; a hand-built IR can
 	// still carry it).
 	Connection string
+}
+
+// Native reports whether the node's connector is a NATIVE one (board.*,
+// ADR-151): served by a registered in-process transport, never by the
+// catalog. The ONE reading every action-node consumer here asks, so the
+// catalog gate, the admission check and `validate --connectors` cannot
+// disagree about which actions the catalog owes.
+func (n ActionNode) Native() bool { return ir.NativeConnectorIDs[n.Connector] }
+
+// CatalogActionNodes is ActionNodes without the native ones: the action nodes
+// the connector catalog has to serve, in node-id order.
+func CatalogActionNodes(wf *ir.Workflow) []ActionNode {
+	var out []ActionNode
+	for _, n := range ActionNodes(wf) {
+		if !n.Native() {
+			out = append(out, n)
+		}
+	}
+	return out
 }
 
 // ActionNodes lists every tool node declaring a connector action, ordered by
@@ -208,10 +227,15 @@ const ConnectorAdmissionEnv = "ITERION_CONNECTOR_ADMISSION"
 // The predicate is the executor's own — a nil INTERFACE, not a nil pointer
 // inside one (LocalConnectors returns the former deliberately), so the two
 // guards cannot disagree about what "wired" means.
-func admitConnectorActions(wf *ir.Workflow, connectors model.ConnectorResolver) error {
-	if connectors != nil {
-		return nil
-	}
+//
+// Since ADR-151 the question is two-staged: a NATIVE connector (board.*) is
+// served by a registered transport, not by the catalog — so a native action
+// with no transport registered is a WIRING gap (the surface did not hand its
+// store over), refused by name, whether or not an HTTP catalog exists; and a
+// native action whose operation the facade does not expose is refused too,
+// with the exposed set listed, because "the verb does not exist yet" is also
+// known before the first node runs.
+func admitConnectorActions(wf *ir.Workflow, connectors model.ConnectorResolver, transports []model.ActionTransport) error {
 	if os.Getenv(ConnectorAdmissionEnv) == "off" {
 		return nil
 	}
@@ -219,5 +243,76 @@ func admitConnectorActions(wf *ir.Workflow, connectors model.ConnectorResolver) 
 	if len(nodes) == 0 {
 		return nil
 	}
-	return &UnservedActionsError{Nodes: nodes}
+	owned := make(map[string]model.ActionTransport, len(transports))
+	for _, t := range transports {
+		if t != nil {
+			owned[t.Connector()] = t
+		}
+	}
+	var unserved []ActionNode
+	for _, n := range nodes {
+		transport, native := owned[n.Connector]
+		if native {
+			if pkg := transport.Package(); pkg != nil {
+				if _, ok := pkg.Operation(n.Action); !ok {
+					return &FacadeOperationError{Node: n, Exposed: operationIDs(pkg)}
+				}
+			}
+			continue
+		}
+		if n.Native() {
+			// A native connector answers through NO catalog: its transport is
+			// the only way, and this surface did not wire one.
+			return &NativeTransportMissingError{Node: n}
+		}
+		if connectors == nil {
+			unserved = append(unserved, n)
+		}
+	}
+	if len(unserved) > 0 {
+		return &UnservedActionsError{Nodes: unserved}
+	}
+	return nil
+}
+
+// operationIDs lists a facade's operation ids, sorted — the set a refusal
+// prints so the author reads what the connector DOES expose.
+func operationIDs(pkg *spec.Package) []string {
+	ops := pkg.Operations()
+	out := make([]string, 0, len(ops))
+	for _, op := range ops {
+		out = append(out, op.ID)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// NativeTransportMissingError is the admission refusal of a workflow whose
+// native action (board.*) reaches a surface that wired no transport for it:
+// the store was not handed over, and no package install can fix that.
+type NativeTransportMissingError struct {
+	Node ActionNode
+}
+
+func (e *NativeTransportMissingError) Error() string {
+	return fmt.Sprintf("runview: tool node %q declares `action: %s`, a NATIVE connector action, but this process wires no native transport for connector %q — "+
+		"the surface building this run must hand the instance's board store over (ExecutorSpec.ActionTransports, runview.NativeBoardTransport); "+
+		"no connector package or connection serves a native id. "+ConnectorAdmissionEnv+"=off keeps the old behaviour — the run starts and fails at the node.",
+		e.Node.NodeID, e.Node.Action, e.Node.Connector)
+}
+
+// FacadeOperationError is the admission refusal of a native action whose
+// verb the registered facade does not expose — the compiler warns the same
+// verb (C336), and this is the refusal it announces.
+type FacadeOperationError struct {
+	Node ActionNode
+	// Exposed is the facade's operation set, sorted.
+	Exposed []string
+}
+
+func (e *FacadeOperationError) Error() string {
+	return fmt.Sprintf("runview: tool node %q declares `action: %s`, which the native facade for connector %q does not expose (it serves: %s) — "+
+		"name one of those verbs; a board act the facade does not serve (closing, commenting, assigning, …) goes through an agent or judge node's board tools under its capabilities: grant (C336 warns this at compile time). "+
+		ConnectorAdmissionEnv+"=off keeps the old behaviour — the run starts and fails at the node.",
+		e.Node.NodeID, e.Node.Action, e.Node.Connector, strings.Join(e.Exposed, ", "))
 }

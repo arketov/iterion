@@ -5,20 +5,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/arketov/iterion/pkg/backend/credroute"
 )
 
-// SandboxHomeState carries what the run's sandbox will actually bind of the
-// operator's home, as the runtime resolved it: Mounted is false when
-// host_state resolves to none, when the selected driver cannot bind host
-// paths (kubernetes), or when the home itself is withheld (a project .env
-// planted HOME — resolveHostHomeDir). HomeDir is the host home the binds
-// serve, empty when nothing of it crosses. The probes below take it as an
-// input rather than re-deriving it so the admission and the sandbox start
-// read the SAME resolution (#1768).
-type SandboxHomeState struct {
-	Mounted bool
-	HomeDir string
-}
+// SandboxHomeState is what the run's sandbox will actually bind of the
+// operator's home (credroute.SandboxHomeState, where ADR-161's resolver keeps
+// it). The probes below take it as an input rather than re-deriving it so the
+// admission and the sandbox start read the SAME resolution (#1768).
+type SandboxHomeState = credroute.SandboxHomeState
 
 // claudeSandboxCredentialEnvKeys are the env entries of a claude_code spawn
 // that authenticate it by themselves: a key, a bearer, the OAuth token, or
@@ -38,6 +33,20 @@ func credEnvChannel(env map[string]string, keys []string) string {
 		if env[k] != "" {
 			return k
 		}
+	}
+	return ""
+}
+
+// liveCredentialVariable names the variable a live credential set
+// (ambientCredentialLive) authenticates through: its first token channel in
+// claudeSandboxCredentialEnvKeys' order, else the custom-header block — the
+// only other thing such a set holds — else "" for an empty set.
+func liveCredentialVariable(live map[string]string) string {
+	if key := credEnvChannel(live, claudeSandboxCredentialEnvKeys); key != "" {
+		return key
+	}
+	if len(live) > 0 {
+		return "ANTHROPIC_CUSTOM_HEADERS"
 	}
 	return ""
 }
@@ -73,8 +82,17 @@ func ClaudeCodeSandboxCredential(ctx context.Context, providerHint string, home 
 		return "the run's resolved credential (" + key + ")", true
 	}
 	if inheritAmbient {
-		if key := credEnvChannel(ambientAnthropicEnvForSandbox(), claudeSandboxCredentialEnvKeys); key != "" {
-			return "the launcher env forwarded into the container (" + key + ")", true
+		// The forwarded layer authenticates the spawn with the set the ambient
+		// meter keys (ambientCredentialLive): every token channel, with the
+		// custom-header block's credential lines applied over them. A
+		// header-only pod is named, not refused as credential-less; a block of
+		// other header names carries nothing the CLI authenticates with, and a
+		// line whose empty value erases the only token leaves nothing either —
+		// naming any of those would admit a launch that dies "Not logged in".
+		// sandboxed=true: the answer is the forwarded map alone — the
+		// container's env, no host fallback (spawnEnvValue).
+		if channel := liveCredentialVariable(ambientCredentialLive(ambientAnthropicEnvForSandbox(), true)); channel != "" {
+			return "the launcher env forwarded into the container (" + channel + ")", true
 		}
 	}
 	if home.Mounted && home.HomeDir != "" {

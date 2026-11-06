@@ -34,6 +34,7 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `internal/ciguard` | holds tests that keep this repository's CI configuration honest from inside the test suite, where a required check can see them. | — |
 | `internal/corpusreading` | reads the committed corpus the way internal/mdcode's four first-party readers do — every tracked .md, .yaml and .yml outside the skipped trees that… | — |
 | `internal/credheader` | reads ANTHROPIC_CUSTOM_HEADERS-format text — the newline-separated "Name: Value" lines a Claude-Code-compatible CLI applies LAST on every request… | — |
+| `internal/credparity` | ADR-161's parity table: one row per shape of "which credential does this call spend?", and the one answer every reader of that question owes it —… | — |
 | `internal/detecttest` | stages the host pkg/backend/detect probes, for a witness whose verdict follows a host detection report: the provider keys it names and a claude_code… | — |
 | `internal/docsguard` | holds tests that keep this repository's documentation honest from inside the test suite, where a required check can see them. | `FS` |
 | `internal/dotenv` | parses dotenv files the way every iterion loader plants them: ONE Go reader for the CLI's cwd walk (cmd/iterion applyDotEnv), the studio's… | — |
@@ -79,6 +80,7 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `pkg/backend/backendcaps` | owns the declarative inventory of built-in backends. | — |
 | `pkg/backend/compatgw` | serves `openai_compatible/<gateway model id>` from the deployment's environment: OPENAI_COMPATIBLE_BASE_URL names an OpenAI-compatible gateway… | — |
 | `pkg/backend/cost` | holds the per-model token-pricing table used to annotate generation outputs with `_tokens` / `_model` / `_cost_usd`. | — |
+| `pkg/backend/credroute` | ADR-161's one resolver: which credential a call spends. | — |
 | `pkg/backend/delegate` | provides the Backend interface and types for executing agent/judge nodes via pluggable backends (CLI agents like claude-code/codex, or API-based… | `AsyncQuestionBackend`, `Backend`, `SessionLedger` |
 | `pkg/backend/delegate/claudesdk` | provides a Go SDK for the Claude Code CLI. | `ContentBlock`, `MCPServerConfig`, `Message` |
 | `pkg/backend/delegate/piext` | embeds the iterion pi extension and materialises it for a run. | — |
@@ -87,7 +89,7 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `pkg/backend/forfait` | implements a best-effort Anthropic "forfait" (Claude Code OAuth subscription) usage-cap check used by the LAYER-2 run-level auto-resume loop. | `Doer` |
 | `pkg/backend/llmtypes` | defines iterion-owned types for the LLM generation layer. | `FatalToolError` |
 | `pkg/backend/mcp` | — | `BrowserRegistry`, `ChromiumRunner` |
-| `pkg/backend/model` | provides the ModelRegistry and claw-based NodeExecutor for resolving "provider/model-id" specs and executing LLM nodes. | `AsyncAskBinder`, `AsyncAskHook`, `AttachmentLister`, `AttachmentWriter`, `ConnectorResolver`, `EventEmitter`, `InboxBinder`, `InboxHook`, `NodeServedRecorder`, `PlanWriter`, `SecretRefResolver`, `SessionCaptureSink`, `SinkSecretRefResolver`, `ToolBlobWriter`, `TurnWriter` |
+| `pkg/backend/model` | provides the ModelRegistry and claw-based NodeExecutor for resolving "provider/model-id" specs and executing LLM nodes. | `ActionTransport`, `AsyncAskBinder`, `AsyncAskHook`, `AttachmentLister`, `AttachmentWriter`, `ConnectorResolver`, `EventEmitter`, `InboxBinder`, `InboxHook`, `NodeServedRecorder`, `PlanWriter`, `SecretRefResolver`, `SessionCaptureSink`, `SinkSecretRefResolver`, `ToolBlobWriter`, `TurnWriter` |
 | `pkg/backend/modelroute` | the one reading of a model spec: which provider routes it, which id goes on the wire, and which id names its capabilities. | — |
 | `pkg/backend/modelspecs` | the dynamic model-spec registry: model metadata (context window, max output tokens, pricing, and the reasoning/tool_call/temperature flags) fetched… | — |
 | `pkg/backend/permission` | implements iterion's tool-permission gate — the anti-hypnosis / anti-prompt-injection boundary shared by every backend with an enforcement seam. | — |
@@ -127,7 +129,7 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `pkg/cloudsched` | the cloud-mode recurring-bot scheduler: a per-org store of cron-scheduled bots and a multi-replica-safe ticker that fires each due schedule exactly… | `Store` |
 | `pkg/config` | loads iterion runtime configuration from environment variables and an optional YAML file. | — |
 | `pkg/configshare` | the scoped, self-service config-file editor: a per-(bot × repo × config-file × category) grant, addressed by a dynamic URL and authenticated by… | `Store` |
-| `pkg/connection` | what authenticates a connector call: the binding between a tenant, a connector package, an instance of that vendor, and the credential to reach it. | `Catalog`, `ForgeStore`, `Store` |
+| `pkg/connection` | what authenticates a connector call: the binding between a tenant, a connector package, an instance of that vendor, and the credential to reach it. | `Catalog`, `ForgeStore`, `PackageStore`, `Store` |
 | `pkg/connector/exec` | turns a declared operation into an HTTP call and its answer into a typed result. | — |
 | `pkg/connector/facade` | the MCP offer over a connector package (ADR-098 §2, #2758): a connector's operations exposed to an agent as MCP tools, with the model choosing among… | — |
 | `pkg/connector/gen` | turns a vendor API description into a connector package. | — |
@@ -216,7 +218,7 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `pkg/runner` | implements the cloud-mode iterion runner pod. | — |
 | `pkg/runops` | owns the capability-gated, read-only operations used by assistant and MCP transports to inspect runs. | — |
 | `pkg/runshell` | spawns interactive post-mortem shells in preserved run worktrees (the studio's "Open shell" on a failed run). | — |
-| `pkg/runtime` | — conflict handling for the deferred squash merge. | `AmbiguousEffect`, `Compactor`, `EffectiveBackendResolver`, `EffectiveFallbackResolver`, `EffectiveToolSurfaceResolver`, `InventedValues`, `NodeExecutor`, `OutputCorrector`, `OutputCorrectorWithUsage`, `ReviewCompanion`, `SecretScrubber`, `UndecidedRouteReporter` |
+| `pkg/runtime` | — conflict handling for the deferred squash merge. | `AmbiguousEffect`, `CapabilityDenial`, `Compactor`, `EffectiveBackendResolver`, `EffectiveFallbackResolver`, `EffectiveToolSurfaceResolver`, `InventedValues`, `NodeExecutor`, `OutputCorrector`, `OutputCorrectorWithUsage`, `ReviewCompanion`, `SecretScrubber`, `UndecidedRouteReporter` |
 | `pkg/runtime/recovery` | defines typed recovery recipes that decide what to do when a node fails. | `Recipe` |
 | `pkg/runview` | — agent-driven merge-conflict resolution. | `CredentialPreviewer`, `LaunchPublisher`, `RunLoader` |
 | `pkg/runview/runstream` | the store-agnostic run-streaming seam (ADR-053): one Source per store delivers BOTH the structured event timeline and the raw log bytes of any run… | `EventSubscription`, `LogSubscription`, `Source` |

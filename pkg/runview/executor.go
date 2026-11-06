@@ -327,6 +327,15 @@ type ExecutorSpec struct {
 	// tenant chose, so an unguarded client is a way to reach a metadata
 	// endpoint from inside the deployment.
 	ConnectorClient *http.Client
+
+	// ActionTransports are the NATIVE action transports this run executes in
+	// process (ADR-151, iterion#2834) — the board's facade over the
+	// instance's own store being the first. A surface that holds the store
+	// builds one with NativeBoardTransport; a surface that does not (the
+	// golden recorder) leaves this empty, and a workflow whose board action
+	// then reaches it is refused at admission with the wiring named, never
+	// reported as a success the node never performed.
+	ActionTransports []model.ActionTransport
 }
 
 // BuildExecutor wires up the default ClawExecutor: registry, default
@@ -435,7 +444,22 @@ func BuildExecutor(spec ExecutorSpec) (*model.ClawExecutor, error) {
 	// refused for all of them. Wiring the refusal at each launch surface
 	// instead is how the catalog became a capability some surfaces had and
 	// others silently lacked (LocalConnectors' own doc).
-	if err := admitConnectorActions(spec.Workflow, spec.Connectors); err != nil {
+	//
+	// The NATIVE board transport (ADR-151) is served by the fs store this
+	// same function opens below for the claw board tools whenever a StoreDir
+	// is set — so a local surface owes nothing for a board.* action, and the
+	// admission check must see that default or it would refuse the very runs
+	// the wiring serves. The placeholder carries no store (admission reads
+	// only its facade Package); the REAL registration happens where the store
+	// is opened. An explicit ActionTransports entry — the cloud runner's
+	// Mongo board (#2465) — always wins over the fs default.
+	admitTransports := spec.ActionTransports
+	boardDefaultApplies := spec.StoreDir != "" && WorkflowHasNativeBoardAction(spec.Workflow) &&
+		!actionTransportsOwn(spec.ActionTransports, boardops.ConnectorID)
+	if boardDefaultApplies {
+		admitTransports = append(admitTransports, boardops.NewActionTransport(nil, boardops.CallEnv{}))
+	}
+	if err := admitConnectorActions(spec.Workflow, spec.Connectors, admitTransports); err != nil {
 		return nil, err
 	}
 	if spec.Logger == nil {
@@ -628,11 +652,12 @@ func BuildExecutor(spec ExecutorSpec) (*model.ClawExecutor, error) {
 	}
 
 	// The read tools' scope, shared by the registry (clawDefaults below)
-	// and the executor (WithClawReadScope): the engine's SetScratchDir push
+	// and the executor (WithClawReadScope): the engine's SetScratchDirs push
 	// — run start and resume, after the sandbox decision — attaches the
-	// run's ${PROJECT_SCRATCH_DIR} as a read root (#2650) to the VERY
-	// registry the agents call; a scope of runview's own would widen reads
-	// nobody makes.
+	// run's scratch read roots (#2650; the run family's subtree first, the
+	// shared ${PROJECT_SCRATCH_DIR} behind it while still referenced,
+	// #2869) to the VERY registry the agents call; a scope of runview's
+	// own would widen reads nobody makes.
 	//
 	// The scope's WORKSPACE is the executor's live workDir, through the one
 	// provider every workspace-scoped tool shares (#2870, #2889): the
@@ -706,6 +731,9 @@ func BuildExecutor(spec ExecutorSpec) (*model.ClawExecutor, error) {
 	if spec.Connectors != nil {
 		opts = append(opts, model.WithConnectors(spec.Connectors, spec.ConnectorClient))
 	}
+	if len(spec.ActionTransports) > 0 {
+		opts = append(opts, model.WithActionTransports(spec.ActionTransports...))
+	}
 	usageGuard, err := resolveUsageGuard(spec)
 	if err != nil {
 		return nil, err
@@ -713,7 +741,7 @@ func BuildExecutor(spec ExecutorSpec) (*model.ClawExecutor, error) {
 	if usageGuard != nil {
 		opts = append(opts, model.WithUsageGuard(usageGuard))
 	}
-	if sid := resolveSourceIssueID(spec); sid != "" {
+	if sid := SourceIssueIDOf(spec); sid != "" {
 		opts = append(opts, model.WithSourceIssueID(sid))
 	}
 	if spec.BoardRegister != nil {
@@ -800,10 +828,19 @@ func BuildExecutor(spec ExecutorSpec) (*model.ClawExecutor, error) {
 				Capabilities: boardops.AllCapabilities(),
 				// The owning ticket travels with the tools so board.create
 				// auto-stamps parent_id / spawned_from on spawned children.
-				SourceIssueID: resolveSourceIssueID(spec),
+				SourceIssueID: SourceIssueIDOf(spec),
 			}
 			if err := tool.RegisterClawBoardTools(toolReg, boardCfg); err != nil {
 				spec.Logger.Warn("runview: RegisterClawBoardTools: %v", err)
+			}
+			// The board's NATIVE action transport (ADR-151): same store the
+			// claw tools just got, so a `tool … action: board.*` node and an
+			// agent's board MCP call read ONE board. An explicit
+			// ActionTransports entry — the cloud runner's Mongo board — was
+			// already wired above and wins: the fs default yields to it.
+			if boardDefaultApplies {
+				opts = append(opts, model.WithActionTransports(
+					NativeBoardTransport(ns, SourceIssueIDOf(spec))))
 			}
 		}
 	}
@@ -1507,6 +1544,18 @@ type RunLoader interface {
 	LoadRun(ctx context.Context, id string) (*store.Run, error)
 }
 
+// runLoaderOf is the ONE reading of where a spec's run records come from:
+// Runs when the caller set it (a Store that wraps the run store — the cloud
+// runner's metrics emitter — cannot load records), else Store when it can.
+// Nil when neither reads runs.
+func runLoaderOf(spec ExecutorSpec) RunLoader {
+	if spec.Runs != nil {
+		return spec.Runs
+	}
+	loader, _ := spec.Store.(RunLoader)
+	return loader
+}
+
 // maxLineageWalk bounds a walk up a run's ParentRunID chain (sub-bot
 // children, scan shards, forks); the visited set breaks cycles, this bound
 // breaks a corrupt chain.
@@ -1525,10 +1574,7 @@ func recordedMintedSecrets(ctx context.Context, spec ExecutorSpec) map[string][]
 	if spec.RunID == "" && spec.ParentRunID == "" {
 		return nil
 	}
-	loader := spec.Runs
-	if loader == nil {
-		loader, _ = spec.Store.(RunLoader)
-	}
+	loader := runLoaderOf(spec)
 	if loader == nil {
 		if spec.Store != nil && spec.Logger != nil {
 			spec.Logger.Warn("secret guard: the store of run %s (%T) cannot load run records and ExecutorSpec.Runs is unset — the minted credentials of this run's records and its ancestors' are not redacted from this execution's sinks", spec.RunID, spec.Store)
@@ -1582,21 +1628,25 @@ func recordedMintedSecrets(ctx context.Context, spec ExecutorSpec) map[string][]
 	return out
 }
 
-// resolveSourceIssueID returns the ticket that owns this run: explicit
-// ExecutorSpec.SourceIssueID first, else LoadRun(Source.IssueID) when the
-// store can load the record. Empty for ad-hoc launches.
-func resolveSourceIssueID(spec ExecutorSpec) string {
+// SourceIssueIDOf returns the ticket that owns this run: explicit
+// ExecutorSpec.SourceIssueID first, else the run record's Source.IssueID,
+// read through the spec's run loader (runLoaderOf: Runs, else Store) — the
+// cloud runner's Store wraps the run store and loads no records, so a
+// reading of Store alone answers "" there and every board transport of a
+// cloud run would stamp no planner provenance. Empty for ad-hoc launches.
+//
+// Exported for the one surface that builds a board transport itself (the
+// cloud runner's native transport over the tenant's board): the transport
+// carries the same owning ticket as the ones BuildExecutor wires.
+func SourceIssueIDOf(spec ExecutorSpec) string {
 	if id := strings.TrimSpace(spec.SourceIssueID); id != "" {
 		return id
 	}
 	if spec.RunID == "" {
 		return ""
 	}
-	type runLoader interface {
-		LoadRun(ctx context.Context, id string) (*store.Run, error)
-	}
-	loader, ok := spec.Store.(runLoader)
-	if !ok {
+	loader := runLoaderOf(spec)
+	if loader == nil {
 		return ""
 	}
 	ctx := spec.Ctx

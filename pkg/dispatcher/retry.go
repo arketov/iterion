@@ -85,11 +85,13 @@ func (c *Dispatcher) scheduleRetry(issueID string, prev *runningEntry, runErr er
 	})
 	errStr := ""
 	hookName, hookExit, hookStderr := "", 0, ""
+	var hookShell, hookShellPath, hookShellSource string
 	if runErr != nil {
 		errStr = runErr.Error()
 		var he *HookError
 		if errors.As(runErr, &he) {
 			hookName, hookExit, hookStderr = he.Hook, he.ExitCode, he.Stderr
+			hookShell, hookShellPath, hookShellSource = he.Shell, he.ShellPath, he.ShellSource
 		}
 	}
 	prevRunID := c.resumableRunID(prev.RunID)
@@ -106,8 +108,12 @@ func (c *Dispatcher) scheduleRetry(issueID string, prev *runningEntry, runErr er
 		LastHook:       hookName,
 		LastHookExit:   hookExit,
 		LastHookStderr: hookStderr,
-		Timer:          timer,
-		PrevRunID:      prevRunID,
+
+		LastHookShell:       hookShell,
+		LastHookShellPath:   hookShellPath,
+		LastHookShellSource: hookShellSource,
+		Timer:               timer,
+		PrevRunID:           prevRunID,
 	}
 	switch {
 	case parked:

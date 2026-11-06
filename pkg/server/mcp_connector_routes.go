@@ -53,6 +53,12 @@ type ConnectorMCPDeps struct {
 	// packages in, so it must open for the run whose workspace it is and for
 	// no other.
 	CatalogForRun func(workDir string, trust connection.ActionTrust) (connection.Catalog, error)
+	// CatalogForTenant builds the catalog one TENANT's calls resolve through:
+	// the durable distribution tiers (#2757) composed team → platform → baked
+	// for that tenant. Wired by cloud; nil leaves Catalog serving every call.
+	// Local runs never set it — their per-workspace tier is CatalogForRun's,
+	// and the two hooks answer two different "whose packages" questions.
+	CatalogForTenant func(tenantID string) connection.Catalog
 }
 
 // RegisterConnectorMCPRoutes wires the facade endpoint onto mux — the
@@ -74,13 +80,14 @@ type connectorMCPHandler struct {
 	deps     ConnectorMCPDeps
 	registry BoardMCPTokenStore
 
-	// Built once for the process-wide Catalog (the cloud shape); a wired
-	// CatalogForRun builds per call instead, because WHICH packages exist is
-	// the run's own fact there — its workspace tier and its trust — and a
-	// catalog pinned at startup serves one run's packages to every other.
-	facadeOnce sync.Once
-	facade     *facade.Facade
-	facadeErr  error
+	// Built once for the process-wide Catalog; a wired CatalogForRun or
+	// CatalogForTenant builds per call instead, because WHICH packages exist
+	// is the run's (or the tenant's) own fact there, and a catalog pinned at
+	// startup serves one run's packages to every other. Only a SUCCESS is
+	// kept: a listing that failed once is retried on the next call rather
+	// than answering "facade unavailable" until a restart.
+	facadeMu sync.Mutex
+	facade   *facade.Facade
 }
 
 // theFacade loads every connector the catalog serves into ONE facade. A
@@ -88,10 +95,17 @@ type connectorMCPHandler struct {
 // rather than taking the whole facade down — the same defect already refuses
 // the node path at its own resolution, so nobody is told a quieter lie here.
 func (h *connectorMCPHandler) theFacade() (*facade.Facade, error) {
-	h.facadeOnce.Do(func() {
-		h.facade, h.facadeErr = facadeOverCatalog(h.deps.Catalog, h.deps.Logger)
-	})
-	return h.facade, h.facadeErr
+	h.facadeMu.Lock()
+	defer h.facadeMu.Unlock()
+	if h.facade != nil {
+		return h.facade, nil
+	}
+	f, err := facadeOverCatalog(h.deps.Catalog, h.deps.Logger)
+	if err != nil {
+		return nil, err
+	}
+	h.facade = f
+	return f, nil
 }
 
 // catalogFor answers the catalog THIS call resolves through: the process-wide
@@ -108,6 +122,13 @@ func (h *connectorMCPHandler) theFacade() (*facade.Facade, error) {
 // local path is low-rate (a handful of calls per node), and a stale answer
 // here is the project tier serving packages the workspace no longer has.
 func (h *connectorMCPHandler) catalogFor(grant boardMCPGrant) (connection.Catalog, error) {
+	if h.deps.CatalogForTenant != nil && grant.TenantID != "" {
+		// A nil answer is the documented "no store wired" shape — fall back to
+		// the static catalog rather than handing nil to the facade.
+		if cat := h.deps.CatalogForTenant(grant.TenantID); cat != nil {
+			return cat, nil
+		}
+	}
 	if h.deps.CatalogForRun == nil {
 		return h.deps.Catalog, nil
 	}
@@ -141,9 +162,23 @@ func (h *connectorMCPHandler) facadeFor(grant boardMCPGrant) (*facade.Facade, co
 }
 
 // facadeOverCatalog loads every connector a catalog serves into one facade.
+//
+// A package that cannot JOIN — one of its tools collides with a tool another
+// package already holds — is left out whole with the same loud log as one
+// that cannot load: the catalog composes packages different authors ship
+// (the floor, the platform's, the team's own), and one author's collision
+// must not take every other package's tools down with it. The catalog's ids
+// are sorted, so which of two colliders keeps its tools does not depend on
+// anything but their names.
 func facadeOverCatalog(cat connection.Catalog, logger *iterlog.Logger) (*facade.Facade, error) {
+	// A catalog that cannot LIST fails the facade: serving what the other
+	// tiers list would drop the failing tier's tools with no sign why.
+	ids, err := cat.Connectors()
+	if err != nil {
+		return nil, err
+	}
 	var pkgs []*spec.Package
-	for _, id := range cat.Connectors() {
+	for _, id := range ids {
 		pkg, _, err := cat.Package(id)
 		if err != nil {
 			if logger != nil {
@@ -153,7 +188,13 @@ func facadeOverCatalog(cat connection.Catalog, logger *iterlog.Logger) (*facade.
 		}
 		pkgs = append(pkgs, pkg)
 	}
-	return facade.New(pkgs...)
+	f, refused := facade.Join(pkgs...)
+	if logger != nil {
+		for _, r := range refused {
+			logger.Error("connector MCP: the catalog serves %q but it cannot join the facade; excluded from it: %v", r.Connector, r.Err)
+		}
+	}
+	return f, nil
 }
 
 // trustOfGrant reads the run's trust the way every consumer of a grant must:

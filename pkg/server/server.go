@@ -356,6 +356,9 @@ type Server struct {
 	// (pkg/connection). Nil in local mode — see Config.Connections.
 	connectionStore  connection.Store
 	connectorCatalog connection.Catalog
+	// connectorPackages is the durable tier store (#2757): non-nil in cloud,
+	// it lets the facade compose the team tier per grant.
+	connectorPackages connection.PackageStore
 	// connectorCatalogRun is the per-run catalog builder the facade serves
 	// from (Config.ConnectorCatalogForRun): nil in cloud, where the shared
 	// catalog has no workspace tier to vary.
@@ -729,22 +732,9 @@ func (s *Server) boardMCPServiceOption(logger *iterlog.Logger, runStore store.Ru
 	}
 	RegisterRunsMCPRoutes(mux, "/api/v1/mcp/runs", runStore, s.boardMCPTokens)
 	// The connector MCP facade (#2758) shares the mux: one gateway listener,
-	// one token, one registry. Wired only when the connection plane is —
-	// store + catalog + sealer; the client is the tier's guarded one, cloud
-	// strict, local with its operator hatch.
-	if s.connectionStore != nil && s.connectorCatalog != nil && s.sealer != nil {
-		client := connection.CloudHTTPClient()
-		if !strings.EqualFold(s.cfg.Mode, "cloud") {
-			client = connection.LocalHTTPClient()
-		}
-		RegisterConnectorMCPRoutes(mux, "/api/v1/mcp/connectors", ConnectorMCPDeps{
-			Store:         s.connectionStore,
-			Catalog:       s.connectorCatalog,
-			CatalogForRun: s.connectorCatalogRun,
-			Sealer:        s.sealer,
-			Client:        client,
-			Logger:        s.logger,
-		}, s.boardMCPTokens)
+	// one token, one registry.
+	if deps, ok := s.connectorMCPDeps(); ok {
+		RegisterConnectorMCPRoutes(mux, "/api/v1/mcp/connectors", deps, s.boardMCPTokens)
 	}
 	reg := s.boardMCPTokens
 	return runview.WithBoardMCP(mux, func(caps []string, sourceIssueID, runID string) string {
@@ -800,6 +790,59 @@ func (s *Server) boardMCPServiceOption(logger *iterlog.Logger, runStore store.Ru
 		}
 		return token
 	}, reg.Revoke), true
+}
+
+// connectorMCPDeps is the connector facade's wiring, built only when the
+// connection plane is — store + catalog + sealer. The client is the tier's
+// guarded one: cloud strict, local with its operator hatch. One function so
+// the deps a test drives are the deps boardMCPServiceOption registers.
+func (s *Server) connectorMCPDeps() (ConnectorMCPDeps, bool) {
+	if s.connectionStore == nil || s.connectorCatalog == nil || s.sealer == nil {
+		return ConnectorMCPDeps{}, false
+	}
+	client := connection.CloudHTTPClient()
+	if !strings.EqualFold(s.cfg.Mode, "cloud") {
+		client = connection.LocalHTTPClient()
+	}
+	return ConnectorMCPDeps{
+		Store:         s.connectionStore,
+		Catalog:       s.connectorCatalog,
+		CatalogForRun: s.connectorCatalogRun,
+		// The facade knows the tenant from the grant, so its calls resolve
+		// through the tenant's own composition (#2757).
+		CatalogForTenant: s.catalogForTenant,
+		Sealer:           s.sealer,
+		Client:           client,
+		Logger:           s.logger,
+	}, true
+}
+
+// catalogForTenant builds the catalog one tenant's resolutions walk: the
+// durable distribution tiers (#2757), team → platform → baked. Nil when the
+// package store is not wired or no tenant is named — the static catalog
+// serves then, since a deployment without the store has no team tier to
+// compose.
+//
+// The ONE composition every tenant-known site reads: the facade per grant
+// (ConnectorMCPDeps.CatalogForTenant) and, through connectorCatalogFor, the
+// connection CRUD and the connector webhook lane. A site that read the
+// static catalog instead would refuse a connection for — or judge a delivery
+// against a different package than — the one the facade serves the team.
+func (s *Server) catalogForTenant(tenantID string) connection.Catalog {
+	if s.connectorPackages == nil || tenantID == "" {
+		return nil
+	}
+	return connection.NewLayeredCatalog(connection.CloudCatalogs(s.connectorPackages, tenantID)...)
+}
+
+// connectorCatalogFor is the catalog a server site that knows the tenant
+// resolves a connector through: the tenant's composition when the durable
+// tiers are wired, the static catalog otherwise.
+func (s *Server) connectorCatalogFor(tenantID string) connection.Catalog {
+	if cat := s.catalogForTenant(tenantID); cat != nil {
+		return cat
+	}
+	return s.connectorCatalog
 }
 
 // New creates a new studio server.
@@ -940,6 +983,7 @@ func New(cfg Config, logger *iterlog.Logger) *Server {
 		botBindings:         cfg.BotBindings,
 		forgeConnections:    cfg.ForgeConnections,
 		connectionStore:     cfg.Connections,
+		connectorPackages:   cfg.ConnectorPackageStore,
 		connectorCatalog:    cfg.ConnectorCatalog,
 		connectorCatalogRun: cfg.ConnectorCatalogForRun,
 		pluginSources:       cfg.PluginSources,

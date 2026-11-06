@@ -3,6 +3,7 @@ package botregistry
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -16,22 +17,37 @@ func writeProjectFile(t *testing.T, p, body string) {
 	}
 }
 
-func TestDiscoverProjectFiles(t *testing.T) {
+// bundleAt writes a manifest bundle (manifest.yaml + main.bot) under dir.
+func bundleAt(t *testing.T, dir string) {
+	t.Helper()
+	writeProjectFile(t, filepath.Join(dir, "manifest.yaml"), "name: "+filepath.Base(dir)+"\n")
+	writeProjectFile(t, filepath.Join(dir, "main.bot"), "workflow w:\n")
+}
+
+func relsOf(items []ProjectWorkflow) []string {
+	out := []string{}
+	for _, it := range items {
+		out = append(out, it.RelPath)
+	}
+	return out
+}
+
+func defaultRootsOf(root string) []string { return DefaultPaths(root) }
+
+func TestRootWorkflowFiles_OnlyTheProjectRoot(t *testing.T) {
 	root := t.TempDir()
-	writeProjectFile(t, filepath.Join(root, "test.bot"), "workflow t {}")
-	writeProjectFile(t, filepath.Join(root, "flows", "dev-flow.bot"), "workflow d {}")
-	// A bundle's main.bot is not a loose file.
-	writeProjectFile(t, filepath.Join(root, "mybundle", "main.bot"), "workflow b {}")
-	writeProjectFile(t, filepath.Join(root, "mybundle", "manifest.yaml"), "name: mybundle\n")
-	// Skipped trees.
-	writeProjectFile(t, filepath.Join(root, "node_modules", "x", "n.bot"), "")
-	writeProjectFile(t, filepath.Join(root, ".git", "g.bot"), "")
-	// A catalog root passed as excluded.
+	writeProjectFile(t, filepath.Join(root, "test.bot"), "workflow t:\n")
+	writeProjectFile(t, filepath.Join(root, "dev-flow.bot"), "workflow d:\n")
+	// Not the project's loose files: deeper in the tree, a nested clone, a
+	// bundle's parts, a catalog root's content.
+	writeProjectFile(t, filepath.Join(root, "flows", "deep.bot"), "")
+	writeProjectFile(t, filepath.Join(root, "build-desktop", "src", "bots", "y", "main.bot"), "")
+	writeProjectFile(t, filepath.Join(root, "bots", "x", "lib", "nodes.bot"), "")
 	writeProjectFile(t, filepath.Join(root, "bots", "solo.bot"), "")
-	// Not a .bot file.
+	writeProjectFile(t, filepath.Join(root, "testdata", "input_mapping", "a.bot"), "")
 	writeProjectFile(t, filepath.Join(root, "notes.txt"), "")
 
-	got := DiscoverProjectFiles(root, []string{filepath.Join(root, "bots")})
+	got := RootWorkflowFiles(root, defaultRootsOf(root))
 	var rels []string
 	for _, e := range got {
 		rels = append(rels, e.RelPath)
@@ -42,17 +58,223 @@ func TestDiscoverProjectFiles(t *testing.T) {
 			t.Errorf("%s: Path must be absolute, got %s", e.RelPath, e.Path)
 		}
 	}
-	want := []string{"flows/dev-flow.bot", "test.bot"}
-	if len(rels) != len(want) || rels[0] != want[0] || rels[1] != want[1] {
+	if want := []string{"dev-flow.bot", "test.bot"}; !reflect.DeepEqual(rels, want) {
 		t.Fatalf("rels = %v, want %v", rels, want)
 	}
-	if got[1].Name != "test" || got[0].Name != "flows/dev-flow" {
+	if got[0].Name != "dev-flow" || got[1].Name != "test" {
 		t.Fatalf("names = %q, %q", got[0].Name, got[1].Name)
 	}
 }
 
-func TestDiscoverProjectFilesEmptyWorkDir(t *testing.T) {
-	if got := DiscoverProjectFiles("", nil); got != nil {
+func TestRootWorkflowFiles_EmptyWorkDir(t *testing.T) {
+	if got := RootWorkflowFiles("", nil); got != nil {
 		t.Fatalf("empty workDir must yield nil, got %v", got)
+	}
+}
+
+// `--bots-path .` makes the project folder itself a catalog root: the catalog
+// already lists every file there, so no file is listed a second time.
+func TestRootWorkflowFiles_NothingWhenTheProjectIsACatalogRoot(t *testing.T) {
+	root := t.TempDir()
+	writeProjectFile(t, filepath.Join(root, "a.bot"), "workflow a:\n")
+	if got := RootWorkflowFiles(root, []string{root}); got != nil {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestRootWorkflowFiles_ARootThatIsAFileIsNotListedTwice(t *testing.T) {
+	root := t.TempDir()
+	writeProjectFile(t, filepath.Join(root, "a.bot"), "workflow a:\n")
+	writeProjectFile(t, filepath.Join(root, "b.bot"), "workflow b:\n")
+	got := RootWorkflowFiles(root, []string{filepath.Join(root, "a.bot")})
+	var rels []string
+	for _, e := range got {
+		rels = append(rels, e.RelPath)
+	}
+	if want := []string{"b.bot"}; !reflect.DeepEqual(rels, want) {
+		t.Fatalf("rels = %v, want %v", rels, want)
+	}
+}
+
+// A project folder that is itself a bundle: its root .bot files are the
+// bundle's parts, not loose bots.
+func TestRootWorkflowFiles_ABundleFolderHasNoLooseFiles(t *testing.T) {
+	root := t.TempDir()
+	bundleAt(t, root)
+	writeProjectFile(t, filepath.Join(root, "extra.bot"), "workflow e:\n")
+	if got := RootWorkflowFiles(root, nil); got != nil {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestListProjectWorkflows_Scope(t *testing.T) {
+	root := t.TempDir()
+	// Root: single files only, no recursion.
+	writeProjectFile(t, filepath.Join(root, "dev-flow.bot"), "workflow d:\n")
+	writeProjectFile(t, filepath.Join(root, "elsewhere", "deep.bot"), "workflow e:\n")
+	// bots/: a bundle is one row (main.bot); its lib/ parts are not rows.
+	bundleAt(t, filepath.Join(root, "bots", "x"))
+	writeProjectFile(t, filepath.Join(root, "bots", "x", "lib", "nodes.bot"), "")
+	writeProjectFile(t, filepath.Join(root, "bots", "review.bot"), "workflow r:\n")
+	// The fragments of a bot that is a plain main.bot plus lib/.
+	writeProjectFile(t, filepath.Join(root, "bots", "multi", "main.bot"), "workflow m:\n")
+	writeProjectFile(t, filepath.Join(root, "bots", "multi", "lib", "prompts.bot"), "")
+	// examples/ and .botz/ are discovery roots too.
+	writeProjectFile(t, filepath.Join(root, "examples", "demo.bot"), "workflow d:\n")
+	bundleAt(t, filepath.Join(root, ".botz", "packed"))
+	// A nested clone and a linked worktree inside a root: each holds .git.
+	writeProjectFile(t, filepath.Join(root, "bots", "clone", "a.bot"), "")
+	if err := os.MkdirAll(filepath.Join(root, "bots", "clone", ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeProjectFile(t, filepath.Join(root, "examples", "wt", "b.bot"), "")
+	writeProjectFile(t, filepath.Join(root, "examples", "wt", ".git"), "gitdir: x") // .git as a file
+	// A bundle that is itself a git clone is still a bundle.
+	bundleAt(t, filepath.Join(root, "bots", "cloned-bundle"))
+	if err := os.MkdirAll(filepath.Join(root, "bots", "cloned-bundle", ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A nested clone of the whole project below the root is never reached.
+	writeProjectFile(t, filepath.Join(root, "build-desktop", "src", "bots", "y", "main.bot"), "")
+
+	res := ListProjectWorkflows(root, defaultRootsOf(root), 0)
+	if res.Truncated || res.Total != len(res.Items) {
+		t.Fatalf("unexpected truncation: total=%d items=%d truncated=%v", res.Total, len(res.Items), res.Truncated)
+	}
+	got := map[string]string{}
+	for _, it := range res.Items {
+		got[it.RelPath] = it.Kind
+	}
+	want := map[string]string{
+		"bots/x/main.bot":             ProjectWorkflowBundle,
+		"bots/multi/main.bot":         ProjectWorkflowFile,
+		"bots/cloned-bundle/main.bot": ProjectWorkflowBundle,
+		"bots/review.bot":             ProjectWorkflowFile,
+		"examples/demo.bot":           ProjectWorkflowFile,
+		".botz/packed/main.bot":       ProjectWorkflowBundle,
+		"dev-flow.bot":                ProjectWorkflowFile,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestListProjectWorkflows_RootWithGitIsStillListed(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeProjectFile(t, filepath.Join(root, "a.bot"), "workflow a:\n")
+	res := ListProjectWorkflows(root, defaultRootsOf(root), 0)
+	if got := relsOf(res.Items); !reflect.DeepEqual(got, []string{"a.bot"}) {
+		t.Fatalf("got %v", got)
+	}
+}
+
+// A bundle whose manifest has no main.bot cannot be opened: it is reported,
+// not silently dropped (the catalog reports it too).
+func TestListProjectWorkflows_AnUnopenableBundleIsReported(t *testing.T) {
+	root := t.TempDir()
+	writeProjectFile(t, filepath.Join(root, "bots", "broken", "manifest.yaml"), "name: broken\n")
+	bundleAt(t, filepath.Join(root, "bots", "fine"))
+	res := ListProjectWorkflows(root, defaultRootsOf(root), 0)
+	if got := relsOf(res.Items); !reflect.DeepEqual(got, []string{"bots/fine/main.bot"}) {
+		t.Fatalf("items = %v", got)
+	}
+	if len(res.Skipped) != 1 || res.Skipped[0].Path != "bots/broken" || res.Skipped[0].Kind != DiscoveryErrorUnopenable {
+		t.Fatalf("skipped = %+v", res.Skipped)
+	}
+}
+
+// The cap is applied after the rows are ordered: bundles survive it, loose
+// files are what it cuts, and Total says what the rule found.
+func TestListProjectWorkflows_TheCapKeepsBundlesFirst(t *testing.T) {
+	root := t.TempDir()
+	for _, n := range []string{"a.bot", "b.bot", "c.bot"} {
+		writeProjectFile(t, filepath.Join(root, n), "workflow w:\n")
+	}
+	bundleAt(t, filepath.Join(root, ".botz", "packed"))
+
+	res := ListProjectWorkflows(root, defaultRootsOf(root), 2)
+	if !res.Truncated || res.Total != 4 {
+		t.Fatalf("truncated=%v total=%d, want true, 4", res.Truncated, res.Total)
+	}
+	if got := relsOf(res.Items); !reflect.DeepEqual(got, []string{".botz/packed/main.bot", "a.bot"}) {
+		t.Fatalf("items = %v", got)
+	}
+	res = ListProjectWorkflows(root, defaultRootsOf(root), 4)
+	if res.Truncated || len(res.Items) != 4 {
+		t.Fatalf("at exactly the cap: %d items, truncated=%v", len(res.Items), res.Truncated)
+	}
+	res = ListProjectWorkflows(root, defaultRootsOf(root), 0)
+	if res.Truncated || len(res.Items) != 4 {
+		t.Fatalf("no cap: %d items, truncated=%v", len(res.Items), res.Truncated)
+	}
+}
+
+func TestListProjectWorkflows_FollowsExplicitRoots(t *testing.T) {
+	root := t.TempDir()
+	writeProjectFile(t, filepath.Join(root, "flows", "dev-flow.bot"), "workflow d:\n")
+	writeProjectFile(t, filepath.Join(root, "bots", "ignored.bot"), "workflow i:\n")
+	res := ListProjectWorkflows(root, []string{filepath.Join(root, "flows")}, 0)
+	if got := relsOf(res.Items); !reflect.DeepEqual(got, []string{"flows/dev-flow.bot"}) {
+		t.Fatalf("got %v", got)
+	}
+}
+
+// The editor refuses a path outside the project, so a root outside it is not
+// a source of rows.
+func TestListProjectWorkflows_ARootOutsideTheProjectIsNotListed(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	writeProjectFile(t, filepath.Join(outside, "x.bot"), "workflow x:\n")
+	res := ListProjectWorkflows(root, []string{outside}, 0)
+	if len(res.Items) != 0 {
+		t.Fatalf("got %v", relsOf(res.Items))
+	}
+}
+
+func TestListProjectWorkflows_EmptyWorkDir(t *testing.T) {
+	res := ListProjectWorkflows("", nil, 0)
+	if res.Items != nil || res.Total != 0 {
+		t.Fatalf("got %+v", res)
+	}
+}
+
+// A skills/ directory in the project root with no main.bot beside it makes no
+// bundle: the project's loose files stay listed (this very repository has a
+// root skills/ folder).
+func TestRootWorkflowFiles_ASkillsFolderAloneDoesNotHideTheLooseFiles(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "skills"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeProjectFile(t, filepath.Join(root, "flow.bot"), "workflow f:\n")
+	got := RootWorkflowFiles(root, defaultRootsOf(root))
+	if len(got) != 1 || got[0].RelPath != "flow.bot" {
+		t.Fatalf("got %+v", got)
+	}
+	res := ListProjectWorkflows(root, defaultRootsOf(root), 0)
+	if got := relsOf(res.Items); !reflect.DeepEqual(got, []string{"flow.bot"}) {
+		t.Fatalf("items = %v", got)
+	}
+}
+
+// --bots-path may be relative (the flag is passed as typed): the walk still
+// lists the files, project-relative.
+func TestListProjectWorkflows_ARelativeRootIsListed(t *testing.T) {
+	root := t.TempDir()
+	writeProjectFile(t, filepath.Join(root, "flows", "dev-flow.bot"), "workflow d:\n")
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(wd) }()
+	res := ListProjectWorkflows(".", []string{"flows"}, 0)
+	if got := relsOf(res.Items); !reflect.DeepEqual(got, []string{"flows/dev-flow.bot"}) {
+		t.Fatalf("got %v", got)
 	}
 }

@@ -79,10 +79,12 @@ one spine writes it, one studio component renders it.
 **Why a dispatch did not start.** A dispatch attempt that fails before the
 engine creates the run (a lifecycle hook such as `after_create` exits non-zero)
 is recorded on the card as `launch_failures[]` — hook, `exit_code` (absent when
-the hook produced none), `error` (full text), `stderr` tail, `at`, `attempt`,
-the minted `run_id` (no run exists under it) and `log_path` (the host log, from
-`ITERION_DAEMON_LOG`). At most 20 entries, newest last; the list is cleared
-when a run is next stamped on the card. Both stores (files and Mongo) carry it,
+the hook produced none), `shell`, `shell_path` and `shell_source` (the shell the
+hook ran under, or was asked for, and why it was chosen), `error` (full text),
+`stderr` tail, `at`, `attempt`, the minted `run_id` (no run exists under it) and
+`log_path` (the host log, from `ITERION_DAEMON_LOG`). At most 20 entries, newest
+last; the list is cleared when a run is next stamped on the card, and when the
+operator reopens the card. Both stores (files and Mongo) carry it,
 `UpdatedAt` is not bumped (it orders dispatching), and the studio renders it on
 the board card, in the card's Ticket tab, and in the *Did not start* panel of
 the Runs and Dispatcher pages. See [dispatcher](dispatcher.md#retry-queue).

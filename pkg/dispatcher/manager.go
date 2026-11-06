@@ -1,6 +1,7 @@
 package dispatcher
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -105,6 +106,9 @@ type Manager struct {
 	cancel    context.CancelCauseFunc
 	lastErr   error
 	startedAt time.Time
+	// bootNote is set when ITERION_DISPATCHER_AUTOSTART=0 kept a saved intent
+	// from being restored at boot; cleared by the first Start.
+	bootNote string
 }
 
 // NewManager constructs a Manager and loads any persisted config from
@@ -136,11 +140,21 @@ func NewManager(opts ManagerOptions) (*Manager, error) {
 		// A preset an older version saved is rewritten on the RAW config: it
 		// carries `$TOKEN` references and relative paths as written, so
 		// saving it back puts nothing in clear.
-		if opts.MigrateConfig != nil && opts.MigrateConfig(raw) {
+		migrated := opts.MigrateConfig != nil && opts.MigrateConfig(raw)
+		// A saved sh hook with no `shell:` on a PowerShell host runs under sh
+		// by a text heuristic: write down the shell it already runs under, so
+		// the choice is visible in the settings form and a later change of the
+		// heuristic or of the host default cannot flip it.
+		pinned := PinHeuristicShells(raw)
+		if migrated || len(pinned) > 0 {
 			if err := saveConfigJSON(m.configPath, raw); err != nil {
 				opts.Logger.Warn("manager: persist migrated config (%s): %v", m.configPath, err)
 			} else {
 				opts.Logger.Info("manager: migrated the saved dispatcher config (%s)", m.configPath)
+				if len(pinned) > 0 {
+					opts.Logger.Info("manager: hooks %v are written for sh and were already running under it: saved `shell:` to say so; "+
+						"edit or remove it to change that", pinned)
+				}
 			}
 		}
 		if rt, rerr := m.resolve(raw); rerr == nil {
@@ -170,6 +184,10 @@ func NewManager(opts ManagerOptions) (*Manager, error) {
 		opts.Logger.Warn("manager: load runtime state (%s): %v", m.runtimePath, err)
 	}
 	intent := resolveBootIntent(persisted, m.cfg != nil)
+	if note := autoStartSuppressedNote(persisted); note != "" {
+		m.bootNote = note
+		opts.Logger.Info("manager: %s", note)
+	}
 	switch intent {
 	case DesiredRunning, DesiredPaused:
 		// Pause BEFORE the actor's first tick when restoring a paused
@@ -248,6 +266,10 @@ type ManagerStatus struct {
 	HasConfig bool         `json:"has_config"`
 	StartedAt *time.Time   `json:"started_at,omitempty"`
 	LastError string       `json:"last_error,omitempty"`
+	// BootNote says why the dispatcher was not restored at boot
+	// (ITERION_DISPATCHER_AUTOSTART=0); absent otherwise. The studio shows it
+	// while the dispatcher is stopped.
+	BootNote string `json:"boot_note,omitempty"`
 }
 
 // Status returns the current lifecycle state and any last error.
@@ -258,6 +280,7 @@ func (m *Manager) Status() ManagerStatus {
 		State:     m.state,
 		HasConfig: m.cfg != nil,
 		LastError: errString(m.lastErr),
+		BootNote:  m.bootNote,
 	}
 	if !m.startedAt.IsZero() {
 		t := m.startedAt
@@ -469,6 +492,7 @@ func (m *Manager) start(paused bool) error {
 		m.state = ManagerStateRunning
 	}
 	m.lastErr = nil
+	m.bootNote = ""
 	m.startedAt = time.Now().UTC()
 	m.mu.Unlock()
 	if paused {
@@ -781,6 +805,49 @@ func carrySecrets(in, prev *Config) {
 	}
 }
 
+// patchHookFields rewrites only the named fields of the named hooks
+// (hook name → field → value, e.g. after_create → script, shell) in the config
+// file at path and leaves every other field exactly as it was written. A
+// migration must not re-save the whole loaded Config: loading expands `$ENV`
+// tokens and absolutises paths, and writing that back would put a token on
+// disk in clear. The write is atomic and keeps the file private (0600).
+func patchHookFields(path string, patches map[string]map[string]string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	var doc map[string]any
+	if err := dec.Decode(&doc); err != nil {
+		return err
+	}
+	hooks, _ := doc["hooks"].(map[string]any)
+	if hooks == nil {
+		return errors.New("config has no hooks object")
+	}
+	for name, fields := range patches {
+		hook, _ := hooks[name].(map[string]any)
+		if hook == nil {
+			return fmt.Errorf("config has no %s hook", name)
+		}
+		for field, value := range fields {
+			if value == "" {
+				continue
+			}
+			hook[field] = value
+		}
+	}
+	out, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := store.WriteFileAtomic(path, out, 0o600); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
+}
+
 func saveConfigJSON(path string, cfg *Config) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("config json: mkdir: %w", err)
@@ -839,6 +906,8 @@ func (m *Manager) RegisterRoutesWithMiddleware(mux *http.ServeMux, prefix string
 	mux.Handle("POST "+p+"/reload", wrap(http.HandlerFunc(m.handleReload)))
 	mux.Handle("GET "+p+"/issues/{id}", wrap(http.HandlerFunc(m.handleIssueDetail)))
 	mux.Handle("POST "+p+"/issues/{id}/cancel", wrap(http.HandlerFunc(m.handleIssueCancel)))
+	mux.Handle("POST "+p+"/retries/{id}/run-now", wrap(http.HandlerFunc(m.handleRetryNow)))
+	mux.Handle("DELETE "+p+"/retries/{id}", wrap(http.HandlerFunc(m.handleRetryDrop)))
 	mux.Handle("GET "+p+"/ws", wrap(http.HandlerFunc(m.handleWS)))
 }
 
@@ -1048,6 +1117,26 @@ func (m *Manager) handleIssueCancel(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	cur.Cancel(id)
 	WriteJSON(w, http.StatusAccepted, map[string]string{"issue_id": id, "status": "cancel_requested"})
+}
+
+// handleRetryNow / handleRetryDrop are the retry queue's two row actions (see
+// Dispatcher.RetryNow, Dispatcher.GiveUpRetry).
+func (m *Manager) handleRetryNow(w http.ResponseWriter, r *http.Request) {
+	cur := m.Current()
+	if cur == nil {
+		WriteErr(w, http.StatusBadRequest, errors.New("manager: not running"))
+		return
+	}
+	cur.serveRetryNow(w, r)
+}
+
+func (m *Manager) handleRetryDrop(w http.ResponseWriter, r *http.Request) {
+	cur := m.Current()
+	if cur == nil {
+		WriteErr(w, http.StatusBadRequest, errors.New("manager: not running"))
+		return
+	}
+	cur.serveRetryDrop(w, r)
 }
 
 func (m *Manager) handleWS(w http.ResponseWriter, r *http.Request) {

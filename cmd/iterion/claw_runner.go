@@ -168,9 +168,28 @@ func runClawRunner(ctx context.Context, stdin io.Reader, stdout, stderr io.Write
 	// set is assembled (tool.SandboxPlacementOf puts `agent` in the
 	// container: a sandboxed node's subagent must reach the container's
 	// tools, never the launcher's). Both are used once more below.
-	registry := model.NewSandboxRunnerRegistry()
+	// The registry names what each call it builds spends — the node's, a
+	// subagent's — through the crossing's record of the env the launcher
+	// composed (ADR-161 decision 8: the keys are written by the process
+	// that built the call; the launcher relays them).
+	registry := model.NewSandboxRunnerRegistry(ioTask.CredentialFunds)
 	relayHooks := relayEventHooks(dispatcher, stderr)
-	toolDefs, toolErr := makeHybridToolDefs(ioTask.ToolDefs, dispatcher, workspace, ioTask.ScratchDir, registry, relayHooks, ioTask.SlashCommandMaxBytes, ioTask.SkillAllowlist, ioTask.SkillAllowlistArmed)
+	// The scratch read roots (#2650, narrowed by #2869): the ordered list
+	// when the launcher pushes one (run family's subtree first, the shared
+	// project scratch behind it while still referenced) with the project
+	// scratch they lie beneath; ScratchDir alone for a launcher that
+	// predates the list. The run subtree is created here, once per task —
+	// a container-local scratch (kubernetes banks it instead of binding
+	// it) has none until something makes it, and the scope skips a root
+	// that does not resolve.
+	scratch := sandboxScratchScope{anchor: ioTask.ScratchAnchor, roots: ioTask.ScratchReadRoots}
+	if len(scratch.roots) == 0 && ioTask.ScratchDir != "" {
+		scratch.roots = []string{ioTask.ScratchDir}
+	}
+	if err := ensureSandboxScratchRoots(scratch); err != nil {
+		fmt.Fprintf(stderr, "iterion-claw-runner: %v — the root attaches once a write creates it\n", err)
+	}
+	toolDefs, toolErr := makeHybridToolDefs(ioTask.ToolDefs, dispatcher, workspace, scratch, registry, relayHooks, ioTask.SlashCommandMaxBytes, ioTask.SkillAllowlist, ioTask.SkillAllowlistArmed)
 	if toolErr != nil {
 		return emitFatal(dispatcher, stderr, fmt.Errorf("build the in-container tool set: %w", toolErr))
 	}

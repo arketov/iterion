@@ -309,6 +309,21 @@ erDiagram
   connections }o--|| teams : "tenant_id"
 ```
 
+```mermaid
+erDiagram
+  connector_packages {
+    string _id PK "tenant_id/connector_id — the (tenant, connector) pair IS the key"
+    string tenant_id FK "team id, or the platform: sentinel for the platform tier"
+    string connector_id "the id the package answers to, checked equal to the content's own at publish"
+    map files "package-relative path to content — connector.yaml, overlay.yaml, ops/*, triggers.yaml"
+    string content_hash "sha256 over the canonical file stream — recorded at publish, never trusted"
+    string created_by
+    datetime created_at
+    datetime updated_at
+  }
+  connector_packages }o--|| teams : "tenant_id"
+```
+
 - The **unique `(tenant_id, connector, alias_norm)` index** is what keeps the alias rule true between replicas: the memory and file twins check alias-free under a lock they hold, and a cloud deployment has no such lock. Two concurrent Creates of one alias both passing an in-code check would answer one name twice — the index turns the second into a duplicate-key refusal the store reports as `ErrExists`.
 - The tenant is **in every filter**, not merely on the record: a read, update or delete that exists but belongs elsewhere is not found, never forbidden. `updated_at` is the record's own version — the update writes against the stamp it read, so a successful read followed by a zero-match replace is a conflict, not a missing record.
 - `auth_placement` records what the scheme said **at creation**, so a workspace-tier package update that keeps the connector's id but moves the credential into a query string cannot move a stored credential with it: the stored placement is compared at resolution and a mismatch is refused by name.
@@ -363,6 +378,7 @@ flowchart TD
 |---|---|---|---|---|---|
 | `api_keys` | `pkg/secrets` | `ApiKey` | `tenant_id`: team \| `orgtier:<org>` \| `platform:` | none unique; no TTL | none (cloud-only) |
 | `connections` | `pkg/connection` | `mongoDoc` (`Connection` + derived `alias_norm`) | `tenant_id`: team | `tenant_connector_alias` unique on `(tenant_id, connector, alias_norm)`; no TTL | `file connections.json` — the memory twin checks aliases under a lock the Mongo twin replaces with the unique index |
+| `connector_packages` | `pkg/connection` | `packageDoc` (`StoredPackage` + `_id`) | `tenant_id`: team \| `platform:` | none unique — `_id` is `<tenant_id>/<connector_id>`, unique by construction (`tenant` indexes `tenant_id` alone); no TTL | `memory-only` — `MemoryPackageStore`, held to the Mongo twin's answers by the conformance suite |
 | `oauth_credentials` | `pkg/secrets` | `OAuthRecord` | none — `user_id` namespace: user \| `org:<team>` \| `orgtier:<org>` \| `platform:` | `user_id+kind+rank` unique; no TTL | none (cloud-only) |
 | `oauth_pending` | `pkg/secrets` | `OAuthPending` | none — `owner_key` namespace | `owner_key+kind` unique; TTL `expires_at` (10 min) | none (cloud-only) |
 | `generic_secrets` | `pkg/secrets` | `GenericSecret` | `tenant_id`: team (empty in the file store, which pins `scope_team: local`) | none unique; no TTL | `file secrets.json` — the file and memory twins keep no order among duplicate names |

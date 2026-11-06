@@ -40,7 +40,7 @@ the pages *your* server answers.
 | — | **Bots** | The catalog: every bot you can launch, with its origin and *enabled* flag; **New bot** opens the guided builder. |
 | Operate | **Board** | The project's kanban of cards. Cards become runs when a bot is assigned and the card is in a ready column. **Refresh** re-reads every card from disk. |
 | Operate | **Pipelines** | A control-center view of *root* runs across all bots in four lanes (Opened, In progress, Needs attention, Closed); pending human reviews can be answered from a card there. Shares the Board's store. |
-| Operate | **Dispatcher** | The loop that turns ready cards into runs: its settings, running issues, retry queue and the *Won't dispatch* table. Start, pause and stop it here. A *Did not start* panel lists cards whose launch failed before a run existed (for example a failing `after_create` hook). |
+| Operate | **Dispatcher** | The loop that turns ready cards into runs: its settings, running issues, retry queue (each row has *Retry now* and *Remove from queue*) and the *Won't dispatch* table. Start, pause and stop it here. A *Did not start* panel lists cards whose launch failed before a run existed (for example a failing `after_create` hook). |
 | Operate | **Automations** | Schedules, webhooks and triggers that launch runs without you. |
 | Extend | **Marketplace** | Browse, install and publish `.botz` bundles and plugins. |
 | Extend | **Plugins** | Installed plugins (rewriters, MCP servers, skills), enable/disable, and load failures ([plugins](plugins.md)). |
@@ -56,17 +56,21 @@ server that has them. The sidebar's **Preferences** button opens the Settings di
 
 They overlap on purpose, and show different things:
 
-- **Bots** is the *catalog*: bundles with a manifest from `bots/`, `examples/` and
-  `.botz/`, and single `.bot` files. Each row has
-  an origin badge (Project, Project file). Use it to *launch*, to read
-  a bot's page, or to open its source.
+- **Bots** is the *catalog*: your own bots in this project — bundles with a manifest
+  from `bots/`, `examples/` and `.botz/`, and the single `.bot` files in the project
+  folder. Each row has an origin badge (Project, Project file); the number in the
+  header counts the rows the page lists, and the Home *Bots* panel and the **Manage**
+  dialog show the same set. Use it to *launch*, to read a bot's page, or to open its source.
 - The **Editor** lists *files*: it opens a path, edits it and saves it back.
   A **Project file** from the catalog has no bot page; it opens here.
 
 ### Open versus Import copy
 
-- **Open… / `Ctrl+O`** picks a file from the project (and examples). The tab is
-  bound to that path, so **Save** writes over the original.
+- **Open… / `Ctrl+O`** picks a file from the project's lists (and examples), or opens
+  any `.bot` file of the project by the path you type in *Open by path* — a file in
+  `workflows/` or `docs/` that no list shows. The tab is bound to that path, so
+  **Save** writes over the original. If the list was cut at its cap, the picker
+  says so (*Showing the first N files of M*).
 - **Import copy from disk…** takes a file from *anywhere* on your disk, but only
   its text. The tab is unbound; the first save goes through **Save As** and
   creates a new project file — it never overwrites.

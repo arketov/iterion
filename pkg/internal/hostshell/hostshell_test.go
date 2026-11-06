@@ -227,3 +227,61 @@ func TestLegacyShScriptOnAPowerShellHost(t *testing.T) {
 		t.Fatalf("linux: %+v, %v", sh, err)
 	}
 }
+
+func TestResolveReportsSource(t *testing.T) {
+	withSeams(t, fakeLook("pwsh", "bash", "sh"), "")
+	sh, err := resolve(Request{}, "windows")
+	if err != nil || sh.Source != SourceDefault {
+		t.Fatalf("default: %+v, %v", sh, err)
+	}
+	sh, err = resolve(Request{Name: "bash"}, "windows")
+	if err != nil || sh.Source != SourceExplicit {
+		t.Fatalf("explicit: %+v, %v", sh, err)
+	}
+	withSeams(t, fakeLook("pwsh", "bash"), "bash")
+	sh, err = resolve(Request{}, "windows")
+	if err != nil || sh.Source != SourceEnv {
+		t.Fatalf("env: %+v, %v", sh, err)
+	}
+	withSeams(t, fakeLook("pwsh", "sh"), "")
+	sh, err = resolve(Request{Script: "set -e\necho hi"}, "windows")
+	if err != nil || sh.Kind != KindSh || sh.Source != SourcePosixScript {
+		t.Fatalf("posix script: %+v, %v", sh, err)
+	}
+}
+
+func TestRequestedShellAndName(t *testing.T) {
+	withSeams(t, fakeLook(), "pwsh")
+	if name, src := RequestedShell(Request{Name: "sh"}); name != "sh" || src != SourceExplicit {
+		t.Fatalf("request name: %q %q", name, src)
+	}
+	if name, src := RequestedShell(Request{}); name != "pwsh" || src != SourceEnv {
+		t.Fatalf("env: %q %q", name, src)
+	}
+	withSeams(t, fakeLook(), "auto")
+	if name, src := RequestedShell(Request{}); name != "" || src != SourceDefault {
+		t.Fatalf("auto: %q %q", name, src)
+	}
+	if got := (Shell{Path: `C:\Program Files\PowerShell\7\pwsh.exe`}).Name(); got != "pwsh" {
+		t.Fatalf("Name = %q", got)
+	}
+}
+
+func TestLooksPosixSkipsBlockCommentsAndNestedBraces(t *testing.T) {
+	notPosix := []string{
+		"<#\n.EXAMPLE\nNAME=value\n#>\nWrite-Output hi",
+		"<# NAME=value #>\nWrite-Output hi",
+		"$h = @{\n  F = {\n    1\n  }\n  Y=2\n}\nWrite-Output $h",
+	}
+	for _, s := range notPosix {
+		if LooksPosix(s) {
+			t.Errorf("LooksPosix(%q) = true, want false", s)
+		}
+	}
+	if !LooksPosix("set -e\necho hi") {
+		t.Error("set -e must still read as sh")
+	}
+	if !LooksPosix("<#\n.x\n#>\nset -e") {
+		t.Error("an sh line after a block comment must still be read")
+	}
+}
