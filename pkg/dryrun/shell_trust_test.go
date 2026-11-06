@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/arketov/iterion/internal/envtrust"
@@ -17,6 +18,9 @@ import (
 // Check returns to exec.LookPath: the fake dash then runs under the planted
 // PATH and the refusal case fails on its own assertion.
 func TestBashCheckRefusesAPlantedDash(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("[platform] the fake dash is a POSIX shell script; no dash ships on Windows")
+	}
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "dash"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
