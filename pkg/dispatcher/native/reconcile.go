@@ -336,9 +336,7 @@ func (s *Store) rebuildAsync(what string) {
 			for s.rebuildRerun.CompareAndSwap(true, false) {
 				// A store closed while the rebuild waited is not a failed
 				// rebuild: nothing will read the index it did not refresh.
-				if err := s.Reconcile(); err != nil && !errors.Is(err, ErrStoreClosed) {
-					s.getLogger().Error("native index watcher: %s and the index rebuild failed: %v — board index may serve stale reads until the next write event or restart", what, err)
-				}
+				s.logRebuildResult(what, s.Reconcile())
 			}
 			fireSeam(&rebuildPassEnding, s)
 			s.rebuildPending.Store(false)
@@ -350,6 +348,35 @@ func (s *Store) rebuildAsync(what string) {
 			}
 		}
 	}()
+}
+
+// logRebuildResult reports the outcome of one rebuildAsync pass when it
+// differs from the previous one: a failure is logged once per distinct error
+// text (whatever asked for the pass), and the return to success is logged
+// once. The periodic verification repeats a failing pass every interval, and
+// the same line each time is noise.
+func (s *Store) logRebuildResult(what string, err error) {
+	// A store closed while the rebuild waited is not a failed rebuild:
+	// nothing will read the index it did not refresh.
+	if errors.Is(err, ErrStoreClosed) {
+		return
+	}
+	msg := ""
+	if err != nil {
+		msg = err.Error()
+	}
+	s.rebuildLogMu.Lock()
+	changed := msg != s.rebuildLastErr
+	s.rebuildLastErr = msg
+	s.rebuildLogMu.Unlock()
+	if !changed {
+		return
+	}
+	if err != nil {
+		s.getLogger().Error("native index watcher: %s and the index rebuild failed: %v — board index may serve stale reads until the next write event or restart", what, err)
+		return
+	}
+	s.getLogger().Warn("native index watcher: index rebuild succeeds again")
 }
 
 // startFallbackRescan runs Reconcile on a ticker for a Store that has no

@@ -1362,7 +1362,9 @@ falling back to a 2s disk rescan`, `kernel event queue overflowed; index
 rebuilt from disk`, `inotify watch on issues/ lost mid-life`). A card
 whose file is present but momentarily unreadable is kept as last seen,
 never dropped; a vanished `issues/` directory is an error that leaves the
-index as it was, never an empty board.
+index as it was, never an empty board. A rebuild that keeps failing the same
+way (the periodic verification below, a queue overflow) is logged once per
+distinct error text, with one line when it succeeds again, not on every pass.
 
 **The verification net behind an armed watch (`ITERION_NATIVE_INDEX_VERIFY`).**
 A watch that IS armed loses events too, and on Windows it does so routinely:
