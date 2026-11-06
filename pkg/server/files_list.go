@@ -17,7 +17,7 @@ const defaultListFilesLimit = 500
 // listFilesLimit reads the cap, falling back to the default on a missing or
 // malformed value.
 func listFilesLimit() int {
-	v := strings.TrimSpace(os.Getenv("ITERION_STUDIO_FILES_LIMIT"))
+	v := strings.TrimSpace(envOperator("ITERION_STUDIO_FILES_LIMIT"))
 	if v == "" {
 		return defaultListFilesLimit
 	}
