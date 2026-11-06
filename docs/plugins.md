@@ -406,7 +406,9 @@ load, and `iterion validate` says so (`mcp: N installed plugin(s) were skipped
 …`) on every run. Restore the manifest, or remove the broken plugin with
 `iterion plugin uninstall <name>` — uninstall works on a plugin that never
 loaded. `plugin disable` does not silence the message: the manifest is read
-before the enabled state is consulted.
+before the enabled state is consulted. For the same reason `plugin enable` and
+`plugin disable` on such a plugin answer that its manifest could not be loaded
+(not "not found") and leave `plugins.yaml` untouched.
 
 That message is a real fault only for a directory with no builtin behind its
 name. A builtin plugin keeps its `{{plugin.cache}}` under
