@@ -2984,10 +2984,6 @@ func TestBackground_TheRunLogNeverCarriesAReplayNorASecret(t *testing.T) {
 	}
 }
 
-type writerFunc func([]byte) (int, error)
-
-func (f writerFunc) Write(p []byte) (int, error) { return f(p) }
-
 // resumedAgentStream: t1 delivered an interim result and the CLI reported
 // idle; then the CLI resumes t1 (its own shell's result woke it) outside its
 // turn loop — task_started and a snapshot, no running — and t1 ends again.

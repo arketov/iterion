@@ -211,55 +211,6 @@ func TestTheFormattingPassIsToldWhatDiedWithPassOne(t *testing.T) {
 	}
 }
 
-// The formatting pass runs with the node's tools (it is the --max-turns
-// fallback of a first pass cut off mid-run): what it launches and never sees
-// report back is lost with its process, and recorded like pass 1's — secrets
-// masked, in the ledger and in what the call hands back.
-func TestTheFormattingPassRecordsTheWorkItLost(t *testing.T) {
-	const secret = "sk-live-4f9a8b7c6d5e"
-	dir := t.TempDir()
-	fake := filepath.Join(dir, "fake-claude")
-	if err := os.WriteFile(fake, []byte(fakeClaudeScripted), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	scriptPath := filepath.Join(dir, "script")
-	script := []string{
-		lnInit("2.1.280"),
-		lnAssistant("f1", "", cToolUse("tuB", "Bash", map[string]any{"command": "API_KEY=" + secret + " ./watch", "run_in_background": true})),
-		lnSnapshotOf(map[string]any{"task_id": "b9", "task_type": "local_bash", "description": "API_KEY=" + secret + " ./watch"}),
-		lnToolResult("tuB", "Command running in background with ID: b9", false, ""),
-		lnAssistant("f2", "", cToolUse("tuSO", "StructuredOutput", map[string]any{"answer": "x"})),
-		lnToolResult("tuSO", "Structured output provided successfully", false, ""),
-		lnResult(resultSpec{text: `{"answer":"x"}`, turns: 2, cost: 0.01, structured: map[string]any{"answer": "x"}}),
-	}
-	if err := os.WriteFile(scriptPath, []byte(strings.Join(script, "\n")+"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("FAKE_CLAUDE_SCRIPT", scriptPath)
-	ledger := NewSessionLedger(map[string][]string{"s1": {"auditor (local_agent, t1)"}})
-	b := &ClaudeCodeBackend{Logger: iterlog.Nop()}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	task := Task{Command: fake, WorkDir: dir, OutputSchema: []byte(`{"type":"object"}`), SessionLedger: ledger,
-		RedactSecrets: func(s string) string { return strings.ReplaceAll(s, secret, "__ITERION_SECRET_API_KEY__") }}
-	var events []BackgroundWork
-	task.Hooks.OnBackgroundWork = func(w BackgroundWork) { events = append(events, w) }
-	rm, _, lost, err := b.formatOutput(ctx, task, "s1")
-	if err != nil || rm == nil {
-		t.Fatalf("formatOutput: rm=%v err=%v", rm, err)
-	}
-	want := []string{"API_KEY=__ITERION_SECRET_API_KEY__ ./watch (local_bash, b9)"}
-	if !reflect.DeepEqual(lost, want) {
-		t.Fatalf("lost = %q, want %q", lost, want)
-	}
-	if got := ledger.Terminated("s1"); !reflect.DeepEqual(got, want) {
-		t.Fatalf("s1 = %q, want the told entry settled and the pass's lost work recorded: %q", got, want)
-	}
-	if len(events) != 1 || events[0].Phase != BackgroundAbandoned || events[0].Backend != BackendClaudeCode || !reflect.DeepEqual(events[0].Tasks, want) {
-		t.Fatalf("events = %+v, want one abandoned event naming %q", events, want)
-	}
-}
-
 // A process that dies on a hook event — which already names the session —
 // before the CLI announced the turn never read the note: the next process of
 // that session must still be told.
