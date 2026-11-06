@@ -2,8 +2,11 @@
 // iterion's shell-out wrappers (gitCmd, dockerCmd, kubectlCmd, tool
 // nodes, hook and guard subprocesses).
 //
-// Two primitives, both built on Setpgid, with OPPOSITE intents — pick by
-// asking who the subprocess must outlive:
+// Primitives with OPPOSITE intents — pick by asking who the subprocess must
+// outlive. On Unix the group is Setpgid plus a negative-PID signal. On
+// Windows, which has neither, the group is a parent-pid tree sweep (a
+// Toolhelp snapshot, each link validated by creation time) that cannot see a
+// descendant whose intermediate parent has already exited:
 //
 //   - [DetachProcessGroup] — the child must SURVIVE a signal aimed at the
 //     parent's group (`watchexec -r` rebuilding the studio, k8s signalling

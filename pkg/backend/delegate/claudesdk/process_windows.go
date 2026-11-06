@@ -10,21 +10,16 @@ import (
 	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
-// setProcessGroup is a no-op on Windows. The runtime currently targets
-// Linux/macOS for the long-running studio + run path; if Windows desktop ever
-// needs robust subtree termination this should switch to
-// CREATE_NEW_PROCESS_GROUP and route TerminateJobObject through a Job Object.
+// setProcessGroup is a no-op on Windows: there is no process group to set up
+// at spawn; the subtree is found through parent-process links when it has to
+// be killed.
 func setProcessGroup(_ *exec.Cmd) {}
 
-// terminateGroupOnCancel is a no-op on Windows: os/exec's default Cancel
-// already terminates the leader, and there is no process-group signal to
-// widen it to the subtree. See setProcessGroup for the Job Object path
-// forward.
-func terminateGroupOnCancel(_ *exec.Cmd) {}
+// terminateGroupOnCancel widens os/exec's Cancel from the leader to its
+// descendants through proc.TerminateGroupOnCancel's process-tree sweep.
+func terminateGroupOnCancel(cmd *exec.Cmd) { proc.TerminateGroupOnCancel(cmd) }
 
-// killProcessGroup falls back to terminating the leader on Windows.
-// Descendants are left to the caller; see setProcessGroup for the path
-// forward.
+// killProcessGroup terminates the leader and its tree with `taskkill /F /T`.
 func killProcessGroup(pid int, _ syscall.Signal) error {
 	if pid <= 0 {
 		return nil
