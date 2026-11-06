@@ -80,7 +80,23 @@ if ($LASTEXITCODE -eq 0) {
   # Detached HEAD, the host repository's hooks and fsmonitor off: see
   # workspaceSeedScript.
   git -C $projectDir -c core.hooksPath=/dev/null -c core.fsmonitor=false worktree add --detach $ws HEAD
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  $code = $LASTEXITCODE
+  if ($code -ne 0) {
+    # git on Windows refuses a gitdir of about 220 bytes or more, and its own
+    # message names no remedy. The gitdir is <common git dir>\worktrees\<name>;
+    # when it is long enough to be the cause, say so. Bytes, not characters: a
+    # Cyrillic letter is two. ASCII only, so the script survives any encoding.
+    $common = git -C $projectDir rev-parse --git-common-dir 2>$null | Select-Object -First 1
+    if ($common) {
+      if (-not [System.IO.Path]::IsPathRooted($common)) { $common = Join-Path $projectDir $common }
+      $gitdir = $common + '\worktrees\' + (Split-Path -Leaf $ws)
+      $bytes = [System.Text.Encoding]::UTF8.GetByteCount($gitdir)
+      if ($bytes -ge 200) {
+        [Console]::Error.WriteLine("seed: git worktree add failed and the worktree's gitdir path is $bytes bytes long; git on Windows refuses about 220 bytes or more (a GIT_DIR too big error). Please move the project closer to the drive root (for example C:\src\project) and try again.")
+      }
+    }
+    exit $code
+  }
   Write-Output "seeded git worktree from ${projectDir}@HEAD"
 } else {
   if (-not (Test-Path -LiteralPath $ws)) { New-Item -ItemType Directory -Path $ws | Out-Null }
