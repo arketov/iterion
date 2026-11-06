@@ -242,7 +242,13 @@ type retryEntry struct {
 	LastHook       string
 	LastHookExit   int
 	LastHookStderr string
-	Timer          *time.Timer
+	// LastHookShell / LastHookShellPath / LastHookShellSource name the shell
+	// that failed hook ran under (or was asked for), the executable started and
+	// why it was picked (hostshell.Source).
+	LastHookShell       string
+	LastHookShellPath   string
+	LastHookShellSource string
+	Timer               *time.Timer
 	// Fired is true once the backoff timer has expired and the entry
 	// is ready for re-dispatch. We keep the entry around (with the
 	// running Attempt count) instead of deleting it on timer fire so
@@ -250,6 +256,10 @@ type retryEntry struct {
 	// old code deleted on fire and re-derived attempt as 0 on the
 	// next tick.
 	Fired bool
+	// Removing is true while the operator's "remove from the retry queue" is
+	// writing the give-up: the entry stays unfired (the card stays held) and a
+	// timer that fires meanwhile does not flip it (cmdRetryDue).
+	Removing bool
 	// PrevRunID is the runID of the previous attempt that produced
 	// this retry. When the prior run terminated in a resumable state
 	// (`failed_resumable`, `cancelled`, `paused_operator`), the
@@ -309,6 +319,12 @@ type Snapshot struct {
 // assignee and no bot while Config.RequireAssignee is on.
 const DispatchSkipNoAssignee = "no_assignee"
 
+// DispatchSkipNoBot is DispatchSkipView.Kind for a ready card whose assignee is
+// not a bot the dispatcher can route to (a person's name, a typo, a bot
+// disabled in the catalogue) while Config.RequireAssignee is on. The card is
+// not run: the dispatcher never falls back to a default bot for it.
+const DispatchSkipNoBot = "no_bot"
+
 // DispatchSkipView is one entry of the "won't dispatch" surface: an
 // eligible issue the dispatcher refused to claim because its explicit
 // bot can't be resolved to a workflow file, or resolves but has no
@@ -319,10 +335,14 @@ type DispatchSkipView struct {
 	IssueID    string `json:"issue_id"`
 	Identifier string `json:"identifier"`
 	Bot        string `json:"bot,omitempty"`
-	Reason     string `json:"reason"`
+	// Assignee is the card's assignee, set so the UI can say which name is not
+	// a bot ("no bot (artem)").
+	Assignee string `json:"assignee,omitempty"`
+	Reason   string `json:"reason"`
 	// Kind classifies the skip so the UI can give it its own state:
 	// "no_assignee" (ready card with no assignee/bot while require_assignee
-	// is on), or empty for the bot-misconfiguration family.
+	// is on), "no_bot" (the assignee is not a routable bot, same policy), or
+	// empty for the bot-misconfiguration family.
 	Kind string `json:"kind,omitempty"`
 }
 
@@ -369,6 +389,14 @@ type RetryView struct {
 	HookExitCode *int `json:"hook_exit_code,omitempty"`
 	// HookStderr is the tail of the failed hook's stderr.
 	HookStderr string `json:"hook_stderr,omitempty"`
+	// HookShell is the shell or interpreter the failed hook ran under (pwsh,
+	// powershell, sh, bash, python …) — or the one it was asked for when none
+	// could be started. HookShellPath is the executable started and
+	// HookShellSource why it was picked: explicit (the hook's `shell:`), env
+	// (ITERION_SHELL), default, posix-script, shebang or extension.
+	HookShell       string `json:"hook_shell,omitempty"`
+	HookShellPath   string `json:"hook_shell_path,omitempty"`
+	HookShellSource string `json:"hook_shell_source,omitempty"`
 }
 
 // SlotsView reports concurrency usage at the moment of capture.

@@ -17,7 +17,6 @@ import {
   editorFileHref,
   importFileInNewTab,
   importFileIntoStore,
-  isBotFile,
   isMissingFileError,
   openFileInNewTab,
 } from "./openInEditorTab";
@@ -60,10 +59,6 @@ describe("isMissingFileError", () => {
 describe("small helpers", () => {
   it("builds the editor deep link with the path encoded", () => {
     expect(editorFileHref("bots/a b.bot")).toBe("/editor?file=bots%2Fa%20b.bot");
-  });
-  it("accepts only .bot files", () => {
-    expect(isBotFile(new File([""], "flow.bot"))).toBe(true);
-    expect(isBotFile(new File([""], "notes.txt"))).toBe(false);
   });
 });
 

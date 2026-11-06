@@ -47,11 +47,6 @@ export function editorFileHref(path: string): string {
   return `/editor?file=${encodeURIComponent(path)}`;
 }
 
-/** Only `.bot` files are opened or imported from disk. */
-export function isBotFile(file: File): boolean {
-  return file.name.endsWith(".bot");
-}
-
 /**
  * Opens a project file in an editor tab, reading it BEFORE the tab exists.
  *

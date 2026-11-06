@@ -429,9 +429,11 @@ func RunStudio(ctx context.Context, opts StudioOptions, p *Printer) error {
 					// scan_docs to see doc_count=0 and the
 					// downstream agentic loop to operate against
 					// nothing).
-					return BuildDefaultConfig(resolvedStoreDir, dir)
+					return BuildDefaultConfig(dir)
 				},
-				MigrateConfig: MigrateLegacySeedHook,
+				MigrateConfig: MigrateSavedConfig(resolvedStoreDir),
+				// A relative path in the saved settings is the project's.
+				ProjectDir: dir,
 			})
 			if mgrErr == nil {
 				cfg.Dispatcher = mgr

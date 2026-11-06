@@ -63,8 +63,7 @@ export default function CanvasEmpty() {
     try {
       // Shared helper: load + bind the path the server names, else
       // bots/<name> (where a save lands) + keep the example's
-      // source/diagnostics + markSaved. Same path as RecentFilesPanel and
-      // Toolbar.handlePickFile.
+      // source/diagnostics + markSaved. Same path as Toolbar.handlePickFile.
       // Anything but "applied" leaves the list open: a refusal has said why,
       // and the author may pick again.
       if ((await openExampleIntoStore(name, documentStore)) === "applied") setExamplesOpen(false);
@@ -82,7 +81,7 @@ export default function CanvasEmpty() {
       <div className="pointer-events-auto rounded-lg border border-border-default bg-surface-1/95 backdrop-blur px-6 py-5 text-center shadow-[var(--shadow-popover)] max-w-lg">
         <h2 className="text-base font-semibold text-fg-default mb-1">No workflow loaded</h2>
         <p className="text-xs text-fg-subtle mb-4">
-          Start blank, pick a starter example, or drop a node from the library on the left.
+          Start blank, open one of your project&apos;s bots, or drop a node from the library on the left.
         </p>
         <div className="grid grid-cols-4 gap-2">
           <Tile
@@ -94,7 +93,7 @@ export default function CanvasEmpty() {
           <Tile
             icon={<StackIcon />}
             label="Examples"
-            description="Browse starters"
+            description="Starters in this project"
             onClick={() => setExamplesOpen(true)}
           />
           <Tile
@@ -117,6 +116,10 @@ export default function CanvasEmpty() {
         <ExamplesPicker
           onClose={() => setExamplesOpen(false)}
           onPick={(name) => void handleLoadExample(name)}
+          onOpenFile={() => {
+            setExamplesOpen(false);
+            setFilePickerOpen(true);
+          }}
         />
       )}
     </div>
@@ -131,12 +134,13 @@ export default function CanvasEmpty() {
 function ExamplesPicker({
   onClose,
   onPick,
+  onOpenFile,
 }: {
   onClose: () => void;
   onPick: (name: string) => void;
+  onOpenFile: () => void;
 }) {
-  // Shares the ["example-entries"] cache with RecentFilesPanel and
-  // FilePicker. isFetching (not isLoading) so every open shows the
+  // Shares the ["example-entries"] cache with FilePicker. isFetching (not isLoading) so every open shows the
   // loading line rather than a possibly-stale cached list.
   const query = useQuery({
     queryKey: ["example-entries"],
@@ -158,8 +162,17 @@ function ExamplesPicker({
           <div className="text-xs text-fg-muted">Loading examples…</div>
         )}
         {examples?.length === 0 && (
-          <div className="text-xs text-fg-muted">
-            No examples available. The server didn't embed any.
+          // A project with no bots/ (or examples/) folder has no starters: say
+          // so, and lead to what the author can do — open a file, or close this
+          // and start blank.
+          <div className="space-y-2 text-xs text-fg-muted">
+            <p>
+              This project has no starter examples yet. Open one of your own bots or a file by
+              its path, or close this and start blank.
+            </p>
+            <Button variant="secondary" size="sm" onClick={onOpenFile}>
+              Open file…
+            </Button>
           </div>
         )}
         {examples?.map((name) => {

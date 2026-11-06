@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"path"
 	"strings"
 
 	"github.com/arketov/iterion/pkg/botregistry"
@@ -14,9 +13,12 @@ import (
 // integration surface depends on; the studio's list/picker screens opt in
 // with ?include=all so that the Bots page, the Home panel and the bot
 // pickers show one and the same set. The only such source is the project's
-// single .bot files: the binary's embedded recipes are deliberately not a
-// listed bot source (owner decision 2026-11-05), so "builtin" is accepted and
-// ignored for older clients.
+// single .bot files in its root folder (botregistry.RootWorkflowFiles — no
+// walk of the tree: a bundle or loose file under bots/, examples/ or .botz/
+// is a catalog entry, and a file deeper in the tree is not a bot of this
+// project); the binary's embedded recipes are deliberately not a listed bot
+// source (owner decision 2026-11-05), so "builtin" is accepted and ignored
+// for older clients.
 type botInclude struct {
 	files bool
 }
@@ -38,9 +40,10 @@ func parseBotInclude(r *http.Request) botInclude {
 	return inc
 }
 
-// appendManifestlessBots adds the project's single .bot files without a
-// manifest (origin=file) to entries. A file already covered by a catalog
-// entry's path is not listed twice. A file has no manifest, so no enabled flag
+// appendManifestlessBots adds the single .bot files in the project root
+// (origin=file) to entries. A file already covered by a catalog
+// entry's path is not listed twice (compared by botregistry.PathKey, so a
+// drive-letter case or a link does not defeat it). A file has no manifest, so no enabled flag
 // to flip: it is reported enabled and not editable.
 func (s *Server) appendManifestlessBots(entries []botEntryView, inc botInclude) []botEntryView {
 	if !inc.files {
@@ -50,12 +53,12 @@ func (s *Server) appendManifestlessBots(entries []botEntryView, inc botInclude) 
 	paths := make(map[string]struct{}, len(entries))
 	for _, e := range entries {
 		names[e.Name] = struct{}{}
-		paths[strings.ToLower(path.Clean(strings.ReplaceAll(e.Path, "\\", "/")))] = struct{}{}
+		paths[botregistry.PathKey(e.Path)] = struct{}{}
 	}
 	if inc.files {
 		workDir := s.currentWorkDir()
-		for _, e := range botregistry.DiscoverProjectFiles(workDir, s.effectivePathsFor(workDir)) {
-			key := strings.ToLower(path.Clean(strings.ReplaceAll(e.Path, "\\", "/")))
+		for _, e := range botregistry.RootWorkflowFiles(workDir, s.effectivePathsFor(workDir)) {
+			key := botregistry.PathKey(e.Path)
 			if _, dup := paths[key]; dup {
 				continue
 			}

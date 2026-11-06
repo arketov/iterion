@@ -1,6 +1,7 @@
 package dispatcher
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -44,7 +45,8 @@ type Config struct {
 	// ticket carries a per-ticket Bot override. Paths are walked
 	// using pkg/botregistry's discovery rules (single .bot files +
 	// .botz bundles). Empty Paths disables the override path — a
-	// ticket with iss.Bot set on it will fail to dispatch.
+	// ticket with iss.Bot set on it will fail to dispatch. The studio's Manager
+	// fills an empty list with the project's own roots (DefaultBotsPaths).
 	Bots botregistry.Config `yaml:"bots,omitempty" json:"bots,omitempty"`
 
 	// TicketRouter, when Enabled, routes an UNASSIGNED new issue
@@ -58,13 +60,16 @@ type Config struct {
 	TicketRouter TicketRouterConfig `yaml:"ticket_router,omitempty" json:"ticket_router,omitempty"`
 
 	// RequireAssignee, when true, makes the dispatcher refuse a card that
-	// names neither an assignee nor a bot (and that no ticket_router claims)
-	// instead of running it on the config's default workflow — a paid run the
-	// operator never chose. The card stays put and is reported in the
-	// snapshot's dispatch_skips with kind "no_assignee", which the board and
-	// the Dispatcher page show as "no assignee". Off by default so hand-written
+	// names neither an assignee nor a bot (and that no ticket_router claims),
+	// or whose assignee is not a bot it can route to (a person's name, a typo,
+	// a bot disabled in the catalogue), instead of running it on the config's
+	// default workflow — a paid run the operator never chose. The card stays
+	// put and is reported in the snapshot's dispatch_skips with kind
+	// "no_assignee" or "no_bot", which the board and the Dispatcher page show
+	// as "no assignee" / "no bot". Off by default so hand-written
 	// single-workflow configs keep their meaning; the zero-config
-	// `iterion dispatch` / desktop preset turns it on. See docs/dispatcher.md.
+	// `iterion dispatch` / desktop preset turns it on (and has no default
+	// workflow at all). See docs/dispatcher.md.
 	RequireAssignee bool `yaml:"require_assignee,omitempty" json:"require_assignee,omitempty"`
 
 	SourcePath string `yaml:"-" json:"-"`
@@ -410,6 +415,95 @@ func Load(path string) (*Config, error) {
 	return cfg, nil
 }
 
+// LoadRaw reads a YAML dispatcher config WITHOUT expanding it: `$ENV` tokens
+// stay as written (a token is not turned into its value), and relative paths
+// that contain no `$`/`~` are made absolute against the YAML's own directory.
+// It is what `iterion dispatch <yaml>` persists into the store, so the saved
+// dispatcher.json carries `$GITHUB_TOKEN`, never the token itself, and a path
+// the YAML wrote relative to itself keeps pointing at the same file once the
+// config lives elsewhere. No defaults are applied and nothing is validated:
+// Resolved does both for the copy the dispatcher runs.
+func LoadRaw(path string) (*Config, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("config: resolve path: %w", err)
+	}
+	data, err := os.ReadFile(abs)
+	if err != nil {
+		return nil, fmt.Errorf("config: read %s: %w", abs, err)
+	}
+	cfg := &Config{}
+	if err := yaml.Unmarshal(data, cfg); err != nil {
+		return nil, fmt.Errorf("config: parse %s: %w", abs, err)
+	}
+	cfg.SourcePath = abs
+	cfg.AbsolutizeRelPaths(filepath.Dir(abs))
+	return cfg, nil
+}
+
+// AbsolutizeRelPaths makes the plain relative paths of c absolute against dir,
+// in place. A path that is empty, already absolute, or starts with `~` or
+// contains `$` is left exactly as written (it is expanded when the config is
+// resolved). Used by LoadRaw so a YAML's relative paths survive being saved
+// into the store.
+func (c *Config) AbsolutizeRelPaths(dir string) {
+	abs := func(p string) string {
+		if p == "" || strings.HasPrefix(p, "~") || strings.Contains(p, "$") || filepath.IsAbs(p) {
+			return p
+		}
+		return filepath.Join(dir, p)
+	}
+	c.Workflow = abs(c.Workflow)
+	for k, v := range c.AssigneeWorkflows {
+		c.AssigneeWorkflows[k] = abs(v)
+	}
+	for i, p := range c.Bots.Paths {
+		c.Bots.Paths[i] = abs(p)
+	}
+	c.Workspace.Root = abs(c.Workspace.Root)
+	for _, h := range []*Hook{c.Hooks.AfterCreate, c.Hooks.BeforeRun, c.Hooks.AfterRun, c.Hooks.BeforeRemove} {
+		if h != nil {
+			h.Path = abs(h.Path)
+		}
+	}
+}
+
+// clone returns a deep copy of c (a JSON round trip: every field is
+// serialisable by construction, since the config is persisted as JSON).
+func (c *Config) clone() (*Config, error) {
+	data, err := json.Marshal(c)
+	if err != nil {
+		return nil, err
+	}
+	out := &Config{}
+	if err := json.Unmarshal(data, out); err != nil {
+		return nil, err
+	}
+	out.SourcePath = c.SourcePath
+	return out, nil
+}
+
+// Resolved returns the copy of c the dispatcher actually runs: `$ENV` tokens
+// expanded, relative paths resolved against baseDir, defaults applied, and the
+// result validated. c itself is left untouched — it is the form that gets
+// saved, and a saved config must keep `$GITHUB_TOKEN` and its relative paths
+// as the operator wrote them. defaultBots seeds Bots.Paths when c sets none.
+func (c *Config) Resolved(baseDir string, defaultBots []string) (*Config, error) {
+	rt, err := c.clone()
+	if err != nil {
+		return nil, fmt.Errorf("config: copy: %w", err)
+	}
+	rt.applyEnvAndPathsFrom(baseDir)
+	rt.applyDefaults()
+	if len(rt.Bots.Paths) == 0 {
+		rt.Bots.Paths = append([]string(nil), defaultBots...)
+	}
+	if err := rt.Validate(); err != nil {
+		return nil, err
+	}
+	return rt, nil
+}
+
 func (c *Config) applyDefaults() {
 	if c.Polling.IntervalMS <= 0 {
 		// Treat 0 and negative the same — both would later trip
@@ -475,11 +569,24 @@ func defaultOrNone(v, def string) string {
 	}
 }
 
+// applyEnvAndPaths expands `$ENV` references and resolves relative paths
+// against the directory of SourcePath: the YAML loader's convention.
 func (c *Config) applyEnvAndPaths() {
-	dir := filepath.Dir(c.SourcePath)
+	c.applyEnvAndPathsFrom(filepath.Dir(c.SourcePath))
+}
+
+// applyEnvAndPathsFrom is applyEnvAndPaths with an explicit base directory for
+// relative paths. The studio's saved config lives in the store
+// (<store>/dispatcher/dispatcher.json) but its relative paths are written
+// against the PROJECT (`./bots/x/main.bot`), so the Manager resolves them from
+// the project root, not from the folder the JSON happens to sit in.
+func (c *Config) applyEnvAndPathsFrom(dir string) {
 	c.Workflow = resolveRelPath(dir, expandEnv(c.Workflow))
 	for assignee, wfPath := range c.AssigneeWorkflows {
 		c.AssigneeWorkflows[assignee] = resolveRelPath(dir, expandEnv(wfPath))
+	}
+	for i, p := range c.Bots.Paths {
+		c.Bots.Paths[i] = resolveRelPath(dir, expandEnv(p))
 	}
 	if c.Workspace.Root != "" {
 		c.Workspace.Root = expandHome(expandEnv(c.Workspace.Root))
@@ -508,9 +615,18 @@ func (c *Config) applyEnvAndPaths() {
 // caller's responsibility (typically performed by Dispatcher.Start).
 func (c *Config) Validate() error {
 	if c.Workflow == "" {
-		return errors.New("config: workflow is required")
-	}
-	if _, err := bundle.Detect(c.Workflow); err != nil {
+		// The fallback workflow runs a card that names no bot. With
+		// require_assignee such a card never runs, so the fallback is optional:
+		// the dispatcher then runs ONLY bots it can route to (the project's
+		// bots under bots.paths, or assignee_workflows), and a card without
+		// one is reported as "no bot" instead of being sent to a paid default.
+		if !c.RequireAssignee {
+			return errors.New("config: workflow is required unless require_assignee is on (without it a card that names no bot has nothing to run)")
+		}
+		if len(c.AssigneeWorkflows) == 0 && len(c.Bots.Paths) == 0 {
+			return errors.New("config: nothing can run: set workflow, assignee_workflows or bots.paths")
+		}
+	} else if _, err := bundle.Detect(c.Workflow); err != nil {
 		return fmt.Errorf("config: workflow %s: %w", c.Workflow, err)
 	}
 	for assignee, wfPath := range c.AssigneeWorkflows {
@@ -598,7 +714,7 @@ func (c *Config) Validate() error {
 		if assignee == "" {
 			return errors.New("config: assignee_dispatch contains an empty key")
 		}
-		if _, ok := c.AssigneeWorkflows[assignee]; !ok {
+		if _, ok := lookupBotKey(c.AssigneeWorkflows, assignee); !ok {
 			// With discovery configured, an assignee_dispatch entry is valid
 			// when the bot resolves via the registry (Bots.Paths) — the stock
 			// config derives BOTH routing and these vars from discovery, so
@@ -645,6 +761,17 @@ func unsupportedAttachmentsErr(field string) string {
 // the no-arg `iterion dispatch` mode) can normalise zero fields the
 // same way Load does on disk.
 func (c *Config) ApplyDefaults() { c.applyDefaults() }
+
+// WorkflowLabel describes the fallback workflow for logs and banners: its path,
+// or a note that only the project's bots run when none is configured.
+func WorkflowLabel(c *Config) string { return workflowLabel(c) }
+
+func workflowLabel(c *Config) string {
+	if c == nil || c.Workflow == "" {
+		return "(none: project bots only)"
+	}
+	return c.Workflow
+}
 
 // PollingInterval returns the polling cadence as a time.Duration after
 // defaults are applied.

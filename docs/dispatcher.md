@@ -19,15 +19,17 @@ The fastest path is no YAML at all:
 iterion dispatch
 ```
 
-Called without an argument, the dispatcher boots with a built-in
-preset: the [native kanban](native-tracker.md) tracker, the studio HTTP
-surface on `http://localhost:4892`, polling every 30 s, and an
-**embedded bot catalogue** containing the nine default bots from `bots/`
-as assignees. Out of the box you can:
+Called without an argument, the dispatcher boots with a preset built from
+**your project**: the [native kanban](native-tracker.md) tracker, the studio
+HTTP surface on `http://localhost:4892`, polling every 30 s, and the bots the
+project itself holds — its `bots/`, `examples/` and `.botz/` folders, the same
+list the studio's Bots page shows — as the assignees a card can be given. The
+binary carries no bots of its own. Out of the box you can:
 
 1. Open `http://localhost:4892/board` and create a ticket.
-2. Set the ticket's **assignee** to one of the names below, drop it
-   into a state marked `eligible` (default: `ready` / `in_progress`),
+2. Set the ticket's **assignee** to the name of one of the project's bots
+   (the folder name, such as `my-helper`; case and `_`/`-` do not matter),
+   drop it into a state marked `eligible` (default: `ready` / `in_progress`),
    and the dispatcher picks it up at the next poll.
 3. The studio's `/dispatcher` route shows the run in flight.
 
@@ -41,45 +43,53 @@ Open that run and the console records the ticket it came from (the
 
 ![Studio run console — the From-ticket header linking a dispatched run back to its issue](images/studio/run-from-ticket.png)
 
-Built-in assignees ([source bots](../bots/)):
+The preset sets `require_assignee: true`: a card that is ready is **run only
+by a bot of the project**, and the paid generic `default` bot is never chosen
+for you. There is no fallback workflow in the preset (`workflow:` is empty).
+Two things keep a card from running, and both leave it where it is, shown on
+the board card and as a row of the Dispatcher page's *Won't dispatch* table
+(`dispatch_skips[].kind`):
 
-| Persona | Assignee | Backing bot | What it does |
-|---|---|---|---|
-| 🛠️ Featurly | `feature-dev` | `bots/feature-dev/` | One adaptive feature campaign with verified commits and deterministic build/test gates |
-| 🌍 Willy | `whole-improve-loop` | `bots/whole-improve-loop/` | Whole-codebase campaign applying one improvement axis site by site |
-| 🌿 Billy | `branch-improve-loop` | `bots/branch-improve-loop/` | Branch-diff review/improvement campaign with verified in-stride commits |
-| 🧭 Nexie | `whats-next` | `bots/whats-next/` | Conversational co-CTO for recommendation, board curation, roadmap study, and dispatch |
-| 📚 Doki | `docs-refresh` | `bots/docs-refresh/` | Doc-only alignment campaign over a deterministic footprint and advisory drift hints |
-| 🔎 Revi | `review-pr` | `bots/review-pr/` | Read-only review with one model family by default and optional cross-family dual mode; publishes findings to the board |
-| 🛡️ Seki | `sec-audit-source` | `bots/sec-audit-source/` | Source-code security audit (gitleaks/trivy/semgrep/gosec) |
-| 📦 Depsy | `sec-audit-deps` | `bots/sec-audit-deps/` | Supply-chain dep audit + LLM review |
-| ⬆️ Renovacy | `secured-renovacy` | `bots/secured-renovacy/` | Security-aware dependency upgrades with cumulative review |
-| — | _(unassigned)_ | `default/` (embedded) | Generic triage agent: classifies the issue and recommends a next step. **Not started automatically** — see below |
+| Card | `kind` | Badge |
+|---|---|---|
+| names neither an assignee nor a bot | `no_assignee` | **no assignee** |
+| its assignee is not a bot of the project — a person's name (`artem`), a typo, or a bot disabled on the Bots page | `no_bot` | **no bot (artem)** |
 
-The zero-config preset sets `require_assignee: true`: a card that is
-ready but names neither an assignee nor a bot is **not run** (the paid
-`default` bot is never chosen for you). It stays where it is and shows
-as **no assignee** — a badge on the board card and a row in the
-Dispatcher page's *Won't dispatch* table (`dispatch_skips[].kind =
-"no_assignee"`). Assign a bot in the issue editor and the next poll
-picks it up. Hand-written YAML keeps the old meaning unless you add
-`require_assignee: true` (the `workflow:` fallback still runs
-unassigned cards otherwise).
+Assign one of the project's bots in the issue editor and the next poll picks
+the card up. A project with no bots yet still starts: every card waits as *no
+bot* until a bot is added — the folders are read at each dispatch, so a bot
+created later needs no change to the settings. Hand-written YAML keeps the old
+meaning unless you add `require_assignee: true` (the `workflow:` fallback
+still runs unassigned cards, and cards whose assignee matches no bot,
+otherwise).
 
-Each assignee's input contract (`{{issue.title}} + {{issue.body}}` →
-the bot's main prompt var) is wired in
-[pkg/cli/dispatch_defaults.go](../pkg/cli/dispatch_defaults.go).
-Bots are extracted on first run under
-`<store-dir>/dispatcher/bots/<name>/` (write-if-absent so local edits
-survive subsequent starts). Override the port via `--port`, the store
-location via `--store-dir`, or write a full YAML when you outgrow the
-defaults.
+Each bot's input contract (`{{issue.title}}` and `{{issue.body}}` → the bot's
+main prompt var) is its own manifest's `dispatch_vars`, read from the bot at
+every dispatch (see [per-assignee dispatch overrides](#per-assignee-dispatch-overrides)).
+The preset wires only the shared `issue_title` / `issue_body` / `issue_id`
+vars, for a bot that declares none — see
+[pkg/cli/dispatch_defaults.go](../pkg/cli/dispatch_defaults.go). Override the
+port via `--port`, the store location via `--store-dir`, or write a full YAML
+when you outgrow the defaults. A preset saved by an earlier version, which
+routed to bots the binary used to embed, is rewritten to this one when the
+studio starts; the folder it extracted under `<store-dir>/dispatcher/bots/` is
+left on disk and no longer used.
 
 In the studio the same preset is one click: the **Dispatcher** page shows *No
 dispatcher running* with a **Use default settings** button until a config
 exists. To run a bot of your own from a card, follow
 [your own bot on the board](howto-board-bot.md); for where a finished run's
 work ends up, see [where the result goes](#where-the-result-goes).
+
+The studio remembers what you last asked of its dispatcher — running, paused
+or stopped, in `<store-dir>/dispatcher/runtime.json` — and restores it when it
+boots; with a saved config and nothing remembered yet it starts the dispatcher
+on the first boot. To start with the dispatcher stopped whatever was
+remembered (a CI run, or a dispatcher that keeps relaunching paid runs), set
+`ITERION_DISPATCHER_AUTOSTART=0` (also `false`, `no`, `off`): nothing is
+restored, the remembered state in `runtime.json` is left as it was so the next
+start without the variable resumes it, and the Dispatcher page says why it is
+stopped (`boot_note` in the status). Start it from the studio when you want it.
 
 ## TL;DR — explicit YAML
 
@@ -399,19 +409,37 @@ at `agent.max_retry_backoff_ms` (default 300000, five minutes). The
 sandbox schedule exists because a sandbox that failed to start fails the
 same way until the host (Docker daemon, disk, memory) is fixed: retrying
 every ten seconds only piles container churn onto a struggling machine. A
-parked entry stays in the retry queue until its hour has passed; the studio
-has no button that drops a retry, so after fixing the host stop and start the
-dispatcher (or let the hour pass). The attempt counter,
-`max_attempts` and the give-up move below apply to every row.
+parked entry stays in the retry queue until its hour has passed; after
+fixing the host press *Retry now* on its row (below) instead of waiting. The
+attempt counter, `max_attempts` and the give-up move below apply to every row.
+
+Each row of the Dispatcher page's *Retry queue* has two actions:
+
+- **Retry now** makes the retry due at once and requests a poll tick. The
+  attempt counter and the resume pointer are kept, so it is the same retry,
+  not a new launch. While the dispatcher is paused the retry runs after
+  *Resume*.
+- **Remove from queue** stops retrying the card: it is moved to
+  `agent.failed_state` (default `blocked`) and marked as *given up by the
+  dispatcher*, exactly as when `max_attempts` runs out, and its queue entry
+  disappears. Dropping only the entry would hand the card back to the next
+  tick as a fresh paid launch from attempt 0, which is why the removal files
+  the card. Reopen the card on the board to try it again (a reopen also
+  clears its *did not start* history). With `agent.failed_state: none` there
+  is no state to file the card under, so the removal is refused (`409`): move
+  the card out of the dispatch column on the board instead.
+
+Both are plain HTTP calls too — see [HTTP / WS surface](#http--ws-surface).
 
 The Dispatcher page's *Retry queue* shows the **full** last error
 (*Show full error* unfolds it; the board card shows up to three lines),
-which lifecycle hook failed and with what exit code, the tail of the
-hook's stderr, and — when the host process reports it through
-`ITERION_DAEMON_LOG`, as the desktop app's daemon does — the path of the
-log file holding the full chronology. The snapshot fields are
-`retries[].error`, `hook`, `hook_exit_code`, `hook_stderr` and
-`log_path`. The next section says what each of them means.
+which lifecycle hook failed and with what exit code, the shell it ran
+under, the tail of the hook's stderr, and — when the host process reports it
+through `ITERION_DAEMON_LOG`, as the desktop app's daemon does — the path of
+the log file holding the full chronology. The snapshot fields are
+`retries[].error`, `hook`, `hook_exit_code`, `hook_shell`, `hook_shell_path`,
+`hook_shell_source`, `hook_stderr` and `log_path`. The next section says what
+each of them means.
 
 ### Hook failure
 
@@ -421,7 +449,8 @@ dispatcher keeps a structured `HookError` and the studio shows its parts.
 | Part | What it tells you | Snapshot field |
 |---|---|---|
 | Hook name | Which hook failed: `after_create` or `before_run` (the two that can abort a dispatch) | `retries[].hook` |
-| Exit code | The hook's own exit status. **`-1` means no exit status**: the shell process could not be started or was killed by a signal, or the hook ran past its `timeout_ms` (60 s when unset) and was killed. When no shell is found at all, the hook fails before it runs: the error names what was looked for, but the row carries no hook name or exit code | `retries[].hook_exit_code` |
+| Exit code | The hook's own exit status. **`-1` means no exit status**: the shell process could not be started or was killed by a signal, or the hook ran past its `timeout_ms` (60 s when unset) and was killed. When no shell is found at all, the hook fails before it runs: the error names what was looked for, the row still names the hook, and the exit code is `-1` | `retries[].hook_exit_code` |
+| Shell | **Which shell or interpreter the hook ran under** (`pwsh`, `powershell`, `sh`, `bash`, `python` …), the executable that was started and why that one was picked: `shell:` on the hook (`explicit`), `ITERION_SHELL` (`env`), the platform default (`default`), an sh-written script kept on sh (`posix-script`), the script file's `#!` line (`shebang`) or its extension (`extension`). For a hook that could not start it is the shell that was asked for, with no path. The same text is appended to the error as `[shell: …]` and logged when the hook starts | `retries[].hook_shell`, `hook_shell_path`, `hook_shell_source` |
 | stderr | The last 2 KiB the hook wrote to stderr — usually the line that names the cause | `retries[].hook_stderr` |
 | Log path | The daemon's log file, with the complete hook output and the chronology; shown when the host process set `ITERION_DAEMON_LOG` (the desktop app's daemon does) | top-level `log_path` |
 
@@ -442,16 +471,27 @@ What a failed hook does to the card:
 - **The ticket retries.** The claim is released and the ticket enters the
   retry queue with the backoff above; after `agent.max_attempts` the
   dispatcher gives up, as described below.
-- **`after_create` runs once per workspace directory, not once per
-  attempt.** It fires only when the dispatcher *creates* the directory. With
-  the default `workspace.persist: keep` a failed attempt leaves that directory
-  behind (a failed dispatch always retains its workspace), so the retry finds
-  it, does not run `after_create` again, and starts the bot in whatever the
-  failed hook left — an empty or half-seeded directory. Fix the cause named in
-  the stderr tail first, then deal with the leftover directory by hand (see
-  [Workspace lifecycle](#workspace-lifecycle)). The built-in seed script skips
-  a directory that already has content, for the same reason. `before_run` has
-  no such memory: it runs before every attempt.
+- **A workspace is never handed to the bot unseeded.** `after_create` fires
+  when the dispatcher *creates* the directory. A directory is marked
+  *seed pending* (in its ownership record under `.owners/`) from that moment
+  until `after_create` has finished; a failed attempt leaves it marked (with
+  `workspace.persist: keep` the directory stays on disk), and so does a daemon
+  that died inside the hook. The next attempt finds the mark, logs *workspace
+  was left unseeded by an after_create that failed or was interrupted —
+  recreated it*, **empties the directory, recreates it and runs `after_create`
+  again**; the bot starts only after a seed that completed. So fix the hook,
+  not the folder: anything put by hand into a directory that is still marked
+  is removed on the next attempt. If the hook had registered a git worktree
+  for the path, the registration is removed with the directory; one that a
+  killed hook left half-written may need `git worktree prune` in the host
+  repository. If the directory cannot be deleted (OneDrive, an antivirus or a
+  process the hook left running holds a file) the attempt fails with a message
+  saying so and the bot does not start. A directory without the mark — made
+  by an earlier version, or already seeded — is left alone, with one exception: an
+  **empty** directory under a marker from an earlier version, when `after_create`
+  is configured, is taken as a seed that never ran and seeded again (once; the
+  marker is upgraded when the hook finishes). `before_run` has no such memory: it
+  runs before every attempt.
 - **`after_run` and `before_remove` never fail a dispatch.** Their failures
   are logged at WARN and do not appear in the retry queue.
 
@@ -464,9 +504,11 @@ see [Hooks](#hooks).
 The queue itself lives in memory, so stopping the dispatcher or restarting
 the studio empties it. A failed dispatch that never became a run (a
 lifecycle hook failed first) is therefore **also written on the card**
-(`launch_failures[]` in `issues/<id>.json`: hook, exit code, stderr tail, full
-error, time, attempt, the minted run id and the log path; at most 20, newest
-last) and stays there until the card's next successful launch. The board card
+(`launch_failures[]` in `issues/<id>.json`: hook, exit code, the shell
+(`shell`, `shell_path`, `shell_source`), stderr tail, full error, time,
+attempt, the minted run id and the log path; at most 20, newest last) and
+stays there until the card's next successful launch or until the operator
+reopens the card. The board card
 shows *did not start: after_create hook, exit code 128*, the card's Ticket tab
 lists every attempt under *Did not start* with *Show full error*, and the
 *Runs* and *Dispatcher* pages list such cards in a *Did not start* panel even
@@ -663,7 +705,7 @@ hooks:
       git clone --depth 1 https://github.com/${ORG}/${REPO} .
     timeout_ms: 120000
   before_run:                         # runs before every dispatch.
-    path: ./scripts/prepare.sh        # `path:` invokes a script; `script:`
+    path: ./scripts/prepare.sh        # `path:` runs a script FILE; `script:`
     timeout_ms: 60000                 # inlines a shell snippet. Exactly
                                       # one of the two must be set.
   after_run: null                     # runs after every dispatch (success
@@ -692,6 +734,33 @@ yourself is never rewritten: if its text is plainly `sh` (`set -e`, `VAR=value`,
 `[ ... ]`, a `#!/bin/sh` line) and it has no `shell:`, it keeps running under
 `sh` or `bash` when one is on PATH (the log says so), and otherwise fails
 before starting with a message to add `shell:` or rewrite it for PowerShell.
+When the studio loads a saved config it writes that choice down: such an
+inline hook (`before_run`, `after_run`, `before_remove`, or an `after_create`
+you edited) gets the `shell: sh` (or `bash`) it was already running under
+saved into the config — its text is not touched, and the log names the hooks.
+Edit or remove the `shell:` to change it. A hook whose shell comes from
+`ITERION_SHELL`, one that reads as PowerShell, and a `dispatcher.yaml` you
+wrote by hand are never rewritten. The text heuristic skips PowerShell
+here-strings, `<# … #>` comments and `@{ … }` hashtables (braces counted), but
+not a multi-line `"…"` string: put `shell: pwsh` on a PowerShell hook that
+trips it.
+
+**`path:` runs a script file.** A `path:` that names an existing file (relative
+to the workspace, the hook's working directory) is run by an interpreter,
+chosen in this order: the hook's `shell:`; then, on Windows, the file's `#!`
+line (`#!/usr/bin/env python3` runs `python3`); then, on Windows, its
+extension — `.ps1` PowerShell (run as `& file`, so a failing last program fails the hook as it does in an inline hook), `.sh` `sh` (else `bash`), `.bash`
+`bash`, `.py` `py`/`python`, `.js`/`.mjs` `node`, `.exe`/`.com`/`.bat`/`.cmd` the
+file itself. On Windows an unknown extension with no `#!` line is an error that
+says to set `shell:` or use `script:` — it used to be handed to PowerShell,
+which ignored the shebang and reported success without running anything. An
+interpreter that is not installed fails naming it (`shell: sh` on a machine
+without Git for Windows, for example). On Linux and macOS the file's shebang and
+executable bit decide, as before, and a space in the path no longer splits it.
+`ITERION_SHELL` is the default for hook *text*; it does not pick the interpreter
+of a script file whose extension or `#!` line already names one. A `path:` that
+is not an existing file (`./run.sh --flag`, a command on `PATH`) is still run
+as command text.
 The dispatcher exports six environment variables, on top of its own, before
 invoking the hook:
 
@@ -777,28 +846,40 @@ Resolution rules at dispatch time:
 
 1. If `issue.Assignee` is non-empty AND present in
    `assignee_workflows`, the dispatcher uses the mapped workflow.
-2. Otherwise (empty assignee, or assignee not in the map), it falls
-   back to `workflow:`.
+2. Otherwise, if the assignee names an **enabled bot discovered** under
+   `bots.paths` (the project's `bots/`, `examples/` and `.botz/` by default),
+   the dispatcher runs that bot — no map entry needed.
+3. Otherwise (empty assignee, or an assignee that is no bot), it falls
+   back to `workflow:` — **unless `require_assignee` is on**, in which case
+   the card is not run at all and is reported as *no assignee* / *no bot*
+   (see [quick start](#quick-start-zero-config)). `workflow:` may then be
+   left empty: the dispatcher runs only bots it can route to.
 
-Matching is **exact** and **case-sensitive**. There is no glob /
-regex / pattern syntax — keep the keys aligned with what the
-producer stamps into `--assignee`. For the native tracker, the
+Matching is **tolerant, and the same everywhere**: an exact key wins,
+otherwise names are compared lower-cased with `_` and spaces folded to `-`,
+so `My_Helper`, `my-helper` and `my helper` are one bot — for the workflow
+map, for the registry lookup, and for the per-bot input vars below. If two
+keys fold to the same name, the lexicographically smallest key is used (the
+answer never depends on map order). There is no glob / regex / pattern
+syntax. For the native tracker, the
 `iterion issue create --assignee <name>` flag drops `name` straight
 into `issue.assignee`; GitHub and Forgejo adapters use the first
-assignee's login.
+assignee's login — with `require_assignee` on, a card whose assignee is a
+person's login is therefore *no bot*, never a run.
 
 Each `assignee_workflows` workflow is pre-compiled at startup and
 reused across dispatches — the same lifecycle as the default
-`workflow:`. Path resolution is relative to the dispatcher config
-file (same convention as `workflow:`). Missing files fail
-`iterion dispatch` startup with a precise error.
+`workflow:`. A relative path in a YAML file is resolved against the folder of
+that file. Missing files fail `iterion dispatch` startup with a precise error.
 
 In the studio, **Dispatcher settings** edits this map as *Per-assignee bots*,
 and the *Workflow path* field is a searchable bot list (the same list the Bots
 page shows): pick a bot by name and the studio writes its full path. A path
 typed by hand is still accepted; if it is relative it is resolved against the
-dispatcher config folder (`~/.iterion/projects/<key>/dispatcher/`), **not**
-against the project root — write it absolute. With no dispatcher configured
+**project root**. The same drawer has a *Routing* section: the `require_assignee`
+checkbox, the bot folders (`bots.paths`) and per-bot input vars
+(`assignee_dispatch`) — saving the form keeps every field it holds, those
+included. With no dispatcher configured
 yet the drawer and the *No dispatcher running* page offer **Use default
 settings**, which calls `POST /api/v1/dispatcher/defaults/apply`. With a
 dispatcher already configured the drawer shows **Reset to default settings**
@@ -838,10 +919,12 @@ path — each `EngineRunner` runs the IR it was constructed with, so to
 route a brand-new workflow per ticket you add it to `assignee_workflows:`
 (or supply a custom runner that keys off `DispatchSpec.Assignee`).
 
-Vars: `assignee_dispatch[issue.assignee].vars` (or `dispatch.vars`
-as fallback) are rendered first, then `BotArgs` is merged on top.
+Vars: the routed bot's `assignee_dispatch` entry, else the `dispatch_vars`
+of the bot's manifest (read at dispatch time), else `dispatch.vars`
+are rendered first, then `BotArgs` is merged on top.
 See [pkg/dispatcher/loop.go](../pkg/dispatcher/loop.go)
-(`buildSpec`, lines 276-296) for the merge, and
+(`buildSpec`) and [pkg/dispatcher/dispatch_vars.go](../pkg/dispatcher/dispatch_vars.go)
+for the merge, and
 [pkg/dispatcher/routing_runner.go](../pkg/dispatcher/routing_runner.go)
 for the stock assignee workflow selection.
 
@@ -865,7 +948,13 @@ heterogeneous bot catalogue.
 
 `assignee_dispatch:` solves that — when an issue's assignee has an
 entry here, its `vars:` **replace** the global `dispatch.vars`
-wholesale for that dispatch:
+wholesale for that dispatch. A bot can also carry its own binding in its
+manifest (`dispatch_vars:`, see [your own bot on the board](howto-board-bot.md)); that is read from the
+bot **at every dispatch**, so a bot created or edited after the dispatcher was
+configured is picked up on its next card with no configuration change. The
+order is: the explicit `assignee_dispatch` entry, then the bot's manifest
+`dispatch_vars`, then the global `dispatch.vars`. An `assignee_dispatch` key is
+looked up by the same tolerant name routing uses (see above).
 
 ```yaml
 workflow: workflows/triage.bot
@@ -898,12 +987,14 @@ dispatch:
 Validation rules:
 
 - Every `assignee_dispatch` key must have a matching `assignee_workflows`
-  entry — otherwise startup fails with a precise typo-catching error.
+  entry **or** name a bot discoverable under `bots.paths` — otherwise startup
+  fails with a precise typo-catching error.
 - Templates are parsed at load time; an unknown `{{ issue.foo }}` /
   `{{ dispatcher.bar }}` field fails fast.
 
-The zero-config mode (`iterion dispatch`) uses exactly this mechanism
-to wire each embedded bot to the issue title/body — see
+The zero-config mode (`iterion dispatch`) does not write `assignee_dispatch`:
+each of the project's bots brings its own `dispatch_vars` and the preset adds
+only the shared fallback vars — see
 [pkg/cli/dispatch_defaults.go](../pkg/cli/dispatch_defaults.go).
 
 ## Deterministic ticket router (PR-aware)
@@ -969,11 +1060,17 @@ The dispatcher watches `iterion.dispatcher.yaml` via fsnotify with a
 | `dispatch.vars`                                | applied next dispatch                |
 | `workspace.persist`                            | applied next dispatch; resumed runs preserve their original workspace shape |
 | `stall.timeout_ms`                             | applied next tick                    |
-| `workflow:`, `tracker.kind:`, `workspace.root` | warn-only; require restart           |
+| `require_assignee`, `assignee_dispatch`        | applied next dispatch                |
+| `workflow:`, `assignee_workflows`, `bots.paths`, `tracker.kind:`, `workspace.root` | warn-only; require restart (Stop, then Start) |
 | `tracker.*` credentials                        | warn-only; require restart           |
 
 Invalid reloads (YAML errors, template parse errors, missing workflow
-file) keep the previous config and log a warning.
+file) keep the previous config and log a warning. The same holds for a save
+from the studio's settings form: the routing is built when the dispatcher
+starts, so a changed fallback workflow or bot folder takes effect after Stop and
+Start. A dispatcher that was started with no fallback workflow (the default
+preset) keeps refusing a card no bot routes to, even if `require_assignee` is
+switched off meanwhile.
 
 ## Tracker adapters
 
@@ -1150,18 +1247,38 @@ when `server.port` is set — pass `iterion dispatch --no-server`.
 
 | Endpoint                                            | Method | Description                              |
 |-----------------------------------------------------|--------|------------------------------------------|
-| `/api/v1/dispatcher/status`                          | GET    | Manager state (`state`, `has_config`, `last_error`, `started_at`). |
-| `/api/v1/dispatcher/config`                          | GET, PUT | Read or replace the persisted config. |
+| `/api/v1/dispatcher/status`                          | GET    | Manager state (`state`, `has_config`, `last_error`, `started_at`, and `boot_note` when `ITERION_DISPATCHER_AUTOSTART=0` kept a saved running/paused state from being restored). |
+| `/api/v1/dispatcher/config`                          | GET, PUT | Read or replace the persisted config, [as saved](#the-saved-config). |
 | `/api/v1/dispatcher/start` · `/stop` · `/pause` · `/resume` | POST | Daemon lifecycle — what the studio's dispatcher control bar drives. |
-| `/api/v1/dispatcher/defaults/apply`                  | POST   | Persist the baked-in defaults and start; `409` when a config already exists, unless `?replace=1` (the studio's *Reset to default settings*). |
+| `/api/v1/dispatcher/defaults/apply`                  | POST   | Persist the default settings for this project and start; `409` when a config already exists, unless `?replace=1` (the studio's *Reset to default settings*). |
 | `/api/v1/dispatcher/state`                           | GET    | Live snapshot (running, retries, slots). |
 | `/api/v1/dispatcher/refresh`                         | POST   | Force an immediate tick.                 |
 | `/api/v1/dispatcher/reload`                          | POST   | Re-parse the YAML config.                |
 | `/api/v1/dispatcher/issues/{id}`                     | GET    | Per-issue dispatcher view.                |
 | `/api/v1/dispatcher/issues/{id}/cancel`              | POST   | Cancel an in-flight run.                 |
+| `/api/v1/dispatcher/retries/{id}/run-now`            | POST   | Make a queued retry due now, keeping its attempt and resume pointer (`202`, `{"issue_id","status":"due","paused"}`); `404` when the issue has no pending retry. |
+| `/api/v1/dispatcher/retries/{id}`                    | DELETE | Remove a queued retry: file the card under `agent.failed_state` and stamp it as given up (`200`, `{"issue_id","status":"given_up","state"}`); `404` no pending retry, `409` no failed state to file under or the board refuses the move, `502` the tracker failed. |
 | `/api/v1/dispatcher/ws`                              | WS     | Snapshot stream (push on each tick).     |
 | `/api/v1/native/*`                                  | —      | Kanban store CRUD (when native is wired).|
 | `/api/server/info`                                  | GET    | SPA bootstrap (flags `dispatcher_enabled`, `native_tracker_enabled`). |
+
+### The saved config
+
+The settings the studio saves live in `<store>/dispatcher/dispatcher.json` (mode
+`0600`), kept **as written**: an `$ENV` reference such as `token: $GITHUB_TOKEN`
+stays a reference on disk, a relative path stays relative, and the opt-outs
+(`running_state: none`, `max_attempts: -1`) stay as typed. The dispatcher runs a
+resolved copy of it — `$ENV` expanded, relative paths taken from the **project
+root** (`workflow:`, `assignee_workflows:`, `bots.paths`, `workspace.root`, hook
+`path:`), defaults applied. `iterion dispatch <file.yaml>` saves its YAML the
+same way, with the YAML's own relative paths made absolute first (and a relative
+`bots.paths` entry, which used to be read from the process's working directory,
+is now taken from the YAML's folder).
+
+`GET /config` shows the saved form with a literal secret masked as `***`
+(an `$ENV` reference is not a secret and stays visible; GitHub, Forgejo and
+GitLab alike). `PUT /config` reads a `***` token as *unchanged*, so saving the
+settings form never overwrites a stored token with the mask.
 
 ## Single-instance safety
 

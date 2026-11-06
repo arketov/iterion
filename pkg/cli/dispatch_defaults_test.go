@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"github.com/arketov/iterion/pkg/dsl/unit/unittest"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -10,32 +8,31 @@ import (
 	"testing"
 
 	"github.com/arketov/iterion/pkg/botregistry"
-	"github.com/arketov/iterion/pkg/dsl/unit"
+	"github.com/arketov/iterion/pkg/dispatcher"
 )
 
-// skipIfCatalogueEmpty skips a test when the embedded catalogue is
-// empty — happens for `go test ./...` invocations that didn't go
-// through `task` (which depends on `templates:dispatch-bots`). CI
-// always populates the catalogue, so this only fires in ad-hoc local
-// runs.
-func skipIfCatalogueEmpty(t *testing.T) {
+// writeProjectBot lays a minimal bundle (manifest.yaml + main.bot, the shape the
+// dispatcher's routing tests use) under <project>/bots/<name>.
+func writeProjectBot(t *testing.T, project, name string) {
 	t.Helper()
-	entries, err := fs.ReadDir(defaultBotsFS, defaultBotsFSRoot)
-	if err != nil {
-		t.Fatalf("inspect embed: %v", err)
+	dir := filepath.Join(project, "bots", name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
 	}
-	for _, e := range entries {
-		if e.IsDir() {
-			return
-		}
+	if err := os.WriteFile(filepath.Join(dir, "manifest.yaml"), []byte("name: "+name+"\n"), 0o644); err != nil {
+		t.Fatal(err)
 	}
-	t.Skip("dispatcher bot catalogue not populated — run `devbox run -- task templates:dispatch-bots` first")
+	if err := os.WriteFile(filepath.Join(dir, "main.bot"), []byte("agent x:\n  model: \"test\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 }
 
-func TestBuildDefaultConfig_ValidatesAndExtractsCatalogue(t *testing.T) {
-	skipIfCatalogueEmpty(t)
-	storeDir := t.TempDir()
-	cfg, err := BuildDefaultConfig(storeDir, "")
+// The preset is built only from the project: no embedded catalogue, no
+// fallback workflow, no per-bot snapshot, require_assignee on. A project with
+// no bots at all still gets a valid config — its cards wait as "no bot".
+func TestBuildDefaultConfig_ProjectBotsOnly(t *testing.T) {
+	project := t.TempDir()
+	cfg, err := BuildDefaultConfig(project)
 	if err != nil {
 		t.Fatalf("BuildDefaultConfig: %v", err)
 	}
@@ -45,125 +42,71 @@ func TestBuildDefaultConfig_ValidatesAndExtractsCatalogue(t *testing.T) {
 	if cfg.Server.Port == 0 {
 		t.Fatalf("server port should be non-zero in default mode, got %d", cfg.Server.Port)
 	}
-	// Workflow must point at the extracted default bundle dir.
-	if !strings.HasSuffix(cfg.Workflow, filepath.Join("dispatcher", "bots", "default")) {
-		t.Fatalf("workflow: %s", cfg.Workflow)
+	if cfg.Workflow != "" {
+		t.Fatalf("the preset has no fallback workflow (a card without a bot must not run), got %q", cfg.Workflow)
 	}
-	if _, err := os.Stat(filepath.Join(cfg.Workflow, "main.bot")); err != nil {
-		t.Fatalf("default bot main.bot missing on disk: %v", err)
+	if !cfg.RequireAssignee {
+		t.Fatal("require_assignee must be on in the preset")
 	}
-	// Routing is discovery-driven (2026-06): Bots.Paths is set so
-	// RoutingRunner resolves bots by name; there is no hardcoded
-	// AssigneeWorkflows literal anymore.
-	if len(cfg.Bots.Paths) == 0 {
-		t.Fatal("Bots.Paths should be set for discovery-driven routing")
+	if len(cfg.AssigneeWorkflows) != 0 || len(cfg.AssigneeDispatch) != 0 {
+		t.Fatalf("routing and dispatch vars are discovery-driven: assignee_workflows=%v assignee_dispatch=%v", cfg.AssigneeWorkflows, cfg.AssigneeDispatch)
 	}
-	if len(cfg.AssigneeWorkflows) != 0 {
-		t.Fatalf("AssigneeWorkflows should be empty (discovery-driven), got %v", cfg.AssigneeWorkflows)
+	want := botregistry.DefaultPaths(project)
+	if len(cfg.Bots.Paths) != len(want) {
+		t.Fatalf("Bots.Paths = %v, want the project's roots %v", cfg.Bots.Paths, want)
 	}
-	// Per-bot dispatch vars are derived from each bot's manifest
-	// dispatch_vars; every entry must name a bot that resolves to a real
-	// main.bot via discovery.
-	if len(cfg.AssigneeDispatch) == 0 {
-		t.Fatal("expected discovered AssigneeDispatch entries (from manifest dispatch_vars)")
-	}
-	for name := range cfg.AssigneeDispatch {
-		if _, err := botregistry.ResolveBotPath(name, cfg.Bots.Paths); err != nil {
-			t.Fatalf("assignee_dispatch[%s] does not resolve via discovery: %v", name, err)
+	for i := range want {
+		if cfg.Bots.Paths[i] != want[i] {
+			t.Fatalf("Bots.Paths[%d] = %q, want %q", i, cfg.Bots.Paths[i], want[i])
 		}
 	}
-	// Every extracted bot is the whole program: a bot in several files
-	// lands with the fragments its main imports. The witness is one such
-	// bot in the catalogue — without it the check could not bite.
-	mains, err := filepath.Glob(filepath.Join(storeDir, "dispatcher", "bots", "*", "main.bot"))
-	if err != nil {
-		t.Fatal(err)
+	if names := DefaultAssigneeNames(cfg.Bots.Paths); len(names) != 0 {
+		t.Fatalf("a project with no bots has no assignees, got %v", names)
 	}
-	several := 0
-	for _, m := range mains {
-		u := unittest.Whole(unit.LoadDir(m))
-		if u.HasErrors() {
-			for _, d := range u.Diagnostics {
-				t.Errorf("%s: %s", m, d.Error())
-			}
-			continue
-		}
-		if len(u.Files) > 1 {
-			several++
-		}
-	}
-	if several == 0 {
-		t.Fatal("no extracted bot is in several files: the catalogue is stale (run `devbox run -- task templates:dispatch-bots`) or the witness is gone")
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("the preset must validate with no bots: %v", err)
 	}
 }
 
-func TestBuildDefaultConfig_PreservesUserEdits(t *testing.T) {
-	skipIfCatalogueEmpty(t)
-	storeDir := t.TempDir()
-	// First extraction populates the catalogue.
-	if _, err := BuildDefaultConfig(storeDir, ""); err != nil {
-		t.Fatalf("first BuildDefaultConfig: %v", err)
-	}
-	// Hand-edit one bot.
-	target := filepath.Join(storeDir, "dispatcher", "bots", "default", "main.bot")
-	const userMarker = "## USER-EDITED — must survive re-extraction\n"
-	if err := os.WriteFile(target, []byte(userMarker), 0o644); err != nil {
-		t.Fatalf("write user edit: %v", err)
-	}
-	// Re-extract: write-if-absent must keep the user edit.
-	if _, err := BuildDefaultConfig(storeDir, ""); err != nil {
-		t.Fatalf("second BuildDefaultConfig: %v", err)
-	}
-	got, err := os.ReadFile(target)
-	if err != nil {
-		t.Fatalf("read edited bot: %v", err)
-	}
-	if string(got) != userMarker {
-		t.Fatalf("user edit overwritten — got %q want %q", got, userMarker)
-	}
-}
-
-func TestDefaultAssigneeNames_Sorted(t *testing.T) {
-	skipIfCatalogueEmpty(t)
-	storeDir := t.TempDir()
-	cfg, err := BuildDefaultConfig(storeDir, "")
+func TestBuildDefaultConfig_DiscoversProjectBots(t *testing.T) {
+	project := t.TempDir()
+	writeProjectBot(t, project, "zeta")
+	writeProjectBot(t, project, "alpha")
+	cfg, err := BuildDefaultConfig(project)
 	if err != nil {
 		t.Fatalf("BuildDefaultConfig: %v", err)
 	}
 	got := DefaultAssigneeNames(cfg.Bots.Paths)
-	if len(got) == 0 {
-		t.Fatal("expected at least one default assignee")
+	want := []string{"alpha", "zeta"}
+	if len(got) != len(want) || !sort.StringsAreSorted(got) {
+		t.Fatalf("DefaultAssigneeNames = %v, want %v (sorted)", got, want)
 	}
-	sorted := append([]string(nil), got...)
-	sort.Strings(sorted)
-	for i := range got {
-		if got[i] != sorted[i] {
-			t.Fatalf("DefaultAssigneeNames not sorted at index %d: got %v", i, got)
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("DefaultAssigneeNames = %v, want %v", got, want)
 		}
 	}
 }
 
-func TestBuildDefaultConfig_RejectsEmptyStoreDir(t *testing.T) {
-	if _, err := BuildDefaultConfig("", ""); err == nil {
-		t.Fatal("expected error on empty storeDir")
+func TestBuildDefaultConfig_RejectsEmptyProjectDir(t *testing.T) {
+	if _, err := BuildDefaultConfig(""); err == nil {
+		t.Fatal("expected an error on an empty project directory: the preset runs the bots of a project")
 	}
 }
 
-// When projectDir is non-empty, BuildDefaultConfig wires an after_create hook
-// that seeds a git worktree of the host repo into each per-issue workspace.
-// Teardown is deliberately not a shell hook: after deleting a clean workspace
-// the dispatcher safely removes its exact Git registration instead of running
-// `remove --force` against a checkout that may still be committing.
-func TestBuildDefaultConfig_SeedHookWhenProjectDirSet(t *testing.T) {
-	skipIfCatalogueEmpty(t)
-	storeDir := t.TempDir()
+// BuildDefaultConfig wires an after_create hook that seeds a git worktree of
+// the host repo into each per-issue workspace. Teardown is deliberately not a
+// shell hook: after deleting a clean workspace the dispatcher safely removes
+// its exact Git registration instead of running `remove --force` against a
+// checkout that may still be committing.
+func TestBuildDefaultConfig_SeedHook(t *testing.T) {
 	projectDir := t.TempDir()
-	cfg, err := BuildDefaultConfig(storeDir, projectDir)
+	cfg, err := BuildDefaultConfig(projectDir)
 	if err != nil {
 		t.Fatalf("BuildDefaultConfig: %v", err)
 	}
 	if cfg.Hooks.AfterCreate == nil {
-		t.Fatal("expected after_create hook when projectDir is set")
+		t.Fatal("expected an after_create hook")
 	}
 	if cfg.Hooks.BeforeRemove != nil {
 		t.Fatalf("expected no destructive before_remove default, got %+v", cfg.Hooks.BeforeRemove)
@@ -176,21 +119,54 @@ func TestBuildDefaultConfig_SeedHookWhenProjectDirSet(t *testing.T) {
 	}
 }
 
-// When projectDir is empty (out-of-tree CLI invocations), hooks must
-// stay nil — silently injecting a hook with no source would fail
-// every after_create invocation, blocking dispatch entirely.
-func TestBuildDefaultConfig_NoSeedHookWhenProjectDirEmpty(t *testing.T) {
-	skipIfCatalogueEmpty(t)
-	storeDir := t.TempDir()
-	cfg, err := BuildDefaultConfig(storeDir, "")
-	if err != nil {
-		t.Fatalf("BuildDefaultConfig: %v", err)
+// A preset an earlier version saved routed to the bots the binary embedded:
+// <store>/dispatcher/bots/default as the fallback workflow, that folder first
+// on bots.paths, and a snapshot of those bots' dispatch vars. The migration
+// turns it into the project-only preset and touches nothing the operator wrote.
+func TestMigrateLegacyDefaultPreset(t *testing.T) {
+	store := t.TempDir()
+	botsDir := filepath.Join(store, "dispatcher", "bots")
+	project := t.TempDir()
+	legacy := func() *dispatcher.Config {
+		return &dispatcher.Config{
+			Name:             "iterion-default",
+			Workflow:         filepath.Join(botsDir, "default"),
+			AssigneeDispatch: map[string]dispatcher.DispatchConfig{"feature-dev": {Vars: map[string]string{"task": "{{issue.title}}"}}},
+			Tracker:          dispatcher.TrackerConfig{Kind: dispatcher.TrackerKindNative},
+		}
 	}
-	if cfg.Hooks.AfterCreate != nil {
-		t.Fatalf("expected no after_create hook when projectDir is empty, got %+v", cfg.Hooks.AfterCreate)
+
+	cfg := legacy()
+	cfg.Bots.Paths = append([]string{botsDir}, botregistry.DefaultPaths(project)...)
+	if !MigrateLegacyDefaultPreset(cfg, store) {
+		t.Fatal("the legacy preset must be migrated")
 	}
-	if cfg.Hooks.BeforeRemove != nil {
-		t.Fatalf("expected no before_remove hook when projectDir is empty, got %+v", cfg.Hooks.BeforeRemove)
+	if cfg.Workflow != "" || !cfg.RequireAssignee || cfg.AssigneeDispatch != nil {
+		t.Fatalf("not migrated: workflow=%q require_assignee=%v assignee_dispatch=%v", cfg.Workflow, cfg.RequireAssignee, cfg.AssigneeDispatch)
+	}
+	for _, p := range cfg.Bots.Paths {
+		if filepath.Clean(p) == filepath.Clean(botsDir) {
+			t.Fatalf("the extracted catalogue is still on bots.paths: %v", cfg.Bots.Paths)
+		}
+	}
+	if len(cfg.Bots.Paths) != len(botregistry.DefaultPaths(project)) {
+		t.Fatalf("the project's roots must stay: %v", cfg.Bots.Paths)
+	}
+
+	// An operator's own config is left alone: another name, or a workflow that
+	// is not the extracted default.
+	own := legacy()
+	own.Name = "mine"
+	if MigrateLegacyDefaultPreset(own, store) || own.Workflow == "" {
+		t.Fatal("a config the operator named must not be migrated")
+	}
+	edited := legacy()
+	edited.Workflow = filepath.Join(project, "bots", "triage", "main.bot")
+	if MigrateLegacyDefaultPreset(edited, store) || edited.Workflow == "" {
+		t.Fatal("a config with the operator's own workflow must not be migrated")
+	}
+	if MigrateLegacyDefaultPreset(nil, store) || MigrateLegacyDefaultPreset(legacy(), "") {
+		t.Fatal("nil config / empty store must be a no-op")
 	}
 }
 

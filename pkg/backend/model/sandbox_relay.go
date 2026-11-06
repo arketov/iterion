@@ -8,6 +8,7 @@ import (
 
 	"github.com/SocialGouv/claw-code-go/pkg/api"
 
+	"github.com/arketov/iterion/pkg/backend/credroute"
 	"github.com/arketov/iterion/pkg/backend/delegate"
 	iterlog "github.com/arketov/iterion/pkg/log"
 	"github.com/arketov/iterion/pkg/store"
@@ -79,6 +80,11 @@ type relayedLLMStep struct {
 	// decodes to "" — the host falls back to its own derivation, the same
 	// skew tolerance as every capability an older sandbox image lacks.
 	Provider string `json:"provider,omitempty"`
+	// Credential is what the step's client spent, as the container's own
+	// walk named it through the crossing's record (LLMStepInfo.Credential) —
+	// the node's call or a subagent's, each its own. The launcher relays it
+	// verbatim. Absent from an older container: the step carries no keys.
+	Credential *credroute.Spend `json:"credential,omitempty"`
 }
 
 // relayedToolCall is the wire form of ToolCallEntry.
@@ -293,7 +299,13 @@ func SandboxRelayHooks(write func(delegate.Envelope) error, report func(error)) 
 			send(string(store.EventLLMRequest), relayedLLMRequest(info))
 		},
 		OnLLMStepFinish: func(_ string, step LLMStepInfo) {
+			var credential *credroute.Spend
+			if step.Credential != (credroute.Spend{}) {
+				c := step.Credential
+				credential = &c
+			}
 			send(string(store.EventLLMStepFinished), relayedLLMStep{
+				Credential:       credential,
 				Number:           step.Number,
 				Text:             relayClampText(step.Text),
 				ToolCalls:        relayClampToolCalls(step.ToolCalls),
@@ -446,7 +458,12 @@ func ApplyRelayedEvent(h EventHooks, nodeID, eventType string, payload map[strin
 					calls[i] = ToolCallEntry(tc)
 				}
 			}
+			var credential credroute.Spend
+			if s.Credential != nil {
+				credential = *s.Credential
+			}
 			h.OnLLMStepFinish(nodeID, LLMStepInfo{
+				Credential:       credential,
 				Number:           s.Number,
 				Text:             s.Text,
 				ToolCalls:        calls,

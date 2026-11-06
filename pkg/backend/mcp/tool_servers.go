@@ -10,7 +10,7 @@ import (
 	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
-// UnknownToolServerDiagnostics is C332: one warning per node entry in `tools:`
+// UnknownToolServerDiagnostics is C337: one warning per node entry in `tools:`
 // that names an MCP server — `mcp.<server>.<tool>`, `mcp.<server>.*` or the
 // `mcp__<server>__<tool>` spelling — absent from the catalog PrepareWorkflow
 // resolved (wf.ResolvedMCPServers: project `.mcp.json`, enabled plugins, the

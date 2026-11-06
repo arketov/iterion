@@ -142,4 +142,43 @@ describe("ProjectFilesPanel", () => {
     renderPanel();
     expect(await screen.findByText(/Showing the first 1 files/)).toBeTruthy();
   });
+
+  it("names how many of how many are shown, and how to reach the rest", async () => {
+    vi.mocked(client.listFilesPage).mockResolvedValueOnce({
+      files: [{ name: "a.bot", size: 1 }],
+      truncated: true,
+      total: 7,
+    });
+    renderPanel();
+    expect(await screen.findByText(/Showing the first 1 files of 7/)).toBeTruthy();
+    expect(screen.getByText(/ITERION_STUDIO_FILES_LIMIT/)).toBeTruthy();
+  });
+
+  it("reports a bundle the server could not list instead of dropping it silently", async () => {
+    vi.mocked(client.listFilesPage).mockResolvedValueOnce({
+      files: [{ name: "a.bot", size: 1 }],
+      discovery_errors: [
+        { path: "bots/broken", error: "the directory is claimed as a bundle and carries no main.bot", kind: "unopenable" },
+      ],
+    });
+    renderPanel();
+    expect(await screen.findByText("Some bundles cannot be opened")).toBeTruthy();
+    expect(screen.getByText(/bots\/broken: the directory is claimed as a bundle/)).toBeTruthy();
+  });
+
+  it("leads an empty project to an action", async () => {
+    vi.mocked(client.listFilesPage).mockResolvedValueOnce({ files: [] });
+    renderPanel();
+    expect(await screen.findByText(/No bots in this project yet — create a new workflow, open a file by its path/)).toBeTruthy();
+  });
+
+  it("tells a .botz archive picked from disk how to install it, not that it is the wrong type", async () => {
+    const { container } = renderPanel();
+    await screen.findByText("dev-flow.bot");
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(["x"], "pack.botz")] } });
+    await waitFor(() => {
+      expect(useUIStore.getState().toasts.map((t) => t.message).join(" ")).toContain("Bots → Import");
+    });
+  });
 });

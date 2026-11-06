@@ -129,8 +129,9 @@ type Issue struct {
 	// created it — newest last, capped at MaxLaunchFailures. It is what keeps
 	// the reason on the card after the in-memory retry queue is gone (the
 	// dispatcher was stopped, the studio restarted): cleared when a run is
-	// finally stamped (SetLastRun — a launch happened), so a card shows
-	// failures only until its next successful launch.
+	// finally stamped (SetLastRun — a launch happened) or the card is reopened
+	// by the operator, so a card shows failures only until its next successful
+	// launch or its Reopen.
 	LaunchFailures []LaunchFailure `json:"launch_failures,omitempty"`
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
@@ -259,6 +260,13 @@ type LaunchFailure struct {
 	// the hook produced none — it could not start, or timed out).
 	Hook     string `json:"hook,omitempty"`
 	ExitCode *int   `json:"exit_code,omitempty"`
+	// Shell is the shell or interpreter the hook ran under (pwsh, powershell,
+	// sh, bash …), or the one it was asked for when none could be started;
+	// ShellPath the executable started; ShellSource why it was picked (explicit,
+	// env, default, posix-script, shebang, extension).
+	Shell       string `json:"shell,omitempty"`
+	ShellPath   string `json:"shell_path,omitempty"`
+	ShellSource string `json:"shell_source,omitempty"`
 	// Error is the FULL failure text; Stderr the tail of the hook's stderr.
 	Error  string `json:"error"`
 	Stderr string `json:"stderr,omitempty"`

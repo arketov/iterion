@@ -100,12 +100,18 @@ func decidedVarsForLaunch(wf *ir.Workflow, vars map[string]any) map[string]any {
 // active), and `pacer_gpt` resolves off the Anthropic wire. Nothing the run
 // can reach spends the capped subscription, so it starts under either cap
 // mode with no deployment profile.
+//
+// A GPT review runs where a GPT credential funds it: the pod's OpenAI key
+// here, staged because the package's TestMain isolates the host's providers
+// and the spawn keeps a supervisor only where a credential funds it
+// (runview.FundedSupervisorSpecs).
 func TestUsageCapPreflight_MonoGPTOnTheReviewPrBot(t *testing.T) {
 	blankAnthropicWireEnv(t)
 	blankReviewPrDials(t)
+	t.Setenv("OPENAI_API_KEY", "sk-openai-pod")
 	wf := compileCatalogBot(t, "review-pr")
 	mono := map[string]any{"mono_family": "gpt", "review_mode": "mono", "review_tier": "guard"}
-	ctx := forfaitBesidePinnedKeys()
+	ctx := forfaitBesidePinnedKeys(t)
 	resets := time.Now().UTC().Add(30 * time.Hour)
 	hard := cappedWire(t, usagecap.WindowSevenDay, 0.92, resets) // the test policy reads the week HARD
 	soft := cappedWire(t, usagecap.WindowFiveHour, 0.95, resets) // and the five-hour window SOFT
@@ -129,7 +135,7 @@ func TestUsageCapPreflight_MonoGPTOnTheReviewPrBot(t *testing.T) {
 	if len(sups) != 1 || sups[0].id != supervisorRouteIDPrefix+"pacer_gpt" {
 		t.Fatalf("the supervisor walk of a mono-gpt review is %v, want only supervisor:pacer_gpt — the claude pacer watches no node this run reaches", sups)
 	}
-	if _, metered := usageCapCredKeys(ctx, &queue.RunMessage{RunID: "run-sups"}).supervisorKey(ctx, sups[0].spec); metered {
+	if _, metered := usageCapCredKeys(ctx, &queue.RunMessage{RunID: "run-sups"}).supervisorKey(ctx, sups[0].spec, sups[0].hint); metered {
 		t.Errorf("pacer_gpt resolves to %q, which the cap meters — the gpt pacer must leave the Anthropic wire", sups[0].spec)
 	}
 

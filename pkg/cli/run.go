@@ -993,7 +993,6 @@ func resolveWorkflow(opts RunOptions) (wf *ir.Workflow, hash, filePath, displayN
 		if filePath == "" {
 			return nil, "", "", "", nil, cleanup, fmt.Errorf("recipe %q does not specify a workflow path; provide --file", spec.Name)
 		}
-		filePath = ResolveRecipePath(filePath)
 		if !workflowfile.IsWorkflowFile(filePath) {
 			return nil, "", "", "", nil, cleanup, fmt.Errorf("recipe workflow path %q must end in .bot", filePath)
 		}
@@ -1012,7 +1011,7 @@ func resolveWorkflow(opts RunOptions) (wf *ir.Workflow, hash, filePath, displayN
 	if opts.File == "" {
 		return nil, "", "", "", nil, cleanup, fmt.Errorf("provide a .bot file, .botz bundle, or --recipe")
 	}
-	resolved := ResolveRecipePath(opts.File)
+	resolved := opts.File
 	if existErr := requireWorkflowPathExists(resolved); existErr != nil {
 		return nil, "", "", "", nil, cleanup, existErr
 	}

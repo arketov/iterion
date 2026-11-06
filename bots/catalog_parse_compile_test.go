@@ -120,7 +120,7 @@ var catalogRoots = []catalogRoot{
 	bundleRoot,
 	{"../examples/*.bot", 5, "the standalone examples"},
 	{"../examples/*/*.bot", 15, "the examples that ship a directory, subbot children included"},
-	{dispatchFallbackPath, 1, "the dispatcher's `default` assignee, copied into the //go:embed tree at build — a parse regression there breaks `iterion dispatch` in every binary"},
+	{dispatchFallbackPath, 1, "the dispatcher's former `default` assignee: no longer embedded in the binary (the zero-config preset runs only a project's own bots), kept parsed until it is removed"},
 	{"../scripts/adhoc/*.bot", 1, "the operator scripts under scripts/adhoc/"},
 }
 

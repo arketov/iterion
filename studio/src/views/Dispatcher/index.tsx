@@ -15,11 +15,13 @@ import { errorMessage } from "@/lib/errorHints";
 import {
   applyDefaults,
   cancelIssue,
+  dropRetry,
   getState,
   getStatus,
   openWS,
   refresh as refreshTick,
   reload as reloadConfig,
+  retryNow,
   type DispatchSkipView,
   type DispatcherSnapshot,
   type ManagerStatus,
@@ -202,6 +204,32 @@ export default function DispatcherView() {
     [confirm, actionRun],
   );
 
+  const doRetryNow = useCallback(
+    (issueID: string) => void actionRun(async () => {
+      await retryNow(issueID);
+      await refreshTick();
+    }),
+    [actionRun],
+  );
+  const doDropRetry = useCallback(
+    async (issueID: string) => {
+      const row = (snap?.retries ?? []).find((r) => r.issue_id === issueID);
+      const name = row?.identifier || issueID;
+      const ok = await confirm({
+        title: "Remove from the retry queue?",
+        message: `Stop retrying ${name}. The card moves to the dispatcher's failed state (blocked by default) and is marked as given up; reopen it on the board to try again.`,
+        confirmLabel: "Remove",
+        confirmVariant: "danger",
+      });
+      if (!ok) return;
+      await actionRun(async () => {
+        await dropRetry(issueID);
+        setSnap(await getState());
+      });
+    },
+    [confirm, actionRun, snap],
+  );
+
   useHeaderSlot({
     left: <span className="text-xs font-medium text-fg-default">Dispatcher</span>,
     right: (
@@ -277,6 +305,10 @@ export default function DispatcherView() {
         </InlineBanner>
       )}
 
+      {status?.boot_note && !dispatcherAttached && (
+        <InlineBanner tone="info">{status.boot_note}</InlineBanner>
+      )}
+
       {snap.last_tracker_error && (
         <TrackerErrorBanner
           tracker={snap.tracker}
@@ -304,7 +336,7 @@ export default function DispatcherView() {
           className="flex-1"
           title="No dispatcher running"
           // POST /dispatcher/defaults/apply builds the zero-config dispatcher
-          // (embedded bot catalogue, native board) and starts it. The server
+          // (the project's own bots, native board) and starts it. The server
           // answers 409 when a config already exists, so the button is only
           // offered while there is none.
           action={
@@ -313,7 +345,7 @@ export default function DispatcherView() {
                 variant="primary"
                 size="sm"
                 onClick={() => void actionRun(async () => { setStatus(await applyDefaults()); })}
-                title="Create a default dispatcher from the built-in bots and start it"
+                title="Create a default dispatcher that runs your project's bots, and start it"
               >
                 Use default settings
               </Button>
@@ -353,6 +385,9 @@ export default function DispatcherView() {
               setLocation(`/board?focus=${encodeURIComponent(id)}`)
             }
             onRefreshNow={doRefresh}
+            onRetryNow={doRetryNow}
+            onDropRetry={doDropRetry}
+            canActOnRetries={dispatcherAttached}
           />
         </div>
       )}
@@ -433,9 +468,9 @@ function DispatchSkipsTable({
       <header className="px-4 py-2 border-b border-danger/30 text-sm font-semibold text-danger-fg flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span>⚠ Won&apos;t dispatch ({rows.length})</span>
         <span className="text-micro font-normal text-danger-fg">
-          eligible issues the dispatcher refuses to claim — pick an assignee or
-          fix the <code>bot</code> in the issue editor, or add it to{" "}
-          <code>assignee_workflows</code>
+          eligible issues the dispatcher refuses to claim — pick one of the
+          project&apos;s bots in the issue editor (Bot tab), or fix the{" "}
+          <code>bot</code> name
         </span>
       </header>
       <Table
@@ -461,6 +496,10 @@ function DispatchSkipsTable({
               <Td className="font-mono">
                 {s.kind === "no_assignee" ? (
                   <span className="text-warning-fg">no assignee</span>
+                ) : s.kind === "no_bot" ? (
+                  <span className="text-warning-fg">
+                    no bot{s.assignee ? ` (${s.assignee})` : ""}
+                  </span>
                 ) : s.bot ? (
                   s.bot
                 ) : (

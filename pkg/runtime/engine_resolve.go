@@ -18,6 +18,7 @@ import (
 	"github.com/arketov/iterion/pkg/backend/tool"
 	"github.com/arketov/iterion/pkg/bundle"
 	"github.com/arketov/iterion/pkg/dsl/ir"
+	iterlog "github.com/arketov/iterion/pkg/log"
 	"github.com/arketov/iterion/pkg/memory"
 	"github.com/arketov/iterion/pkg/store"
 )
@@ -1043,7 +1044,14 @@ func (e *Engine) ResolveVars(inputs map[string]any) map[string]any {
 }
 
 func (e *Engine) resolveVars(inputs map[string]any) map[string]any {
+	return e.resolveVarsLogging(inputs, e.logger)
+}
 
+// resolveVarsLogging is resolveVars saying what it coerced or remapped on
+// logger: a reader that resolves the run's vars ahead of the run itself (the
+// launch's credential admission) passes a quiet one, the run's own
+// resolution says it once.
+func (e *Engine) resolveVarsLogging(inputs map[string]any, logger *iterlog.Logger) map[string]any {
 	vars := make(map[string]any)
 	expandFn := e.varExpandFn()
 	read := func(origin, name string, raw any, vt ir.VarType) any {
@@ -1061,7 +1069,7 @@ func (e *Engine) resolveVars(inputs map[string]any) map[string]any {
 		if s, isText := raw.(string); isText {
 			raw = ir.ExpandWithDefault(s, expandFn)
 		}
-		e.logger.Warn("runtime: var %q (%s): coerce to %s failed: %v (using raw value)", name, origin, vt, err)
+		logger.Warn("runtime: var %q (%s): coerce to %s failed: %v (using raw value)", name, origin, vt, err)
 		return raw
 	}
 	for name, v := range e.workflow.Vars {
@@ -1094,8 +1102,8 @@ func (e *Engine) resolveVars(inputs map[string]any) map[string]any {
 					continue
 				}
 				vars[k] = remapped
-				if e.logger != nil {
-					e.logger.Warn("runtime: var %q was set to the repo root %q; remapped to the worktree/sandbox workspace %q to avoid a phantom working-tree view. Prefer omitting it so it defaults to ${PROJECT_DIR}.", k, e.repoRoot, projectDir)
+				if logger != nil {
+					logger.Warn("runtime: var %q was set to the repo root %q; remapped to the worktree/sandbox workspace %q to avoid a phantom working-tree view. Prefer omitting it so it defaults to ${PROJECT_DIR}.", k, e.repoRoot, projectDir)
 				}
 			}
 		}
@@ -1116,6 +1124,7 @@ var engineSuppliedVarFns = map[string]func(e *Engine) string{
 	"BUNDLE_SKILLS_DIR":   (*Engine).bundleSkillsDirVarValue,
 	"PROJECT_MEMORY_DIR":  (*Engine).projectMemoryDirVarValue,
 	"PROJECT_SCRATCH_DIR": (*Engine).projectScratchDirVarValue,
+	"RUN_SCRATCH_DIR":     (*Engine).runScratchDirVarValue,
 }
 
 // varExpandFn returns the os.Expand callback var values are resolved
@@ -1241,6 +1250,78 @@ func (e *Engine) projectScratchDirVarValue() string {
 	}
 	return memory.WorkspaceScratchDir(base)
 }
+
+// runScratchDirVarValue resolves ${RUN_SCRATCH_DIR} — the run's OWN
+// scratch subtree (#2869), the `run_scratch` twin of the shared
+// ${PROJECT_SCRATCH_DIR}: <project scratch>/runs/<family root>. The
+// family root is the run's own id, or — for a sub-bot child — the topmost
+// ancestor's, so a fan-in family writes and reads ONE subtree (the child
+// fan-in the shared scratch carried) while a different run of the same
+// repository can no longer read what this one left. Sandboxed, the value
+// rides the same fixed container path the shared scratch resolves to —
+// the backing (bind or bank, ADR-106) is the project scratch's, so the
+// subtree crosses the envelope with it.
+//
+// Empty owner (a caller that never settled one) falls back to the shared
+// scratch rather than inventing a subtree keyed on nothing.
+func (e *Engine) runScratchDirVarValue() string {
+	base := e.projectScratchDirVarValue()
+	if e.runScratchOwner == "" {
+		return base
+	}
+	return filepath.Join(base, memory.RunScratchDirName, e.runScratchOwner)
+}
+
+// resolveRunScratchOwner settles the run-family root the per-run scratch
+// subtree keys on: the run itself, or the topmost persisted ancestor for
+// a sub-bot child. parentID is the run's recorded parent (e.parentRunID
+// at launch, r.ParentRunID on resume — the engine field is restored after
+// this runs, so the record's value is the one to walk). A missing parent
+// row is non-fatal — legacy launch paths create parent and child in
+// different stores — and the walk then keeps the last id it reached.
+// Called once per execution, before the first var resolution expands
+// ${RUN_SCRATCH_DIR}.
+//
+// Every id the walk adopts becomes the path component of the subtree —
+// and of the read root claw attaches on it — so each one must be a name
+// the store itself would accept (store.SanitizePathComponent). A parent
+// id arrives verbatim from a launch request (POST /api/runs
+// parent_run_id) or from the record it was stored in; a '..'-shaped one
+// would move the subtree out of the project scratch, into another
+// repository's or above the iterion home. Such an id names no run, so it
+// ends the walk at the last valid id, with a warning; an invalid run id
+// of its own (one the store never creates) settles no owner at all.
+func (e *Engine) resolveRunScratchOwner(ctx context.Context, runID, parentID string) string {
+	if err := store.SanitizePathComponent("run ID", runID); err != nil {
+		if e.logger != nil {
+			e.logger.Warn("runtime: the run scratch subtree keys on no owner: %v", err)
+		}
+		return ""
+	}
+	owner := runID
+	seen := map[string]bool{runID: true}
+	for id, hops := parentID, 0; id != "" && !seen[id] && hops < maxScratchLineageWalk; hops++ {
+		if err := store.SanitizePathComponent("parent run ID", id); err != nil {
+			if e.logger != nil {
+				e.logger.Warn("runtime: run %s: the scratch lineage walk stops at %q: %v", runID, owner, err)
+			}
+			break
+		}
+		seen[id] = true
+		owner = id
+		r, err := e.store.LoadRun(ctx, id)
+		if err != nil || r == nil {
+			break
+		}
+		id = r.ParentRunID
+	}
+	return owner
+}
+
+// maxScratchLineageWalk bounds the parent-chain walk of
+// resolveRunScratchOwner — a corrupted cycle costs the subtree its root
+// keying, never the run its start.
+const maxScratchLineageWalk = 32
 
 // validateVarConstraints enforces the constraints a var declares —
 // `[enum: ...]` and `[matching: "<re>"]` — on launch-provided var values.

@@ -17,3 +17,28 @@ export function hookFailureLabel(
 export function logHint(logPath: string | undefined): string {
   return logPath ? `Full output and chronology: ${logPath}` : "";
 }
+
+const SHELL_SOURCE_LABELS: Record<string, string> = {
+  explicit: "`shell:` on the hook",
+  env: "ITERION_SHELL",
+  default: "platform default",
+  "posix-script": "sh-written script kept on sh",
+  shebang: "the file's #! line",
+  extension: "the file's extension",
+};
+
+// shellLabel says which shell or interpreter a failed hook ran under (or was
+// asked for), where the executable is and why it was picked, or "" when the
+// failure carries none. Mirrors the Go side's dispatcher.ShellLabel, so the
+// log, the error text and the panels read the same.
+export function shellLabel(
+  shell?: string,
+  path?: string,
+  source?: string,
+): string {
+  if (!shell && !path) return "";
+  let label = shell ?? "";
+  if (path && path !== shell) label = label ? `${label} ${path}` : path;
+  const why = source ? SHELL_SOURCE_LABELS[source] : undefined;
+  return why ? `${label}, ${why}` : label;
+}

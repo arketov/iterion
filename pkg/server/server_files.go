@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/arketov/iterion/internal/httpx"
+	"github.com/arketov/iterion/pkg/botregistry"
 	"github.com/arketov/iterion/pkg/dispatcher/native"
 	"github.com/arketov/iterion/pkg/dsl/ast"
 	"github.com/arketov/iterion/pkg/dsl/canon"
@@ -29,6 +30,13 @@ type listFilesResponse struct {
 	Files []fileEntry `json:"files"`
 	// Truncated is set when the list was cut at the entry cap.
 	Truncated bool `json:"truncated,omitempty"`
+	// Total is how many files the listing rule found before the cap cut the
+	// list; set with Truncated, so a client can say "n of total".
+	Total int `json:"total,omitempty"`
+	// DiscoveryErrors names the bundle directories the list could not show
+	// (a manifest with no main.bot, an unreadable directory), in the shape
+	// of GET /api/v1/bots' discovery_errors with workspace-relative paths.
+	DiscoveryErrors []botregistry.DiscoveryError `json:"discovery_errors,omitempty"`
 }
 
 type fileEntry struct {
@@ -571,15 +579,17 @@ func evalSymlinksLongestPrefix(abs string) (string, error) {
 // --- File management handlers ---
 
 func (s *Server) handleListFiles(w http.ResponseWriter, _ *http.Request) {
-	s.stateMu.RLock()
-	workDir := s.cfg.WorkDir
-	s.stateMu.RUnlock()
+	workDir := s.currentWorkDir()
 	if workDir == "" {
 		writeJSON(w, listFilesResponse{Files: []fileEntry{}})
 		return
 	}
-	files, truncated := listWorkflowFiles(workDir, listFilesLimit())
-	writeJSON(w, listFilesResponse{Files: files, Truncated: truncated})
+	files, total, truncated, skipped := listWorkflowFiles(workDir, s.effectivePathsFor(workDir), listFilesLimit())
+	resp := listFilesResponse{Files: files, Truncated: truncated, DiscoveryErrors: skipped}
+	if truncated {
+		resp.Total = total
+	}
+	writeJSON(w, resp)
 }
 
 func (s *Server) handleOpenFile(w http.ResponseWriter, r *http.Request) {
@@ -599,30 +609,6 @@ func (s *Server) handleOpenFile(w http.ResponseWriter, r *http.Request) {
 	confirmedDiskPath := ""
 	if err == nil {
 		confirmedDiskPath = absPath
-	}
-	if err != nil {
-		// Embedded-recipe fallback: the bot picker sets currentFilePath
-		// to "bots/<name>" (legacy "examples/<name>") after loading a
-		// binary-embedded recipe (see studio Toolbar handlePickFile).
-		// When the project has no matching on-disk file, every later
-		// flow that re-reads via /files/open (LaunchView's pre-launch
-		// document fetch, the file watcher, hot-reload) would 404
-		// without this fallback. Strip the prefix and resolve the
-		// remainder (e.g. "feature_dev/main.bot") against the embed.
-		for _, prefix := range []string{"bots/", "examples/"} {
-			if rest := strings.TrimPrefix(req.Path, prefix); rest != req.Path {
-				src, ok, embedErr := embeddedRecipe(rest)
-				if embedErr != nil {
-					httpError(w, http.StatusInternalServerError, "%v", embedErr)
-					return
-				}
-				if ok {
-					data = []byte(src)
-					err = nil
-				}
-				break
-			}
-		}
 	}
 	if err != nil {
 		httpError(w, http.StatusNotFound, "file not found: %s", req.Path)
