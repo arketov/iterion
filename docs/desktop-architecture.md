@@ -190,6 +190,16 @@ resolves its WS through the same `_ws/*` path as every other pane, so it
 works for a local pane; a cloud CDP pane additionally needs the CDP endpoint
 to accept the `?ticket=` WS credential (follow-up).
 
+Minimised window. Wails v2 does not hide WebView2 on minimise, so
+`document.visibilityState` stays `visible` and the canvas animations (the
+loop-edge dash flow) would keep painting. The Go side polls
+`WindowIsMinimised` once a second (`watchWindowMinimised`) and emits
+`window:minimised` (bool) only on a change; the shell relays it to every pane
+iframe by `postMessage` (a pane never calls `window.go`; a pane that loads
+later asks for the current state). Each document mirrors it, together with its
+own `visibilityState`, onto `<html data-view-idle>`, and `app.css` pauses the
+`edge-flow` animation under that attribute.
+
 ## Key decisions
 
 ### Why a real `127.0.0.1:<random>` server PLUS Wails AssetServer reverse-proxy
@@ -298,6 +308,7 @@ flips the right CGO/cross flags).
 | `cmd/iterion-desktop/server_host.go` | In-process `cli.RunStudio` fallback when daemon attach is disabled or fails |
 | `cmd/iterion-desktop/daemon_spawn.go` + `daemon_discovery.go` | Per-project studio daemon: spawn (logs to `~/.iterion/daemons/<key>.log`) + registry discovery, so a GUI pane attaches to a running `iterion studio` daemon |
 | `cmd/iterion-desktop/cloud.go` + `cloud_client.go` + `connections.go` | Multi-connection workspace: cloud-connection bindings + per-account token jar, and per-connection iframe panes served at `/x/<connID>/` |
+| `cmd/iterion-desktop/window_minimised.go` | Minimised-window poller behind the `window:minimised` event (no build tag — testable) |
 | `cmd/iterion-desktop/config.go` | User config (no build tag — testable) |
 | `cmd/iterion-desktop/keychain.go` | go-keyring wrapper (no build tag — testable): nothing stored reads as empty, a failed read as an error |
 | `cmd/iterion-desktop/external_cli.go` | claude/codex/git detection |
