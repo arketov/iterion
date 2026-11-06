@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Spinner } from "@/components/ui/Spinner";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
+import { useConfirm } from "@/hooks/useConfirm";
 import { Combobox, type ComboboxOption } from "@/components/ui/Combobox";
 import { BOT_SOURCE_LABEL, botSource, botWorkflowPath, groupBotsBySource } from "@/lib/botOrigin";
 import { useAllBots, useBotsStore } from "@/store/bots";
@@ -32,6 +33,7 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
   // is what "Reset to default settings" asks for.
   const [noConfig, setNoConfig] = useState(false);
   const defaultsAction = useAsyncAction();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   // The bot list the Workflow path / assignee pickers draw from.
   const botsLoaded = useBotsStore((s) => s.bots !== null);
   const fetchBots = useBotsStore((s) => s.fetch);
@@ -85,15 +87,16 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
 
   // The way back when a config already exists: replaces the saved settings
   // (hooks included) with the ready-made ones, after an explicit confirm.
-  const onResetToDefaults = () => {
-    if (
-      !window.confirm(
+  const onResetToDefaults = async () => {
+    const ok = await confirm({
+      title: "Reset dispatcher settings?",
+      message:
         "Replace the saved dispatcher settings with the default ones? " +
-          "Your current settings, including hooks, will be overwritten and the dispatcher restarted.",
-      )
-    ) {
-      return;
-    }
+        "Your current settings, including hooks, will be overwritten and the dispatcher restarted.",
+      confirmLabel: "Reset",
+      confirmVariant: "danger",
+    });
+    if (!ok) return;
     void defaultsAction.run(async () => {
       await dispatcher.applyDefaults({ replace: true });
       onSaved();
@@ -102,6 +105,7 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
   };
 
   return (
+    <>
     <Drawer
       open={open}
       onOpenChange={(o) => !o && onClose()}
@@ -166,7 +170,7 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
               size="sm"
               className="mt-2"
               loading={defaultsAction.busy}
-              onClick={onResetToDefaults}
+              onClick={() => void onResetToDefaults()}
             >
               Reset to default settings
             </Button>
@@ -176,6 +180,8 @@ export default function SettingsDrawer({ open, onClose, onSaved }: Props) {
         {cfg && <Form cfg={cfg} setCfg={setCfg} />}
       </div>
     </Drawer>
+    {confirmDialog}
+    </>
   );
 }
 
