@@ -577,7 +577,10 @@ at most 42 characters on purpose: `git worktree add <workspace>` registers the
 checkout as `<project>/.git/worktrees/<name>`, and git on Windows refuses a
 gitdir of about 220 bytes ("'$GIT_DIR' too big", then "Filename too long";
 `core.longpaths` does not lift it), so a long name would stop the seeding hook
-on a deep project path. Workspaces made by an earlier build under the long
+on a deep project path. What is left after the short name is the project path,
+which only the operator can change: the default PowerShell seeding hook adds
+the gitdir length and the advice to move the project closer to the drive root
+to the failure's stderr (see [Windows](windows.md), known limitations). Workspaces made by an earlier build under the long
 name (`<slug up to 80>--<64 hex digits>`) are still found and kept as they are,
 with their ownership record and its `seed_pending` / `seed_tracked` marks;
 only a new generation gets the short name. The exception is a long-named
