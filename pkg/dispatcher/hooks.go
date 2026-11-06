@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -18,8 +19,12 @@ import (
 // Hook is a single lifecycle hook. Exactly one of Script or Path must be
 // set: Script is an inline shell snippet, run by the host shell for this OS
 // (`sh -lc` on Linux/macOS, PowerShell on Windows — see Shell); Path is a
-// path to a script (the path itself is the command — on Unix the file's
-// shebang controls the interpreter; on Windows it is run by PowerShell).
+// path to a script FILE, run by the interpreter `shell:` names, else (Windows)
+// its `#!` line, else its extension (.ps1 PowerShell, .sh sh/bash, .py python,
+// .js node, .exe/.bat/.cmd itself — an unknown one is an error, see
+// hostshell.FileCommand); on Unix with none of those the file's shebang and
+// executable bit decide, as before. A Path that is not an existing file is
+// run as command text.
 type Hook struct {
 	Script    string `yaml:"script,omitempty" json:"script,omitempty"`
 	Path      string `yaml:"path,omitempty" json:"path,omitempty"`
@@ -36,6 +41,54 @@ type Hooks struct {
 	BeforeRun    *Hook `yaml:"before_run,omitempty" json:"before_run,omitempty"`
 	AfterRun     *Hook `yaml:"after_run,omitempty" json:"after_run,omitempty"`
 	BeforeRemove *Hook `yaml:"before_remove,omitempty" json:"before_remove,omitempty"`
+}
+
+// byName returns the hook called name (after_create, before_run, after_run,
+// before_remove), nil for an unknown or unset one.
+func (h *Hooks) byName(name string) *Hook {
+	switch name {
+	case "after_create":
+		return h.AfterCreate
+	case "before_run":
+		return h.BeforeRun
+	case "after_run":
+		return h.AfterRun
+	case "before_remove":
+		return h.BeforeRemove
+	}
+	return nil
+}
+
+// hookNames is the four lifecycle hooks, in the order they run.
+var hookNames = []string{"after_create", "before_run", "after_run", "before_remove"}
+
+// PinHeuristicShells writes `shell:` onto every inline hook that has none and
+// that hostshell would run under sh only because its text looks like sh on a
+// PowerShell host (hostshell.SourcePosixScript): the shell it already runs
+// under, named, so the choice is explicit instead of re-guessed from the text
+// on every run. It changes no behaviour — a hook that runs under sh keeps
+// running under sh — and never touches a hook with a `shell:`, one that reads
+// as PowerShell (the platform default needs no pin), one chosen by
+// ITERION_SHELL, or one for which no sh is installed (that one reports it when
+// it runs). Returns the names of the hooks it pinned.
+func PinHeuristicShells(cfg *Config) []string {
+	if cfg == nil {
+		return nil
+	}
+	var pinned []string
+	for _, name := range hookNames {
+		h := cfg.Hooks.byName(name)
+		if h == nil || h.Script == "" || h.Shell != "" {
+			continue
+		}
+		sh, err := hostshell.Resolve(hostshell.Request{Script: h.Script})
+		if err != nil || sh.Source != hostshell.SourcePosixScript {
+			continue
+		}
+		h.Shell = sh.Name()
+		pinned = append(pinned, name)
+	}
+	return pinned
 }
 
 // defaultHookTimeout caps any hook missing an explicit timeout_ms.
@@ -91,14 +144,32 @@ func (h *Hook) Run(ctx context.Context, logger *iterlog.Logger, name, workspace 
 		return fmt.Errorf("hook %s: empty command", name)
 	}
 
-	sh, err := hostshell.Resolve(hostshell.Request{Name: h.Shell, Script: command})
-	if err != nil {
-		return fmt.Errorf("hook %s: %w", name, err)
+	var (
+		sh  hostshell.Shell
+		cmd *exec.Cmd
+	)
+	if file := h.scriptFile(workspace); file != "" {
+		// `path:` names a script FILE: run it with the interpreter its
+		// `shell:`, `#!` line or extension names, never as command text (on
+		// Windows PowerShell would hand a .sh to the file association and
+		// report success without running it).
+		argv, fsh, ferr := hostshell.FileCommand(file, h.Shell)
+		if ferr != nil {
+			return h.notStarted(name, ferr, false)
+		}
+		sh = fsh
+		cmd = exec.CommandContext(cctx, argv[0], argv[1:]...)
+	} else {
+		var err error
+		sh, err = hostshell.Resolve(hostshell.Request{Name: h.Shell, Script: command})
+		if err != nil {
+			return h.notStarted(name, err, true)
+		}
+		if sh.Note != "" {
+			logger.Warn("dispatcher: hook %s: %s", name, sh.Note)
+		}
+		cmd = sh.Command(cctx, command, true)
 	}
-	if sh.Note != "" {
-		logger.Warn("dispatcher: hook %s: %s", name, sh.Note)
-	}
-	cmd := sh.Command(cctx, command, true)
 	// Cancellation takes the whole group: a hook's backgrounded grandchild
 	// would otherwise outlive the timeout, keep writing the workspace the
 	// next lifecycle step is about to act on, and hold the inherited
@@ -120,9 +191,9 @@ func (h *Hook) Run(ctx context.Context, logger *iterlog.Logger, name, workspace 
 	cmd.Stdout = hostshell.OutputFor(cmd, &stdout)
 	cmd.Stderr = hostshell.OutputFor(cmd, &stderr)
 
-	logger.Info("dispatcher: hook %s starting (cwd=%s timeout=%s)", name, workspace, timeout)
+	logger.Info("dispatcher: hook %s starting (cwd=%s timeout=%s shell=%s)", name, workspace, timeout, describeShell(sh))
 	start := time.Now()
-	err = cmd.Run()
+	err := cmd.Run()
 	dur := time.Since(start)
 
 	if out := strings.TrimSpace(stdout.String()); out != "" {
@@ -147,9 +218,12 @@ func (h *Hook) Run(ctx context.Context, logger *iterlog.Logger, name, workspace 
 	}
 	if err != nil {
 		if errors.Is(cctx.Err(), context.DeadlineExceeded) {
-			return &HookError{Hook: name, ExitCode: -1, TimedOut: true, Timeout: timeout, Stderr: tailOutput(stderr.String()), Err: err}
+			he := &HookError{Hook: name, ExitCode: -1, TimedOut: true, Timeout: timeout, Stderr: tailOutput(stderr.String()), Err: err}
+			he.setShell(sh)
+			return he
 		}
 		he := &HookError{Hook: name, ExitCode: -1, Duration: dur, Stderr: tailOutput(stderr.String()), Err: err}
+		he.setShell(sh)
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			he.ExitCode = exitErr.ExitCode()
@@ -162,29 +236,129 @@ func (h *Hook) Run(ctx context.Context, logger *iterlog.Logger, name, workspace 
 
 // HookError is the structured failure of a lifecycle hook. It keeps the
 // historical message text ("hook <name>: <cause> (after <dur>)") so existing
-// log greps keep working, and additionally carries WHICH hook failed and with
-// WHAT exit code, so the dispatcher snapshot and the board can show them
-// without parsing the string. ExitCode is -1 when the hook never produced an
-// exit status (it could not start — e.g. the shell is missing — or it timed out).
+// log greps keep working, and additionally carries WHICH hook failed, with
+// WHAT exit code and under WHICH shell, so the dispatcher snapshot and the
+// board can show them without parsing the string. ExitCode is -1 when the hook
+// never produced an exit status (it could not start — e.g. the shell is
+// missing — or it timed out).
 type HookError struct {
 	Hook     string
 	ExitCode int
 	TimedOut bool
-	Timeout  time.Duration
-	Duration time.Duration
+	// NotStarted is true when nothing was started: no shell was found for the
+	// hook, or its script file has no interpreter. Err says why.
+	NotStarted bool
+	Timeout    time.Duration
+	Duration   time.Duration
 	// Stderr is the tail of the hook's stderr, the line that usually names the cause.
 	Stderr string
-	Err    error
+	// Shell is the name of the shell or interpreter the hook ran under (pwsh,
+	// powershell, sh, bash, python …), ShellPath the executable that was
+	// started, and ShellSource why that one was picked (hostshell.Source:
+	// explicit, env, default, posix-script, shebang, extension). For a hook
+	// that could not start, Shell is the explicitly requested name, when there
+	// was one, and ShellPath is empty.
+	Shell       string
+	ShellPath   string
+	ShellSource string
+	Err         error
 }
 
 func (e *HookError) Error() string {
-	if e.TimedOut {
-		return fmt.Sprintf("hook %s: timeout after %s", e.Hook, e.Timeout)
+	var msg string
+	switch {
+	case e.TimedOut:
+		msg = fmt.Sprintf("hook %s: timeout after %s", e.Hook, e.Timeout)
+	case e.NotStarted:
+		msg = fmt.Sprintf("hook %s: %v", e.Hook, e.Err)
+	default:
+		msg = fmt.Sprintf("hook %s: %v (after %s)", e.Hook, e.Err, e.Duration)
 	}
-	return fmt.Sprintf("hook %s: %v (after %s)", e.Hook, e.Err, e.Duration)
+	if tag := ShellLabel(e.Shell, e.ShellPath, e.ShellSource); tag != "" {
+		msg += " [shell: " + tag + "]"
+	}
+	return msg
 }
 
 func (e *HookError) Unwrap() error { return e.Err }
+
+func (e *HookError) setShell(sh hostshell.Shell) {
+	e.Shell, e.ShellPath, e.ShellSource = sh.Name(), sh.Path, string(sh.Source)
+}
+
+// ShellLabel renders a hook's shell for a message: `pwsh C:\Program
+// Files\PowerShell\pwsh.exe, platform default`. Empty when nothing is known.
+func ShellLabel(name, path, source string) string {
+	if name == "" && path == "" {
+		return ""
+	}
+	label := name
+	if path != "" && path != name {
+		if label != "" {
+			label += " "
+		}
+		label += path
+	}
+	switch hostshell.Source(source) {
+	case hostshell.SourceExplicit:
+		label += ", `shell:` on the hook"
+	case hostshell.SourceEnv:
+		label += ", " + hostshell.EnvVar
+	case hostshell.SourceDefault:
+		label += ", platform default"
+	case hostshell.SourcePosixScript:
+		label += ", sh-written script kept on sh"
+	case hostshell.SourceShebang:
+		label += ", the file's #! line"
+	case hostshell.SourceExtension:
+		label += ", the file's extension"
+	}
+	return label
+}
+
+// describeShell is the short form of a resolved shell for a log line.
+func describeShell(sh hostshell.Shell) string {
+	return ShellLabel(sh.Name(), sh.Path, string(sh.Source))
+}
+
+// notStarted is the HookError of a hook for which no process could be started
+// (no shell, no interpreter for its script file). The explicit shell choice
+// that failed — the hook's `shell:`, and for hook text ITERION_SHELL too (a
+// script file's interpreter is not chosen by it) — is named, so the error says
+// what was asked for.
+func (h *Hook) notStarted(name string, cause error, textHook bool) *HookError {
+	he := &HookError{Hook: name, ExitCode: -1, NotStarted: true, Err: cause}
+	var req string
+	var src hostshell.Source
+	if textHook {
+		req, src = hostshell.RequestedShell(hostshell.Request{Name: h.Shell})
+	} else if n := strings.TrimSpace(h.Shell); n != "" && !strings.EqualFold(n, "auto") {
+		req, src = n, hostshell.SourceExplicit
+	}
+	if req != "" {
+		he.Shell, he.ShellSource = req, string(src)
+	}
+	return he
+}
+
+// scriptFile reports the absolute path of the script file a path: hook names:
+// non-empty only for a hook with no inline script whose Path is an existing
+// regular file (relative to the workspace, the hook's working directory). A
+// Path that is not a file — `./run.sh --flag`, a command on PATH — stays
+// command text, as it always was.
+func (h *Hook) scriptFile(workspace string) string {
+	if h.Script != "" || h.Path == "" {
+		return ""
+	}
+	p := h.Path
+	if !filepath.IsAbs(p) {
+		p = filepath.Join(workspace, p)
+	}
+	if info, err := os.Stat(p); err != nil || !info.Mode().IsRegular() {
+		return ""
+	}
+	return p
+}
 
 // hookErrorTailBytes bounds the stderr tail kept on a HookError.
 const hookErrorTailBytes = 2048

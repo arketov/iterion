@@ -60,6 +60,8 @@ func (c *Dispatcher) RegisterRoutesWithMiddleware(mux *http.ServeMux, prefix str
 	mux.Handle("POST "+p+"/reload", wrap(http.HandlerFunc(c.handleReload)))
 	mux.Handle("GET "+p+"/issues/{id}", wrap(http.HandlerFunc(c.handleIssueDetail)))
 	mux.Handle("POST "+p+"/issues/{id}/cancel", wrap(http.HandlerFunc(c.handleIssueCancel)))
+	mux.Handle("POST "+p+"/retries/{id}/run-now", wrap(http.HandlerFunc(c.serveRetryNow)))
+	mux.Handle("DELETE "+p+"/retries/{id}", wrap(http.HandlerFunc(c.serveRetryDrop)))
 	mux.Handle("GET "+p+"/ws", wrap(http.HandlerFunc(c.handleWS)))
 }
 

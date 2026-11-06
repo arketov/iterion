@@ -242,7 +242,13 @@ type retryEntry struct {
 	LastHook       string
 	LastHookExit   int
 	LastHookStderr string
-	Timer          *time.Timer
+	// LastHookShell / LastHookShellPath / LastHookShellSource name the shell
+	// that failed hook ran under (or was asked for), the executable started and
+	// why it was picked (hostshell.Source).
+	LastHookShell       string
+	LastHookShellPath   string
+	LastHookShellSource string
+	Timer               *time.Timer
 	// Fired is true once the backoff timer has expired and the entry
 	// is ready for re-dispatch. We keep the entry around (with the
 	// running Attempt count) instead of deleting it on timer fire so
@@ -250,6 +256,10 @@ type retryEntry struct {
 	// old code deleted on fire and re-derived attempt as 0 on the
 	// next tick.
 	Fired bool
+	// Removing is true while the operator's "remove from the retry queue" is
+	// writing the give-up: the entry stays unfired (the card stays held) and a
+	// timer that fires meanwhile does not flip it (cmdRetryDue).
+	Removing bool
 	// PrevRunID is the runID of the previous attempt that produced
 	// this retry. When the prior run terminated in a resumable state
 	// (`failed_resumable`, `cancelled`, `paused_operator`), the
@@ -369,6 +379,14 @@ type RetryView struct {
 	HookExitCode *int `json:"hook_exit_code,omitempty"`
 	// HookStderr is the tail of the failed hook's stderr.
 	HookStderr string `json:"hook_stderr,omitempty"`
+	// HookShell is the shell or interpreter the failed hook ran under (pwsh,
+	// powershell, sh, bash, python …) — or the one it was asked for when none
+	// could be started. HookShellPath is the executable started and
+	// HookShellSource why it was picked: explicit (the hook's `shell:`), env
+	// (ITERION_SHELL), default, posix-script, shebang or extension.
+	HookShell       string `json:"hook_shell,omitempty"`
+	HookShellPath   string `json:"hook_shell_path,omitempty"`
+	HookShellSource string `json:"hook_shell_source,omitempty"`
 }
 
 // SlotsView reports concurrency usage at the moment of capture.

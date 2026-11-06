@@ -687,6 +687,10 @@ func (c *Dispatcher) buildSnapshot() Snapshot {
 			Error:      e.LastError,
 			Hook:       e.LastHook,
 			HookStderr: e.LastHookStderr,
+
+			HookShell:       e.LastHookShell,
+			HookShellPath:   e.LastHookShellPath,
+			HookShellSource: e.LastHookShellSource,
 		}
 		if e.LastHook != "" {
 			code := e.LastHookExit

@@ -523,8 +523,9 @@ func (s *Store) Reopen(id, toState string) (updated *Issue, err error) {
 	}
 	old := iss.State
 	iss.State = toState
-	iss.StateReason = ""    // an operator gesture: whatever parked the card no longer describes it
-	iss.LaunchRefusal = nil // …and its launch retries start afresh
+	iss.StateReason = ""     // an operator gesture: whatever parked the card no longer describes it
+	iss.LaunchRefusal = nil  // …and its launch retries start afresh
+	iss.LaunchFailures = nil // …and the "did not start" history of the attempts that led to the park
 	iss.UpdatedAt = time.Now().UTC()
 	if err := s.writeIssueLocked(iss); err != nil {
 		return nil, err

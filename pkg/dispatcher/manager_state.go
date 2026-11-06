@@ -119,26 +119,41 @@ func autoStartEnabled() bool {
 // resolveBootIntent decides whether to call Start (and optionally Pause)
 // at NewManager time. The logic is:
 //
-//   - When a persisted DesiredState exists, replay it verbatim. The
+//   - `ITERION_DISPATCHER_AUTOSTART=0` wins over everything: this process
+//     starts nothing — not a first-boot default and not a restored
+//     running/paused intent. It is the switch for a CI run, or for stopping
+//     a dispatcher that keeps relaunching paid runs. The saved intent
+//     (runtime.json) is NOT rewritten: it is this process's override, not the
+//     operator's decision, and the next start without the variable replays it.
+//   - Otherwise, when a persisted DesiredState exists, replay it verbatim. The
 //     operator's intent always wins, so a previously-stopped dispatcher
 //     does not resurrect itself across restarts.
 //   - When no persisted state exists AND a config is present, default
 //     to DesiredRunning — the first-boot auto-start that eliminates the
 //     "why isn't my dispatcher polling?" surprise (see finding
-//     2026-05-25-dispatcher-paused-vs-started-ux-confusion). Disable
-//     via `ITERION_DISPATCHER_AUTOSTART=0`.
+//     2026-05-25-dispatcher-paused-vs-started-ux-confusion).
 //   - When no config is present, return DesiredStopped — there's
 //     nothing to dispatch yet; the SPA will prompt the operator to
 //     save one.
 func resolveBootIntent(persisted DesiredState, hasConfig bool) DesiredState {
+	if !autoStartEnabled() {
+		return DesiredStopped
+	}
 	if persisted != "" {
 		return persisted
 	}
 	if !hasConfig {
 		return DesiredStopped
 	}
-	if !autoStartEnabled() {
-		return DesiredStopped
-	}
 	return DesiredRunning
+}
+
+// autoStartSuppressedNote is the boot note when ITERION_DISPATCHER_AUTOSTART=0
+// kept a saved running/paused intent from being restored ("" otherwise).
+func autoStartSuppressedNote(persisted DesiredState) string {
+	if autoStartEnabled() || (persisted != DesiredRunning && persisted != DesiredPaused) {
+		return ""
+	}
+	return "ITERION_DISPATCHER_AUTOSTART=0 is set: the dispatcher was left stopped instead of restoring its saved state (" +
+		string(persisted) + "). Start it from the studio; the saved state is unchanged."
 }

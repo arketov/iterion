@@ -41,7 +41,7 @@ flowchart TD
     ws --> session["StartClaimSession, only now - renew the 15 min lease every lease/3 for the rest of the hold"]
     session --> setup["runDispatchSetup OFF the actor - fenced UpdateState to running_state, then the workspace mkdir"]
     setup -- "ErrClaimConflict" --> lostc["claim lost before launch - the run is NOT started"]
-    setup --> hooks["after_create once, then before_run - sh -lc in the workspace"]
+    setup --> hooks["after_create once per seeded workspace (an unseeded leftover is recreated and seeded again), then before_run - in the workspace, under the host shell (sh -lc, PowerShell on Windows)"]
     hooks -- "hook failed - the run never started, so its id is NOT stamped as last_run" --> fin
     hooks --> run["runner.Dispatch - the compiled bot runs"]
     run --> afterrun["after_run - on every return of the dispatch, best-effort, it never overrides the verdict"]
@@ -82,7 +82,7 @@ The three **filing** dispositions — COMPLETED, GAVE UP, REVERT — are execute
 | server | the one choke point of the retry policy — five dispositions from one error | `finishRun`, `exhausted`, `retrypolicy.IsDeterministic` |
 | store | the three filing dispositions: the chosen transition first, `Release` last, then the heartbeat stops | `runFinishWorker`, `maybeTransitionToCompleted`, `revertTransition`, `stampGiveUp` |
 | server | PARKED and HELD, settled on the actor — claim kept, heartbeat stopped, no `Release` | `moveToAwaitingInput`, `stopClaimSession`, `recordDispatchSkip` |
-| server | the retry queue — per-issue timer, accumulating attempt, resume pointer | `scheduleRetry`, `computeBackoff`, `sandboxBackoff`, `cmdRetryDue` |
+| server | the retry queue — per-issue timer, accumulating attempt, resume pointer | `scheduleRetry`, `computeBackoff`, `sandboxBackoff`, `cmdRetryDue`, `cmdRetryNow`, `cmdHoldRetry` |
 | server | the watchdog: transfer the expired claim, re-decide with ownership, file, repark or release | `reapExpiredClaims`, `reapOne`, `ClaimReaper.ReclaimExpired`, `DecideStuckCard` |
 
 ## The claim
