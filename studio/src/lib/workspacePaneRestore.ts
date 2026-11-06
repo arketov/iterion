@@ -93,8 +93,8 @@ export function sortByPaneOrder(open: readonly string[], order: readonly string[
 /**
  * A recorded route is accepted only if it can be nothing but a route under the
  * studio: it starts with a single "/", carries no scheme or backslash (so it
- * cannot turn into another origin or path), no control characters, and is not
- * absurdly long. The value goes into an iframe `src`, so this is a boundary.
+ * cannot turn into another origin or path), no control characters, no `.` or
+ * `..` segment (so it cannot climb out of the studio), and is not absurdly long. The value goes into an iframe `src`, so this is a boundary.
  */
 export function sanitizeRestorePath(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
@@ -103,6 +103,10 @@ export function sanitizeRestorePath(raw: unknown): string | null {
   if (raw.includes("\\")) return null;
   // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u001f\u007f]/.test(raw)) return null;
+  // No dot segments (also percent-encoded): the browser resolves them before
+  // the request, so "/../../x/<other id>/studio/" would leave the studio.
+  const pathOnly = raw.split(/[?#]/, 1)[0] ?? "";
+  if (pathOnly.split("/").some((seg) => /^(\.|%2e){1,2}$/i.test(seg))) return null;
   return raw;
 }
 

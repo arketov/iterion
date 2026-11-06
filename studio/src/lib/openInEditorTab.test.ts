@@ -128,6 +128,21 @@ describe("openFileInNewTab", () => {
     expect(d.navigate).toHaveBeenCalledWith("/editor?file=a.bot");
   });
 
+  it("focuses a draft tab that was saved under the file's name instead of opening a second one", async () => {
+    // A draft saved with Save As carries both `draft` and `file`.
+    useTabsStore.setState({
+      tabs: [{ id: "t1", kind: "editor", params: { draft: "r1", file: "d.bot" }, label: "d.bot", hydrated: true }],
+      activeEditorTabId: null,
+    });
+    const d = deps();
+
+    expect(await openFileInNewTab("d.bot", d)).toBe("focused");
+
+    expect(useTabsStore.getState().tabs).toHaveLength(1);
+    expect(useTabsStore.getState().activeEditorTabId).toBe("t1");
+    expect(client.openFile).not.toHaveBeenCalled();
+  });
+
   it("a tab already on the name the server answers with is focused, not overwritten", async () => {
     // The picker said "./a.bot", the server names the file "a.bot".
     vi.mocked(client.openFile).mockResolvedValueOnce(opened("a.bot", "first reading"));

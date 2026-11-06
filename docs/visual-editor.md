@@ -187,7 +187,7 @@ team store.
 
 ![Studio home page with bots and recent runs](images/studio/home.png)
 
-**Command palette** (`⌘/Ctrl+K`) — jump to any view, run, or action; cycle the theme. **Open file…** opens the file picker from anywhere, including the editor start page with no tab open.
+**Command palette** (`⌘/Ctrl+K`) — jump to any view, run, or action; cycle the theme. In local mode **Open file…** opens the file picker from anywhere, including the editor start page with no tab open.
 
 ![Studio command palette with navigation and recent runs](images/studio/command-palette.png)
 

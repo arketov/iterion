@@ -65,9 +65,12 @@ export async function openFileInNewTab(path: string, deps: OpenDeps): Promise<Op
   const { navigate, addToast } = deps;
   const { pushRecent, removeRecent } = useRecentsStore.getState();
   const focusExisting = (file: string): boolean => {
-    const has = selectEditorTabs(useTabsStore.getState()).some((t) => t.params.file === file);
-    if (!has) return false;
-    useTabsStore.getState().openTab("editor", { file });
+    const existing = selectEditorTabs(useTabsStore.getState()).find((t) => t.params.file === file);
+    if (!existing) return false;
+    // setActive, not openTab: openTab matches the params exactly, and a tab
+    // that gained a `draft` param (a draft saved with Save As) would get a
+    // second, empty tab for the same file.
+    useTabsStore.getState().setActive(existing.id);
     pushRecent(path);
     navigate(editorFileHref(file));
     return true;

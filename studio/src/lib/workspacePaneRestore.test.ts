@@ -3,7 +3,7 @@
 // What a window reload (Ctrl+R) puts back in the workspace: which connection
 // tab was focused, in which order the tabs stood, and the route inside a pane.
 // The recorded values go into an iframe `src`, so the validation is a boundary.
-import { renderHook } from "@testing-library/react";
+import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -22,6 +22,7 @@ import {
 
 beforeEach(() => window.sessionStorage.clear());
 afterEach(() => {
+  cleanup();
   delete (globalThis as { __ITERION_SCOPE__?: unknown }).__ITERION_SCOPE__;
   window.history.replaceState({}, "", "/");
 });
@@ -91,6 +92,8 @@ describe("sanitizeRestorePath", () => {
     ["//evil.example/x", "protocol-relative"],
     ["https://evil.example/", "scheme"],
     ["/a\\b", "backslash"],
+    ["/../../x/other/studio/", "dot segments climbing out of the studio"],
+    ["/editor/%2e%2e/%2E%2e/runs", "percent-encoded dot segments"],
     ["/a\u0000b", "control character"],
     ["/" + "a".repeat(2100), "too long"],
   ])("refuses %j (%s)", (raw) => {

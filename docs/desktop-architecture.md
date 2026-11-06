@@ -108,7 +108,7 @@ the iframe's first `src`). The shell writes the first two only after its
 bootstrap has read them. A hand-off ticket is spent by the first load and is
 never recorded; a closed tab forgets its route and reopens on the home. A
 recorded route is accepted only if it starts with a single `/` and carries no
-scheme, backslash or control character, because it ends up in an iframe `src`.
+scheme, backslash, control character or `.`/`..` segment, because it ends up in an iframe `src`.
 In the browser workspace the window's own focused tab wins over the server's
 "current project", which is one value shared by every window. Open editor
 tabs come back from `iterion.tabs` in `localStorage`; unsaved buffers are not

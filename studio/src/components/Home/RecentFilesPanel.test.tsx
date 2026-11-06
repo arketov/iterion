@@ -32,6 +32,8 @@ vi.mock("@/api/client", async (importOriginal) => {
       document: createEmptyDocument(),
       diagnostics: [],
     })),
+    // Opening a recent file reads it before its tab exists.
+    openFile: vi.fn(),
   };
 });
 
@@ -239,9 +241,7 @@ describe("RecentFilesPanel — a recent file that is gone from disk", () => {
   it("opens an existing recent file in a tab already holding its reading", async () => {
     useRecentsStore.setState({ recents: ["here.bot"] });
     vi.mocked(client.openFile).mockResolvedValueOnce({
-      source: "agent a:
-  system: hi
-",
+      source: "agent a:\n  system: hi\n",
       document: createEmptyDocument(),
       diagnostics: [],
       path: "here.bot",

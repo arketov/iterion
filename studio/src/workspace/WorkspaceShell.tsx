@@ -147,6 +147,9 @@ export default function WorkspaceShell() {
         setOpeningIds((prev) => prev.filter((x) => x !== id));
       }
       setOpenError((prev) => (prev?.id === id ? null : prev));
+      // A connection really opened: from here on the focus and the order are
+      // worth recording (a failed bootstrap open must not erase the record).
+      setRestoreArmed(true);
       setOpenIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
       activeIdRef.current = id;
       setActiveId(id);
@@ -249,20 +252,21 @@ export default function WorkspaceShell() {
           null;
         if (target) {
           setOpenIds([...new Set([...persisted, target])]);
+          // openPane arms the record once the connection is open; a target
+          // that fails to open leaves what the last load recorded in place.
           await openPane(target);
         } else {
           setOpenIds([]);
           activeIdRef.current = null;
           setActiveId(null);
+          setRestoreArmed(true);
         }
-        setRestoreArmed(true);
         return;
       }
       if (open.length === 0) {
         const first = (await desktop.listConnections().catch(() => [] as Project[]))[0];
         if (first) {
           await openPane(first.id);
-          setRestoreArmed(true);
           return;
         }
       }
