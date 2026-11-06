@@ -500,6 +500,8 @@ function DispatchSkipsTable({
                   <span className="text-warning-fg">
                     no bot{s.assignee ? ` (${s.assignee})` : ""}
                   </span>
+                ) : s.kind === "completion_pending" ? (
+                  <span className="text-warning-fg">completing</span>
                 ) : s.bot ? (
                   s.bot
                 ) : (
