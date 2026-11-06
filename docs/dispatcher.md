@@ -418,7 +418,9 @@ Each row of the Dispatcher page's *Retry queue* has two actions:
 - **Retry now** makes the retry due at once and requests a poll tick. The
   attempt counter and the resume pointer are kept, so it is the same retry,
   not a new launch. While the dispatcher is paused the retry runs after
-  *Resume*.
+  *Resume*; the page then shows a notice saying so until you resume. The request
+  honours the caller's cancellation: if the client goes away before the
+  dispatcher answers, the call ends with `503`.
 - **Remove from queue** stops retrying the card: it is moved to
   `agent.failed_state` (default `blocked`) and marked as *given up by the
   dispatcher*, exactly as when `max_attempts` runs out, and its queue entry
@@ -587,6 +589,12 @@ before those marks): `after_create` could only fail on it again, so the dispatch
 deletes it and its record, creates the short-named workspace and runs
 `after_create` there. Ownership records live outside the checkout in
 the sibling `.owners/` directory.
+
+Workspace operations are serialised per issue/run generation, not globally, so
+a git call that hangs while resetting one card's unseeded workspace does not
+delay the workspaces of other cards. On Windows, rewriting an ownership record
+is retried for about a second if another reader (an antivirus, OneDrive, the
+studio) holds the file open.
 
 | `workspace.persist`     | Behaviour                                                 |
 |--------------------------|----------------------------------------------------------|
@@ -1270,8 +1278,8 @@ when `server.port` is set — pass `iterion dispatch --no-server`.
 | `/api/v1/dispatcher/reload`                          | POST   | Re-parse the YAML config.                |
 | `/api/v1/dispatcher/issues/{id}`                     | GET    | Per-issue dispatcher view.                |
 | `/api/v1/dispatcher/issues/{id}/cancel`              | POST   | Cancel an in-flight run.                 |
-| `/api/v1/dispatcher/retries/{id}/run-now`            | POST   | Make a queued retry due now, keeping its attempt and resume pointer (`202`, `{"issue_id","status":"due","paused"}`); `404` when the issue has no pending retry. |
-| `/api/v1/dispatcher/retries/{id}`                    | DELETE | Remove a queued retry: file the card under `agent.failed_state` and stamp it as given up (`200`, `{"issue_id","status":"given_up","state"}`); `404` no pending retry, `409` no failed state to file under or the board refuses the move, `502` the tracker failed. |
+| `/api/v1/dispatcher/retries/{id}/run-now`            | POST   | Make a queued retry due now, keeping its attempt and resume pointer (`202`, `{"issue_id","status":"due","paused"}`); `404` when the issue has no pending retry, `503` the request was cancelled before the dispatcher answered. |
+| `/api/v1/dispatcher/retries/{id}`                    | DELETE | Remove a queued retry: file the card under `agent.failed_state` and stamp it as given up (`200`, `{"issue_id","status":"given_up","state"}`); `404` no pending retry, `409` no failed state to file under or the board refuses the move, `502` the tracker failed, `503` the request was cancelled or timed out before the dispatcher answered. |
 | `/api/v1/dispatcher/ws`                              | WS     | Snapshot stream (push on each tick).     |
 | `/api/v1/native/*`                                  | —      | Kanban store CRUD (when native is wired).|
 | `/api/server/info`                                  | GET    | SPA bootstrap (flags `dispatcher_enabled`, `native_tracker_enabled`). |
