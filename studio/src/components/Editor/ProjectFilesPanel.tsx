@@ -236,7 +236,8 @@ export default function ProjectFilesPanel() {
 function displayName(f: FileEntry): string {
   if (f.kind === "bundle") {
     const dir = f.name.split("/").slice(0, -1);
-    if (dir.length > 0) return dir[dir.length - 1];
+    const last = dir[dir.length - 1];
+    if (last) return last;
   }
   return basename(f.name);
 }
