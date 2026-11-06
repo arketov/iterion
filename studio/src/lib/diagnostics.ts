@@ -60,6 +60,13 @@ export interface AttributedDiagnostic extends ParsedDiagnostic {
   edgeId?: string;
   /** Optional fix hint (preferred over the static client-side hint table). */
   hint?: string;
+  /** Position reported by the server (1-based), when the program had spans. */
+  file?: string;
+  line?: number;
+  column?: number;
+  end_line?: number;
+  end_column?: number;
+  property?: string;
   /** "structured" when sourced from server `issues`, "heuristic" otherwise. */
   source: "structured" | "heuristic";
 }
@@ -153,6 +160,12 @@ function fromIssue(issue: DiagnosticIssue): AttributedDiagnostic {
     nodeId: issue.node_id || undefined,
     edgeId: issue.edge_id || undefined,
     hint: issue.hint || undefined,
+    file: issue.file || undefined,
+    line: issue.line || undefined,
+    column: issue.column || undefined,
+    end_line: issue.end_line || undefined,
+    end_column: issue.end_column || undefined,
+    property: issue.property || undefined,
     source: "structured",
     unreported: unreportedBehind(issue.message),
   };

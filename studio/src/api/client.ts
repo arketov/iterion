@@ -779,8 +779,9 @@ export async function extractErrorMessage(res: Response): Promise<string> {
 }
 
 /**
- * Wire-format diagnostic mirror of `ir.DiagnosticDTO` on the Go side.
- * Code/NodeID/EdgeID/Hint may be empty for parser-only paths.
+ * Wire-format diagnostic mirror of `server.DiagnosticDTO` on the Go side.
+ * Code/NodeID/EdgeID/Hint may be empty for parser-only paths. The position
+ * fields (1-based) are present only when the compiled program carried spans.
  */
 export interface DiagnosticIssue {
   code?: string;
@@ -789,6 +790,12 @@ export interface DiagnosticIssue {
   node_id?: string;
   edge_id?: string;
   hint?: string;
+  file?: string;
+  line?: number;
+  column?: number;
+  end_line?: number;
+  end_column?: number;
+  property?: string;
 }
 
 export async function parseSource(
