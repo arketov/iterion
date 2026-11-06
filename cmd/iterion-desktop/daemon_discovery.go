@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -97,13 +98,55 @@ func writeDaemonInfo(projectDir, url string) error {
 	return fmt.Errorf("daemon registry: %w", renameErr)
 }
 
-// removeDaemonInfo clears the per-project daemon.json on shutdown.
-func removeDaemonInfo(projectDir string) {
+// removeDaemonInfo clears this daemon's per-project daemon.json on shutdown,
+// leaving a record another daemon wrote there (removeOwnDiscoveryFile).
+// runHeadless runs it before it releases the project lock.
+func removeDaemonInfo(projectDir string) error {
 	target := daemonInfoPath(projectDir)
 	if target == "" {
-		return
+		return nil
 	}
-	_ = os.Remove(target)
+	if err := removeOwnDiscoveryFile(target); err != nil {
+		return fmt.Errorf("daemon registry: %w", err)
+	}
+	return nil
+}
+
+// removeOwnDiscoveryFile deletes a discovery file — a daemon's registry
+// entry or desktop.json — only while the record in it still names this
+// process. Another server may have written its own record there since: a
+// daemon of another project into desktop.json, which no lock guards, or a
+// daemon of the same project whose lock lives in another config dir.
+// Deleting that record would hide a live server. A missing file, an
+// unparseable one or a record of another pid is left alone, without error.
+//
+// On Windows a reader holding the file open (the GUI polling the registry,
+// the iterion-control MCP, a script, an antivirus scan) makes the delete
+// fail with a sharing violation for as long as it holds it: Go opens files
+// without FILE_SHARE_DELETE. So the read, check and delete are retried for
+// up to 2s like the rename in writeDaemonInfo; each attempt re-reads, so a
+// record rewritten meanwhile is still spared. Returns the last error.
+func removeOwnDiscoveryFile(path string) error {
+	var err error
+	for attempt := 0; attempt < 40; attempt++ {
+		if attempt > 0 {
+			time.Sleep(50 * time.Millisecond)
+		}
+		var raw []byte
+		if raw, err = os.ReadFile(path); err == nil {
+			var rec struct {
+				PID int `json:"pid"`
+			}
+			if json.Unmarshal(raw, &rec) != nil || rec.PID != os.Getpid() {
+				return nil
+			}
+			err = os.Remove(path)
+		}
+		if err == nil || errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+	}
+	return err
 }
 
 // findDaemonForProject returns the live daemon URL for the given project

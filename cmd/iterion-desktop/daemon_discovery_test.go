@@ -3,12 +3,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDecodeWindowsProjectKeyRejectsOtherShapes(t *testing.T) {
@@ -195,4 +197,72 @@ func TestFindDaemonForStorePath_JudgesTheFileReadByKey(t *testing.T) {
 			t.Errorf("file of the re-encoded key must stay untouched: %v", err)
 		}
 	})
+}
+
+func TestRemoveDaemonInfo_KeepsAnotherDaemonsRecord(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("ITERION_HOME", home)
+	project := filepath.Join(home, "project")
+	if err := writeDaemonInfo(project, "http://127.0.0.1:1/"); err != nil {
+		t.Fatal(err)
+	}
+	path := daemonInfoPath(project)
+	// Another daemon wrote its record over ours before we shut down.
+	other, err := json.Marshal(daemonInfo{URL: "http://127.0.0.1:2/", PID: os.Getpid() + 1, ProjectDir: project})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, other, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := removeDaemonInfo(project); err != nil {
+		t.Fatalf("removeDaemonInfo: %v", err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("another daemon's record was removed: %v", err)
+	}
+	if !bytes.Equal(got, other) {
+		t.Fatalf("another daemon's record was modified: %s", got)
+	}
+	// Our own record: removed.
+	if err := writeDaemonInfo(project, "http://127.0.0.1:1/"); err != nil {
+		t.Fatal(err)
+	}
+	if err := removeDaemonInfo(project); err != nil {
+		t.Fatalf("removeDaemonInfo: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("own record should be removed, stat err = %v", err)
+	}
+	// Missing file: no error.
+	if err := removeDaemonInfo(project); err != nil {
+		t.Fatalf("removeDaemonInfo on a missing file: %v", err)
+	}
+}
+
+func TestRemoveDaemonInfo_WaitsOutAReaderHoldingTheFile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("ITERION_HOME", home)
+	project := filepath.Join(home, "project")
+	if err := writeDaemonInfo(project, "http://127.0.0.1:1/"); err != nil {
+		t.Fatal(err)
+	}
+	// On Windows a Go handle has no FILE_SHARE_DELETE, so the delete fails
+	// with a sharing violation while the reader holds the file; elsewhere
+	// the delete never blocks and this passes trivially.
+	f, err := os.Open(daemonInfoPath(project))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = f.Close() })
+	timer := time.AfterFunc(300*time.Millisecond, func() { _ = f.Close() })
+	t.Cleanup(func() { timer.Stop() })
+
+	if err := removeDaemonInfo(project); err != nil {
+		t.Fatalf("removeDaemonInfo: %v", err)
+	}
+	if _, err := os.Stat(daemonInfoPath(project)); !os.IsNotExist(err) {
+		t.Fatalf("record should be removed once the reader closes, stat err = %v", err)
+	}
 }
