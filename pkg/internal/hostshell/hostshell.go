@@ -112,12 +112,19 @@ type NotFoundError struct {
 	// Requested is the explicit choice that failed, "" for the default.
 	Requested string
 	goos      string
+	// wsl is set when the name resolved to the WSL launcher in System32,
+	// which is skipped: it is not a shell of this host.
+	wsl bool
 }
 
 func (e *NotFoundError) Error() string {
 	var b strings.Builder
 	if e.Requested != "" {
-		fmt.Fprintf(&b, "shell %q not found on PATH", e.Requested)
+		if e.wsl {
+			fmt.Fprintf(&b, "shell %q is only the WSL launcher (System32) on PATH, which is not used", e.Requested)
+		} else {
+			fmt.Fprintf(&b, "shell %q not found on PATH", e.Requested)
+		}
 	} else {
 		fmt.Fprintf(&b, "no command shell found (looked for %s on PATH)", strings.Join(e.Looked, ", "))
 	}
@@ -201,10 +208,16 @@ func (*PosixScriptError) Error() string {
 
 func (*PosixScriptError) Is(target error) bool { return target == exec.ErrNotFound }
 
+// isWSLLauncher reports whether p is the WSL launcher in System32 (bash.exe
+// there starts a Linux distribution, not a shell of this host).
+func isWSLLauncher(p string) bool {
+	return strings.Contains(strings.ToLower(p), `\system32\`)
+}
+
 func posixForLegacyScript(platform string) (Shell, error) {
 	for _, n := range []string{"sh", "bash"} {
 		p, err := lookPath(n)
-		if err != nil || strings.Contains(strings.ToLower(p), `\system32\`) {
+		if err != nil || isWSLLauncher(p) {
 			// System32\bash.exe is the WSL launcher, not a shell of this host.
 			continue
 		}
@@ -332,6 +345,11 @@ func named(name, platform string) (Shell, error) {
 	if err != nil {
 		return Shell{}, &NotFoundError{Looked: []string{name}, Requested: name, goos: platform}
 	}
+	// A bare POSIX name that lands on the WSL launcher is not found; an explicit
+	// path to it is the operator's own choice and stays.
+	if platform == "windows" && kind != KindPowerShell && !strings.ContainsAny(name, `/\`) && isWSLLauncher(p) {
+		return Shell{}, &NotFoundError{Looked: []string{name}, Requested: name, goos: platform, wsl: true}
+	}
 	return Shell{Kind: kind, Path: p}, nil
 }
 
@@ -400,9 +418,10 @@ func Command(ctx context.Context, req Request, script string, login bool) (*exec
 	return sh.Command(ctx, script, login), nil
 }
 
-// SingleQuoteEscape is what goes where a `'` sits inside a single-quoted
-// word: `'\''` for sh/bash (close, escaped quote, reopen), `''` on a Windows
-// host, where the word is PowerShell's. The PowerShell form is also
+// SingleQuoteEscape is what goes where a single quote sits inside a
+// single-quoted word: quote, backslash, quote, quote for sh/bash (close,
+// escaped quote, reopen), two single quotes on a Windows host, where the word
+// is PowerShell's. The PowerShell form is also
 // injection-safe if a POSIX shell reads it (the quote just closes and reopens
 // the word, every other byte stays quoted) — it only costs the apostrophe,
 // which matters for a Windows host running a command in a Linux sandbox.

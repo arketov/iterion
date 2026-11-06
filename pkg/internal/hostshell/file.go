@@ -200,7 +200,7 @@ func posixShellNamed(names []string) (Shell, error) {
 	for _, n := range names {
 		looked = append(looked, n)
 		p, err := lookPath(n)
-		if err != nil || strings.Contains(strings.ToLower(p), `\system32\`) {
+		if err != nil || isWSLLauncher(p) {
 			continue
 		}
 		kind := KindSh
