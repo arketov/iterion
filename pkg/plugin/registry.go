@@ -470,10 +470,14 @@ func (r *Registry) Enabled() []*Plugin {
 }
 
 // SetEnabled persists an enable/disable decision for a plugin and updates the
-// in-memory state. It errors if the plugin is unknown.
+// in-memory state. It errors if the plugin is unknown, or installed but with a
+// manifest that could not be loaded (the enabled state is not consulted for it).
 func (r *Registry) SetEnabled(name string, enabled bool) error {
 	p, ok := r.Get(name)
 	if !ok {
+		if _, broken := r.brokenDirs[name]; broken {
+			return fmt.Errorf("plugin %q is installed but its plugin.yaml could not be loaded, so it cannot be enabled or disabled: restore plugin.yaml or run `iterion plugin uninstall %s`", name, name)
+		}
 		return fmt.Errorf("plugin %q not found", name)
 	}
 	r.state[name] = enabled
