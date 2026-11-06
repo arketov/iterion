@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
-	"github.com/arketov/iterion/bots"
 	"github.com/arketov/iterion/pkg/bundle"
 	"github.com/arketov/iterion/pkg/dsl/unit"
 	"github.com/arketov/iterion/pkg/dsl/workflowfile"
@@ -31,8 +31,9 @@ import (
 //     process cwd would ENOENT. We materialise Source into a
 //     stable per-store cache and return that absolute path.
 //   - local mode without source: run through safePath as before;
-//     on miss, fall back to embedded recipes shipped with the
-//     binary (see materializeEmbeddedRecipe).
+//     on miss, a recipe an earlier release cached under the run store
+//     (see resolveCachedEmbeddedRecipe) so a run launched by name still
+//     resumes. The binary no longer ships recipes of its own.
 func (s *Server) resolveWorkflowPath(filePath, source string) (string, error) {
 	// An author document is refused before it is materialised, cached or
 	// resolved: launch, resume and the WebSocket answer all pass here.
@@ -64,7 +65,7 @@ func (s *Server) resolveWorkflowPath(filePath, source string) (string, error) {
 	if cached, ok := s.resolveCachedInlineSource(filePath); ok {
 		return cached, nil
 	}
-	if cached, ok := s.materializeEmbeddedRecipe(filePath); ok {
+	if cached, ok := s.resolveCachedEmbeddedRecipe(filePath); ok {
 		return cached, nil
 	}
 	return "", err
@@ -221,29 +222,24 @@ func (s *Server) resolvedStoreDir() string {
 	return store.ResolveStoreDir(s.cfg.WorkDir, s.cfg.StoreDir)
 }
 
-// materializeEmbeddedRecipe writes an embedded bot — its main and, for a
-// bot in several files, the fragments the main imports — into a stable
-// per-run-store directory (one copy per binary release) and returns the
-// main's absolute path. The lookup key is filePath as given; the caller
-// passes whatever the API received, so a UI that lists recipes by
-// basename ("feature-dev/main.bot" or another embedded bot path) all
-// resolve correctly.
-//
-// We materialise rather than reading from embed.FS at execution time
-// because the engine, parser, and several runtime helpers operate on
-// real filesystem paths (worktree relative paths, file-watcher,
-// sandbox bind-mounts). Materialisation keeps that contract intact at
-// the cost of a tiny one-time disk write per recipe per run-store.
-//
-// Returns ok=false when the recipe is not in the embed FS, or when
-// the server has no writable store dir to cache it under.
-func (s *Server) materializeEmbeddedRecipe(filePath string) (string, bool) {
+// resolveCachedEmbeddedRecipe returns the cached copy of a recipe an earlier
+// release materialised under the run store (<store>/embedded-recipes/<name>),
+// for a RELATIVE filePath such as "feature-dev/main.bot", or ok=false when no
+// such file is there. The binary no longer carries recipes and writes nothing
+// here: this only lets a run that was launched by name before the built-in
+// recipes were removed keep resuming from the bytes it ran with. A path that
+// climbs out of the cache (`..`) or is absolute is never served.
+func (s *Server) resolveCachedEmbeddedRecipe(filePath string) (string, bool) {
 	cacheRoot := s.embeddedRecipeCacheDir()
-	if cacheRoot == "" {
+	if cacheRoot == "" || filePath == "" || filepath.IsAbs(filePath) {
 		return "", false
 	}
-	dst, err := bots.Materialize(cacheRoot, filePath)
-	if err != nil {
+	rel := path.Clean(filepath.ToSlash(filePath))
+	if rel == "." || rel == ".." || strings.HasPrefix(rel, "../") || strings.HasPrefix(rel, "/") {
+		return "", false
+	}
+	dst := filepath.Join(cacheRoot, filepath.FromSlash(rel))
+	if info, err := os.Stat(dst); err != nil || info.IsDir() {
 		return "", false
 	}
 	return dst, true

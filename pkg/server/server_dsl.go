@@ -689,9 +689,9 @@ func (s *Server) handleLoadExample(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Try on-disk first (lets a project's <ExamplesDir>/<name>
-	// override an embedded recipe of the same basename), then fall
-	// back to the binary-embedded recipe set (bots/embed.go).
+	// An example is a file of the project's <ExamplesDir>. The binary no
+	// longer carries a built-in recipe set to fall back to: a name the
+	// project does not hold is not found.
 	if dir := s.cfg.ExamplesDir; dir != "" {
 		abs := filepath.Join(dir, filepath.FromSlash(name))
 		if data, err := os.ReadFile(abs); err == nil {
@@ -699,16 +699,7 @@ func (s *Server) handleLoadExample(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	src, ok, err := embeddedRecipe(name)
-	if err != nil {
-		httpError(w, http.StatusInternalServerError, "%v", err)
-		return
-	}
-	if !ok {
-		httpError(w, http.StatusNotFound, "example not found: %s", name)
-		return
-	}
-	writeExample(w, name, src, "", "")
+	httpError(w, http.StatusNotFound, "example not found: %s", name)
 }
 
 // exampleResponse is what /api/examples/{name} answers for one program:

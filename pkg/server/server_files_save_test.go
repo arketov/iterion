@@ -135,7 +135,7 @@ func TestSaveFileCreateOnlyCleanupFailureKeepsRecordAndWarns(t *testing.T) {
 	}
 }
 
-func TestOpenFileConfirmsDiskReadsButNotEmbeddedRecipes(t *testing.T) {
+func TestOpenFileConfirmsDiskReadsAndHasNoEmbeddedRecipes(t *testing.T) {
 	workdir := t.TempDir()
 	diskPath := filepath.Join(workdir, "disk.bot")
 	if err := os.WriteFile(diskPath, []byte("workflow disk:\n  entry: done\n"), 0o644); err != nil {
@@ -169,18 +169,9 @@ func TestOpenFileConfirmsDiskReadsButNotEmbeddedRecipes(t *testing.T) {
 		t.Fatalf("disk confirmed path = %q, want %q", got, want)
 	}
 
-	embedded := open("bots/feature-dev/main.bot")
-	if embedded.Code != http.StatusOK {
-		t.Fatalf("embedded open status = %d, body = %s", embedded.Code, embedded.Body.String())
-	}
-	var embeddedResponse struct {
-		ConfirmedDiskPath string `json:"confirmed_disk_path"`
-	}
-	if err := json.Unmarshal(embedded.Body.Bytes(), &embeddedResponse); err != nil {
-		t.Fatal(err)
-	}
-	if embeddedResponse.ConfirmedDiskPath != "" {
-		t.Fatalf("embedded recipe was presented as disk-confirmed: %q", embeddedResponse.ConfirmedDiskPath)
+	// The binary carries no recipe of its own to open in place of a missing file.
+	if missing := open("bots/feature-dev/main.bot"); missing.Code != http.StatusNotFound {
+		t.Fatalf("missing bot open status = %d, want 404, body = %s", missing.Code, missing.Body.String())
 	}
 }
 

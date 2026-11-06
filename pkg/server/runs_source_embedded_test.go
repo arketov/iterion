@@ -1,49 +1,46 @@
 package server
 
 import (
-	"github.com/arketov/iterion/pkg/dsl/unit/unittest"
+	"os"
+	"path/filepath"
 	"testing"
-
-	"github.com/arketov/iterion/pkg/dsl/unit"
 )
 
-// wholeUnitAt fails the test unless the main at p loads as a unit of more
-// than one file with no error: the embedded bot landed with its fragments.
-func wholeUnitAt(t *testing.T, p string) {
-	t.Helper()
-	u := unittest.Whole(unit.LoadDir(p))
-	if u.HasErrors() {
-		for _, d := range u.Diagnostics {
-			t.Errorf("%s", d.Error())
-		}
-		t.FailNow()
-	}
-	if len(u.Files) < 2 {
-		t.Fatalf("the main was materialised alone: %d file(s) in the unit, want its fragments beside it", len(u.Files))
-	}
-}
-
-// The store-side copy of an embedded bot is the whole program, so a launch
-// that resolves to it compiles what the tree compiles.
-func TestMaterializeEmbeddedRecipeWritesTheWholeBot(t *testing.T) {
-	srv, _ := newTestServer(t)
-	got, ok := srv.materializeEmbeddedRecipe("feature-dev/main.bot")
-	if !ok {
-		t.Fatal("feature-dev/main.bot is not materialised from the embed")
-	}
-	wholeUnitAt(t, got)
-	if _, ok := srv.materializeEmbeddedRecipe("nope/main.bot"); ok {
-		t.Error("a name the binary does not carry was materialised")
-	}
-}
-
-// A server with no working directory resolves a launch by basename through
-// the embed, and hands the launch the whole program.
-func TestResolveWorkflowPathFallsBackToTheWholeEmbeddedBot(t *testing.T) {
+// The binary no longer carries recipes of its own, so a workflow path that is
+// neither on disk nor in a cache an earlier release left is not resolved.
+func TestResolveWorkflowPathHasNoBuiltInRecipes(t *testing.T) {
 	srv := &Server{cfg: Config{StoreDir: t.TempDir()}}
+	if got, err := srv.resolveWorkflowPath("feature-dev/main.bot", ""); err == nil {
+		t.Fatalf("a built-in recipe name was resolved to %q: the binary carries none", got)
+	}
+}
+
+// A run launched by name under an earlier release has its recipe cached under
+// <store>/embedded-recipes/. It keeps resuming from those bytes; nothing new is
+// ever written there.
+func TestResolveWorkflowPathServesARecipeAnEarlierReleaseCached(t *testing.T) {
+	store := t.TempDir()
+	srv := &Server{cfg: Config{StoreDir: store}}
+	cached := filepath.Join(store, "embedded-recipes", "feature-dev", "main.bot")
+	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cached, []byte("workflow x:\n  entry: done\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
 	got, err := srv.resolveWorkflowPath("feature-dev/main.bot", "")
 	if err != nil {
-		t.Fatalf("resolve by basename with no WorkDir: %v", err)
+		t.Fatalf("a cached recipe must still resolve: %v", err)
 	}
-	wholeUnitAt(t, got)
+	if got != cached {
+		t.Fatalf("resolved to %q, want the cached copy %q", got, cached)
+	}
+
+	// A path that climbs out of the cache, or names a directory, is not served.
+	for _, name := range []string{"../escape.bot", "feature-dev", "nope/main.bot"} {
+		if got, ok := srv.resolveCachedEmbeddedRecipe(name); ok {
+			t.Errorf("resolveCachedEmbeddedRecipe(%q) = %q, want a miss", name, got)
+		}
+	}
 }

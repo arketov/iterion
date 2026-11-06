@@ -567,8 +567,6 @@ func doctorRepoRoot(file string) string {
 // `iterion validate` do — same parse/merge/compile/MCP-prep path, no
 // drift.
 func loadWorkflowForDoctor(path string) (*ir.Workflow, error) {
-	path = ResolveRecipePath(path)
-
 	b, iterPath, kind, cleanup, err := openBundleOrFile(path)
 	defer func() { _ = cleanup() }()
 	if err != nil {

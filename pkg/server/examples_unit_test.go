@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/arketov/iterion/pkg/dsl/parser/parsertest"
-	"github.com/arketov/iterion/pkg/dsl/unit/unittest"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +13,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/arketov/iterion/bots"
 	"github.com/arketov/iterion/pkg/dsl/ast"
 	"github.com/arketov/iterion/pkg/dsl/ir"
 	"github.com/arketov/iterion/pkg/dsl/parser"
@@ -90,25 +88,6 @@ func assertOneProgram(t *testing.T, got oneProgram, wantPath string) *ast.File {
 	return f
 }
 
-// assertWholeFlatProgram checks a served text is the program the embedded
-// unit is — the same program, not a text with the same counts.
-func assertWholeFlatProgram(t *testing.T, name string, got oneProgram, wantPath string) {
-	t.Helper()
-	cr := parseFlat(t, name, got.Source)
-	files, main, ok := bots.Sources(name)
-	if !ok {
-		t.Fatalf("%s is not embedded", name)
-	}
-	u := unittest.Whole(unit.LoadMap(files, main))
-	if len(u.Files) < 2 {
-		t.Fatalf("%s is embedded as %d file(s): the test lost its witness", name, len(u.Files))
-	}
-	if why := ir.SameProgram(ir.Compile(u.Merged), cr); why != "" {
-		t.Fatalf("the served program differs from the unit: %s", why)
-	}
-	assertOneProgram(t, got, wantPath)
-}
-
 func getExampleJSON(t *testing.T, url string, into any) (int, []byte) {
 	t.Helper()
 	resp, err := http.Get(url)
@@ -136,40 +115,33 @@ func TestListExamplesNamesNoFragment(t *testing.T) {
 		if strings.Contains(e.Name, "/"+unit.FragmentDir+"/") {
 			t.Errorf("a fragment is listed as a recipe: %s", e.Name)
 		}
-		// The binary's embedded recipes are not a listed bot (owner decision
-		// 2026-11-05); they stay openable by name, never listed.
+		// No built-in recipe exists any more (owner decision 2026-11-05).
 		if e.Origin == "builtin" || e.Name == "feature-dev/main.bot" {
 			t.Errorf("an embedded recipe is listed as a bot: %s", e.Name)
 		}
 	}
 }
 
-// An embedded bot in several files is served by /api/examples as one flat
-// program: what the studio launches inline and may save as a new file.
-func TestLoadExampleServesAnEmbeddedBotInSeveralFilesAsOneProgram(t *testing.T) {
+// The binary carries no recipes: a name the project's examples folder does not
+// hold is not found, never served from a built-in set.
+func TestLoadExampleHasNoBuiltInFallback(t *testing.T) {
 	_, hs := newTestServer(t)
-	var got oneProgram
-	if code, body := getExampleJSON(t, hs.URL+"/api/examples/feature-dev/main.bot", &got); code != http.StatusOK {
-		t.Fatalf("status %d: %s", code, body)
+	if code, body := getExampleJSON(t, hs.URL+"/api/examples/feature-dev/main.bot", nil); code != http.StatusNotFound {
+		t.Fatalf("status %d, want 404: %s", code, body)
 	}
-	assertWholeFlatProgram(t, "feature-dev/main.bot", got, "")
 }
 
-// The file-open fallback to the embed serves the same flat program.
-func TestOpenFileFallsBackToTheEmbeddedBotAsOneProgram(t *testing.T) {
+// Opening bots/<name> the project does not hold is a 404 too: there is no
+// embedded copy to fall back to.
+func TestOpenFileHasNoEmbeddedFallback(t *testing.T) {
 	s := &Server{cfg: Config{WorkDir: t.TempDir()}}
 	body, _ := json.Marshal(openFileRequest{Path: "bots/feature-dev/main.bot"})
 	req := httptest.NewRequest(http.MethodPost, "/api/files/open", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
 	s.handleOpenFile(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status %d, want 404: %s", rec.Code, rec.Body.String())
 	}
-	var got oneProgram
-	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
-		t.Fatal(err)
-	}
-	assertWholeFlatProgram(t, "feature-dev/main.bot", got, "bots/feature-dev/main.bot")
 }
 
 // writeExampleUnitFixture writes a bot in two files, x/main.bot importing
@@ -655,31 +627,5 @@ func TestLoadExampleTellsAMissingFragment(t *testing.T) {
 	}
 	if !named {
 		t.Fatalf("the missing fragment is not named: diagnostics %v", got.Diagnostics)
-	}
-}
-
-// recipeFromSources hands a bot in one file over as its bytes, writes a bot
-// in several files out as one program, and refuses a main whose imports do
-// not resolve rather than serve it alone.
-func TestRecipeFromSources(t *testing.T) {
-	one := "workflow x:\n  entry: done\n"
-	if got, err := recipeFromSources("one", map[string]string{"main.bot": one}, "main.bot"); err != nil || got != one {
-		t.Fatalf("one file: %q, %v", got, err)
-	}
-	several := map[string]string{
-		"main.bot":      "import \"" + unit.FragmentDir + "/nodes.bot\"\n\nworkflow x:\n  entry: done\n",
-		"lib/nodes.bot": "prompt p:\n  Hello\n",
-	}
-	flat, err := recipeFromSources("several", several, "main.bot")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cr := parseFlat(t, "several", flat)
-	if len(cr.Workflow.Prompts) != 1 {
-		t.Errorf("the flat program compiles %d prompt(s), want the fragment's one", len(cr.Workflow.Prompts))
-	}
-	unresolved := map[string]string{"main.bot": "import \"" + unit.FragmentDir + "/missing.bot\"\n\nworkflow x:\n  entry: done\n"}
-	if got, err := recipeFromSources("unresolved", unresolved, "main.bot"); err == nil || !strings.Contains(err.Error(), "missing.bot") {
-		t.Fatalf("a main whose import does not resolve was served (%q, err %v)", got, err)
 	}
 }
