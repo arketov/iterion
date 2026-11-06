@@ -88,8 +88,8 @@ Details that bite:
   `<temp>/iterion-data`.
 - `%APPDATA%\Iterion\` is **not** moved by `ITERION_HOME`; it is the OS user
   config folder.
-- The cloud login of `iterion remote login` (`cli-auth.json`) is always read
-  from the real `~/.iterion/`, whatever `ITERION_HOME` says.
+- The cloud login of `iterion remote login` (`cli-auth.json`) lives in the
+  iterion home, so `ITERION_HOME` moves it with the rest.
 
 ## Seeing it for yourself
 

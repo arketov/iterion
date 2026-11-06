@@ -55,6 +55,7 @@ func TestRemoteTeamsSwitch_TheBrowserApprovalMintsFromTheLiveSession(t *testing.
 		t.Fatalf("the stored credential is not a personal access token: %q", storedPAT)
 	}
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("ITERION_HOME", t.TempDir())
 	for _, env := range []string{"ITERION_REMOTE_URL", "ITERION_REMOTE_TOKEN", "ITERION_REMOTE_TEAM", "ITERION_REMOTE_ORG"} {
 		t.Setenv(env, "")
 	}

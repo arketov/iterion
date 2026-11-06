@@ -91,6 +91,7 @@ func TestRemoteLogin_AgainstARealServerWhoseIdentityStoreFails(t *testing.T) {
 			base, store := realIterionServer(t, email, password)
 			store.armed = tc.armed
 			t.Setenv("HOME", t.TempDir())
+			t.Setenv("ITERION_HOME", t.TempDir())
 			t.Setenv("ITERION_TOKEN", "")
 			t.Setenv("ITERION_PASSWORD", "")
 			for _, env := range []string{"ITERION_REMOTE_URL", "ITERION_REMOTE_TOKEN", "ITERION_REMOTE_TEAM", "ITERION_REMOTE_ORG"} {

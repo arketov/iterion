@@ -57,6 +57,7 @@ func remoteWriteFile(t *testing.T, path, content string) {
 
 func TestResolveRemoteConfig_EnvMode(t *testing.T) {
 	t.Setenv("HOME", t.TempDir()) // no stored config
+	t.Setenv("ITERION_HOME", t.TempDir())
 	t.Setenv("ITERION_REMOTE_URL", "https://cloud.example/")
 	t.Setenv("ITERION_REMOTE_TOKEN", "iap_env")
 	t.Setenv("ITERION_REMOTE_TEAM", "team-env")
@@ -79,6 +80,7 @@ func TestResolveRemoteConfig_EnvMode(t *testing.T) {
 func TestResolveRemoteConfig_EnvURLIgnoresStoredToken(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("ITERION_HOME", home)
 	if err := cli.SaveRemoteConfig(cli.RemoteConfig{BaseURL: "https://stored.example", Token: "iap_stored"}); err != nil {
 		t.Fatal(err)
 	}
@@ -101,6 +103,7 @@ func TestResolveRemoteConfig_EnvURLIgnoresStoredToken(t *testing.T) {
 
 func TestResolveRemoteConfig_NotConfigured(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("ITERION_HOME", t.TempDir())
 	t.Setenv("ITERION_REMOTE_URL", "")
 	_, err := cli.ResolveRemoteConfig()
 	if err == nil || !strings.Contains(err.Error(), "ITERION_REMOTE_URL") {
@@ -475,6 +478,7 @@ func TestRemoteTokensCreate_PrintsPlaintextOnce(t *testing.T) {
 func TestRemoteTeamsSwitch_ResolvesSlugToTheUUID(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("ITERION_HOME", home)
 	t.Setenv("ITERION_REMOTE_URL", "")
 
 	var mintedWith string
@@ -518,6 +522,7 @@ func TestRemoteTeamsSwitch_ResolvesSlugToTheUUID(t *testing.T) {
 func TestRemoteTeamsSwitch_MintsPersistsRevokes(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("ITERION_HOME", home)
 	t.Setenv("ITERION_REMOTE_URL", "")
 
 	oldToken := remoteSessionToken
@@ -577,6 +582,7 @@ func TestRemoteTeamsSwitch_MintsPersistsRevokes(t *testing.T) {
 // once made this command refuse every team.
 func TestRemoteTeamsSwitch_RejectsNonMember(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("ITERION_HOME", t.TempDir())
 	t.Setenv("ITERION_REMOTE_URL", "")
 	c := remoteTestSessionClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)

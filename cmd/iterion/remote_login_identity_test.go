@@ -42,6 +42,7 @@ func TestRemoteLogin_KeepsATokenTheServerDidNotReject(t *testing.T) {
 			}))
 			defer srv.Close()
 			t.Setenv("HOME", t.TempDir())
+			t.Setenv("ITERION_HOME", t.TempDir())
 			t.Setenv("ITERION_TOKEN", "")
 			t.Setenv("ITERION_PASSWORD", "")
 			for _, env := range []string{"ITERION_REMOTE_URL", "ITERION_REMOTE_TOKEN", "ITERION_REMOTE_TEAM", "ITERION_REMOTE_ORG"} {
@@ -131,6 +132,7 @@ func runRemoteLoginForTest(t *testing.T, url, email, token string) (string, cli.
 func runRemoteLoginWithTeam(t *testing.T, ctx context.Context, url, email, token, team string) (string, cli.RemoteConfig, error) {
 	t.Helper()
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("ITERION_HOME", t.TempDir())
 	t.Setenv("ITERION_TOKEN", "")
 	t.Setenv("ITERION_PASSWORD", "")
 	for _, env := range []string{"ITERION_REMOTE_URL", "ITERION_REMOTE_TOKEN", "ITERION_REMOTE_TEAM", "ITERION_REMOTE_ORG"} {

@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // RemoteConfig is the stored credential for talking to a remote iterion
@@ -33,13 +35,15 @@ type RemoteConfig struct {
 // ErrNotLoggedIn reports that no remote credential is stored.
 var ErrNotLoggedIn = errors.New("not logged in — run `iterion remote login <url>` first")
 
-// RemoteConfigPath is where the CLI stores the remote credential.
+// RemoteConfigPath is where the CLI stores the remote credential: in the
+// iterion home ($ITERION_HOME, else ~/.iterion), beside everything else the
+// operator owns.
 func RemoteConfigPath() (string, error) {
-	home, err := os.UserHomeDir()
+	home, err := store.IterionHome()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".iterion", "cli-auth.json"), nil
+	return filepath.Join(home, "cli-auth.json"), nil
 }
 
 func SaveRemoteConfig(c RemoteConfig) error {
@@ -107,7 +111,7 @@ func NewRemoteClient() (*RemoteClient, error) {
 // ITERION_REMOTE_TOKEN, falling back to ITERION_TOKEN) so CI can drive
 // an instance with zero config file — and so a stored token is never
 // sent to a different host than the one it was minted for. Without the
-// env URL the stored ~/.iterion/cli-auth.json is used. ITERION_REMOTE_TEAM
+// env URL the stored cli-auth.json (in the iterion home) is used. ITERION_REMOTE_TEAM
 // / ITERION_REMOTE_ORG override the persisted default scope either way.
 func ResolveRemoteConfig() (RemoteConfig, error) {
 	var cfg RemoteConfig

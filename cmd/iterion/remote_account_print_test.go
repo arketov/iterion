@@ -32,6 +32,7 @@ func TestRemoteLoginAndStatus_showTheServersAccountInert(t *testing.T) {
 	}))
 	defer srv.Close()
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("ITERION_HOME", t.TempDir())
 	t.Setenv("ITERION_TOKEN", "iap_test")
 	for _, env := range []string{"ITERION_REMOTE_URL", "ITERION_REMOTE_TOKEN", "ITERION_REMOTE_TEAM", "ITERION_REMOTE_ORG"} {
 		t.Setenv(env, "")

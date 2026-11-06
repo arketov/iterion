@@ -86,6 +86,7 @@ func newSwitchFixture(t *testing.T) switchFixture {
 
 	patA := mintTokenAs(t, base, sessionA, map[string]any{"name": "iterion-cli (A)"})
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("ITERION_HOME", t.TempDir())
 	for _, env := range []string{"ITERION_REMOTE_URL", "ITERION_REMOTE_TOKEN", "ITERION_REMOTE_TEAM", "ITERION_REMOTE_ORG"} {
 		t.Setenv(env, "")
 	}

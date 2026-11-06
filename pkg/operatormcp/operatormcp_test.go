@@ -19,6 +19,7 @@ import (
 func isolateHome(t *testing.T) {
 	t.Helper()
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("ITERION_HOME", t.TempDir())
 	t.Setenv("ITERION_REMOTE_URL", "")
 	t.Setenv("ITERION_REMOTE_TOKEN", "")
 	t.Setenv("ITERION_TOKEN", "")
