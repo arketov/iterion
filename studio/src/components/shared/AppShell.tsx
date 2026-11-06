@@ -43,7 +43,7 @@ export default function AppShell({ children }: AppShellProps) {
     // applies here too.
     return (
       <div
-        className="h-screen w-screen bg-surface-0 text-fg-default"
+        className="h-screen w-full min-w-0 bg-surface-0 text-fg-default"
         style={dockedWidth ? { paddingRight: dockedWidth } : undefined}
       >
         <Suspense fallback={<MainSpinner />}>{children}</Suspense>
