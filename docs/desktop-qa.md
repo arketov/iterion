@@ -84,6 +84,8 @@ Walk this list before tagging a release.
 
 ## Auto-update
 
+Only for a build with a configured `updaterPublicKeyHex`. A build without one must answer `updater: public key not configured` and download nothing.
+
 - [ ] Help → Check for Updates… reports "up to date" when the running
       version equals the manifest's `version`.
 - [ ] When pointing `ITERION_UPDATE_MANIFEST_URL` at a local manifest with

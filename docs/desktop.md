@@ -85,7 +85,7 @@ The editor home (no tab open) lists the project's `.bot` files, offers **Open…
 
 ## Auto-update
 
-The desktop app polls GitHub for new releases every 4 hours (configurable in Settings → Updater) and offers in-app update on detection. Manifests and artefacts are Ed25519-signed.
+Builds from this repository ship **without an update key**: the key inherited from upstream verified only SocialGouv/iterion releases, whose private half we do not hold, so it was removed. The update channel is inactive: Settings → Updates → "Check for updates" answers `updater: public key not configured`, the background check logs the same message at startup and every 4 hours, and nothing is downloaded. Once this repository embeds its own key, the app polls its releases every 4 hours and Settings → Updates installs on request; manifests and artefacts are Ed25519-signed. See [desktop-distribution.md](desktop-distribution.md) for enabling the channel.
 
 ## Advanced — for contributors / power users
 

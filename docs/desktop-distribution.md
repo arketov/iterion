@@ -44,6 +44,8 @@ iterion-desktop-manifest.json.sig
 
 ## Auto-update flow
 
+**Status:** inactive. `updaterPublicKeyHex` is empty in this repository (the inherited upstream key must never be restored), so every check and every download is refused with `updater: public key not configured` before any network call. The flow below applies once this repository embeds its own key (see "Signing setup").
+
 1. Running desktop polls `releases/latest/download/iterion-desktop-manifest.json`
    on startup (and every 4h thereafter, while the user has auto-check on).
 2. Downloads `iterion-desktop-manifest.json.sig` and verifies it against
@@ -77,6 +79,23 @@ Outputs hex to stdout, stores PEM in `~/.iterion-keys/updater_ed25519.pem`.
 3. **Verify**: build a binary, run `./scripts/desktop/verify-release.sh`
    on its `.sig` against the same hex. Should print `Signature Verified
    Successfully`.
+
+### Everything bound to the update channel
+
+Opening our own channel is more than the key. All of these must point at
+this repository together:
+
+- `updaterPublicKeyHex` in `cmd/iterion-desktop/updater.go`, and the
+  `UPDATER_ED25519_PRIVATE` secret holding its private half;
+- `updateManifestURL` in `cmd/iterion-desktop/updater.go`;
+- `RELEASE_BASE_URL` and `release_notes_url` in
+  `scripts/desktop/generate-manifest.sh`;
+- the publish job of `.github/workflows/desktop-release.yml`, which depends
+  on SocialGouv's token-bureau and will not issue tokens to this repository;
+- the Homebrew Cask (`Cask/iterion-desktop.rb`).
+
+A key that still verifies SocialGouv releases would let an upstream build
+replace ours, so never paste the upstream key back.
 
 ## Rollback
 
