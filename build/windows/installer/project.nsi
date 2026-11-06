@@ -9,7 +9,8 @@
 # Basic metadata. Names are intentionally English-only for v1; we'll add
 # localisation when the product warrants it.
 Name "Iterion"
-OutFile "iterion-desktop-${ARCH}-installer.exe"
+# build/bin is where the release workflow looks for *-installer.exe.
+OutFile "..\..\bin\iterion-desktop-${ARCH}-installer.exe"
 InstallDir "$PROGRAMFILES64\Iterion"
 RequestExecutionLevel admin
 
@@ -20,7 +21,13 @@ UninstPage instfiles
 
 Section "Iterion Desktop"
     SetOutPath "$INSTDIR"
-    File "iterion-desktop.exe"
+    # Wails passes the freshly built desktop binary through ARG_WAILS_*_BINARY;
+    # it is not copied next to this script.
+    !ifdef ARG_WAILS_AMD64_BINARY
+        File "/oname=iterion-desktop.exe" "${ARG_WAILS_AMD64_BINARY}"
+    !else
+        File "/oname=iterion-desktop.exe" "${ARG_WAILS_ARM64_BINARY}"
+    !endif
     # Console CLI of the same version (task cli:build:windows:<arch>): the
     # desktop spawns it for the hidden __mcp-board / __mcp-ask-user servers.
     File "iterion.exe"
