@@ -1,11 +1,8 @@
 package cli
 
 import (
-	"embed"
 	"errors"
 	"fmt"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -15,21 +12,6 @@ import (
 	"github.com/arketov/iterion/pkg/dispatcher"
 	"github.com/arketov/iterion/pkg/internal/hostshell"
 )
-
-// defaultBotsFS is the embedded catalogue of bots exposed as assignees
-// by the zero-config `iterion dispatch` mode. The tree is regenerated
-// from bots/ via `task templates:dispatch-bots`. Each top-level
-// directory is one assignee — the directory name becomes the assignee
-// label (`feature-dev`, `whole-improve-loop`, …) and the contents
-// form a bundle (main.bot + optional skills/, prompts/, attachments/).
-//
-//go:embed all:templates/dispatch_bots
-var defaultBotsFS embed.FS
-
-// defaultBotsFSRoot is the prefix the //go:embed directive prepends to
-// every entry in defaultBotsFS. Stripped during extraction so the
-// on-disk catalogue mirrors the embedded layout, not the package path.
-const defaultBotsFSRoot = "templates/dispatch_bots"
 
 // defaultDispatchPort is the studio HTTP surface for the no-arg mode.
 // 4892 matches the example in docs/dispatcher.md so the published port
@@ -41,82 +23,9 @@ const defaultDispatchPort = 4892
 // fleet operation. Operators who need more should write a YAML.
 const defaultDispatchMaxConcurrent = 2
 
-// discoverAssigneeDispatch builds the per-assignee dispatch-var map by
-// DISCOVERING the bots reachable via paths and reading each one's manifest
-// `dispatch_vars` (botregistry.Entry.DispatchVars). It replaces the former
-// hardcoded name→vars table: routing is handled by RoutingRunner via
-// Bots.Paths, and the per-bot var wiring now travels with each bot's
-// manifest — so adding/renaming a bot (shipped OR a custom one the operator
-// drops in <projectDir>/bots) needs no edit here. Bots with no dispatch_vars
-// receive only the global dispatch vars (issue_title/body/id).
-//
-// workspace_dir is INTENTIONALLY never bound — every bot defaults it to
-// "${PROJECT_DIR}", which the runtime expands to the worktree the run's
-// `worktree: auto` produces (and remaps for sandbox); overriding it to the
-// pre-seed workspace path made the bot's prompt reference an unmounted dir
-// and every Read tool call failed in cascade.
-func discoverAssigneeDispatch(paths []string) (map[string]dispatcher.DispatchConfig, error) {
-	entries, err := botregistry.List(botregistry.ListOptions{Paths: paths})
-	if err != nil {
-		return nil, fmt.Errorf("dispatch defaults: discover bots for dispatch vars: %w", err)
-	}
-	out := make(map[string]dispatcher.DispatchConfig, len(entries))
-	for _, e := range entries {
-		if len(e.DispatchVars) == 0 {
-			continue
-		}
-		out[e.Name] = dispatcher.DispatchConfig{Vars: e.DispatchVars}
-	}
-	return out, nil
-}
-
-// extractDefaultBots materialises the embedded catalogue under
-// <storeDir>/dispatcher/bots/. Existing files are left untouched so an
-// operator can hand-edit a bot in place without `iterion dispatch`
-// overwriting it on restart. Returns the absolute path of the
-// catalogue root + the number of top-level assignee directories
-// observed in the embed (callers use the count to detect a binary
-// that was built before `task templates:dispatch-bots` ran).
-func extractDefaultBots(storeDir string) (string, int, error) {
-	botsDir := filepath.Join(storeDir, "dispatcher", "bots")
-	if err := os.MkdirAll(botsDir, 0o755); err != nil {
-		return "", 0, fmt.Errorf("dispatch defaults: mkdir %s: %w", botsDir, err)
-	}
-
-	rootPrefix := defaultBotsFSRoot + "/"
-	assigneeDirs := 0
-	walkErr := fs.WalkDir(defaultBotsFS, defaultBotsFSRoot, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || path == defaultBotsFSRoot {
-			return err
-		}
-		// Strip the embed root prefix so the on-disk layout matches
-		// what BuildDefaultConfig expects: <botsDir>/<assignee>/...,
-		// not <botsDir>/templates/dispatch_bots/<assignee>/...
-		rel := strings.TrimPrefix(path, rootPrefix)
-		if d.IsDir() {
-			if !strings.ContainsRune(rel, '/') {
-				assigneeDirs++
-			}
-			return os.MkdirAll(filepath.Join(botsDir, filepath.FromSlash(rel)), 0o755)
-		}
-		target := filepath.Join(botsDir, filepath.FromSlash(rel))
-		if _, statErr := os.Stat(target); statErr == nil {
-			// write-if-absent: preserve user edits.
-			return nil
-		} else if !errors.Is(statErr, os.ErrNotExist) {
-			return statErr
-		}
-		data, readErr := defaultBotsFS.ReadFile(path)
-		if readErr != nil {
-			return fmt.Errorf("dispatch defaults: read embed %s: %w", path, readErr)
-		}
-		return os.WriteFile(target, data, 0o644)
-	})
-	if walkErr != nil {
-		return "", 0, fmt.Errorf("dispatch defaults: extract: %w", walkErr)
-	}
-	return botsDir, assigneeDirs, nil
-}
+// legacyDefaultPresetName is the Name the zero-config preset has always
+// carried; MigrateLegacyDefaultPreset keys on it.
+const legacyDefaultPresetName = "iterion-default"
 
 // workspaceSeedScript is the after_create hook that seeds a fresh issue
 // workspace from the host repository: a detached `git worktree add` when the
@@ -254,95 +163,123 @@ func MigrateLegacySeedHook(cfg *dispatcher.Config) bool {
 	return true
 }
 
+// legacyBotsDir is where an earlier version of the zero-config preset
+// extracted its embedded bot catalogue: <storeDir>/dispatcher/bots.
+func legacyBotsDir(storeDir string) string {
+	return filepath.Join(storeDir, "dispatcher", "bots")
+}
+
+// MigrateLegacyDefaultPreset rewrites, in place, a saved dispatcher config that
+// is the zero-config preset of an earlier version — one that routed to the bots
+// the binary embedded (extracted under <storeDir>/dispatcher/bots, with the
+// paid `default` bot as the fallback workflow and a snapshot of those bots'
+// dispatch vars) — into the preset that runs only the project's own bots:
+// no fallback workflow, that extracted catalogue off bots.paths, the dispatch
+// vars snapshot dropped (the bots' manifests are read live now), require_assignee
+// on. A config the operator wrote or changed (a different name, or a workflow
+// that is not the extracted default) is left alone. The extracted files stay on
+// disk — they may carry the operator's edits — they are just no longer wired.
+// Reports whether cfg changed.
+func MigrateLegacyDefaultPreset(cfg *dispatcher.Config, storeDir string) bool {
+	if cfg == nil || storeDir == "" || cfg.Name != legacyDefaultPresetName {
+		return false
+	}
+	botsDir := legacyBotsDir(storeDir)
+	if filepath.Clean(cfg.Workflow) != filepath.Join(botsDir, "default") {
+		return false
+	}
+	cfg.Workflow = ""
+	cfg.RequireAssignee = true
+	cfg.AssigneeDispatch = nil
+	kept := cfg.Bots.Paths[:0:0]
+	for _, p := range cfg.Bots.Paths {
+		if filepath.Clean(p) != filepath.Clean(botsDir) {
+			kept = append(kept, p)
+		}
+	}
+	cfg.Bots.Paths = kept
+	return true
+}
+
+// MigrateSavedConfig is the dispatcher.Manager MigrateConfig hook for the store
+// at storeDir: it brings a config saved by an earlier version up to date — the
+// zero-config preset that routed to embedded bots, and the sh seed hook on a
+// PowerShell host. Reports whether cfg changed.
+func MigrateSavedConfig(storeDir string) func(*dispatcher.Config) bool {
+	return func(cfg *dispatcher.Config) bool {
+		preset := MigrateLegacyDefaultPreset(cfg, storeDir)
+		hook := MigrateLegacySeedHook(cfg)
+		return preset || hook
+	}
+}
+
 // BuildDefaultConfig returns the in-memory dispatcher configuration
-// used by `iterion dispatch` when invoked without a YAML argument:
-// native tracker, HTTP on [defaultDispatchPort], polling every 30 s,
-// the embedded bot catalogue extracted under <storeDir>/dispatcher/
-// bots, and the `default` fallback bot bound for unassigned issues.
+// used by `iterion dispatch` when invoked without a YAML argument and by the
+// studio's "Use default settings": native tracker, HTTP on
+// [defaultDispatchPort], polling every 30 s, and the PROJECT's own bots
+// (<projectDir>/bots, examples, .botz — botregistry.DefaultPaths, the same roots
+// the studio's Bots page lists) as the assignees a card can be given.
 //
-// projectDir is the host git repository the dispatcher should seed
-// per-issue workspaces from. When non-empty, an `after_create` hook
-// is wired that runs `git worktree add` from projectDir into the
-// freshly-created issue workspace, so bots see a populated checkout
-// matching the host repo's HEAD instead of an empty directory. When
-// empty (out-of-tree CLI invocations), the hook is omitted and the
-// operator is expected to populate workspaces through a different
-// mechanism (a custom hook, a bind-mount, or a workflow-level
-// worktree: auto block).
+// There is no built-in bot and no fallback workflow: a card is run only by a
+// bot of the project it is assigned to. A project with no bots yet gets a
+// working dispatcher whose cards wait, flagged "no assignee" / "no bot", until
+// a bot is added (the roots are read at every dispatch, so a bot created later
+// is picked up without touching the settings). Each bot's input variables come
+// from its manifest `dispatch_vars`, read at dispatch time.
+//
+// projectDir is the host git repository the dispatcher seeds per-issue
+// workspaces from and the root of the bot paths. It is required: the preset has
+// nowhere to look for bots without it. The after_create hook runs `git
+// worktree add` from projectDir into the freshly-created issue workspace, so
+// bots see a populated checkout matching the host repo's HEAD instead of an
+// empty directory.
 //
 // The returned Config has [Config.ApplyDefaults] already applied and
 // has passed Validate, so callers can hand it straight to a Manager.
 // SourcePath is left empty so downstream code (notably the
 // ConfigWatcher) can tell baked-in mode apart from YAML-on-disk mode.
-func BuildDefaultConfig(storeDir, projectDir string) (*dispatcher.Config, error) {
-	if storeDir == "" {
-		return nil, errors.New("dispatch defaults: storeDir is required")
+func BuildDefaultConfig(projectDir string) (*dispatcher.Config, error) {
+	if projectDir == "" {
+		return nil, errors.New("dispatch defaults: project directory is required — the preset runs the bots of a project")
 	}
-
-	botsDir, assigneeDirs, err := extractDefaultBots(storeDir)
+	// Resolve the project dir to an absolute path so the hook and the bot paths
+	// are unaffected by the dispatcher daemon's cwd at the time they are used
+	// (workers cd into the freshly-created workspace before invoking the hook,
+	// so a relative path would be relative to the empty workspace — wrong
+	// source).
+	absProject, err := filepath.Abs(projectDir)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("dispatch defaults: resolve project directory %s: %w", projectDir, err)
 	}
-	if assigneeDirs == 0 {
-		return nil, errors.New("dispatch defaults: embedded bot catalogue is empty — this binary was compiled before `task templates:dispatch-bots` populated pkg/cli/templates/dispatch_bots/. Rebuild via `task build` (which depends on it) or run the sync task directly")
-	}
+	projectDir = absProject
 
 	var hooks dispatcher.Hooks
-	if projectDir != "" {
-		// Resolve the project dir to an absolute path so the hook
-		// is unaffected by the dispatcher daemon's cwd at the time
-		// it fires (workers cd into the freshly-created workspace
-		// before invoking the hook, so a relative path would be
-		// relative to the empty workspace — wrong source).
-		absProject, absErr := filepath.Abs(projectDir)
-		if absErr == nil {
-			projectDir = absProject
-		}
-		// after_create runs once per workspace, the first time the
-		// dispatcher claims an issue. The dispatcher passes
-		// ITERION_WORKSPACE in the env and sets cwd to it; the
-		// shell hook seeds it as a git worktree of projectDir@HEAD
-		// (or copies the tree when projectDir is not a git repo)
-		// so the bot's workspace_dir input lands on a real
-		// checkout matching the host state at dispatch time.
-		seedScript, seedShell := seedHookForHost(projectDir)
-		hooks.AfterCreate = &dispatcher.Hook{
-			Script:    seedScript,
-			Shell:     seedShell,
-			TimeoutMS: 120_000,
-		}
-		// No destructive before_remove default: after removing an owned,
-		// clean workspace the dispatcher deregisters that exact linked
-		// worktree through the surviving host-repository metadata. A
-		// shell-level `git worktree remove --force` before deletion would
-		// reopen a commit-vs-remove race.
+	// after_create runs once per workspace, the first time the dispatcher
+	// claims an issue. The dispatcher passes ITERION_WORKSPACE in the env and
+	// sets cwd to it; the shell hook seeds it as a git worktree of
+	// projectDir@HEAD (or copies the tree when projectDir is not a git repo) so
+	// the bot's workspace_dir input lands on a real checkout matching the host
+	// state at dispatch time.
+	seedScript, seedShell := seedHookForHost(projectDir)
+	hooks.AfterCreate = &dispatcher.Hook{
+		Script:    seedScript,
+		Shell:     seedShell,
+		TimeoutMS: 120_000,
 	}
-
-	// Discover the bots so routing + per-bot dispatch vars come from each
-	// bot's MANIFEST (dispatch_vars), not a hardcoded name→workflow/vars
-	// map. Adding/renaming a bot — shipped (materialized at botsDir) OR a
-	// custom one the operator drops in the project — is then a manifest
-	// change with ZERO dispatcher-code edits. The project roots use the
-	// canonical botregistry.DefaultPaths (bots/ + examples/ + .botz) — the
-	// SAME set studio/server discover, so the CLI dispatcher and studio see
-	// one catalog. botsDir (the embedded shipped catalogue) is prepended so
-	// a shipped bot is never shadowed by a partial user override; missing
-	// project roots are skipped by discovery (botregistry.List stats each).
-	botsPaths := []string{botsDir}
-	if projectDir != "" {
-		botsPaths = append(botsPaths, botregistry.DefaultPaths(projectDir)...)
-	}
-	assigneeDispatch, err := discoverAssigneeDispatch(botsPaths)
-	if err != nil {
-		return nil, err
-	}
+	// No destructive before_remove default: after removing an owned,
+	// clean workspace the dispatcher deregisters that exact linked
+	// worktree through the surviving host-repository metadata. A
+	// shell-level `git worktree remove --force` before deletion would
+	// reopen a commit-vs-remove race.
 
 	cfg := &dispatcher.Config{
-		Name:     "iterion-default",
-		Workflow: filepath.Join(botsDir, "default"),
+		Name: legacyDefaultPresetName,
+		// No fallback workflow: a card that routes to no bot does not run (see
+		// RequireAssignee), it waits flagged "no assignee" / "no bot".
+		//
 		// A card dragged to ready with no assignee must not silently start a
-		// paid run on the built-in default bot: it waits, flagged "no
-		// assignee", until someone picks a bot.
+		// paid run: it waits until someone picks a bot. The same holds for an
+		// assignee that is not a bot of the project (a person's name, a typo).
 		RequireAssignee: true,
 		Tracker:         dispatcher.TrackerConfig{Kind: dispatcher.TrackerKindNative},
 		Polling:         dispatcher.PollingConfig{IntervalMS: 30_000},
@@ -359,11 +296,13 @@ func BuildDefaultConfig(storeDir, projectDir string) (*dispatcher.Config, error)
 		Server: dispatcher.ServerConfig{Port: defaultDispatchPort},
 		// Discovery-driven routing: RoutingRunner resolves any ENABLED
 		// discovered bot by name against Bots.Paths (HasRoute consults the
-		// registry), so there is no hardcoded assignee_workflows map —
-		// shipped + custom bots route identically. snake_case is no longer
-		// special-cased: the catalog is kebab and Nexie emits kebab names.
-		Bots:             botregistry.Config{Paths: botsPaths},
-		AssigneeDispatch: assigneeDispatch,
+		// registry), so there is no assignee_workflows map and no
+		// assignee_dispatch snapshot — every bot of the project routes
+		// identically and brings its own dispatch_vars. The roots are the
+		// canonical botregistry.DefaultPaths (bots/ + examples/ + .botz): the
+		// SAME set studio/server discover, so the CLI dispatcher and studio see
+		// one catalog. Missing roots are skipped by discovery.
+		Bots: botregistry.Config{Paths: botregistry.DefaultPaths(projectDir)},
 		Dispatch: dispatcher.DispatchConfig{
 			Vars: map[string]string{
 				"issue_title": "{{issue.title}}",

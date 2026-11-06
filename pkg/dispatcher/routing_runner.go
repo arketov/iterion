@@ -59,32 +59,39 @@ type RoutingRunner struct {
 
 // Dispatch implements Runner.
 func (r *RoutingRunner) Dispatch(ctx context.Context, spec DispatchSpec) error {
-	if r == nil || r.Default == nil {
-		return errors.New("routing runner: default runner is nil")
+	if r == nil {
+		return errors.New("routing runner: nil runner")
 	}
 	if rn, ok := r.routeFor(spec.Assignee); ok {
 		return rn.Dispatch(ctx, spec)
 	}
+	if r.Default == nil {
+		// No fallback workflow is configured (require_assignee presets run only
+		// the project's own bots): a card no bot routes to has nothing to run.
+		// The dispatcher refuses such a card before it claims it; this is the
+		// backstop for any path that reaches the runner anyway.
+		return fmt.Errorf("%w (assignee %q)", ErrNoBotRoute, spec.Assignee)
+	}
 	return r.Default.Dispatch(ctx, spec)
 }
 
+// ErrNoBotRoute is returned by RoutingRunner.Dispatch when the card's
+// assignee routes to no bot and no default workflow is configured.
+var ErrNoBotRoute = errors.New("dispatcher: no bot routes this card and no default workflow is configured")
+
 // staticRoute resolves the pre-compiled per-assignee Runner for a key.
 // Exact match wins; otherwise a normalized comparison tolerates
-// kebab/snake/case differences. Returns (nil,false) on no static route.
+// kebab/snake/case differences (lookupBotKey). Returns (nil,false) on no
+// static route.
 func (r *RoutingRunner) staticRoute(key string) (Runner, bool) {
-	if r == nil || r.ByAssignee == nil || key == "" {
+	if r == nil {
 		return nil, false
 	}
-	if rn, ok := r.ByAssignee[key]; ok && rn != nil {
-		return rn, true
+	rn, ok := lookupBotKey(r.ByAssignee, key)
+	if !ok || rn == nil {
+		return nil, false
 	}
-	nk := botregistry.NormalizeName(key)
-	for k, rn := range r.ByAssignee {
-		if rn != nil && botregistry.NormalizeName(k) == nk {
-			return rn, true
-		}
-	}
-	return nil, false
+	return rn, true
 }
 
 // routeFor resolves the Runner for a routing key: the static map first,
@@ -114,8 +121,37 @@ func (r *RoutingRunner) routeFor(key string) (Runner, bool) {
 // (WorkdirFromPaths), so a bot disabled OR re-enabled from the studio
 // Catalog manager is honoured at dispatch time, matching what Nexie sees.
 func (r *RoutingRunner) resolveDynamicPath(key string) (string, bool) {
-	if r == nil || len(r.BotsPaths) == 0 || key == "" {
+	e, ok := r.resolveDynamicEntry(key)
+	if !ok {
 		return "", false
+	}
+	return e.MainFile(), true
+}
+
+// BotDispatchVars returns the dispatch_vars the manifest of the ENABLED
+// discovered bot that key routes to declares, read from the catalogue NOW —
+// a bot created or edited after the dispatcher started is picked up on its next
+// card, with no dispatcher.json to regenerate. ok is false when key routes
+// through a static assignee_workflows entry (that workflow is not the bot the
+// registry would name), or to no enabled discovered bot, or the bot declares no
+// dispatch_vars.
+func (r *RoutingRunner) BotDispatchVars(key string) (map[string]string, bool) {
+	if _, static := r.staticRoute(key); static {
+		return nil, false
+	}
+	e, ok := r.resolveDynamicEntry(key)
+	if !ok || len(e.DispatchVars) == 0 {
+		return nil, false
+	}
+	return e.DispatchVars, true
+}
+
+// resolveDynamicEntry is the registry lookup behind resolveDynamicPath: the
+// ENABLED discovered bot key names (tolerantly: botregistry.NormalizeName),
+// or false when dynamic routing is off, the bot is unknown or disabled.
+func (r *RoutingRunner) resolveDynamicEntry(key string) (botregistry.Entry, bool) {
+	if r == nil || len(r.BotsPaths) == 0 || key == "" {
+		return botregistry.Entry{}, false
 	}
 	entries, err := botregistry.List(botregistry.ListOptions{
 		Paths:   r.BotsPaths,
@@ -129,7 +165,7 @@ func (r *RoutingRunner) resolveDynamicPath(key string) (string, bool) {
 		if r.logger != nil {
 			r.logger.Warn("routing runner: no dynamic route for %q: the bot catalogue is not read: %v", key, err)
 		}
-		return "", false
+		return botregistry.Entry{}, false
 	}
 	nk := botregistry.NormalizeName(key)
 	for _, e := range entries {
@@ -137,11 +173,11 @@ func (r *RoutingRunner) resolveDynamicPath(key string) (string, bool) {
 			continue
 		}
 		if !e.Enabled {
-			return "", false // disabled in the catalog → not auto-routed
+			return botregistry.Entry{}, false // disabled in the catalog → not auto-routed
 		}
-		return e.MainFile(), true
+		return e, true
 	}
-	return "", false
+	return botregistry.Entry{}, false
 }
 
 // dynamicRunner returns the cached runner for a resolved bot, compiling
@@ -245,15 +281,21 @@ func NewRoutingRunner(cfg *Config, logger *iterlog.Logger, opts ...EngineRunnerO
 	if cfg == nil {
 		return nil, errors.New("routing runner: config required")
 	}
-	if cfg.Workflow == "" {
-		return nil, errors.New("routing runner: cfg.Workflow is required (default fallback)")
-	}
-	defaultRunner, err := NewEngineRunner(cfg.Workflow, logger, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("routing runner: default workflow %s: %w", cfg.Workflow, err)
-	}
-	if len(cfg.AssigneeWorkflows) == 0 && len(cfg.Bots.Paths) == 0 {
-		return defaultRunner, nil
+	// The default (fallback) workflow is optional: a config with
+	// require_assignee runs only bots it can route to. Then Default stays nil
+	// and a card no bot routes to is refused (ErrNoBotRoute), never run.
+	var defaultRunner ManagedRunner
+	if cfg.Workflow != "" {
+		var err error
+		defaultRunner, err = NewEngineRunner(cfg.Workflow, logger, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("routing runner: default workflow %s: %w", cfg.Workflow, err)
+		}
+		if len(cfg.AssigneeWorkflows) == 0 && len(cfg.Bots.Paths) == 0 {
+			return defaultRunner, nil
+		}
+	} else if len(cfg.AssigneeWorkflows) == 0 && len(cfg.Bots.Paths) == 0 {
+		return nil, errors.New("routing runner: nothing to run: set cfg.Workflow, assignee_workflows or bots.paths")
 	}
 	r := &RoutingRunner{
 		Default:       defaultRunner,

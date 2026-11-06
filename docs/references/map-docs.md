@@ -361,6 +361,8 @@ One row per page under `docs/`, ADRs included. An ADR's **status** is the column
 | [`docs/diagrams/flow-triggers-and-schedules.md`](../diagrams/flow-triggers-and-schedules.md) | Flow — triggers and schedules: five sources, two deliveries, three clocks | A stored binding becomes a run when an event matches it or its clock comes due, through one matching prelude, one of two deliveries, and… | — |
 | [`docs/diagrams/flow-webhook-to-run.md`](../diagrams/flow-webhook-to-run.md) | Flow — webhook-to-run: the admission gates, every refusal, and the one chokepoint | An inbound forge or CI delivery becomes a run by crossing an authenticating middleware, a provider handler's ordered refusals and one… | — |
 | [`docs/dispatcher.md`](../dispatcher.md) | `iterion dispatch` — long-running dispatcher | The dispatcher turns iterion from a one-shot `iterion run` into a | — |
+| [`docs/dispatcher.md`](../dispatcher.md) | `iterion dispatch` — long-running dispatcher | The dispatcher turns iterion from a one-shot `iterion run` into a | — |
+| [`docs/dispatcher.md`](../dispatcher.md) | `iterion dispatch` — long-running dispatcher | The dispatcher turns iterion from a one-shot `iterion run` into a | — |
 | [`docs/dsl-totality-and-tc.md`](../dsl-totality-and-tc.md) | DSL totality, Turing-completeness, and the static-predictability surface | This page is the canonical answer to two questions that sound opposed but are | — |
 | [`docs/dsl-whats-new.md`](../dsl-whats-new.md) | What's new in the `.bot` DSL — the authoring-first programme (2026-09) | Between v3.128.0 and v3.154.0 the DSL, its tooling and its documentation were | — |
 | [`docs/dsl.md`](../dsl.md) | 🧩 The `.bot` DSL | Source files end in `.bot`; deterministic bundles end in `.botz`. | — |
@@ -378,6 +380,8 @@ One row per page under `docs/`, ADRs included. An ADR's **status** is the column
 | [`docs/gitops-warden-rollout.md`](../gitops-warden-rollout.md) | gitops-warden — binding, calibrating, and flipping a repo to enforce | The runbook for [gitops-warden](https://github.com/SocialGouv/iterion/tree/main/bots/gitops-warden) | — |
 | [`docs/grammar/V1_SCOPE.md`](../grammar/V1_SCOPE.md) | Current scope of the V1 grammar and AST | The filename and grammar version remain `V1` for compatibility: Iterion has | — |
 | [`docs/groups-iteration-subbots.md`](../groups-iteration-subbots.md) | Reuse & iteration: groups, foreach, subbots | This page documents the composition + iteration constructs added on top of the | — |
+| [`docs/howto-board-bot.md`](../howto-board-bot.md) | Your own bot on the board | From a bot you wrote to a run started by a card on the studio board: the | — |
+| [`docs/howto-board-bot.md`](../howto-board-bot.md) | Your own bot on the board | From a bot you wrote to a run started by a card on the studio board: the | — |
 | [`docs/howto-board-bot.md`](../howto-board-bot.md) | Your own bot on the board | From a bot you wrote to a run started by a card on the studio board: the | — |
 | [`docs/howto-mcp-node.md`](../howto-mcp-node.md) | Give a node an MCP server | How a node of a `.bot` gets the tools of an MCP server, with the | — |
 | [`docs/human-in-the-loop.md`](../human-in-the-loop.md) | Human in the loop | Most iterion nodes run unattended. | — |

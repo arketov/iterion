@@ -380,11 +380,10 @@ func (c *Dispatcher) dispatch(ctx context.Context, iss tracker.Issue) {
 		iss.Bot = bot
 	}
 
-	// A card with a pending retry already started under an earlier policy
-	// (e.g. before an upgrade): let its retry/resume run its course.
-	if _, retrying := c.state.retries[iss.ID]; cfg.RequireAssignee && !retrying && iss.Bot == "" && iss.Assignee == "" {
-		c.recordDispatchSkipKind(iss, DispatchSkipNoAssignee,
-			"no assignee: assign a bot to this card to run it (the dispatcher does not fall back to the default bot)")
+	// require_assignee: a card with no bot executor does not start — no
+	// assignee at all, or an assignee that is not a routable bot (see
+	// refuseWithoutBot).
+	if c.refuseWithoutBot(cfg, iss) {
 		return
 	}
 
@@ -1141,17 +1140,13 @@ func (c *Dispatcher) buildSpec(cfg *Config, iss tracker.Issue, runID, wsPath str
 	if iss.Bot != "" {
 		routeAssignee = iss.Bot
 	}
-	// Per-assignee overrides win wholesale: when a bot has its own
-	// AssigneeDispatch entry, its var/attachment map replaces the global
-	// one rather than merging. Keyed by routeAssignee (not raw iss.Assignee)
-	// so a per-ticket Bot override binds THAT bot's inputs — otherwise an
-	// issue with Assignee=X + Bot=Y ran Y's workflow with X's var bindings.
-	dc := cfg.Dispatch
-	if routeAssignee != "" {
-		if ov, ok := cfg.AssigneeDispatch[routeAssignee]; ok {
-			dc = ov
-		}
-	}
+	// Per-bot overrides win wholesale: an explicit AssigneeDispatch entry, or
+	// else the bot's own manifest dispatch_vars read live (dispatchConfigFor),
+	// replaces the global map rather than merging. Keyed by routeAssignee (not
+	// raw iss.Assignee) so a per-ticket Bot override binds THAT bot's inputs —
+	// otherwise an issue with Assignee=X + Bot=Y ran Y's workflow with X's var
+	// bindings.
+	dc := c.dispatchConfigFor(cfg, routeAssignee)
 	vars := map[string]any{}
 	for k, src := range dc.Vars {
 		tpl, err := ParseTemplate(src)
@@ -1274,6 +1269,7 @@ func (c *Dispatcher) recordDispatchSkipKind(iss tracker.Issue, kind, reason stri
 		IssueID:    iss.ID,
 		Identifier: iss.Identifier,
 		Bot:        iss.Bot,
+		Assignee:   iss.Assignee,
 		Reason:     reason,
 		Kind:       kind,
 	}

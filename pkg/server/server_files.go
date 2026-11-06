@@ -611,30 +611,6 @@ func (s *Server) handleOpenFile(w http.ResponseWriter, r *http.Request) {
 		confirmedDiskPath = absPath
 	}
 	if err != nil {
-		// Embedded-recipe fallback: the bot picker sets currentFilePath
-		// to "bots/<name>" (legacy "examples/<name>") after loading a
-		// binary-embedded recipe (see studio Toolbar handlePickFile).
-		// When the project has no matching on-disk file, every later
-		// flow that re-reads via /files/open (LaunchView's pre-launch
-		// document fetch, the file watcher, hot-reload) would 404
-		// without this fallback. Strip the prefix and resolve the
-		// remainder (e.g. "feature_dev/main.bot") against the embed.
-		for _, prefix := range []string{"bots/", "examples/"} {
-			if rest := strings.TrimPrefix(req.Path, prefix); rest != req.Path {
-				src, ok, embedErr := embeddedRecipe(rest)
-				if embedErr != nil {
-					httpError(w, http.StatusInternalServerError, "%v", embedErr)
-					return
-				}
-				if ok {
-					data = []byte(src)
-					err = nil
-				}
-				break
-			}
-		}
-	}
-	if err != nil {
 		httpError(w, http.StatusNotFound, "file not found: %s", req.Path)
 		return
 	}

@@ -10,9 +10,9 @@ things deliberately separate:
 
 Iterion runs `.bot` sources and packaged `.botz` bundles. Other workflow extensions are rejected consistently at the CLI, server, dispatcher, and studio boundaries; [`pkg/dsl/workflowfile`](../pkg/dsl/workflowfile/workflowfile.go) is the source of truth.
 
-## Embedded dispatcher catalogue
+## General-purpose bots
 
-The release binary embeds these nine general-purpose bots for zero-config dispatcher use. The checked-in folders remain the editable sources; `task templates:dispatch-bots` refreshes the embedded copies.
+These nine general-purpose bots live in the repository's `bots/` folder. The binary does not embed them: copy the folders you want into your own project's `bots/` (the zero-config dispatcher and the studio read the project's folders), or open this repository as the project.
 
 | Persona | Bot | Purpose |
 |---|---|---|
@@ -30,7 +30,7 @@ The release binary embeds these nine general-purpose bots for zero-config dispat
 
 ## Additional maintained bots
 
-These bots are shipped in the repository and are discoverable by the CLI and studio when `bots/` is in the search path, but they are not copied into the zero-config dispatcher template:
+These bots are also in the repository and are discoverable by the CLI and studio when `bots/` is in the search path:
 
 | Persona | Bot | Purpose |
 |---|---|---|

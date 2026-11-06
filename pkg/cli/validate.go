@@ -255,7 +255,6 @@ func RunValidateWith(path string, p *Printer, opts ValidateOptions) error {
 // RunValidateWithContext is RunValidateWith under a context that bounds the
 // dry run — its passes and the children they simulate.
 func RunValidateWithContext(ctx context.Context, path string, p *Printer, opts ValidateOptions) error {
-	path = ResolveRecipePath(path)
 	if err := requireWorkflowPathExists(path); err != nil {
 		return err
 	}

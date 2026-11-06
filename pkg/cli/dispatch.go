@@ -69,16 +69,23 @@ func RunDispatch(p *Printer, opts DispatchOptions) error {
 	}
 	storeDir := store.ResolveStoreDir(cwd, opts.StoreDir)
 
-	var cfg *dispatcher.Config
+	// cfg is the resolved config this process reads (env expanded, defaults applied);
+	// saveCfg is what is persisted into the store: for a YAML, the RAW form, so a
+	// `$GITHUB_TOKEN` reference is saved as a reference and never as the token.
+	var cfg, saveCfg *dispatcher.Config
 	if opts.ConfigPath == "" {
 		// Seed per-issue workspaces from cwd (the user's project at
 		// `iterion dispatch` invocation time). The default builder
 		// installs an after_create hook that `git worktree add`s
 		// from this path so bots land on a populated checkout
 		// matching the host repo's HEAD.
-		cfg, err = BuildDefaultConfig(storeDir, cwd)
+		cfg, err = BuildDefaultConfig(cwd)
+		saveCfg = cfg
 	} else {
 		cfg, err = dispatcher.Load(opts.ConfigPath)
+		if err == nil {
+			saveCfg, err = dispatcher.LoadRaw(opts.ConfigPath)
+		}
 	}
 	if err != nil {
 		return err
@@ -112,11 +119,16 @@ func RunDispatch(p *Printer, opts DispatchOptions) error {
 		StoreDir:    storeDir,
 		NativeStore: nativeStore,
 		Logger:      logger,
+		ProjectDir:  cwd,
+		// A store saved by an earlier version holds a preset that routes to
+		// bots the binary used to embed; NewManager auto-starts from it, so it
+		// is brought up to date before that start.
+		MigrateConfig: MigrateSavedConfig(storeDir),
 	})
 	if err != nil {
 		return err
 	}
-	if err := mgr.SaveConfig(cfg); err != nil {
+	if err := mgr.SaveConfig(saveCfg); err != nil {
 		return err
 	}
 	// NewManager auto-starts when the store carries a persisted config
@@ -145,8 +157,15 @@ func RunDispatch(p *Printer, opts DispatchOptions) error {
 		if err != nil {
 			return err
 		}
-		if err := watcher.Start(func(c *dispatcher.Config) {
-			if err := mgr.SaveConfig(c); err != nil {
+		if err := watcher.Start(func(_ *dispatcher.Config) {
+			// Persist the RAW form (see saveCfg above); the watcher has
+			// already validated the resolved one.
+			raw, err := dispatcher.LoadRaw(opts.ConfigPath)
+			if err != nil {
+				logger.Warn("dispatcher: reload: %v", err)
+				return
+			}
+			if err := mgr.SaveConfig(raw); err != nil {
 				logger.Warn("dispatcher: reload: %v", err)
 			}
 		}); err != nil {
@@ -224,9 +243,13 @@ func RunDispatch(p *Printer, opts DispatchOptions) error {
 	if p.Format == OutputHuman {
 		if opts.ConfigPath == "" {
 			p.Line("iterion dispatch: running with baked-in defaults (no YAML) — write iterion.dispatcher.yaml + pass it as argument to customise")
-			p.Line("iterion dispatch: assignee bots: %v", DefaultAssigneeNames(cfg.Bots.Paths))
+			if names := DefaultAssigneeNames(cfg.Bots.Paths); len(names) > 0 {
+				p.Line("iterion dispatch: assignee bots: %v", names)
+			} else {
+				p.Line("iterion dispatch: no bots found in %s (bots/, examples/, .botz/) — cards will wait flagged \"no bot\" until you add one", cwd)
+			}
 		}
-		p.Line("iterion dispatch: workflow %s", cfg.Workflow)
+		p.Line("iterion dispatch: workflow %s", dispatcher.WorkflowLabel(cfg))
 		p.Line("iterion dispatch: tracker %s", cfg.Tracker.Kind)
 		p.Line("iterion dispatch: workspaces under %s", wsRoot)
 		p.Line("iterion dispatch: polling every %s, stall timeout %s", cfg.PollingInterval(), cfg.StallTimeout())

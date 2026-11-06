@@ -374,10 +374,16 @@ export function IssueCard({
           title={
             skip.kind === "no_assignee"
               ? "This card is ready but has no assignee, so the dispatcher will not start a run. Assign a bot in the issue editor."
-              : `The dispatcher refuses to run this issue: ${skip.reason}. Fix the bot in the issue editor or add it to assignee_workflows.`
+              : skip.kind === "no_bot"
+                ? `The assignee “${skip.assignee ?? ""}” is not a bot of this project, so the dispatcher will not start a run (it never falls back to a default bot). Pick a bot in the issue editor (Bot tab).`
+                : `The dispatcher refuses to run this issue: ${skip.reason}. Fix the bot in the issue editor or add it to assignee_workflows.`
           }
         >
-          {skip.kind === "no_assignee" ? "⚠ no assignee — won't start" : "⚠ won't dispatch"}
+          {skip.kind === "no_assignee"
+            ? "⚠ no assignee — won't start"
+            : skip.kind === "no_bot"
+              ? "⚠ no bot — won't start"
+              : "⚠ won't dispatch"}
           <span className="ml-1 text-danger-fg break-words">— {skip.reason}</span>
         </button>
       )}

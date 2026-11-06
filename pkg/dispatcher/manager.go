@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -48,12 +49,18 @@ type ManagerOptions struct {
 	// the host's bots without the operator having to configure them
 	// twice.
 	DefaultBotsPaths []string
+	// ProjectDir is the project root a RELATIVE path in the saved config
+	// (workflow, assignee_workflows, bots.paths, workspace.root, hook path) is
+	// resolved against: the studio writes `./bots/x/main.bot` meaning the
+	// project's bots, not a file next to dispatcher.json in the store. Empty
+	// falls back to the folder of the saved config file.
+	ProjectDir string
 	// RunEnv is the immutable project environment inherited by dispatcher
 	// hooks and every engine the manager creates.
 	RunEnv []string
 	// DefaultsFn builds a zero-config dispatcher Config from the
-	// host environment (typically by extracting the embedded bot
-	// catalogue under <storeDir>/dispatcher/bots/). When set, the
+	// host environment (typically the project's own bots as the routable
+	// assignees, see cli.BuildDefaultConfig). When set, the
 	// Manager exposes POST /defaults/apply which saves the returned
 	// config and starts the dispatcher in one call. nil = the
 	// endpoint returns 501 Not Implemented.
@@ -81,10 +88,17 @@ type Manager struct {
 	nativeStore      *native.Store
 	logger           *iterlog.Logger
 	defaultBotsPaths []string
+	projectDir       string
 	runEnv           []string
 	defaultsFn       func() (*Config, error)
 
-	mu        sync.Mutex
+	mu sync.Mutex
+	// raw is the config as saved on disk: `$GITHUB_TOKEN` stays a reference,
+	// relative paths stay relative, "none" stays "none". It is what GET /config
+	// shows (secrets masked) and what is written back on every save.
+	raw *Config
+	// cfg is the copy the dispatcher runs: env expanded, paths resolved,
+	// defaults applied (Config.Resolved). Never persisted.
 	cfg       *Config
 	state     ManagerState
 	cur       *Dispatcher
@@ -117,47 +131,39 @@ func NewManager(opts ManagerOptions) (*Manager, error) {
 		nativeStore:      opts.NativeStore,
 		logger:           opts.Logger,
 		defaultBotsPaths: append([]string(nil), opts.DefaultBotsPaths...),
+		projectDir:       opts.ProjectDir,
 		runEnv:           append([]string(nil), opts.RunEnv...),
 		defaultsFn:       opts.DefaultsFn,
 		state:            ManagerStateIdle,
 	}
-	if cfg, err := loadConfigJSON(m.configPath); err == nil {
-		m.cfg = cfg
-	} else if !errors.Is(err, fs.ErrNotExist) {
-		opts.Logger.Warn("manager: load persisted config (%s): %v", m.configPath, err)
-	}
-	if m.cfg != nil && len(m.cfg.Bots.Paths) == 0 {
-		m.cfg.Bots.Paths = append([]string(nil), m.defaultBotsPaths...)
-	}
-	if m.cfg != nil {
-		patches := map[string]map[string]string{}
-		if opts.MigrateConfig != nil && opts.MigrateConfig(m.cfg) {
-			if h := m.cfg.Hooks.AfterCreate; h != nil {
-				patches["after_create"] = map[string]string{"script": h.Script, "shell": h.Shell}
-			}
-		}
+	if raw, err := readConfigJSON(m.configPath); err == nil {
+		// A preset an older version saved is rewritten on the RAW config: it
+		// carries `$TOKEN` references and relative paths as written, so
+		// saving it back puts nothing in clear.
+		migrated := opts.MigrateConfig != nil && opts.MigrateConfig(raw)
 		// A saved sh hook with no `shell:` on a PowerShell host runs under sh
 		// by a text heuristic: write down the shell it already runs under, so
 		// the choice is visible in the settings form and a later change of the
 		// heuristic or of the host default cannot flip it.
-		pinned := PinHeuristicShells(m.cfg)
-		for _, name := range pinned {
-			if patches[name] == nil {
-				patches[name] = map[string]string{}
-			}
-			patches[name]["shell"] = m.cfg.Hooks.byName(name).Shell
-		}
-		if len(patches) > 0 {
-			if err := patchHookFields(m.configPath, patches); err != nil {
+		pinned := PinHeuristicShells(raw)
+		if migrated || len(pinned) > 0 {
+			if err := saveConfigJSON(m.configPath, raw); err != nil {
 				opts.Logger.Warn("manager: persist migrated config (%s): %v", m.configPath, err)
 			} else {
-				opts.Logger.Info("manager: migrated the saved dispatcher config (%s) to this host's shell", m.configPath)
+				opts.Logger.Info("manager: migrated the saved dispatcher config (%s)", m.configPath)
 				if len(pinned) > 0 {
 					opts.Logger.Info("manager: hooks %v are written for sh and were already running under it: saved `shell:` to say so; "+
 						"edit or remove it to change that", pinned)
 				}
 			}
 		}
+		if rt, rerr := m.resolve(raw); rerr == nil {
+			m.raw, m.cfg = raw, rt
+		} else {
+			opts.Logger.Warn("manager: load persisted config (%s): %v", m.configPath, rerr)
+		}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		opts.Logger.Warn("manager: load persisted config (%s): %v", m.configPath, err)
 	}
 	// Sweep stale claims left over from a dead local PID at server
 	// boot, before any operator has clicked Start on the dispatcher.
@@ -294,17 +300,28 @@ func (m *Manager) Config() *Config {
 // SaveConfig validates and persists a new configuration. If a
 // dispatcher is running, it is reloaded with the new settings; if it's
 // idle, the config is saved for the next Start.
+//
+// cfg is taken as the form to SAVE and is not modified: `$GITHUB_TOKEN` stays a
+// reference and relative paths stay relative on disk, while the dispatcher
+// runs the resolved copy (env expanded, paths made absolute against the
+// project root, defaults applied). Writing the resolved copy used to put
+// tokens in clear into dispatcher.json.
 func (m *Manager) SaveConfig(cfg *Config) error {
 	if cfg == nil {
 		return errors.New("manager: config is nil")
 	}
-	cfg.SourcePath = m.configPath
-	cfg.applyEnvAndPaths()
-	cfg.applyDefaults()
-	if len(cfg.Bots.Paths) == 0 {
-		cfg.Bots.Paths = append([]string(nil), m.defaultBotsPaths...)
+	raw, err := cfg.clone()
+	if err != nil {
+		return fmt.Errorf("manager: copy config: %w", err)
 	}
-	if err := cfg.Validate(); err != nil {
+	// A token the settings form got back masked ("***") is not a new value:
+	// keep the one on file.
+	m.mu.Lock()
+	prev := m.raw
+	m.mu.Unlock()
+	carrySecrets(raw, prev)
+	rt, err := m.resolve(raw)
+	if err != nil {
 		return err
 	}
 	// Serialise the disk write + in-memory swap under m.mu so two
@@ -315,17 +332,72 @@ func (m *Manager) SaveConfig(cfg *Config) error {
 	// concurrent Stop+Start doesn't make us call Reload on a freshly-
 	// killed actor.
 	m.mu.Lock()
-	if err := saveConfigJSON(m.configPath, cfg); err != nil {
+	if err := saveConfigJSON(m.configPath, raw); err != nil {
 		m.mu.Unlock()
 		return err
 	}
-	m.cfg = cfg
+	m.raw, m.cfg = raw, rt
 	cur := m.cur
 	m.mu.Unlock()
 	if cur != nil {
-		cur.Reload(cfg)
+		cur.Reload(rt)
 	}
 	return nil
+}
+
+// baseDir is what a relative path of the saved config resolves against: the
+// project root, or — with no project known — the folder of the saved file.
+func (m *Manager) baseDir() string {
+	if m.projectDir != "" {
+		return m.projectDir
+	}
+	return filepath.Dir(m.configPath)
+}
+
+// resolve builds the runtime copy of a raw config (Config.Resolved against the
+// project root, the studio's default bot roots filling an empty bots.paths).
+func (m *Manager) resolve(raw *Config) (*Config, error) {
+	raw.SourcePath = m.configPath
+	rt, err := raw.Resolved(m.baseDir(), m.defaultBotsPaths)
+	if err != nil {
+		return nil, err
+	}
+	m.warnUnsetTokenRefs(raw, rt)
+	return rt, nil
+}
+
+// warnUnsetTokenRefs says so when a tracker token saved as an `$ENV` reference
+// expands to nothing in this process: the config keeps the reference, never the
+// token, so a studio started without the variable runs the tracker with no
+// credential — silently, unless this is said.
+func (m *Manager) warnUnsetTokenRefs(raw, rt *Config) {
+	if m.logger == nil {
+		return
+	}
+	check := func(kind, refTok, runTok string) {
+		if refTok != "" && refTok != maskedToken && runTok == "" {
+			m.logger.Warn("manager: %s tracker token %q expands to nothing: the variable is not set in this process, so the tracker runs without a credential", kind, refTok)
+		}
+	}
+	if raw.Tracker.GitHub != nil && rt.Tracker.GitHub != nil {
+		check("github", raw.Tracker.GitHub.Token, rt.Tracker.GitHub.Token)
+	}
+	if raw.Tracker.Forgejo != nil && rt.Tracker.Forgejo != nil {
+		check("forgejo", raw.Tracker.Forgejo.Token, rt.Tracker.Forgejo.Token)
+	}
+	if raw.Tracker.GitLab != nil && rt.Tracker.GitLab != nil {
+		check("gitlab", raw.Tracker.GitLab.Token, rt.Tracker.GitLab.Token)
+	}
+}
+
+// RawConfig returns the saved configuration as written — `$ENV` references and
+// relative paths intact, defaults not applied — or nil when none is saved. Its
+// token fields hold real secrets or references: mask them with redactedConfig
+// before it leaves the process.
+func (m *Manager) RawConfig() *Config {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.raw
 }
 
 // ErrAlreadyRunning is returned by Start when a Dispatcher is already
@@ -425,10 +497,10 @@ func (m *Manager) start(paused bool) error {
 	m.mu.Unlock()
 	if paused {
 		m.persistDesired(DesiredPaused)
-		m.logger.Info("manager: dispatcher started paused (workflow=%s, tracker=%s)", cfg.Workflow, trk.Name())
+		m.logger.Info("manager: dispatcher started paused (workflow=%s, tracker=%s)", workflowLabel(cfg), trk.Name())
 	} else {
 		m.persistDesired(DesiredRunning)
-		m.logger.Info("manager: dispatcher started (workflow=%s, tracker=%s)", cfg.Workflow, trk.Name())
+		m.logger.Info("manager: dispatcher started (workflow=%s, tracker=%s)", workflowLabel(cfg), trk.Name())
 	}
 	return nil
 }
@@ -657,7 +729,9 @@ func buildTracker(cfg *Config, ns *native.Store) (tracker.Tracker, error) {
 // config persistence
 // ---------------------------------------------------------------------------
 
-func loadConfigJSON(path string) (*Config, error) {
+// readConfigJSON parses the saved config exactly as written: nothing expanded,
+// no default applied, nothing validated (see Config.Resolved).
+func readConfigJSON(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -667,12 +741,68 @@ func loadConfigJSON(path string) (*Config, error) {
 		return nil, fmt.Errorf("config json: %w", err)
 	}
 	cfg.SourcePath = path
-	cfg.applyEnvAndPaths()
-	cfg.applyDefaults()
-	if err := cfg.Validate(); err != nil {
+	return &cfg, nil
+}
+
+// loadConfigJSON reads the saved config and returns the resolved, validated
+// copy, relative paths taken against the file's own folder. The Manager does
+// the two steps itself (it resolves against the project root); this is the
+// one-shot form.
+func loadConfigJSON(path string) (*Config, error) {
+	raw, err := readConfigJSON(path)
+	if err != nil {
 		return nil, err
 	}
-	return &cfg, nil
+	return raw.Resolved(filepath.Dir(path), nil)
+}
+
+// maskedToken is what GET /config shows in place of a literal secret, and what
+// PUT /config reads back as "unchanged".
+const maskedToken = "***"
+
+// envRefRe matches a token that is only an environment reference
+// ($NAME / ${NAME}): not a secret, shown as written.
+var envRefRe = regexp.MustCompile(`^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$`)
+
+// maskToken hides a literal token and leaves an env reference visible.
+func maskToken(tok string) string {
+	if tok == "" || envRefRe.MatchString(tok) {
+		return tok
+	}
+	return maskedToken
+}
+
+// carrySecrets replaces a masked tracker token in in with the one prev holds.
+// The settings form gets tokens back masked and sends them back as it got
+// them; without this a plain "Save" would overwrite a real token with "***".
+// With nothing to carry the masked value is cleared rather than stored.
+func carrySecrets(in, prev *Config) {
+	carry := func(tok *string, old string) {
+		if *tok == maskedToken {
+			*tok = old
+		}
+	}
+	oldGH, oldFJ, oldGL := "", "", ""
+	if prev != nil {
+		if prev.Tracker.GitHub != nil {
+			oldGH = prev.Tracker.GitHub.Token
+		}
+		if prev.Tracker.Forgejo != nil {
+			oldFJ = prev.Tracker.Forgejo.Token
+		}
+		if prev.Tracker.GitLab != nil {
+			oldGL = prev.Tracker.GitLab.Token
+		}
+	}
+	if in.Tracker.GitHub != nil {
+		carry(&in.Tracker.GitHub.Token, oldGH)
+	}
+	if in.Tracker.Forgejo != nil {
+		carry(&in.Tracker.Forgejo.Token, oldFJ)
+	}
+	if in.Tracker.GitLab != nil {
+		carry(&in.Tracker.GitLab.Token, oldGL)
+	}
 }
 
 // patchHookFields rewrites only the named fields of the named hooks
@@ -726,7 +856,8 @@ func saveConfigJSON(path string, cfg *Config) error {
 	if err != nil {
 		return fmt.Errorf("config json: marshal: %w", err)
 	}
-	if err := store.WriteFileAtomic(path, data, 0o644); err != nil {
+	// 0600: the file may hold a token the operator typed in.
+	if err := store.WriteFileAtomic(path, data, 0o600); err != nil {
 		return fmt.Errorf("config json: write: %w", err)
 	}
 	return nil
@@ -785,7 +916,10 @@ func (m *Manager) handleStatus(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (m *Manager) handleGetConfig(w http.ResponseWriter, _ *http.Request) {
-	cfg := m.Config()
+	// The saved config as written (env references, relative paths), not the
+	// resolved copy the dispatcher runs: the settings form edits what is on
+	// disk and sends it back, so it must see exactly that.
+	cfg := m.RawConfig()
 	if cfg == nil {
 		WriteJSON(w, http.StatusNotFound, map[string]string{"error": "no config persisted yet"})
 		return
@@ -796,23 +930,25 @@ func (m *Manager) handleGetConfig(w http.ResponseWriter, _ *http.Request) {
 // redactedConfig returns a deep-ish copy of cfg with secret values
 // (tracker tokens) masked. Without this masking, GET /config
 // surfaces the raw OAuth/PAT tokens to anyone who can reach the
-// management port — they're loaded from env at boot but stay
-// in-memory in their literal form.
+// management port. A token that is only an env reference ($GITHUB_TOKEN)
+// is not a secret and stays visible; PUT /config reads a masked value back
+// as "unchanged" (carrySecrets).
 func redactedConfig(cfg *Config) *Config {
 	out := *cfg
 	if out.Tracker.GitHub != nil {
 		gh := *out.Tracker.GitHub
-		if gh.Token != "" {
-			gh.Token = "***"
-		}
+		gh.Token = maskToken(gh.Token)
 		out.Tracker.GitHub = &gh
 	}
 	if out.Tracker.Forgejo != nil {
 		fj := *out.Tracker.Forgejo
-		if fj.Token != "" {
-			fj.Token = "***"
-		}
+		fj.Token = maskToken(fj.Token)
 		out.Tracker.Forgejo = &fj
+	}
+	if out.Tracker.GitLab != nil {
+		gl := *out.Tracker.GitLab
+		gl.Token = maskToken(gl.Token)
+		out.Tracker.GitLab = &gl
 	}
 	return &out
 }
@@ -829,7 +965,7 @@ func (m *Manager) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 		WriteErr(w, http.StatusBadRequest, err)
 		return
 	}
-	WriteJSON(w, http.StatusOK, m.Config())
+	WriteJSON(w, http.StatusOK, redactedConfig(m.RawConfig()))
 }
 
 func (m *Manager) handleStart(w http.ResponseWriter, _ *http.Request) {
@@ -847,9 +983,9 @@ func (m *Manager) handleStart(w http.ResponseWriter, _ *http.Request) {
 // after moving tickets to `ready` when no config exists yet.
 //
 // Returns 501 if no DefaultsFn was injected (out-of-process or test
-// builds), 409 if a config already exists (callers should DELETE or
-// PUT to overwrite — applying defaults over an existing config would
-// silently clobber operator edits), 400 if the defaults builder fails
+// builds), 409 if a config already exists (callers pass ?replace=1 to reset
+// it to the defaults, or PUT to edit it — applying defaults over an existing
+// config would silently clobber operator edits), 400 if the defaults builder fails
 // (typically a binary built before the templates were embedded),
 // 202 + ManagerStatus on success. `?replace=1` lifts the 409: the operator
 // asked to return the saved config to the defaults.
@@ -863,7 +999,7 @@ func (m *Manager) handleApplyDefaults(w http.ResponseWriter, r *http.Request) {
 	// dispatcher). Without it an existing config is never clobbered.
 	replace := r.URL.Query().Get("replace") == "1"
 	if m.Config() != nil && !replace {
-		WriteErr(w, http.StatusConflict, errors.New("dispatcher defaults: a config already exists; PUT /config to overwrite, DELETE first, or POST /defaults/apply?replace=1"))
+		WriteErr(w, http.StatusConflict, errors.New("dispatcher defaults: a config already exists — POST /defaults/apply?replace=1 replaces it with the default settings (the studio's \"Reset to default settings\" button in Dispatcher settings does exactly that), or PUT /config edits it"))
 		return
 	}
 	cfg, err := m.defaultsFn()

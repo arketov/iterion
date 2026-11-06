@@ -19,15 +19,17 @@ The fastest path is no YAML at all:
 iterion dispatch
 ```
 
-Called without an argument, the dispatcher boots with a built-in
-preset: the [native kanban](native-tracker.md) tracker, the studio HTTP
-surface on `http://localhost:4892`, polling every 30 s, and an
-**embedded bot catalogue** containing the nine default bots from `bots/`
-as assignees. Out of the box you can:
+Called without an argument, the dispatcher boots with a preset built from
+**your project**: the [native kanban](native-tracker.md) tracker, the studio
+HTTP surface on `http://localhost:4892`, polling every 30 s, and the bots the
+project itself holds — its `bots/`, `examples/` and `.botz/` folders, the same
+list the studio's Bots page shows — as the assignees a card can be given. The
+binary carries no bots of its own. Out of the box you can:
 
 1. Open `http://localhost:4892/board` and create a ticket.
-2. Set the ticket's **assignee** to one of the names below, drop it
-   into a state marked `eligible` (default: `ready` / `in_progress`),
+2. Set the ticket's **assignee** to the name of one of the project's bots
+   (the folder name, such as `my-helper`; case and `_`/`-` do not matter),
+   drop it into a state marked `eligible` (default: `ready` / `in_progress`),
    and the dispatcher picks it up at the next poll.
 3. The studio's `/dispatcher` route shows the run in flight.
 
@@ -41,39 +43,37 @@ Open that run and the console records the ticket it came from (the
 
 ![Studio run console — the From-ticket header linking a dispatched run back to its issue](images/studio/run-from-ticket.png)
 
-Built-in assignees ([source bots](../bots/)):
+The preset sets `require_assignee: true`: a card that is ready is **run only
+by a bot of the project**, and the paid generic `default` bot is never chosen
+for you. There is no fallback workflow in the preset (`workflow:` is empty).
+Two things keep a card from running, and both leave it where it is, shown on
+the board card and as a row of the Dispatcher page's *Won't dispatch* table
+(`dispatch_skips[].kind`):
 
-| Persona | Assignee | Backing bot | What it does |
-|---|---|---|---|
-| 🛠️ Featurly | `feature-dev` | `bots/feature-dev/` | One adaptive feature campaign with verified commits and deterministic build/test gates |
-| 🌍 Willy | `whole-improve-loop` | `bots/whole-improve-loop/` | Whole-codebase campaign applying one improvement axis site by site |
-| 🌿 Billy | `branch-improve-loop` | `bots/branch-improve-loop/` | Branch-diff review/improvement campaign with verified in-stride commits |
-| 🧭 Nexie | `whats-next` | `bots/whats-next/` | Conversational co-CTO for recommendation, board curation, roadmap study, and dispatch |
-| 📚 Doki | `docs-refresh` | `bots/docs-refresh/` | Doc-only alignment campaign over a deterministic footprint and advisory drift hints |
-| 🔎 Revi | `review-pr` | `bots/review-pr/` | Read-only review with one model family by default and optional cross-family dual mode; publishes findings to the board |
-| 🛡️ Seki | `sec-audit-source` | `bots/sec-audit-source/` | Source-code security audit (gitleaks/trivy/semgrep/gosec) |
-| 📦 Depsy | `sec-audit-deps` | `bots/sec-audit-deps/` | Supply-chain dep audit + LLM review |
-| ⬆️ Renovacy | `secured-renovacy` | `bots/secured-renovacy/` | Security-aware dependency upgrades with cumulative review |
-| — | _(unassigned)_ | `default/` (embedded) | Generic triage agent: classifies the issue and recommends a next step. **Not started automatically** — see below |
+| Card | `kind` | Badge |
+|---|---|---|
+| names neither an assignee nor a bot | `no_assignee` | **no assignee** |
+| its assignee is not a bot of the project — a person's name (`artem`), a typo, or a bot disabled on the Bots page | `no_bot` | **no bot (artem)** |
 
-The zero-config preset sets `require_assignee: true`: a card that is
-ready but names neither an assignee nor a bot is **not run** (the paid
-`default` bot is never chosen for you). It stays where it is and shows
-as **no assignee** — a badge on the board card and a row in the
-Dispatcher page's *Won't dispatch* table (`dispatch_skips[].kind =
-"no_assignee"`). Assign a bot in the issue editor and the next poll
-picks it up. Hand-written YAML keeps the old meaning unless you add
-`require_assignee: true` (the `workflow:` fallback still runs
-unassigned cards otherwise).
+Assign one of the project's bots in the issue editor and the next poll picks
+the card up. A project with no bots yet still starts: every card waits as *no
+bot* until a bot is added — the folders are read at each dispatch, so a bot
+created later needs no change to the settings. Hand-written YAML keeps the old
+meaning unless you add `require_assignee: true` (the `workflow:` fallback
+still runs unassigned cards, and cards whose assignee matches no bot,
+otherwise).
 
-Each assignee's input contract (`{{issue.title}} + {{issue.body}}` →
-the bot's main prompt var) is wired in
-[pkg/cli/dispatch_defaults.go](../pkg/cli/dispatch_defaults.go).
-Bots are extracted on first run under
-`<store-dir>/dispatcher/bots/<name>/` (write-if-absent so local edits
-survive subsequent starts). Override the port via `--port`, the store
-location via `--store-dir`, or write a full YAML when you outgrow the
-defaults.
+Each bot's input contract (`{{issue.title}}` and `{{issue.body}}` → the bot's
+main prompt var) is its own manifest's `dispatch_vars`, read from the bot at
+every dispatch (see [per-assignee dispatch overrides](#per-assignee-dispatch-overrides)).
+The preset wires only the shared `issue_title` / `issue_body` / `issue_id`
+vars, for a bot that declares none — see
+[pkg/cli/dispatch_defaults.go](../pkg/cli/dispatch_defaults.go). Override the
+port via `--port`, the store location via `--store-dir`, or write a full YAML
+when you outgrow the defaults. A preset saved by an earlier version, which
+routed to bots the binary used to embed, is rewritten to this one when the
+studio starts; the folder it extracted under `<store-dir>/dispatcher/bots/` is
+left on disk and no longer used.
 
 In the studio the same preset is one click: the **Dispatcher** page shows *No
 dispatcher running* with a **Use default settings** button until a config
@@ -846,28 +846,40 @@ Resolution rules at dispatch time:
 
 1. If `issue.Assignee` is non-empty AND present in
    `assignee_workflows`, the dispatcher uses the mapped workflow.
-2. Otherwise (empty assignee, or assignee not in the map), it falls
-   back to `workflow:`.
+2. Otherwise, if the assignee names an **enabled bot discovered** under
+   `bots.paths` (the project's `bots/`, `examples/` and `.botz/` by default),
+   the dispatcher runs that bot — no map entry needed.
+3. Otherwise (empty assignee, or an assignee that is no bot), it falls
+   back to `workflow:` — **unless `require_assignee` is on**, in which case
+   the card is not run at all and is reported as *no assignee* / *no bot*
+   (see [quick start](#quick-start-zero-config)). `workflow:` may then be
+   left empty: the dispatcher runs only bots it can route to.
 
-Matching is **exact** and **case-sensitive**. There is no glob /
-regex / pattern syntax — keep the keys aligned with what the
-producer stamps into `--assignee`. For the native tracker, the
+Matching is **tolerant, and the same everywhere**: an exact key wins,
+otherwise names are compared lower-cased with `_` and spaces folded to `-`,
+so `My_Helper`, `my-helper` and `my helper` are one bot — for the workflow
+map, for the registry lookup, and for the per-bot input vars below. If two
+keys fold to the same name, the lexicographically smallest key is used (the
+answer never depends on map order). There is no glob / regex / pattern
+syntax. For the native tracker, the
 `iterion issue create --assignee <name>` flag drops `name` straight
 into `issue.assignee`; GitHub and Forgejo adapters use the first
-assignee's login.
+assignee's login — with `require_assignee` on, a card whose assignee is a
+person's login is therefore *no bot*, never a run.
 
 Each `assignee_workflows` workflow is pre-compiled at startup and
 reused across dispatches — the same lifecycle as the default
-`workflow:`. Path resolution is relative to the dispatcher config
-file (same convention as `workflow:`). Missing files fail
-`iterion dispatch` startup with a precise error.
+`workflow:`. A relative path in a YAML file is resolved against the folder of
+that file. Missing files fail `iterion dispatch` startup with a precise error.
 
 In the studio, **Dispatcher settings** edits this map as *Per-assignee bots*,
 and the *Workflow path* field is a searchable bot list (the same list the Bots
 page shows): pick a bot by name and the studio writes its full path. A path
 typed by hand is still accepted; if it is relative it is resolved against the
-dispatcher config folder (`~/.iterion/projects/<key>/dispatcher/`), **not**
-against the project root — write it absolute. With no dispatcher configured
+**project root**. The same drawer has a *Routing* section: the `require_assignee`
+checkbox, the bot folders (`bots.paths`) and per-bot input vars
+(`assignee_dispatch`) — saving the form keeps every field it holds, those
+included. With no dispatcher configured
 yet the drawer and the *No dispatcher running* page offer **Use default
 settings**, which calls `POST /api/v1/dispatcher/defaults/apply`. With a
 dispatcher already configured the drawer shows **Reset to default settings**
@@ -907,10 +919,12 @@ path — each `EngineRunner` runs the IR it was constructed with, so to
 route a brand-new workflow per ticket you add it to `assignee_workflows:`
 (or supply a custom runner that keys off `DispatchSpec.Assignee`).
 
-Vars: `assignee_dispatch[issue.assignee].vars` (or `dispatch.vars`
-as fallback) are rendered first, then `BotArgs` is merged on top.
+Vars: the routed bot's `assignee_dispatch` entry, else the `dispatch_vars`
+of the bot's manifest (read at dispatch time), else `dispatch.vars`
+are rendered first, then `BotArgs` is merged on top.
 See [pkg/dispatcher/loop.go](../pkg/dispatcher/loop.go)
-(`buildSpec`, lines 276-296) for the merge, and
+(`buildSpec`) and [pkg/dispatcher/dispatch_vars.go](../pkg/dispatcher/dispatch_vars.go)
+for the merge, and
 [pkg/dispatcher/routing_runner.go](../pkg/dispatcher/routing_runner.go)
 for the stock assignee workflow selection.
 
@@ -934,7 +948,13 @@ heterogeneous bot catalogue.
 
 `assignee_dispatch:` solves that — when an issue's assignee has an
 entry here, its `vars:` **replace** the global `dispatch.vars`
-wholesale for that dispatch:
+wholesale for that dispatch. A bot can also carry its own binding in its
+manifest (`dispatch_vars:`, see [your own bot on the board](howto-board-bot.md)); that is read from the
+bot **at every dispatch**, so a bot created or edited after the dispatcher was
+configured is picked up on its next card with no configuration change. The
+order is: the explicit `assignee_dispatch` entry, then the bot's manifest
+`dispatch_vars`, then the global `dispatch.vars`. An `assignee_dispatch` key is
+looked up by the same tolerant name routing uses (see above).
 
 ```yaml
 workflow: workflows/triage.bot
@@ -967,12 +987,14 @@ dispatch:
 Validation rules:
 
 - Every `assignee_dispatch` key must have a matching `assignee_workflows`
-  entry — otherwise startup fails with a precise typo-catching error.
+  entry **or** name a bot discoverable under `bots.paths` — otherwise startup
+  fails with a precise typo-catching error.
 - Templates are parsed at load time; an unknown `{{ issue.foo }}` /
   `{{ dispatcher.bar }}` field fails fast.
 
-The zero-config mode (`iterion dispatch`) uses exactly this mechanism
-to wire each embedded bot to the issue title/body — see
+The zero-config mode (`iterion dispatch`) does not write `assignee_dispatch`:
+each of the project's bots brings its own `dispatch_vars` and the preset adds
+only the shared fallback vars — see
 [pkg/cli/dispatch_defaults.go](../pkg/cli/dispatch_defaults.go).
 
 ## Deterministic ticket router (PR-aware)
@@ -1038,11 +1060,17 @@ The dispatcher watches `iterion.dispatcher.yaml` via fsnotify with a
 | `dispatch.vars`                                | applied next dispatch                |
 | `workspace.persist`                            | applied next dispatch; resumed runs preserve their original workspace shape |
 | `stall.timeout_ms`                             | applied next tick                    |
-| `workflow:`, `tracker.kind:`, `workspace.root` | warn-only; require restart           |
+| `require_assignee`, `assignee_dispatch`        | applied next dispatch                |
+| `workflow:`, `assignee_workflows`, `bots.paths`, `tracker.kind:`, `workspace.root` | warn-only; require restart (Stop, then Start) |
 | `tracker.*` credentials                        | warn-only; require restart           |
 
 Invalid reloads (YAML errors, template parse errors, missing workflow
-file) keep the previous config and log a warning.
+file) keep the previous config and log a warning. The same holds for a save
+from the studio's settings form: the routing is built when the dispatcher
+starts, so a changed fallback workflow or bot folder takes effect after Stop and
+Start. A dispatcher that was started with no fallback workflow (the default
+preset) keeps refusing a card no bot routes to, even if `require_assignee` is
+switched off meanwhile.
 
 ## Tracker adapters
 
@@ -1220,9 +1248,9 @@ when `server.port` is set — pass `iterion dispatch --no-server`.
 | Endpoint                                            | Method | Description                              |
 |-----------------------------------------------------|--------|------------------------------------------|
 | `/api/v1/dispatcher/status`                          | GET    | Manager state (`state`, `has_config`, `last_error`, `started_at`, and `boot_note` when `ITERION_DISPATCHER_AUTOSTART=0` kept a saved running/paused state from being restored). |
-| `/api/v1/dispatcher/config`                          | GET, PUT | Read or replace the persisted config. |
+| `/api/v1/dispatcher/config`                          | GET, PUT | Read or replace the persisted config, [as saved](#the-saved-config). |
 | `/api/v1/dispatcher/start` · `/stop` · `/pause` · `/resume` | POST | Daemon lifecycle — what the studio's dispatcher control bar drives. |
-| `/api/v1/dispatcher/defaults/apply`                  | POST   | Persist the baked-in defaults and start; `409` when a config already exists, unless `?replace=1` (the studio's *Reset to default settings*). |
+| `/api/v1/dispatcher/defaults/apply`                  | POST   | Persist the default settings for this project and start; `409` when a config already exists, unless `?replace=1` (the studio's *Reset to default settings*). |
 | `/api/v1/dispatcher/state`                           | GET    | Live snapshot (running, retries, slots). |
 | `/api/v1/dispatcher/refresh`                         | POST   | Force an immediate tick.                 |
 | `/api/v1/dispatcher/reload`                          | POST   | Re-parse the YAML config.                |
@@ -1233,6 +1261,24 @@ when `server.port` is set — pass `iterion dispatch --no-server`.
 | `/api/v1/dispatcher/ws`                              | WS     | Snapshot stream (push on each tick).     |
 | `/api/v1/native/*`                                  | —      | Kanban store CRUD (when native is wired).|
 | `/api/server/info`                                  | GET    | SPA bootstrap (flags `dispatcher_enabled`, `native_tracker_enabled`). |
+
+### The saved config
+
+The settings the studio saves live in `<store>/dispatcher/dispatcher.json` (mode
+`0600`), kept **as written**: an `$ENV` reference such as `token: $GITHUB_TOKEN`
+stays a reference on disk, a relative path stays relative, and the opt-outs
+(`running_state: none`, `max_attempts: -1`) stay as typed. The dispatcher runs a
+resolved copy of it — `$ENV` expanded, relative paths taken from the **project
+root** (`workflow:`, `assignee_workflows:`, `bots.paths`, `workspace.root`, hook
+`path:`), defaults applied. `iterion dispatch <file.yaml>` saves its YAML the
+same way, with the YAML's own relative paths made absolute first (and a relative
+`bots.paths` entry, which used to be read from the process's working directory,
+is now taken from the YAML's folder).
+
+`GET /config` shows the saved form with a literal secret masked as `***`
+(an `$ENV` reference is not a secret and stays visible; GitHub, Forgejo and
+GitLab alike). `PUT /config` reads a `***` token as *unchanged*, so saving the
+settings form never overwrites a stored token with the mask.
 
 ## Single-instance safety
 

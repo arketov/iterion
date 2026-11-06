@@ -29,8 +29,8 @@ Three things must line up, and each is a step below:
 
 A bot reachable from a card is a folder, not a lone `.bot` file. Put it in
 `bots/<name>/` of the project the studio has open (the studio also looks in
-`examples/` and `.botz/`; the dispatcher's own catalogue of built-in bots is
-always there too). The quickest start:
+`examples/` and `.botz/`; iterion ships no bots of its own, so a card can only be
+run by a bot of your project). The quickest start:
 
 ```bash
 iterion bots create my-helper --backend claude_code --model anthropic/claude-sonnet-5-5
@@ -118,9 +118,9 @@ Open the studio's **Dispatcher** page.
 
 **Use default settings** builds the same dispatcher as the zero-config
 `iterion dispatch`, saves it and starts it at once: the native board, polling
-every 30 s, two runs at a time, `require_assignee` on, the built-in bots
-extracted under `<store-dir>/dispatcher/bots/`, **your project's `bots/`,
-`examples/` and `.botz/` discovered beside them**, and an `after_create` hook
+every 30 s, two runs at a time, `require_assignee` on, **your project's `bots/`,
+`examples/` and `.botz/`** as the bots a card can be given (no built-in bots, no
+fallback workflow: with no bot yet, cards wait marked *no bot*), and an `after_create` hook
 that seeds each card's workspace from your project at its current `HEAD`
 (`git worktree add --detach`; PowerShell on Windows, `sh` elsewhere). It is
 refused (409) when a config already exists. Details:
@@ -131,16 +131,13 @@ runs, `ready` is only a column. A dispatcher that was running comes back by
 itself when the studio restarts on that project; press **Stop** in the toolbar
 before you quit if you do not want that.
 
-**One catch: `dispatch_vars` are read when the defaults are created.** The
-per-bot vars are copied from each discovered manifest into the saved config at
-that moment. A bot created, or a `dispatch_vars` block edited, **afterwards**
-does not reach the saved config, and a card that names the bot arrives with its
-vars empty (`task` stays `""`). The Settings form has no field for it and
-**Use default settings** is refused while a config exists. Until that is
-smoothed out: create the bot first, then press the button; or fill the var by
-hand in the card's *Bot* tab → *Arguments*; or put an `assignee_dispatch:`
-entry for the bot in the saved config
-([per-assignee dispatch overrides](dispatcher.md#per-assignee-dispatch-overrides)).
+**`dispatch_vars` are read at every dispatch.** The per-bot vars come from the
+bot's own manifest each time a card is dispatched, so a bot created — or a
+`dispatch_vars` block edited — after the dispatcher was set up reaches its next
+card with no change to the settings and no restart. To bind a different value
+for one bot without touching its manifest, add an `assignee_dispatch:` entry for
+it (Settings → Routing → *Per-bot input vars*;
+[per-assignee dispatch overrides](dispatcher.md#per-assignee-dispatch-overrides)).
 
 ## 4. Put the bot on the card
 
@@ -148,12 +145,13 @@ Open the board, create a card (title = what to do, body = the details; both
 become `task`), and name the bot one of two ways:
 
 - **Bot tab → Bot**: a searchable list grouped by origin (project, team,
-  built-in). It lists catalogue bots only, hides disabled ones, and **overrides**
+  platform). It lists catalogue bots only, hides disabled ones, and **overrides**
   the assignee for this card. The *Arguments* below it become `bot_args`.
-- **Ticket tab → Assignee**: a free-text field with suggestions. Write exactly
-  a catalogue bot's name. Routing forgives case and `_` for `-`, but the
-  per-bot `dispatch_vars` are looked up by the exact name: a differently spelled
-  assignee runs the bot with the *global* vars and `task` stays empty.
+- **Ticket tab → Assignee**: a free-text field with suggestions. Write a
+  project bot's name. Case and `_` for `-` do not matter (`My_Helper` is
+  `my-helper`, for the routing and for the bot's `dispatch_vars` alike). An
+  assignee that is **not** a bot of the project — a person's name, a typo — does
+  not run anything: the card shows **no bot — won't start**.
 
 Then move the card to `ready`. At the next poll (up to 30 s) the dispatcher
 claims it, moves it to `in_progress`, and a live chip shows the run on the card.
@@ -176,12 +174,12 @@ Where the finished work is, how to look at it and how to merge or throw it away:
 |---|---|---|
 | Card is `ready`, nothing happens, Dispatcher page says *No dispatcher running* | No dispatcher started (`idle`) | Step 3 |
 | Card badge **no assignee — won't start** | `require_assignee` and the card names no bot | Set *Bot* (or *Assignee*) on the card |
+| Card badge **no bot — won't start** (Dispatcher page: *no bot (artem)*) | `require_assignee` and the *Assignee* is not a bot of the project (a person's name, a typo), or the bot is disabled on the Bots page | Pick the bot in the *Bot* tab, fix the assignee's spelling, or enable the bot |
 | **won't dispatch — bot "x" can't be resolved / has no active dispatch route** | Name typo, bot not in a discovered folder, or the bot is disabled in the catalogue | Check the name against the Bots page; enable the bot; keep the bundle in `bots/` |
-| The run starts, runs the **generic triage bot** instead of yours | The *Assignee* is not a catalogue bot name (a person's name, a typo): an assignee that matches no bot falls back to the built-in `default` bot, which runs, and costs | Use the *Bot* tab, which refuses what it cannot resolve, or fix the assignee |
-| The bot runs but acts as if given no task | `dispatch_vars` missing, keyed to an undeclared var (`C200`), or the bot was added after the defaults were created (catch in step 3) | `iterion validate bots/my-helper`; fill *Arguments* by hand; see step 3 |
+| The bot runs but acts as if given no task | `dispatch_vars` missing in the bot's manifest, or keyed to an undeclared var (`C200`) | `iterion validate bots/my-helper`; fill *Arguments* by hand; see step 3 |
 | Retry queue, or the *Did not start* panel, or the card badge *did not start: after_create hook…* | The workspace seed failed: `git` not on the daemon's `PATH`, the project folder not readable, a hand-written hook in the wrong shell dialect | Read the stderr tail and the *Shell:* line (which shell ran the hook) in *Show full error*; [Hook failure](dispatcher.md#hook-failure). A failed `after_create` is run again, in a recreated folder, on the next attempt |
 | `sh: command not found` or `/dev/null` in a hook on Windows | A custom hook written for `sh` but run by PowerShell, the Windows default | Write it in PowerShell, or name the shell with `shell:` / `ITERION_SHELL` ([Hooks](dispatcher.md#hooks)). A `path:` to a `.sh` file needs `sh` on Windows, or `shell:`/a `.ps1` instead |
-| Settings **Workflow path** rejected or not found | A relative path is resolved against `~/.iterion/projects/<key>/dispatcher/`, not your project | Pick the bot from the list (the studio writes its full path) or type an absolute path |
+| Settings **Workflow path** rejected or not found | The path does not exist: a relative one is taken from your project root | Pick the bot from the list (the studio writes its full path) or fix the path |
 | The card sits in `review` and your project folder is unchanged | By design: the result is the branch `iterion/run/<id>`, not a merge | [Where the result goes](dispatcher.md#where-the-result-goes) |
 | The card keeps retrying | The run fails; the Retry queue shows the error and the attempt | Fix the cause, then press *Retry now* on its Retry queue row instead of waiting out the backoff; *Remove from queue* stops it (the card moves to `blocked`, reopen it to try again). Otherwise after `agent.max_attempts` (10) the card moves to `blocked` |
 

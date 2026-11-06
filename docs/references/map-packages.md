@@ -7,7 +7,7 @@ One row per package of this module, excluding vendored and generated trees. The 
 
 | Package | What it is | Interfaces |
 |---|---|---|
-| `bots` | exposes the productised bot recipes shipped with iterion (the named team — Featurly, Billy, Willy, …) as an embed.FS so the binary can run them… | — |
+| `bots` | the committed catalogue of bot bundles (one directory per bot: manifest, main.bot, prompts, skills) and the Go tests that hold every shipped workflow… | — |
 | `ci/arc-runner/smoke` | — | — |
 | `cmd/corpus-reading` | Command corpus-reading checks, or rewrites, the committed corpus reading internal/mdcode's witness pins. | — |
 | `cmd/iterion` | Command iterion is the CLI for the iterion workflow engine. | — |
