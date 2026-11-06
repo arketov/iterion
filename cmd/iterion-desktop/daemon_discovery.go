@@ -410,7 +410,8 @@ func dirExists(p string) bool {
 //   - the per-project daemon discovery file is missing
 //   - the recorded daemon is dead (pid gone or port not accepting)
 //
-// Stale discovery entries are pruned in-place by findDaemonForProject.
+// A stale discovery entry is pruned in-place: the file read by key, or the
+// one findDaemonForProject reads on the fallback path.
 func findDaemonForStorePath(storePath string) (string, bool) {
 	key, ok := projectKeyForStorePath(storePath)
 	if !ok {
@@ -427,7 +428,8 @@ func findDaemonForStorePath(storePath string) (string, bool) {
 	if dir == "" {
 		return "", false
 	}
-	raw, err := os.ReadFile(filepath.Join(dir, key+".json"))
+	path := filepath.Join(dir, key+".json")
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		// No discovery file for this key — fall back to the lossy decode
 		// as a best-effort hint (covers legacy files that predate the
@@ -439,17 +441,16 @@ func findDaemonForStorePath(storePath string) (string, bool) {
 	}
 	var info daemonInfo
 	if err := json.Unmarshal(raw, &info); err != nil {
+		removeDaemonFileIfUnchanged(path, raw)
 		return "", false
 	}
-	if info.ProjectDir != "" {
-		return findDaemonForProject(info.ProjectDir)
-	}
-	// Recorded file without a project_dir — use the live URL directly if
-	// the daemon is alive (the round-trip through findDaemonForProject
-	// would re-derive the same filename we just read).
+	// Judge the record just read. Re-deriving the filename from its
+	// project_dir (findDaemonForProject) would read, and could prune, a
+	// different file when the recorded project_dir encodes to another key.
 	if daemonAlive(info.PID, info.URL) {
 		return info.URL, true
 	}
+	removeDaemonFileIfUnchanged(path, raw)
 	return "", false
 }
 
