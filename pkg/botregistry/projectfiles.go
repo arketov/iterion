@@ -33,8 +33,14 @@ const (
 //
 // Nothing else belongs to the project's own workflows: not a file in
 // workflows/ or docs/, not a nested clone of another project
-// (build-desktop/src/…), not a hidden directory. A walk of the whole tree is
+// (build-desktop/src/…), not a hidden directory, not node_modules, not a
+// testdata directory (a repository's test inputs). A walk of the whole tree is
 // what listed hundreds of fragments, fixtures and foreign copies as "bots".
+//
+// The same rule governs the bot catalog's walk (discoverBots), so the editor's
+// lists and the routable set agree. A walk ROOT is never pruned: naming a
+// directory as a root (--bots-path, bots.paths) is the way to reach one of
+// these on purpose.
 
 // Kinds of a project workflow row. A bundle is one row however many files it
 // has: its main.bot. A file is a single-file bot.
@@ -71,16 +77,18 @@ type ProjectWorkflows struct {
 	Skipped []DiscoveryError
 }
 
-// walkSkippedDir reports a directory NAME a project-workflow walk never
-// enters below a root: hidden directories (a scaffold's staging directory
-// among them) and dependency trees.
+// walkSkippedDir reports a directory NAME no walk of the discovery roots (the
+// catalog's and the project list's) enters below a root: hidden directories (a
+// scaffold's staging directory among them), dependency trees and testdata,
+// where a repository keeps its test inputs. The match is exact and lowercase.
 func walkSkippedDir(name string) bool {
-	return strings.HasPrefix(name, ".") || name == "node_modules"
+	return strings.HasPrefix(name, ".") || name == "node_modules" || name == "testdata"
 }
 
 // isNestedRepo reports whether dir (not the walk root) is the root of its own
 // git checkout — a clone, submodule or linked worktree, all marked by a
-// `.git` entry. Its files belong to that project, not to this one.
+// `.git` entry. Its files belong to that project, not to this one. Both the
+// catalog walk and the project list apply it, after the bundle claim.
 func isNestedRepo(dir string) bool {
 	_, err := os.Lstat(filepath.Join(dir, ".git"))
 	return err == nil
