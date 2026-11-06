@@ -400,18 +400,32 @@ func Command(ctx context.Context, req Request, script string, login bool) (*exec
 	return sh.Command(ctx, script, login), nil
 }
 
-// SingleQuoteEscape is what goes where a `'` sits inside a single-quoted
-// word: `'\''` for sh/bash (close, escaped quote, reopen), `''` on a Windows
-// host, where the word is PowerShell's. The PowerShell form is also
-// injection-safe if a POSIX shell reads it (the quote just closes and reopens
-// the word, every other byte stays quoted) — it only costs the apostrophe,
+// EscapeSingleQuoted is s made safe to sit inside a single-quoted word: each
+// `'` becomes `'\''` for sh/bash (close, escaped quote, reopen); on a Windows
+// host, where the word is PowerShell's, every single-quote character is
+// doubled. PowerShell's tokenizer treats U+2018..U+201B (‘ ’ ‚ ‛) as single
+// quotes as well, so a lone one inside '...' would close the literal and run
+// the rest of the value as code; inside '...' each is escaped by doubling.
+// The PowerShell form is also injection-safe if a POSIX shell reads it (the
+// quotes just close and reopen the word, every other byte stays quoted) — it
+// only costs text fidelity (the apostrophe, and doubled typographic quotes),
 // which matters for a Windows host running a command in a Linux sandbox.
-func SingleQuoteEscape() string {
-	if goos == "windows" {
-		return "''"
+func EscapeSingleQuoted(s string) string { return escapeSingleQuoted(s, goos) }
+
+func escapeSingleQuoted(s, platform string) string {
+	if platform != "windows" {
+		return strings.ReplaceAll(s, "'", `'\''`)
 	}
-	return `'\''`
+	return psSingleQuoteReplacer.Replace(s)
 }
+
+var psSingleQuoteReplacer = strings.NewReplacer(
+	"'", "''",
+	"‘", "‘‘",
+	"’", "’’",
+	"‚", "‚‚",
+	"‛", "‛‛",
+)
 
 // IsWindowsHost reports whether commands on this host run through PowerShell
 // by default (the portability rule's switch for callers that adapt their own
