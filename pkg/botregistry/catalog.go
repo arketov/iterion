@@ -221,26 +221,14 @@ func catalogTemplateShipped(bundleDir string) (bool, error) {
 	return true, nil
 }
 
-// samePath reports whether two paths name the same directory: the absolute
-// cleaned forms first, then their symlink-resolved forms, so a workspace
-// and a bundle spelled through different links still match. Paths that
-// cannot be resolved compare as given — a mismatch stays a mismatch rather
-// than becoming a guess.
+// samePath reports whether two paths name the same directory: by PathKey —
+// the absolute cleaned, symlink-resolved form, folded to lower case on
+// Windows — so a workspace and a bundle spelled through different links (or
+// another drive-letter case) still match. Paths that cannot be resolved
+// compare as given — a mismatch stays a mismatch rather than becoming a
+// guess.
 func samePath(a, b string) bool {
-	absA, err := filepath.Abs(a)
-	if err != nil {
-		absA = filepath.Clean(a)
-	}
-	absB, err := filepath.Abs(b)
-	if err != nil {
-		absB = filepath.Clean(b)
-	}
-	if absA == absB {
-		return true
-	}
-	resA, errA := filepath.EvalSymlinks(absA)
-	resB, errB := filepath.EvalSymlinks(absB)
-	return errA == nil && errB == nil && resA == resB
+	return PathKey(a) == PathKey(b)
 }
 
 // pathUnder reports whether path lies inside root (root itself included).

@@ -77,19 +77,30 @@ export function groupBotsBySource<T extends BotEntry>(bots: T[]): BotGroup<T>[] 
 }
 
 export interface BotCounts {
-  /** Catalog bots: what every screen calls "bots". */
+  /** Every bot of the project's own list: catalog bots plus single .bot
+   *  files. This is the "N" of every "Bots (N)" and "n/N bots". */
   total: number;
   /** Manifest bots a workspace overlay can switch on and off (Manage). */
   catalog: number;
-  /** Single .bot files without a manifest, counted apart as "project files". */
+  /** Single .bot files without a manifest: no overlay, always on. */
   files: number;
 }
 
-/** countBots is the one place the "Bots (N)" numbers come from, so the Home
- *  panel, the Bots page and the Manage dialog agree: N = catalog bots,
- *  project files are named separately. */
+/** countBots is the one place the bot numbers come from, so the Home panel,
+ *  the Bots page and the Manage dialog agree: total = catalog bots + the
+ *  project's single files, exactly the rows those screens list. */
 export function countBots(bots: BotEntry[] | null, extra: BotEntry[]): BotCounts {
   const catalog = bots?.length ?? 0;
   const files = extra.filter((b) => b.origin === "file").length;
-  return { total: catalog, catalog, files };
+  return { total: catalog + files, catalog, files };
+}
+
+/** projectFileRows narrows the project's single files to the ones a search
+ *  box shows: the same filter on every screen that lists them, so a count
+ *  taken from it is the count of the rows on screen. */
+export function projectFileRows<T extends BotEntry>(extra: T[], query: string): T[] {
+  const files = extra.filter((b) => b.origin === "file");
+  const q = query.trim().toLowerCase();
+  if (!q) return files;
+  return files.filter((b) => `${b.name} ${b.rel_path ?? ""}`.toLowerCase().includes(q));
 }

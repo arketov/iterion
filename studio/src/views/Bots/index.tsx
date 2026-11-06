@@ -46,6 +46,7 @@ import {
   BOT_SOURCE_LABEL,
   botSource,
   groupBotsBySource,
+  projectFileRows,
 } from "@/lib/botOrigin";
 import { useTabsStore } from "@/store/tabs";
 import { DiscoveryErrorBanners } from "./DiscoveryErrorBanners";
@@ -266,6 +267,12 @@ export default function BotsView() {
     query.trim() !== "" || activeCategory !== null || activeTags.length > 0;
   // The same numbers as the Home panel and the Manage dialog (countBots).
   const counts = countBots(bots, extraBots);
+  // The project's single files carry no category and no tag, so a category or
+  // tag filter hides them; a search narrows them by name and path. The header
+  // counts what the page lists: these rows plus the catalog rows above.
+  const filtersActive = activeCategory !== null || activeTags.length > 0;
+  const fileRowsShown = bots !== null && !filtersActive ? projectFileRows(extraBots, query) : [];
+  const shownCount = rows.length + fileRowsShown.length;
   const catalogEmpty = bots !== null && bots.length === 0;
   // A category/tag left in the URL cannot match anything on an empty catalog
   // and would hide the project-file list too: drop it, so the page shows what
@@ -311,10 +318,9 @@ export default function BotsView() {
         {bots !== null && (
           <span
             className="text-caption text-fg-subtle"
-            title="Bots = project bundles. Single .bot files without a manifest are counted apart as project files."
+            title="Your bots in this project: bundles from bots/, examples/ and .botz/, and single .bot files in the project folder. The number is what the page lists."
           >
-            {rows.length}/{counts.total} bot{counts.total === 1 ? "" : "s"}
-            {counts.files > 0 && ` · ${counts.files} project file${counts.files === 1 ? "" : "s"}`}
+            {shownCount}/{counts.total} bot{counts.total === 1 ? "" : "s"}
           </span>
         )}
       </div>
@@ -395,7 +401,7 @@ export default function BotsView() {
         <div className="flex items-center gap-2 p-6 text-sm text-fg-muted">
           <Spinner /> Loading bots…
         </div>
-      ) : rows.length === 0 && !botsError ? (
+      ) : rows.length === 0 && fileRowsShown.length === 0 && !botsError ? (
         // The category/tag view owns its own zero state: a full fleet
         // behind a filter that matches nothing is a different state than
         // an empty workspace, and it must offer the way out. (Query-only
@@ -417,11 +423,7 @@ export default function BotsView() {
         ) : (
           <EmptyState
             title={
-              query
-                ? "No bots match your search"
-                : extraBots.length > 0
-                  ? "No project bots yet"
-                  : "No bots discovered in this workspace"
+              query ? "No bots match your search" : "No bots yet"
             }
             message={
               query
@@ -493,9 +495,7 @@ export default function BotsView() {
           ))
       )}
 
-      {bots !== null && activeCategory === null && activeTags.length === 0 && (
-        <ManifestlessBots bots={extraBots} query={query} />
-      )}
+      {fileRowsShown.length > 0 && <ManifestlessBots bots={fileRowsShown} />}
 
       <RepoImportDialog
         open={repoDialogOpen}
@@ -518,13 +518,9 @@ export default function BotsView() {
  *  project's single .bot files, in a group labelled with where they come from. They come from the same response as the
  *  catalog (GET /api/v1/bots?include=all), so the Home panel and the bot
  *  pickers show the identical set. */
-function ManifestlessBots({ bots, query }: { bots: BotEntryWithSchema[]; query: string }) {
+function ManifestlessBots({ bots }: { bots: BotEntryWithSchema[] }) {
   const [, setLocation] = useLocation();
-  const q = query.trim().toLowerCase();
-  const visible = q
-    ? bots.filter((b) => `${b.name} ${b.rel_path ?? ""}`.toLowerCase().includes(q))
-    : bots;
-  const groups = groupBotsBySource(visible);
+  const groups = groupBotsBySource(bots);
   if (groups.length === 0) return null;
 
   const open = (b: BotEntryWithSchema) => {
