@@ -151,3 +151,57 @@ func TestWithNoSettingSourcesIsDistinctFromNoOption(t *testing.T) {
 		t.Fatalf("WithSettingSources() with no source set %#v, want nil (CLI default)", unset.settingSources)
 	}
 }
+
+// The CLI exits 1 with "When using --print, --output-format=stream-json
+// requires --verbose" when the flag is missing, and the SDK speaks stream-json
+// in both modes, so --verbose must be in the argv whatever the caller
+// configured. The live failure (bars-project, node planner) was a spawn whose
+// argv had lost it.
+func TestBuildArgs_StreamJSONAlwaysCarriesVerbose(t *testing.T) {
+	configs := map[string]processConfig{
+		"zero":            {},
+		"verbose-false":   {Verbose: false},
+		"verbose-true":    {Verbose: true},
+		"claude_code-set": {Model: "claude-sonnet-5-5", AppendSystemPrompt: "a\nb", PermissionMode: "bypassPermissions", SettingSources: []SettingSource{"project"}},
+	}
+	for name, cfg := range configs {
+		for _, streaming := range []bool{true, false} {
+			args := buildArgs(cfg, streaming)
+			if flagValue(args, "--output-format") != "stream-json" {
+				t.Fatalf("%s streaming=%v: --output-format is not stream-json: %v", name, streaming, args)
+			}
+			if n := countFlag(args, "--verbose"); n != 1 {
+				t.Errorf("%s streaming=%v: --verbose appears %d times, want exactly 1: %v", name, streaming, n, args)
+			}
+		}
+	}
+}
+
+// --verbose sits beside --output-format, ahead of every free-text flag, so a
+// value that a launcher mangles (a multi-line system prompt) cannot take it
+// down with the flags that follow.
+func TestBuildArgs_VerboseBeforeFreeTextFlags(t *testing.T) {
+	args := buildArgs(processConfig{
+		SystemPrompt:       "line one\nline two",
+		AppendSystemPrompt: "line one\nline two",
+	}, true)
+	verbose := slices.Index(args, "--verbose")
+	if verbose < 0 {
+		t.Fatalf("no --verbose in %v", args)
+	}
+	for _, f := range []string{"--system-prompt", "--append-system-prompt"} {
+		if i := slices.Index(args, f); i < verbose {
+			t.Errorf("%s (at %d) precedes --verbose (at %d): %v", f, i, verbose, args)
+		}
+	}
+}
+
+func countFlag(args []string, flag string) int {
+	n := 0
+	for _, a := range args {
+		if a == flag {
+			n++
+		}
+	}
+	return n
+}

@@ -893,6 +893,10 @@ func (b *ClaudeCodeBackend) buildSpawnOptions(task Task) ([]claudesdk.Option, fu
 			}
 			sort.Strings(keys)
 			cmd := exec.CommandContext(ctx, path, args...)
+			// A bare "claude" resolved to the npm claude.cmd shim on Windows
+			// would have cmd.exe cut the argv at the first line break of the
+			// system prompt: spawn the native claude.exe it wraps.
+			claudesdk.AdaptHostCmd(cmd)
 			cmd.Env = hostSpawnEnv(env)
 			proc.SetWorkDir(cmd, cwd)
 			files.pinHost(cmd, flagSettings)
@@ -2314,6 +2318,7 @@ func (b *ClaudeCodeBackend) formatOutput(ctx context.Context, task Task, session
 		opts = append(opts, claudesdk.WithCommandBuilder(func(ctx context.Context, path string, args []string, cwd string, env map[string]string, openStdin bool) *exec.Cmd {
 			env = withNodeSessionEnv(claudeModelDefaultEnv(env), token)
 			cmd := exec.CommandContext(ctx, path, args...)
+			claudesdk.AdaptHostCmd(cmd) // npm claude.cmd shim → native claude.exe (Windows)
 			// Seed os.Environ() before the per-task entries — matching the
 			// SDK's default host spawn (claudesdk/process.go) and Pass 1 — so
 			// the format pass inherits PATH/HOME and any ambient credential
