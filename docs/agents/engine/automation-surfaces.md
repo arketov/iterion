@@ -141,7 +141,14 @@ opens the matching tools transparently based on the backend:
 
 - **claude_code (default)** — registers an internal `__mcp-board` stdio
   MCP server (subcommand of the iterion binary) and extends the
-  AllowedTools list with the granted `mcp__iterion_board__*` FQNs.
+  AllowedTools list with the granted `mcp__iterion_board__*` FQNs. The
+  server binary resolves like the iterion CLI (`ITERION_BIN`, a sibling,
+  the standard install paths); the desktop binary also serves
+  `__mcp-board` itself, so it needs no separate `iterion` next to it.
+  When nothing can serve it, a `claude_code` or `pi` node holding
+  `board.*` capabilities is refused with `ErrCapabilityUnsupported`
+  ("board tools unavailable in nodes") instead of running without a
+  board; `claw` is unaffected (in-process board).
 - **claude_code (sandboxed)** — falls back to an HTTP transport at
   `/api/v1/mcp/board` on the iterion server, authenticated via an
   ephemeral `X-Iterion-Run` token registered by the runtime.

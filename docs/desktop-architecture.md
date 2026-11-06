@@ -319,3 +319,10 @@ with the same local `DisableAuth=true` behaviour — the CLI flag flows are unto
 ship from the same module: `iterion` (Cobra CLI) and `iterion-desktop`
 (Wails app). Both share `pkg/cli`, `pkg/server`, the SPA, and the run
 store on disk.
+
+The desktop binary dispatches exactly one hidden subcommand,
+`__mcp-board`, at the very start of `main()` — before Wails or the
+daemon start, since stdout is its JSON-RPC channel — so nodes holding
+`board.*` capabilities get their board MCP server without a separate
+`iterion` next to the executable. The other hidden subcommands still
+need the `iterion` CLI.

@@ -2542,8 +2542,9 @@ runtime mints and registers for the run, so a sandboxed agent can call
 these tools but nothing else can. The grant is scoped to the node's
 capabilities, pinned to the run's tenant on cloud, revoked as the node
 returns, and a 24 h TTL reaps it if the process dies before that. Outside a sandbox the same capabilities
-are wired as host-side stdio MCP servers (`iterion __mcp-board` /
-`iterion __mcp-ask-user`). A user-declared stdio MCP server on `claude_code`
+are wired as host-side stdio MCP servers (`iterion __mcp-board`, or the
+desktop binary's own `__mcp-board`; `iterion __mcp-ask-user`). With no
+binary able to serve the board, the node is refused, not degraded. A user-declared stdio MCP server on `claude_code`
 is started by the CLI itself, from the config iterion hands it on
 `--mcp-config` — so it runs wherever the CLI runs, in the container for a
 sandboxed node. That config is logged redacted: it carries each server's
