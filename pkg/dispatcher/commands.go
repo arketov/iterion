@@ -936,6 +936,7 @@ func (c *Dispatcher) recordLaunchFailure(issueID string, r *runningEntry, err er
 	if errors.As(err, &he) {
 		f.Hook = he.Hook
 		f.Stderr = he.Stderr
+		f.Shell, f.ShellPath, f.ShellSource = he.Shell, he.ShellPath, he.ShellSource
 		if !he.TimedOut && he.ExitCode >= 0 {
 			code := he.ExitCode
 			f.ExitCode = &code
@@ -1361,7 +1362,7 @@ type cmdRetryDue struct {
 }
 
 func (m cmdRetryDue) apply(c *Dispatcher, _ context.Context) {
-	if cur, ok := c.state.retries[m.issueID]; ok {
+	if cur, ok := c.state.retries[m.issueID]; ok && !cur.Removing {
 		if cur.Timer != nil {
 			cur.Timer.Stop()
 		}

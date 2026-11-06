@@ -27,8 +27,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 
@@ -53,12 +53,34 @@ const (
 	KindPowerShell Kind = "powershell"
 )
 
+// Source says why a shell was picked, so an error or a log line can name
+// the choice that led to it.
+type Source string
+
+const (
+	// SourceExplicit is a Request's own Name (a hook's `shell:`).
+	SourceExplicit Source = "explicit"
+	// SourceEnv is the ITERION_SHELL environment variable.
+	SourceEnv Source = "env"
+	// SourceDefault is the platform default (sh on POSIX, PowerShell on Windows).
+	SourceDefault Source = "default"
+	// SourcePosixScript is an sh-written script kept on sh on a PowerShell host
+	// (LooksPosix).
+	SourcePosixScript Source = "posix-script"
+	// SourceShebang is the `#!` line of a script file.
+	SourceShebang Source = "shebang"
+	// SourceExtension is the extension of a script file.
+	SourceExtension Source = "extension"
+)
+
 // Shell is a resolved shell: the dialect and the executable to start.
 type Shell struct {
 	Kind Kind
 	// Path is what exec starts: an absolute path when it was looked up, a
 	// bare name for a POSIX default that is left to exec.
 	Path string
+	// Source says why this shell was picked (see Source).
+	Source Source
 	// Note, when set, says why this shell is not the one the platform default
 	// would have been (a sh-written script kept on sh): callers may log it.
 	Note string
@@ -124,14 +146,31 @@ func Resolve(req Request) (Shell, error) {
 	return resolve(req, goos)
 }
 
-func resolve(req Request, platform string) (Shell, error) {
-	name := strings.TrimSpace(req.Name)
-	if name == "" || strings.EqualFold(name, "auto") {
-		name = strings.TrimSpace(getenv(EnvVar))
-		if strings.EqualFold(name, "auto") {
-			name = ""
-		}
+// Name is the shell's executable name without directory and `.exe`, in lower
+// case ("pwsh", "powershell", "sh", "bash"): what a message shows next to Path.
+func (s Shell) Name() string {
+	base := strings.ToLower(filepath.Base(strings.ReplaceAll(s.Path, `\`, "/")))
+	return strings.TrimSuffix(base, ".exe")
+}
+
+// RequestedShell is the explicit shell choice behind req — its own Name, else
+// ITERION_SHELL — and where it came from. name is empty (and src is
+// SourceDefault) when nothing was chosen. Resolve's first step, exported so
+// an error can name a choice that could not be started.
+func RequestedShell(req Request) (name string, src Source) {
+	name = strings.TrimSpace(req.Name)
+	if name != "" && !strings.EqualFold(name, "auto") {
+		return name, SourceExplicit
 	}
+	name = strings.TrimSpace(getenv(EnvVar))
+	if name != "" && !strings.EqualFold(name, "auto") {
+		return name, SourceEnv
+	}
+	return "", SourceDefault
+}
+
+func resolve(req Request, platform string) (Shell, error) {
+	name, src := RequestedShell(req)
 	if name == "" {
 		sh, err := defaultShell(req, platform)
 		if err == nil && sh.Kind == KindPowerShell && req.Script != "" && LooksPosix(req.Script) {
@@ -142,7 +181,11 @@ func resolve(req Request, platform string) (Shell, error) {
 		}
 		return sh, err
 	}
-	return named(name, platform)
+	sh, err := named(name, platform)
+	if err == nil {
+		sh.Source = src
+	}
+	return sh, err
 }
 
 // PosixScriptError says a script written for sh meets a host whose command
@@ -168,7 +211,7 @@ func posixForLegacyScript(platform string) (Shell, error) {
 		if n == "bash" {
 			kind = KindBash
 		}
-		return Shell{Kind: kind, Path: p, Note: "the script is written for sh and has no `shell:`: running it under " + n +
+		return Shell{Kind: kind, Path: p, Source: SourcePosixScript, Note: "the script is written for sh and has no `shell:`: running it under " + n +
 			" as before; add `shell: " + n + "` to say so, or rewrite it for PowerShell"}, nil
 	}
 	return Shell{}, &PosixScriptError{}
@@ -183,17 +226,33 @@ var posixLine = regexp.MustCompile(`^(set\s+(-[a-zA-Z]+|-o\s+\w+)\s*(;|&&|\|\||$
 
 // LooksPosix reports whether script contains a line only a POSIX shell can
 // read (see posixLine). Conservative: false for anything ambiguous. Lines
-// inside a PowerShell here-string (@" ... "@, @' ... '@) or a hashtable
-// (@{ ... }) are data or `Name=value` pairs of PowerShell's own and are not
-// read.
+// inside a PowerShell here-string (@" ... "@, @' ... '@), a block comment
+// (<# ... #>, where comment-based help carries `.EXAMPLE NAME=value` lines) or
+// a hashtable (@{ ... }, whose braces are counted — a `{ ... }` script block
+// inside it does not close it) are data, comments or `Name=value` pairs of
+// PowerShell's own and are not read. A multi-line "..." string is not tracked:
+// put `shell: pwsh` on such a hook.
 func LooksPosix(script string) bool {
-	here := "" // the closing token of the here-string being skipped
-	hash := 0  // open @{ blocks
+	here := ""       // the closing token of the here-string being skipped
+	inBlock := false // inside a <# ... #> comment
+	hash := 0        // unclosed braces of the @{ ... } hashtable being skipped
 	for _, line := range strings.Split(script, "\n") {
 		line = strings.TrimSpace(line)
 		if here != "" {
 			if strings.HasPrefix(line, here) {
 				here = ""
+			}
+			continue
+		}
+		if inBlock {
+			if strings.Contains(line, "#>") {
+				inBlock = false
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "<#") {
+			if !strings.Contains(line[2:], "#>") {
+				inBlock = true
 			}
 			continue
 		}
@@ -212,13 +271,17 @@ func LooksPosix(script string) bool {
 			continue
 		}
 		if hash > 0 {
-			hash += strings.Count(line, "@{") - strings.Count(line, "}")
+			// Inside a hashtable every brace counts: a `{ ... }` script block
+			// in it does not close it.
+			hash += strings.Count(line, "{") - strings.Count(line, "}")
 			if hash < 0 {
 				hash = 0
 			}
 			continue
 		}
 		if strings.Contains(line, "@{") {
+			// The opening line counts the `@{` only (an sh line that merely
+			// holds an `@{u}` and a stray `{` is not a hashtable).
 			hash += strings.Count(line, "@{") - strings.Count(line, "}")
 			if hash < 0 {
 				hash = 0
@@ -235,13 +298,13 @@ func LooksPosix(script string) bool {
 func defaultShell(req Request, platform string) (Shell, error) {
 	if platform != "windows" {
 		if req.PosixDefault == KindBash {
-			return Shell{Kind: KindBash, Path: "bash"}, nil
+			return Shell{Kind: KindBash, Path: "bash", Source: SourceDefault}, nil
 		}
-		return Shell{Kind: KindSh, Path: "sh"}, nil
+		return Shell{Kind: KindSh, Path: "sh", Source: SourceDefault}, nil
 	}
 	for _, n := range []string{"pwsh", "powershell"} {
 		if p, err := lookPath(n); err == nil {
-			return Shell{Kind: KindPowerShell, Path: p}, nil
+			return Shell{Kind: KindPowerShell, Path: p, Source: SourceDefault}, nil
 		}
 	}
 	return Shell{}, &NotFoundError{Looked: []string{"pwsh", "powershell"}, goos: platform}

@@ -15,11 +15,13 @@ import { errorMessage } from "@/lib/errorHints";
 import {
   applyDefaults,
   cancelIssue,
+  dropRetry,
   getState,
   getStatus,
   openWS,
   refresh as refreshTick,
   reload as reloadConfig,
+  retryNow,
   type DispatchSkipView,
   type DispatcherSnapshot,
   type ManagerStatus,
@@ -202,6 +204,32 @@ export default function DispatcherView() {
     [confirm, actionRun],
   );
 
+  const doRetryNow = useCallback(
+    (issueID: string) => void actionRun(async () => {
+      await retryNow(issueID);
+      await refreshTick();
+    }),
+    [actionRun],
+  );
+  const doDropRetry = useCallback(
+    async (issueID: string) => {
+      const row = (snap?.retries ?? []).find((r) => r.issue_id === issueID);
+      const name = row?.identifier || issueID;
+      const ok = await confirm({
+        title: "Remove from the retry queue?",
+        message: `Stop retrying ${name}. The card moves to the dispatcher's failed state (blocked by default) and is marked as given up; reopen it on the board to try again.`,
+        confirmLabel: "Remove",
+        confirmVariant: "danger",
+      });
+      if (!ok) return;
+      await actionRun(async () => {
+        await dropRetry(issueID);
+        setSnap(await getState());
+      });
+    },
+    [confirm, actionRun, snap],
+  );
+
   useHeaderSlot({
     left: <span className="text-xs font-medium text-fg-default">Dispatcher</span>,
     right: (
@@ -275,6 +303,10 @@ export default function DispatcherView() {
           Dispatcher manager unreachable — retrying every 2s ({pollFails} failed
           checks).
         </InlineBanner>
+      )}
+
+      {status?.boot_note && !dispatcherAttached && (
+        <InlineBanner tone="info">{status.boot_note}</InlineBanner>
       )}
 
       {snap.last_tracker_error && (
@@ -353,6 +385,9 @@ export default function DispatcherView() {
               setLocation(`/board?focus=${encodeURIComponent(id)}`)
             }
             onRefreshNow={doRefresh}
+            onRetryNow={doRetryNow}
+            onDropRetry={doDropRetry}
+            canActOnRetries={dispatcherAttached}
           />
         </div>
       )}

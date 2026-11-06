@@ -84,3 +84,34 @@ func TestAdapterRecordsLaunchFailures(t *testing.T) {
 		t.Fatalf("not recorded through the adapter: %+v", got.LaunchFailures)
 	}
 }
+
+// Reopen is the operator's "start this card over": the "did not start" history
+// of the attempts that led to the park goes with it, as the launch-refusal
+// ledger does — otherwise a reopened card shows "did not start" until its
+// first launch.
+func TestReopenClearsLaunchFailures(t *testing.T) {
+	s := newTestStore(t)
+	iss, err := s.Create(Issue{Title: "hooks fail", State: StateInProgress})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordLaunchFailure(iss.ID, LaunchFailure{Attempt: 1, Hook: "after_create", Error: "boom"}); err != nil {
+		t.Fatalf("RecordLaunchFailure: %v", err)
+	}
+	if _, err := s.SetState(iss.ID, StateBlocked); err != nil {
+		t.Fatalf("SetState(blocked): %v", err)
+	}
+	if got, _ := s.Get(iss.ID); len(got.LaunchFailures) != 1 {
+		t.Fatalf("setup: LaunchFailures = %+v, want the one recorded attempt", got.LaunchFailures)
+	}
+	out, err := s.Reopen(iss.ID, StateReady)
+	if err != nil {
+		t.Fatalf("Reopen: %v", err)
+	}
+	if len(out.LaunchFailures) != 0 {
+		t.Fatalf("Reopen returned LaunchFailures = %+v, want none", out.LaunchFailures)
+	}
+	if got, _ := s.Get(iss.ID); len(got.LaunchFailures) != 0 {
+		t.Fatalf("stored LaunchFailures = %+v, want none after Reopen", got.LaunchFailures)
+	}
+}

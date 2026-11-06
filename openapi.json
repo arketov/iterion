@@ -2149,6 +2149,15 @@
           "run_id": {
             "type": "string"
           },
+          "shell": {
+            "type": "string"
+          },
+          "shell_path": {
+            "type": "string"
+          },
+          "shell_source": {
+            "type": "string"
+          },
           "stderr": {
             "type": "string"
           }

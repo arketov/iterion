@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { hookFailureLabel, logHint } from "./retryError";
+import { hookFailureLabel, logHint, shellLabel } from "./retryError";
 
 describe("hookFailureLabel", () => {
   it("is empty when the failure was not a hook's", () => {
@@ -21,4 +21,23 @@ describe("hookFailureLabel", () => {
 describe("logHint", () => {
   it("is empty without a path", () => expect(logHint(undefined)).toBe(""));
   it("mentions the path", () => expect(logHint("C:/x/d.log")).toContain("C:/x/d.log"));
+});
+
+describe("shellLabel", () => {
+  it("is empty when the failure carries no shell", () => {
+    expect(shellLabel()).toBe("");
+    expect(shellLabel("", "", "default")).toBe("");
+  });
+  it("names the shell, its path and why it was picked", () => {
+    expect(shellLabel("pwsh", "C:/p/pwsh.exe", "env")).toBe(
+      "pwsh C:/p/pwsh.exe, ITERION_SHELL",
+    );
+    expect(shellLabel("sh", "sh", "default")).toBe("sh, platform default");
+  });
+  it("keeps a shell asked for but not found, with no path", () => {
+    expect(shellLabel("zsh", undefined, "explicit")).toBe("zsh, `shell:` on the hook");
+  });
+  it("leaves an unknown source out rather than guessing", () => {
+    expect(shellLabel("bash", "/bin/bash", "future-source")).toBe("bash /bin/bash");
+  });
 });

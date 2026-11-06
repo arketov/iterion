@@ -266,3 +266,49 @@ func TestManager_PersistsDesiredOnLifecycleTransitions(t *testing.T) {
 		t.Errorf("after Stop: persisted = %q, want stopped", got)
 	}
 }
+
+// ITERION_DISPATCHER_AUTOSTART=0 also cancels the restore of a saved running
+// intent — not only the first-boot default — and says so, without rewriting
+// the saved intent: the next start without the variable still replays it.
+func TestNewManager_AutoStartOptOutSkipsRestoreOfSavedRunning(t *testing.T) {
+	t.Setenv("ITERION_DISPATCHER_AUTOSTART", "0")
+	dir := seedManagerFixture(t)
+	runtimePath := runtimeStatePath(dir)
+	if err := saveDesiredState(runtimePath, DesiredRunning); err != nil {
+		t.Fatalf("saveDesiredState: %v", err)
+	}
+	m, err := NewManager(ManagerOptions{
+		StoreDir:    dir,
+		NativeStore: newTestNativeStore(t, dir),
+		Logger:      newTestLogger(),
+	})
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	defer m.Stop()
+	st := m.Status()
+	if st.State != ManagerStateIdle {
+		t.Errorf("state = %q, want idle (AUTOSTART=0 beats the saved running intent)", st.State)
+	}
+	if st.BootNote == "" {
+		t.Error("BootNote is empty: the operator is not told why the dispatcher is stopped")
+	}
+	if got, _ := loadDesiredState(runtimePath); got != DesiredRunning {
+		t.Errorf("saved intent = %q, want running (the override must not rewrite it)", got)
+	}
+}
+
+// A saved "stopped" intent needs no note: nothing was suppressed.
+func TestAutoStartSuppressedNote(t *testing.T) {
+	t.Setenv("ITERION_DISPATCHER_AUTOSTART", "0")
+	if autoStartSuppressedNote(DesiredStopped) != "" || autoStartSuppressedNote("") != "" {
+		t.Error("a note for nothing that was suppressed")
+	}
+	if autoStartSuppressedNote(DesiredPaused) == "" || autoStartSuppressedNote(DesiredRunning) == "" {
+		t.Error("no note for a suppressed restore")
+	}
+	t.Setenv("ITERION_DISPATCHER_AUTOSTART", "")
+	if autoStartSuppressedNote(DesiredRunning) != "" {
+		t.Error("a note with autostart on")
+	}
+}

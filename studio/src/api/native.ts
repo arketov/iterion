@@ -77,7 +77,8 @@ export interface NativeIssue {
 }
 
 // LaunchFailure mirrors Go's native.LaunchFailure: one dispatch attempt that
-// never became a run. No run exists under run_id.
+// never became a run. No run exists under run_id. The list is cleared when a
+// run is stamped on the card or the operator reopens it.
 export interface LaunchFailure {
   at: string;
   attempt?: number;
@@ -88,6 +89,12 @@ export interface LaunchFailure {
   error: string;
   stderr?: string;
   log_path?: string;
+  /** Shell or interpreter the hook ran under (or was asked for when none could
+   *  be started), the executable started and why it was picked
+   *  (explicit | env | default | posix-script | shebang | extension). */
+  shell?: string;
+  shell_path?: string;
+  shell_source?: string;
 }
 
 // RunRef is one entry in an issue's run history (mirrors Go's native.RunRef).
