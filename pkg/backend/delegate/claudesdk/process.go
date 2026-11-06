@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -32,7 +33,9 @@ type processConfig struct {
 	SystemPrompt       string
 	AppendSystemPrompt string
 	Cwd                string
-	Verbose            bool
+	// Verbose is kept for source compatibility. buildArgs emits --verbose
+	// regardless: the stream-json output format the SDK always uses requires it.
+	Verbose bool
 
 	AllowedTools    []string
 	DisallowedTools []string
@@ -88,11 +91,15 @@ type processConfig struct {
 func buildArgs(cfg processConfig, streaming bool) []string {
 	args := []string{"--print"}
 
+	// Both modes speak stream-json on stdout, and the CLI refuses
+	// `--print --output-format=stream-json` without --verbose ("Error: When
+	// using --print, --output-format=stream-json requires --verbose", exit
+	// 1). The flag is therefore part of the output-format contract, not an
+	// option: it is emitted here, unconditionally and right beside the
+	// format, so no caller composition (or a missing WithVerbose) can drop it.
+	args = append(args, "--output-format", "stream-json", "--verbose")
 	if streaming {
-		args = append(args, "--output-format", "stream-json")
 		args = append(args, "--input-format", "stream-json")
-	} else {
-		args = append(args, "--output-format", "stream-json")
 	}
 
 	if cfg.Model != "" {
@@ -103,9 +110,6 @@ func buildArgs(cfg processConfig, streaming bool) []string {
 	}
 	if cfg.AppendSystemPrompt != "" {
 		args = append(args, "--append-system-prompt", cfg.AppendSystemPrompt)
-	}
-	if cfg.Verbose {
-		args = append(args, "--verbose")
 	}
 	if cfg.IncludePartialMessages {
 		args = append(args, "--include-partial-messages")
@@ -233,7 +237,9 @@ func findCLI(explicit string) (string, error) {
 		Name:      "claude",
 		Fallbacks: clilocate.ClaudeLocalFallback(),
 	}); ok {
-		return path, nil
+		// An npm install on Windows is a `claude.cmd` shim that cmd.exe
+		// interprets; hand the spawn the native binary it wraps instead.
+		return preferNativeBinary(runtime.GOOS, path), nil
 	}
 	if explicit != "" {
 		return "", &cliNotFoundError{searched: []string{explicit}}
@@ -284,6 +290,11 @@ type spawnOptions struct {
 // spawnProcess starts a new Claude CLI subprocess with the given arguments.
 func spawnProcess(ctx context.Context, cliPath string, args []string, opts spawnOptions) (*cliProcess, error) {
 	var cmd *exec.Cmd
+	if opts.CommandBuilder == nil {
+		if err := checkBatchShimArgs(runtime.GOOS, cliPath, args); err != nil {
+			return nil, err
+		}
+	}
 	if opts.CommandBuilder != nil {
 		// Sandbox-routed path: the builder owns Cwd/Env propagation
 		// (typically via --workdir / --env flags to `docker exec`),

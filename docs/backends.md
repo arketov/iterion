@@ -1871,6 +1871,23 @@ only have `ANTHROPIC_API_KEY` and the binary, `claw` is preferred (same auth,
 no subprocess fork). To use `claude_code` with API-key auth, set
 `backend: claude_code` explicitly on the node.
 
+**Windows: the npm `claude.cmd` shim.** `npm i -g @anthropic-ai/claude-code`
+puts a `claude.cmd` on `PATH` that only forwards to the native
+`node_modules\@anthropic-ai\claude-code\bin\claude.exe` beside it. Spawned
+through the shim, every argument passes through `cmd.exe`, which ends the
+command line at the first line break — and iterion's multi-line
+`--append-system-prompt` cut the argv short, dropping every later flag,
+`--verbose` included, so the CLI failed with `When using --print,
+--output-format=stream-json requires --verbose`. Both host spawns of
+the backend (the session and the structured-output formatting pass) therefore
+resolve the shim to the `claude.exe` it wraps and start that directly
+(`claudesdk.AdaptHostCmd`; the SDK's own spawn does the same); a `.cmd`/`.bat`
+that cannot be resolved (a node-based shim) fails the start with an error as
+soon as an argument holds a line break, instead of running a silently different
+command. `--verbose` itself is always emitted, because the SDK always
+speaks `stream-json`. Fix: point the node's `command:` / the CLI path at the
+native `claude.exe`.
+
 **MCP isolation.** User, project and plugin MCP server names must stay outside
 Iterion's reserved infrastructure namespace (`iterion`, `iterion_board`,
 `iterion_runs` and names whose normalized tool names share the `iterion*`
