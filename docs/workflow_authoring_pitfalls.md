@@ -607,6 +607,12 @@ so if it is missing. On Windows `iterion` does not parse-check tool bodies
 (`iterion` dry-run reports them unchecked), since the `bash -n` check does not
 apply to PowerShell.
 
+**Double quotes in values on a legacy PowerShell.** Windows PowerShell 5.1 and
+`pwsh` in Legacy argument-passing mode drop a `"` inside an argument handed to
+a native program. A default-form `{{input.x}}` / `{{vars.x}}` value is escaped
+for that case on the host (not in a sandbox); a raw `{{!x}}` ref and a `'…"…'`
+literal you write yourself are not.
+
 A `.bot` `tool` node's `command:` string runs via `bash -c` on Linux and macOS
 (`pkg/backend/model/executor_tool.go`, `toolNodeCommand`) and inside a sandbox
 alike — bash is pinned precisely because `/bin/sh` is dash
@@ -891,7 +897,8 @@ DECISIONS={{input.decisions}} python3 -I -c "import os,json; d=json.loads(os.env
 ```
 
 Reserve `{{!ref}}` for values you control that are *meant* to be
-re-interpreted as shell. A tool node that only ever saw path tokens (e.g.
+re-interpreted as shell (it is also not escaped for a legacy PowerShell's
+double-quote rule). A tool node that only ever saw path tokens (e.g.
 adr-cartograph's `build_manifest`) can carry the `'{{!input.x}}'` pattern
 latently for a long time — it breaks the day an apostrophe-bearing value
 flows through, so fix the pattern, not just the one value that tripped it.
