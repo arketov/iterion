@@ -1038,7 +1038,7 @@ func (s *Server) handleResumeRun(w http.ResponseWriter, r *http.Request) {
 	// one, and its TenantID scopes the resume's Mongo queries (see below).
 	runMeta, err := gateMeta, gateMetaErr
 	if err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		span.SetStatus(codes.Error, "run not found")
 		return
 	}

@@ -401,7 +401,7 @@ func (s *Server) scopeRunByID(w http.ResponseWriter, r *http.Request, id auth.Id
 	team, err := s.runTenant(r.Context(), runID)
 	if err != nil {
 		if errors.Is(err, store.ErrRunNotFound) || errors.Is(err, store.ErrRunDeleted) {
-			s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+			s.httpErrorFor(w, r, http.StatusNotFound, "run not found")
 			return nil, false
 		}
 		s.httpErrorFor(w, r, http.StatusInternalServerError, "resolve run tenant: %v", err)
@@ -415,7 +415,7 @@ func (s *Server) scopeRunByID(w http.ResponseWriter, r *http.Request, id auth.Id
 	if !ok {
 		// No standing in the run's team: the run is invisible — the
 		// same 404 a missing run answers (no existence oracle).
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %s", runID)
+		s.httpErrorFor(w, r, http.StatusNotFound, "run not found")
 		return nil, false
 	}
 	if !s.runScopeLadder(r, fixedSegments, resolved.Role) {

@@ -92,7 +92,7 @@ func (s *Server) handleBrowserCDP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := s.runs.LoadRunCtx(r.Context(), runID); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	if s.browserSessions == nil {
@@ -297,7 +297,7 @@ func (s *Server) handleBrowserAttach(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := s.runs.LoadRunCtx(r.Context(), runID); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	if s.browserSessions == nil {

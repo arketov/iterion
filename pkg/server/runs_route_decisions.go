@@ -22,7 +22,7 @@ func (s *Server) handleListRouteDecisions(w http.ResponseWriter, r *http.Request
 	// Visibility rides the run's own tenancy: a caller who cannot load
 	// the run cannot read its decisions.
 	if _, err := s.runs.LoadRunCtx(r.Context(), id); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	rds := store.AsRouteDecisionStore(s.cfg.Store)

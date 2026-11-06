@@ -52,7 +52,7 @@ func (s *Server) handleListRunCommits(w http.ResponseWriter, r *http.Request) {
 	}
 	run, err := s.runs.LoadRunCtx(r.Context(), id)
 	if err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 
@@ -233,7 +233,7 @@ func (s *Server) handleGetRunCommit(w http.ResponseWriter, r *http.Request) {
 	}
 	run, err := s.runs.LoadRunCtx(r.Context(), id)
 	if err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	repo, info, ok := s.resolveRunCommit(run, rawSHA)
@@ -294,7 +294,7 @@ func (s *Server) handleGetRunCommitFileDiff(w http.ResponseWriter, r *http.Reque
 	}
 	run, err := s.runs.LoadRunCtx(r.Context(), id)
 	if err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	repo, info, ok := s.resolveRunCommit(run, rawSHA)

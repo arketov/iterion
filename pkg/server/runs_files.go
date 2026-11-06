@@ -139,7 +139,7 @@ func (s *Server) handleListRunFiles(w http.ResponseWriter, r *http.Request) {
 	requested := parseFileMode(r.URL.Query().Get("mode"))
 	run, err := s.runs.LoadRunCtx(r.Context(), id)
 	if err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	if run.WorkDir == "" {
@@ -454,7 +454,7 @@ func (s *Server) handleGetRunFileDiff(w http.ResponseWriter, r *http.Request) {
 	requested := parseFileMode(r.URL.Query().Get("mode"))
 	run, err := s.runs.LoadRunCtx(r.Context(), id)
 	if err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 
@@ -672,7 +672,7 @@ func (s *Server) handleGetRunFileContent(w http.ResponseWriter, r *http.Request)
 	}
 	run, err := s.runs.LoadRunCtx(r.Context(), id)
 	if err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	abs, ok := s.resolveRunWorktreePath(w, r, run, path)
@@ -748,7 +748,7 @@ func (s *Server) handleSaveRunFileContent(w http.ResponseWriter, r *http.Request
 	}
 	run, err := s.runs.LoadRunCtx(r.Context(), id)
 	if err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	// A run that executed in place has the operator's workspace for its

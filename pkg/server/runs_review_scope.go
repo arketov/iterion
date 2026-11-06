@@ -67,7 +67,7 @@ func (s *Server) handleGetRunReviewScope(w http.ResponseWriter, r *http.Request)
 	}
 	run, err := s.runs.LoadRunCtx(r.Context(), id)
 	if err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	gate := -1
@@ -100,7 +100,7 @@ func (s *Server) handleGetRunReviewDiff(w http.ResponseWriter, r *http.Request) 
 	}
 	run, err := s.runs.LoadRunCtx(r.Context(), id)
 	if err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	gate := -1
@@ -155,7 +155,7 @@ func (s *Server) handleGetRunWorkspaceFile(w http.ResponseWriter, r *http.Reques
 	}
 	run, err := s.runs.LoadRunCtx(r.Context(), id)
 	if err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 

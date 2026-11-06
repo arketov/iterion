@@ -99,7 +99,7 @@ func (c *Dispatcher) handleIssueDetail(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	http.Error(w, "issue not tracked by dispatcher", http.StatusNotFound)
+	WriteErr(w, http.StatusNotFound, errors.New("issue not tracked by dispatcher"))
 }
 
 func (c *Dispatcher) handleIssueCancel(w http.ResponseWriter, r *http.Request) {

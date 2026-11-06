@@ -35,7 +35,7 @@ func (s *Server) handleCancelRun(w http.ResponseWriter, r *http.Request) {
 	// filter never runs and a cross-tenant run could be cancelled by id.
 	// (Also rejects a malformed id via the store's path-component check.)
 	if _, err := s.runs.LoadRunCtx(r.Context(), id); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	// Log cancel intent with source attribution. Mystery context-canceled
@@ -168,7 +168,7 @@ func (s *Server) handlePauseRun(w http.ResponseWriter, r *http.Request) {
 	// Tenant scoping: confirm the caller can see this run before the
 	// pause mutation (see handleCancelRun for the cloud-mode rationale).
 	if _, err := s.runs.LoadRunCtx(r.Context(), id); err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	if s.logger != nil {
@@ -330,7 +330,7 @@ func (s *Server) handleRewindRun(w http.ResponseWriter, r *http.Request) {
 	}
 	runMeta, err := s.runs.LoadRunCtx(r.Context(), id)
 	if err != nil {
-		s.httpErrorFor(w, r, http.StatusNotFound, "run not found: %v", err)
+		s.runNotFound(w, r, err)
 		return
 	}
 	var req rewindRunRequest
