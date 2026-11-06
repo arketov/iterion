@@ -144,7 +144,7 @@ The watchdog never clears a claim before deciding: it CAS-**transfers** it, then
 | `forge_board_bindings` | sync worker | the due list, the per-tenant sync lease and the degraded reason |
 | `runs`, `events` | engine, runner | read by every hold, sweep and watchdog decision; written by the run itself |
 
-Without Mongo the same documents are files under `<store>/dispatcher/`: `board.json`, `issues/<id>.json`, `events.jsonl`, the claim journal `claims.json` and the operator's intent in `runtime.json`; the workspaces and the single-instance lock live under `<workspace.root>`. That twin has no counter document — it recovers the next event seq from the highest one in `events.jsonl` when it opens the store.
+Without Mongo the same documents are files under `<store>/dispatcher/`: `board.json`, `issues/<id>.json`, `events.jsonl`, the claim journal `claims.json`, the adopted source-hold journal `source-holds.json` and the operator's intent in `runtime.json`; the workspaces and the single-instance lock live under `<workspace.root>`. That twin has no counter document — it recovers the next event seq from the highest one in `events.jsonl` when it opens the store.
 
 ## Related
 
