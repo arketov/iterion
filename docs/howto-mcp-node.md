@@ -139,8 +139,8 @@ A `.mcp.json` entry (or a plugin's server) whose name is in iterion's reserved
 internal namespace — any name starting with `iterion`, such as `iterion` or
 `iterion_board` — is **skipped with a warning**, not a failure: the other
 servers are still resolved and `C337` still runs over them, in the studio's
-`/api/validate`, in `iterion validate` and in a run (where the skip is a log
-line). The warning names the entry and says how to fix it:
+`/api/validate`, in `iterion validate` and in a run (where the skip is a line
+in the run's log — the studio's `run.log` too, on launch and on resume). The warning names the entry and says how to fix it:
 
 ```
 warning: MCP server "iterion" from .mcp.json is skipped: its name is in

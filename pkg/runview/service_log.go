@@ -203,6 +203,20 @@ func (s *Service) prepareRunLog(runID string) (*RunLogBuffer, *iterlog.Logger) {
 	return buf, perRunLogger
 }
 
+// logMCPSkips writes, on the run's own logger, one line per ambient MCP server
+// the compile left out of the catalog. The compile cannot log them itself: a
+// preview or a check compiles too, and the run's logger does not exist yet —
+// so the launch and the resume, which prepare it, show them here, as the
+// runner's compile does.
+func logMCPSkips(logger *iterlog.Logger, cs *CompiledSource) {
+	if logger == nil || cs == nil {
+		return
+	}
+	for _, sk := range cs.MCPSkipped {
+		logger.Warn("mcp: %s", sk.Message())
+	}
+}
+
 // runLoggerFor returns the logger a helper must log this run's text on.
 // For a run this process holds it is the per-run fork prepareRunLog
 // built, carrying the run's secret matcher — which is what the exported

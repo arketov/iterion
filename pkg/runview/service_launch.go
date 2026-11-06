@@ -420,6 +420,7 @@ func (s *Service) startInProcess(parent context.Context, runID string, spec Laun
 	}
 
 	_, runLogger := s.prepareRunLog(runID)
+	logMCPSkips(runLogger, cs)
 
 	// The connector catalog an `action:` node resolves through, on the same
 	// terms as the CLI: without it the same `.bot` runs from `iterion run` and
@@ -947,6 +948,7 @@ func (s *Service) Resume(parent context.Context, spec ResumeSpec) (*LaunchResult
 	}
 
 	_, runLogger := s.prepareRunLog(spec.RunID)
+	logMCPSkips(runLogger, cs)
 
 	// A resume rebuilds the executor from scratch, so it needs the catalog
 	// too: without it a run that launched fine dies at the first action node
