@@ -275,7 +275,14 @@ Each tick (`polling.interval_ms`, default 30s):
 1. **Reconcile stalled.** For every in-flight run, if
    `time.Since(LastEventAt) > stall.timeout_ms`, cancel its context.
    The worker goroutine then returns and the actor schedules a retry.
-   Set `stall.timeout_ms: 0` to disable.
+   Set `stall.timeout_ms: 0` to disable. A shell/script tool node whose
+   command runs quietly emits a `tool_heartbeat` event once a minute
+   while its process lives, and that counts as an event — so a long
+   silent command (a `go test` over big packages) is not reaped. The
+   beats stop after `ITERION_TOOL_NODE_HEARTBEAT_MAX` (default `1h`; `0`
+   or `off` removes the ceiling), and the reaper applies again from
+   there. A `stall.timeout_ms` shorter than about two minutes still
+   reaps a quiet command, since the beat is a minute apart.
 2. **Refresh tracker states.** Ask the tracker for the current state
    of every running issue. If the state moved out of the eligible
    set (operator closed the GitHub issue, dragged the native card to

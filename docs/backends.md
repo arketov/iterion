@@ -2365,7 +2365,8 @@ event (`phase: waiting|settled|finalizing|abandoned`) and increments
 `iterion_delegate_background_total{backend,phase}`. The dispatcher's
 event-silence reaper (`stall.timeout_ms`) still applies to a wait during
 which nothing at all streams — a subagent's tool calls are events; a single
-silent tool call longer than the reaper's timeout is not.
+silent tool call longer than the reaper's timeout is not (a silent tool
+*node* is a different case: it is covered by `tool_heartbeat`).
 
 Work that has not reported back when a process of the session ends by any
 path (error, pause, wrap-up, a background server, a disabled lifecycle, the
