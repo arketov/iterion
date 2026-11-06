@@ -109,7 +109,7 @@ from — its *origin*:
 
 | Origin | What it is | Where it comes from |
 |---|---|---|
-| **Project** | A bundle with a manifest | Folders `bots/`, `examples/` and `.botz/` of the project, plus any `--bots-path` you gave `iterion studio` |
+| **Project** | A bundle with a manifest | Folders `bots/`, `examples/` and `.botz/` of the project, plus any `--bots-path` you gave `iterion studio`. The walk below a root skips hidden folders, `node_modules`, `testdata` and nested git checkouts (a bundle that is itself a clone is still listed), so a fixture or another project's copy is never routable; a root you name explicitly is never skipped, and a folder with a manifest is a bundle even when it holds `.git` |
 | **Project file** | A single `.bot` file without a manifest | Directly in the project folder, with no walk of its subfolders: a file in `workflows/` or `docs/`, a `lib/` fragment, test data and a nested clone of another project are not bots of this project (open such a file by its path, **Open…** → *Open by path*) |
 | **Team**, **Platform** | Bots of your team or of the whole instance | Cloud only |
 

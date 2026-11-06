@@ -65,6 +65,8 @@ They overlap on purpose, and show different things:
   folder. Each row has an origin badge (Project, Project file); the number in the
   header counts the rows the page lists, and the Home *Bots* panel and the **Manage**
   dialog show the same set. Use it to *launch*, to read a bot's page, or to open its source.
+  The catalog and the Editor's list walk the roots by the same pruning rule
+  (no hidden folders, `node_modules`, `testdata` or nested clones).
 - The **Editor** lists *files*: it opens a path, edits it and saves it back.
   A **Project file** from the catalog has no bot page; it opens here.
 
