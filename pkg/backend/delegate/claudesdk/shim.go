@@ -3,9 +3,37 @@ package claudesdk
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
+
+// AdaptHostCmd makes a host-spawned claude command safe on Windows. It is for
+// a [CommandBuilder] that builds the command itself (so the SDK's own
+// findCLI/spawn checks never see it): exec.CommandContext has already resolved
+// a bare "claude" through PATHEXT to the npm `claude.cmd` shim, and this
+// swaps cmd.Path for the native claude.exe the shim wraps. When the shim
+// cannot be resolved and an argument holds a line break, cmd.Err is set so
+// Start fails loudly instead of running a command cmd.exe has truncated. A
+// no-op off Windows and for any non-batch path; never call it for a sandbox
+// (docker exec) command, whose Path is the runtime, not the CLI.
+func AdaptHostCmd(cmd *exec.Cmd) { adaptHostCmd(runtime.GOOS, cmd) }
+
+func adaptHostCmd(goos string, cmd *exec.Cmd) {
+	if cmd == nil || cmd.Err != nil || !isBatchShim(goos, cmd.Path) {
+		return
+	}
+	if native := preferNativeBinary(goos, cmd.Path); native != cmd.Path {
+		cmd.Path = native
+		return
+	}
+	if len(cmd.Args) > 1 {
+		if err := checkBatchShimArgs(goos, cmd.Path, cmd.Args[1:]); err != nil {
+			cmd.Err = err
+		}
+	}
+}
 
 // isBatchShim reports whether path is a Windows batch file, which the OS
 // runs through cmd.exe rather than directly.
@@ -51,16 +79,22 @@ func preferNativeBinary(goos, path string) string {
 // (`%~dp0` in some npm versions). Only that shape is accepted — the quoted
 // first token of a line that forwards `%*` — so the `node.exe` probe of the
 // node-based shim, or a line that merely mentions a path, is never mistaken
-// for the target. The result must stay inside dir (the shim already runs it,
-// so honouring it widens nothing, but a `..` hop is refused) and exist.
+// for the target. The result must stay lexically inside dir (the shim already
+// runs it, so honouring it widens nothing, but a `..` hop is refused) and exist.
 func nativeBinaryFromShim(dir, shim string) (string, bool) {
 	for _, line := range strings.Split(shim, "\n") {
 		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, `"`) || !strings.Contains(line, "%*") {
+		if !strings.HasPrefix(line, `"`) {
 			continue
 		}
 		end := strings.Index(line[1:], `"`)
 		if end < 0 {
+			continue
+		}
+		// Nothing but the argument forward may follow the quoted token: a
+		// shim that adds flags or env of its own would lose them if replaced
+		// by the bare binary.
+		if strings.TrimSpace(line[end+2:]) != "%*" {
 			continue
 		}
 		tok := line[1 : 1+end]

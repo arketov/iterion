@@ -2,6 +2,7 @@ package claudesdk
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -115,6 +116,7 @@ func TestNativeBinaryFromShim_RefusesEscapesAndNonInvocations(t *testing.T) {
 		"parent hop":      "\"%dp0%\\..\\evil.exe\" %*\r\n",
 		"env expansion":   "\"%dp0%\\%OTHER%\\claude.exe\" %*\r\n",
 		"no %*":           "\"%dp0%\\claude.exe\"\r\n",
+		"extra flag":      "\"%dp0%\\claude.exe\" --flag %*\r\n",
 		"not first token": "SET X=1 & \"%dp0%\\claude.exe\" %*\r\n",
 		"not an exe":      "\"%dp0%\\claude.js\" %*\r\n",
 		"absolute":        "\"C:\\Windows\\evil.exe\" %*\r\n",
@@ -158,5 +160,71 @@ func TestCheckBatchShimArgs_AllowsEverythingElse(t *testing.T) {
 	}
 	if err := checkBatchShimArgs("windows", `C:\npm\claude.cmd`, flat); err != nil {
 		t.Errorf("single-line args through a shim are intact: %v", err)
+	}
+}
+
+// The production path: the claude_code backend builds its host command itself
+// (a CommandBuilder), so exec.CommandContext(ctx, "claude") has already
+// resolved PATHEXT to claude.cmd and the SDK's own spawn checks never run.
+// AdaptHostCmd is what protects that command.
+func TestAdaptHostCmd_SwapsNpmShimForNativeExe(t *testing.T) {
+	dir := t.TempDir()
+	shim := filepath.Join(dir, "claude.cmd")
+	exe := filepath.Join(dir, "node_modules", "@anthropic-ai", "claude-code", "bin", "claude.exe")
+	writeShimFile(t, shim, npmNativeShim)
+	writeShimFile(t, exe, "MZ")
+
+	cmd := &exec.Cmd{Path: shim, Args: []string{"claude", "--append-system-prompt", "a\nb", "--verbose"}}
+	adaptHostCmd("windows", cmd)
+	if cmd.Path != exe {
+		t.Errorf("Path = %q, want %q", cmd.Path, exe)
+	}
+	if cmd.Err != nil {
+		t.Errorf("Err = %v, want nil: a resolvable shim is fine with line breaks", cmd.Err)
+	}
+	if len(cmd.Args) != 4 || cmd.Args[0] != "claude" {
+		t.Errorf("Args changed: %v", cmd.Args)
+	}
+}
+
+func TestAdaptHostCmd_UnresolvableShimWithLineBreakFailsStart(t *testing.T) {
+	dir := t.TempDir()
+	shim := filepath.Join(dir, "claude.cmd")
+	writeShimFile(t, shim, npmNodeShim)
+
+	cmd := &exec.Cmd{Path: shim, Args: []string{"claude", "--append-system-prompt", "a\nb"}}
+	adaptHostCmd("windows", cmd)
+	if cmd.Err == nil {
+		t.Fatal("cmd.Err must carry the refusal so Start fails")
+	}
+	if cmd.Path != shim {
+		t.Errorf("Path = %q, want the shim unchanged", cmd.Path)
+	}
+
+	flat := &exec.Cmd{Path: shim, Args: []string{"claude", "--print"}}
+	adaptHostCmd("windows", flat)
+	if flat.Err != nil {
+		t.Errorf("single-line args through a shim are intact: %v", flat.Err)
+	}
+}
+
+func TestAdaptHostCmd_NoOpElsewhere(t *testing.T) {
+	adaptHostCmd("windows", nil)
+	for _, c := range []struct {
+		goos, path string
+	}{
+		{"linux", "/usr/bin/claude.cmd"},
+		{"windows", `C:\claude\claude.exe`},
+	} {
+		cmd := &exec.Cmd{Path: c.path, Args: []string{"claude", "a\nb"}}
+		adaptHostCmd(c.goos, cmd)
+		if cmd.Path != c.path || cmd.Err != nil {
+			t.Errorf("%s %s: changed (Path=%q Err=%v)", c.goos, c.path, cmd.Path, cmd.Err)
+		}
+	}
+	pre := &exec.Cmd{Path: `C:\npm\claude.cmd`, Args: []string{"claude", "a\nb"}, Err: os.ErrNotExist}
+	adaptHostCmd("windows", pre)
+	if pre.Err != os.ErrNotExist {
+		t.Error("an Err already set by LookPath must be left as is")
 	}
 }

@@ -1878,11 +1878,13 @@ through the shim, every argument passes through `cmd.exe`, which ends the
 command line at the first line break — and iterion's multi-line
 `--append-system-prompt` cut the argv short, dropping every later flag,
 `--verbose` included, so the CLI failed with `When using --print,
---output-format=stream-json requires --verbose`. The claude SDK therefore
-resolves the shim to the `claude.exe` it wraps and spawns that directly;
-a `.cmd`/`.bat` it cannot resolve (a node-based shim) is refused with a typed
-error as soon as an argument holds a line break, instead of running a silently
-different command. `--verbose` itself is always emitted, because the SDK always
+--output-format=stream-json requires --verbose`. Both host spawns of
+the backend (the session and the structured-output formatting pass) therefore
+resolve the shim to the `claude.exe` it wraps and start that directly
+(`claudesdk.AdaptHostCmd`; the SDK's own spawn does the same); a `.cmd`/`.bat`
+that cannot be resolved (a node-based shim) fails the start with an error as
+soon as an argument holds a line break, instead of running a silently different
+command. `--verbose` itself is always emitted, because the SDK always
 speaks `stream-json`. Fix: point the node's `command:` / the CLI path at the
 native `claude.exe`.
 
