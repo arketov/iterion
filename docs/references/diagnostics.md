@@ -6,6 +6,8 @@ The compiler carries its own copy of each row's *Fix* ([`pkg/dsl/ir/diag_catalog
 
 A finding is positioned on the line the author has to edit. One about a property's VALUE — `compress: bogus`, a `compaction.threshold` out of range, an unreadable `allow:` rule, a `sandbox:` mode — points at that property's line in the declaration, not at its `workflow w:` / `agent a:` header; the parser records the span of every property line it reads (`ast.PropertySpans`), and `iterion validate --json` names the property (`property`) and, on a `.bot` source, closes the span (`end_line`, `end_column`, the column after its last rune; a YAML twin carries the start alone). A finding about the declaration itself keeps its header line; one inside a tool body (C157, C158, C188) points at the body's property line and carries the body-relative line in its message, the AST keeping no position inside a body (#1094).
 
+`POST /api/validate` carries the same position fields (`file`, `line`, `column`, `end_line`, `end_column`, `property`) in `issues[]` when the compiled program has positions. The studio sends its JSON document, which carries no spans, so a studio validation answers without them. C337 carries no position on either surface.
+
 ## Compilation Diagnostics
 
 | Code | Severity | Description | Cause | Fix |
