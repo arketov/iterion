@@ -1063,7 +1063,7 @@ waiting, the dispatcher **does not mint a new run id**.
 | `running` | Hold while the owner lives. An orphaned run (no live lock, past the grace window) is promoted to `failed_resumable` / `failed` first — never a sibling from the workflow entry. |
 | `queued` | Hold without a lock probe: pipeline-queued runs have no lock owner until their concurrency slot opens. |
 | `failed_resumable` / `cancelled` | `Engine.Resume` on the **same** id. |
-| `finished` | Fresh run allowed — dragging the card back to `ready` is the re-queue gesture. |
+| `finished` | Fresh run allowed — dragging the card back to `ready` is the re-queue gesture. Exception: a card the dispatcher itself returned to an eligible `completed_state` after the clean run (`state_reason = run_finished`) is held until an operator moves it to another column and back. |
 | none, or hard `failed` + ticket explicitly back in `ready` | Fresh run. |
 
 `iterion resume --force` (or the studio force-resume) continues **this**

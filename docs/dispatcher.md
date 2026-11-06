@@ -208,7 +208,7 @@ sibling planner from the workflow entry:
 | `queued` | Hold without probing the run lock. Pipeline-queued runs deliberately have no lock owner until a concurrency slot opens; their queue owner advances their state machine. |
 | `failed_resumable` | Resume the **same** run id. Internal stops (stall reap, external state change, daemon shutdown) cancel the run context with `runtime.ErrRunInterrupted` as the cause, so the engine persists this status — which is what keeps stall/shutdown recovery automatic. |
 | `cancelled` | Hold, **never auto-resume**: only an operator produces this status now, and resuming it would undo their decision. The card is held before the claim with a visible reason; the way out is an explicit resume, or dropping the pointer (⋯ → *Retry from zero* on the pipeline board, `iterion issue update --clear-last-run` from a terminal). |
-| `finished` | No hold: a fresh run is allowed — dragging the card back to an eligible column **is** the re-queue gesture. |
+| `finished` | No hold: a fresh run is allowed — dragging the card back to an eligible column **is** the re-queue gesture. The one exception: a card the dispatcher itself returned to its current column after the clean run (`state_reason = run_finished`, see [`completed_state` and eligible columns](#completed_state-and-eligible-columns)) is held until an operator moves it. |
 | none, or hard `failed`, and the ticket is explicitly eligible | The only other legitimate fresh run. |
 
 The stranded-pause sweep (`reconcileStrandedPaused`) also runs while
@@ -244,7 +244,7 @@ which tickets are being worked on right now. Behaviour:
 | Run force-reaped (a literal `context.Canceled`) | Revert state, release claim, keep workspace |
 | Run cancelled by the operator (`ErrRunCancelled`) | No revert, no retry: the claim is retained and the ticket stays held until an explicit resume |
 | Run failed (non-cancel)                | Revert state, release claim, schedule retry         |
-| Run finished cleanly (`err == nil`)    | **No revert.** If the workflow moved the state itself (docs-refresh → `review`), that is honoured. If it left the card in `running_state`, the dispatcher moves it to `agent.completed_state` (default `review`) — see `maybeTransitionToCompleted`. |
+| Run finished cleanly (`err == nil`)    | **No revert.** If the workflow moved the state itself (docs-refresh → `review`), that is honoured. If it left the card in `running_state`, the dispatcher moves it to `agent.completed_state` (default `review`) — see `maybeTransitionToCompleted`. The move is stamped `run_finished` on the card (`state_reason`) and on the `issue_state` event. |
 | Daemon shutdown (Ctrl+C, SIGTERM)      | Revert each in-flight ticket's transition           |
 
 Every revert is **best-effort** and protected by a `RefreshStates`
@@ -535,6 +535,33 @@ opt-out:
 A board that does not define the target state refuses the move; the
 failure is logged and non-fatal, so custom boards degrade rather than
 break, and no operator is forced to opt out explicitly.
+
+#### `completed_state` and eligible columns
+
+If `completed_state` is itself an **eligible** column (for example a bot
+that works "on the column": `review` with a `merger` bot), a clean run
+whose bot does not move the card would be picked up again on the next
+poll — `review → in_progress → finished → review → …` for ever, one model
+run per poll. The dispatcher breaks that loop:
+
+- the auto-transition into `completed_state` is stamped with the
+  descriptive reason `run_finished` (`Issue.state_reason`, and `reason` on
+  the `issue_state` event; it is not a machine reason, so triggers and
+  external-board reconciliation behave as before);
+- a card whose last run is `finished` and whose `state_reason` is
+  `run_finished` is **held before the claim**, with a visible reason in the
+  dispatch-skip list ("the dispatcher itself returned the card …");
+- any operator move (drag in the studio, `iterion issue move`, reopen)
+  overwrites the stamp, so the way to re-queue the card is to move it to
+  another column and back;
+- at start-up and on every config reload the dispatcher logs a **warning**
+  when `completed_state` is an eligible column. It is a warning, not a
+  validation error. Prefer a non-eligible column (or `none`) unless the bot
+  moves the card itself.
+
+The stamp exists on the native and Mongo boards only. External trackers
+(GitHub, Forgejo, GitLab) do not carry it, so there the loop is not
+prevented and the warning does not cover them.
 
 ### Giving up (`agent.max_attempts`)
 
@@ -1460,7 +1487,11 @@ reopen, so the column editor cannot become the way around a refusal.
   workflow that never moves the card would be re-picked on every poll
   and burn model spend indefinitely. A workflow that moves the state
   itself (`iterion issue move <id> --to done`, or a board-capable bot)
-  is left alone. Opt out with `completed_state: none`.
+  is left alone. Opt out with `completed_state: none`. A
+  `completed_state` that is also an eligible column does not loop (the
+  returned card is held, see [`completed_state` and eligible
+  columns](#completed_state-and-eligible-columns)) but logs a warning at
+  start-up and on reload — point it at a non-eligible column.
 
 ## Deferred to v2
 

@@ -47,7 +47,7 @@ flowchart TD
     run --> afterrun["after_run - on every return of the dispatch, best-effort, it never overrides the verdict"]
     afterrun --> teardown["clean return only - before_remove, remove the directory, deregister the worktree"]
     teardown --> fin["finishRun on the actor - free the slot, stamp last_run, choose the disposition"]
-    fin -- "err is nil" --> okd["COMPLETED - maybeTransitionToCompleted to completed_state, default review, then Release"]
+    fin -- "err is nil" --> okd["COMPLETED - maybeTransitionToCompleted to completed_state, default review, card stamped run_finished and held if that column is eligible, then Release"]
     fin -- "ErrRunPaused, ErrRunPausedOperator, resume source changed" --> park["PARKED in awaiting_input - claim RETAINED, heartbeat stopped, never retried"]
     fin -- "ErrRunCancelled - an operator stop" --> heldc["HELD - no move, no retry, claim retained until an explicit resume"]
     fin -- "a deterministic failure code, or max_attempts reached" --> giveup["GAVE UP - failed_state, default blocked, plus a give-up stamp"]
