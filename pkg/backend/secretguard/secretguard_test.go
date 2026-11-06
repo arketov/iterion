@@ -328,7 +328,8 @@ func TestMaterializeHostFiles_RewritesPathAndWritesValue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stat host secret file: %v", err)
 	}
-	if perm := info.Mode().Perm(); perm != 0o600 {
+	// Windows reports 0666 for every file: the mode bits say nothing there.
+	if perm := info.Mode().Perm(); runtime.GOOS != "windows" && perm != 0o600 {
 		t.Errorf("host secret file perms = %v, want 0600", perm)
 	}
 	b, err := os.ReadFile(wantPath)
