@@ -66,6 +66,7 @@ func RunIssueCreate(p *Printer, opts IssueCreateOptions) error {
 	if err != nil {
 		return err
 	}
+	defer s.Close()
 	fields, err := parseFieldPairs(opts.Fields)
 	if err != nil {
 		return err
@@ -118,6 +119,7 @@ func RunIssueList(p *Printer, opts IssueListOptions) error {
 	if err != nil {
 		return err
 	}
+	defer s.Close()
 	f := native.ListFilter{
 		States:   opts.States,
 		Labels:   opts.Labels,
@@ -166,6 +168,7 @@ func RunIssueShow(p *Printer, opts IssueRefOptions) error {
 	if err != nil {
 		return err
 	}
+	defer s.Close()
 	id, err := s.Resolve(opts.IDOrPrefix)
 	if err != nil {
 		return err
@@ -234,6 +237,7 @@ func RunIssueMove(p *Printer, opts IssueMoveOptions) error {
 	if err != nil {
 		return err
 	}
+	defer s.Close()
 	id, err := s.Resolve(opts.IDOrPrefix)
 	if err != nil {
 		return err
@@ -290,6 +294,7 @@ func RunIssueUpdate(p *Printer, opts IssueUpdateOptions) error {
 	if err != nil {
 		return err
 	}
+	defer s.Close()
 	id, err := s.Resolve(opts.IDOrPrefix)
 	if err != nil {
 		return err
@@ -432,6 +437,7 @@ func RunIssueClose(p *Printer, opts IssueRefOptions) error {
 	if err != nil {
 		return err
 	}
+	defer s.Close()
 	id, err := s.Resolve(opts.IDOrPrefix)
 	if err != nil {
 		return err
@@ -501,6 +507,7 @@ func RunIssueDelete(p *Printer, opts IssueDeleteOptions) error {
 	if err != nil {
 		return err
 	}
+	defer s.Close()
 	// An empty reference would prefix-match every card, and on a board with
 	// one card delete it: refuse before Resolve, for an irreversible command.
 	if strings.TrimSpace(opts.IDOrPrefix) == "" {
@@ -629,6 +636,7 @@ func RunIssueImport(p *Printer, opts IssueImportOptions) error {
 	if err != nil {
 		return err
 	}
+	defer board.Close()
 	synced, created, updated, err := server.ImportForgeIssues(
 		context.Background(), provider, strings.TrimSpace(opts.BaseURL), token, opts.Repo, board, since,
 		strings.TrimSpace(opts.MinAuthorRole))
@@ -756,6 +764,7 @@ func RunIssueBoardShow(p *Printer, opts IssueCommonOptions) error {
 	if err != nil {
 		return err
 	}
+	defer s.Close()
 	b, err := s.Board()
 	if err != nil {
 		return err
@@ -808,6 +817,7 @@ func RunIssueBoardInit(p *Printer, opts IssueBoardInitOptions) error {
 	if err != nil {
 		return err
 	}
+	defer s.Close()
 	var b *native.Board
 	if opts.From != "" {
 		data, err := os.ReadFile(opts.From)
