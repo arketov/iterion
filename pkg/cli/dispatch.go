@@ -124,6 +124,7 @@ func RunDispatch(p *Printer, opts DispatchOptions) error {
 		// bots the binary used to embed; NewManager auto-starts from it, so it
 		// is brought up to date before that start.
 		MigrateConfig: MigrateSavedConfig(storeDir),
+		AdaptRuntime:  AdaptSavedConfig(cwd),
 	})
 	if err != nil {
 		return err

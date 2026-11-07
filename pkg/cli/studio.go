@@ -445,6 +445,7 @@ func RunStudio(ctx context.Context, opts StudioOptions, p *Printer) error {
 					return BuildDefaultConfig(dir)
 				},
 				MigrateConfig: MigrateSavedConfig(resolvedStoreDir),
+				AdaptRuntime:  AdaptSavedConfig(dir),
 				// A relative path in the saved settings is the project's.
 				ProjectDir: dir,
 			})

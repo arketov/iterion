@@ -39,7 +39,9 @@ dispatcher and schedule hooks, plugin lifecycle commands and
   [environment variables](environment-variables.md).
 - **A saved `sh` hook:** the dispatcher's default `after_create` hook has a
   PowerShell variant, and the studio migrates the old default of an older saved
-  config. A hook you wrote yourself that is plainly `sh` and has no `shell:` is
+  config. A config shared between Windows and WSL keeps the Windows preset in
+  the file: the other OS runs its own preset for the project instead, without
+  rewriting the file. A hook you wrote yourself that is plainly `sh` and has no `shell:` is
   not rewritten: it runs under `sh` or `bash` when one is on `PATH`, and
   otherwise fails before starting with a message to add `shell:` or rewrite it.
   The studio writes that choice into the saved config (`shell: sh`), so it no

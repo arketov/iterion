@@ -887,8 +887,17 @@ a `sh` and a PowerShell variant and picks the one that matches the shell; on
 Windows the saved config carries `shell: pwsh` (or `powershell`) with it.
 A config saved by an older version holds the `sh` variant with no `shell:`:
 when the studio loads it on a PowerShell host, that exact old preset is
-rewritten into the PowerShell variant (and saved). A hook you wrote or edited
-yourself is never rewritten: if its text is plainly `sh` (`set -e`, `VAR=value`,
+rewritten into the PowerShell variant (and saved). The saved preset also holds
+the project path of the host that built it, so a config opened from another OS
+(WSL or Linux over a shared project `.iterion`, a shared `ITERION_HOME` or
+`--store-dir`) cannot run it as it is. When `after_create` is exactly the
+standard preset, in either variant, and the project path in it is not an
+absolute path on this host (`C:\proj` on Linux, `/mnt/c/proj` on Windows), the
+studio runs the preset of this host for the current project instead; the saved
+file is not rewritten (the log says "seed preset of another host"), so the
+other OS keeps working. A hook you wrote or edited yourself is neither
+replaced nor rewritten (for one that must run on both OSes, give it a
+`shell:` and a script of its own for each): if its text is plainly `sh` (`set -e`, `VAR=value`,
 `[ ... ]`, a `#!/bin/sh` line) and it has no `shell:`, it keeps running under
 `sh` or `bash` when one is on PATH (the log says so), and otherwise fails
 before starting with a message to add `shell:` or rewrite it for PowerShell.

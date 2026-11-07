@@ -75,6 +75,12 @@ type ManagerOptions struct {
 	// true means it changed and is written back. Injected from pkg/cli for
 	// the same reason as DefaultsFn.
 	MigrateConfig func(*Config) bool
+	// AdaptRuntime, when set, is called with the runtime copy of the config
+	// (the one the dispatcher runs) every time it is built, and may rewrite it
+	// in place for this host; true means it changed. The change is never
+	// persisted: the saved file may be shared with another OS. Injected from
+	// pkg/cli for the same reason as MigrateConfig.
+	AdaptRuntime func(*Config) bool
 }
 
 // Manager owns the lifecycle of an in-process Dispatcher instance.
@@ -93,6 +99,7 @@ type Manager struct {
 	projectDir       string
 	runEnv           []string
 	defaultsFn       func() (*Config, error)
+	adaptRuntime     func(*Config) bool
 
 	// saveMu serialises SaveConfig end to end (routing compilation and the
 	// command to the actor included) so reloads reach the actor in save order.
@@ -143,6 +150,7 @@ func NewManager(opts ManagerOptions) (*Manager, error) {
 		projectDir:       opts.ProjectDir,
 		runEnv:           append([]string(nil), opts.RunEnv...),
 		defaultsFn:       opts.DefaultsFn,
+		adaptRuntime:     opts.AdaptRuntime,
 		state:            ManagerStateIdle,
 	}
 	if raw, err := readConfigJSON(m.configPath); err == nil {
@@ -416,6 +424,10 @@ func (m *Manager) resolve(raw *Config) (*Config, error) {
 		return nil, err
 	}
 	m.warnUnsetTokenRefs(raw, rt)
+	if m.adaptRuntime != nil && m.adaptRuntime(rt) && m.logger != nil {
+		m.logger.Info("manager: the saved after_create hook is the seed preset of another host (its project path does not exist here): "+
+			"running the preset for this host instead; %s is unchanged", m.configPath)
+	}
 	return rt, nil
 }
 
