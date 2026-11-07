@@ -74,7 +74,7 @@ func newMovedProject(t *testing.T) movedProject {
 		t.Fatal(err)
 	}
 	writeFile(t, filepath.Join(oldStore, "dispatcher", "dispatcher.json"), string(dispatcherJSON))
-	writeFile(t, filepath.Join(oldStore, "dispatcher", "board.json"), `{"columns":["todo","done"]}`)
+	writeFile(t, filepath.Join(oldStore, "dispatcher", "board.json"), `{"states":[{"name":"todo","eligible":true},{"name":"done","terminal":true}]}`)
 	writeFile(t, filepath.Join(oldStore, "dispatcher", "issues", "a.json"), `{"id":"a","title":"first"}`)
 	writeFile(t, filepath.Join(oldStore, "dispatcher", "issues", "b.json"), `{"id":"b","title":"second"}`)
 	writeFile(t, filepath.Join(oldStore, "dispatcher", "events.jsonl"), "{\"seq\":0}\n{\"seq\":1}\n")
@@ -238,7 +238,7 @@ func TestRelocate_RefusesNonEmptyDestination(t *testing.T) {
 
 	t.Run("the defaults NativeStore creates are not data", func(t *testing.T) {
 		m := newMovedProject(t)
-		writeFile(t, filepath.Join(m.newProj.StoreDir, "dispatcher", "board.json"), `{"columns":["default"]}`)
+		writeFile(t, filepath.Join(m.newProj.StoreDir, "dispatcher", "board.json"), `{"states":[{"name":"default","eligible":true}]}`)
 		if err := os.MkdirAll(filepath.Join(m.newProj.StoreDir, "dispatcher", "issues"), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -248,7 +248,7 @@ func TestRelocate_RefusesNonEmptyDestination(t *testing.T) {
 		if err := Relocate(m.oldProj, m.newProj); err != nil {
 			t.Fatalf("Relocate: %v", err)
 		}
-		if got := readFile(t, filepath.Join(m.newProj.StoreDir, "dispatcher", "board.json")); got != `{"columns":["todo","done"]}` {
+		if got := readFile(t, filepath.Join(m.newProj.StoreDir, "dispatcher", "board.json")); got != `{"states":[{"name":"todo","eligible":true},{"name":"done","terminal":true}]}` {
 			t.Errorf("board.json = %q, want the source's board", got)
 		}
 	})

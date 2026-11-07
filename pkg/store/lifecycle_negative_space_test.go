@@ -263,6 +263,11 @@ var negativeSpaceAllowlist = map[string]allowEntry{
 	"pkg/store/mongo/runs.go :: Queued+Running":                                                                                        {[]string{"CountActiveRunsByTenant", "SaveRun"}, "CountsAgainstLaunchLimit twins inside $in filters (a bson expression cannot call a predicate): the launch-limit count, and SaveRun's routing-policy first-write window"},
 	"pkg/store/storetest/conformance.go :: Cancelled+Failed+FailedResumable+Finished+PausedOperator+PausedWaitingHuman+Queued+Running": {[]string{"testTombstoneRefusesWriters"}, "tombstone canary passes every status to prove no CAS writes on a deleted run"},
 
+	// -- pkg/dispatcher: the source-changed hold's per-status disposition.
+	"pkg/dispatcher/source_hold.go :: Queued+Running":                    {[]string{"reconcileSourceHolds"}, "source-hold disposition switch, live arm: an out-of-band resume is followed into running_state (each arm moves the card differently, not an eligibility set)"},
+	"pkg/dispatcher/source_hold.go :: Failed+Finished":                   {[]string{"reconcileSourceHolds"}, "source-hold disposition switch, final arm: completed_state for finished, failed_state for failed — deliberately not IsTerminal (failed_resumable and cancelled have their own arms)"},
+	"pkg/dispatcher/source_hold.go :: PausedOperator+PausedWaitingHuman": {[]string{"reconcileSourceHolds"}, "source-hold disposition switch, paused arm: the hold is dropped and reconcileStrandedPaused re-parks the card"},
+
 	// -- pkg/runview.
 	"pkg/runview/rewind.go :: Cancelled+Failed+FailedResumable+PausedOperator+PausedWaitingHuman+Queued": {[]string{"<pkg-level>"}, "rewindableStatuses: deliberately wider than CanOperatorResume (failed stays rewindable, queued claimable)"},
 	"pkg/runview/service_control.go :: FailedResumable+PausedOperator+PausedWaitingHuman":                {[]string{"CancelInactiveCtx"}, "flippable arm: queued has its own case, failed deliberately excluded, no running"},
