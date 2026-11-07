@@ -751,9 +751,9 @@ standard preset, in either variant, and the project path in it is not an
 absolute path on this host (`C:\proj` on Linux, `/mnt/c/proj` on Windows), the
 studio runs the preset of this host for the current project instead; the saved
 file is not rewritten (the log says "seed preset of another host"), so the
-other OS keeps working. A hook you wrote or edited yourself is not replaced:
-give it a `shell:` and a script of its own for each OS. A hook you wrote or edited
-yourself is never rewritten: if its text is plainly `sh` (`set -e`, `VAR=value`,
+other OS keeps working. A hook you wrote or edited yourself is neither
+replaced nor rewritten (for one that must run on both OSes, give it a
+`shell:` and a script of its own for each): if its text is plainly `sh` (`set -e`, `VAR=value`,
 `[ ... ]`, a `#!/bin/sh` line) and it has no `shell:`, it keeps running under
 `sh` or `bash` when one is on PATH (the log says so), and otherwise fails
 before starting with a message to add `shell:` or rewrite it for PowerShell.
