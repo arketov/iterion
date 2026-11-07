@@ -181,7 +181,7 @@ Where the finished work is, how to look at it and how to merge or throw it away:
 | `sh: command not found` or `/dev/null` in a hook on Windows | A custom hook written for `sh` but run by PowerShell, the Windows default | Write it in PowerShell, or name the shell with `shell:` / `ITERION_SHELL` ([Hooks](dispatcher.md#hooks)). A `path:` to a `.sh` file needs `sh` on Windows, or `shell:`/a `.ps1` instead |
 | Settings **Workflow path** rejected or not found | The path does not exist: a relative one is taken from your project root | Pick the bot from the list (the studio writes its full path) or fix the path |
 | The card sits in `review` and your project folder is unchanged | By design: the result is the branch `iterion/run/<id>`, not a merge | [Where the result goes](dispatcher.md#where-the-result-goes) |
-| The card keeps retrying | The run fails; the Retry queue shows the error and the attempt | Fix the cause, then press *Retry now* on its Retry queue row instead of waiting out the backoff; *Remove from queue* stops it (the card moves to `blocked`, reopen it to try again). Otherwise after `agent.max_attempts` (10) the card moves to `blocked` |
+| The card keeps retrying | The run fails; the Retry queue shows the error and the attempt | Fix the cause, then press *Retry now* on its Retry queue row instead of waiting out the backoff; *Remove from queue* stops it (the card moves to `blocked`, reopen it to try again); dragging the card out of the dispatch column on the board (native tracker) also drops its row on the next poll. Otherwise after `agent.max_attempts` (10) the card moves to `blocked` |
 
 ## Where to go next
 
