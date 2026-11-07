@@ -90,6 +90,7 @@ func TestIsOAuthRefreshRaceResult(t *testing.T) {
 		{"long answer quoting the phrase", "I looked at the logs. The failure said: Failed to refresh OAuth token: another Claude Code process is refreshing it. " + longPad(), false},
 		{"mid-text mention", "The run died because we saw Failed to refresh OAuth token earlier, so add a retry.", false},
 		{"json answer with the words", `{"summary": "Failed to refresh OAuth token: another Claude Code process is refreshing it", "ok": false}`, false},
+		{"json answer with the second phrase", `{"summary": "another Claude Code process is refreshing it", "ok": false}`, false},
 		{"genuine auth failure", "Failed to authenticate. API Error: 401 Invalid bearer token", false},
 	}
 	for _, tt := range tests {

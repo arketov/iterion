@@ -78,16 +78,17 @@ func isTransientAPIErrorResult(s string) bool {
 // answer, the schema correction got the same text back, and the node died as
 // SCHEMA_VALIDATION. Transient — the other process finishes the refresh.
 // Bounded length keeps an agent quoting the phrase in a long answer from
-// false-positiving; the first signature is prefix-anchored, so a mid-text
-// mention is not a match either.
+// false-positiving; both signatures are prefix-anchored (after an optional
+// "error:" lead), so a mention mid-text or inside a JSON answer is not a
+// match either.
 func isOAuthRefreshRaceResult(s string) bool {
 	t := strings.TrimSpace(s)
 	if t == "" || len(t) >= 400 {
 		return false
 	}
-	low := strings.ToLower(t)
+	low := strings.TrimSpace(strings.TrimPrefix(strings.ToLower(t), "error:"))
 	return strings.HasPrefix(low, "failed to refresh oauth token") ||
-		strings.Contains(low, "another claude code process is refreshing")
+		strings.HasPrefix(low, "another claude code process is refreshing")
 }
 
 // isModelUnavailableResult detects the claude CLI's "bad/unauthorized model"
