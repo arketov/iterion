@@ -104,7 +104,10 @@ The expensive part is never storing blobs, it is knowing what changed without
 re-reading everything — which is what git's index buys. The tracker keeps the
 equivalent stat cache (`path → size, mtime, hash`), so only files whose stat
 moved are re-hashed. The first capture of a run pays a full hash; later ones
-pay a directory walk plus the changed files. The `pre:` marker costs nothing at
+pay a directory walk plus the changed files. Content already in the pool is
+only read and hashed on that first capture: a temp file is written solely for
+new content (a pool miss), so re-running the same repository writes nothing to
+`workspace-objects`. The `pre:` marker costs nothing at
 all: nothing touches the workspace between one node finishing and the next
 starting, so it is a label pointing at the previous capture.
 
