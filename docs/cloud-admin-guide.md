@@ -243,7 +243,7 @@ rest (`actor_kind: system` — `scheduler:<bot>`, `board-dispatcher`,
 runs only outside cloud mode, where no audit store exists, so its actor
 never appears in a cloud log). `meta` names the bot, the workflow file,
 the repository, the `trigger` — the run's own provenance when it has one
-(`dispatcher` | `schedule` | `studio_chat` | `webhook`), else the client
+(`dispatcher` | `schedule` | `studio_chat` | `webhook` | `pipeline_board`), else the client
 that asked (`studio` for a browser, `api` for the CLI or any other API
 client), absent for a daemon — and the `delivery_id` or `schedule_id`
 that caused it; never the launch vars. IP and user-agent are recorded

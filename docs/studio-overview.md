@@ -119,10 +119,11 @@ Goal: hand a task to a bot through the Board and let the dispatcher run it.
    typo) is not run either: **⚠ no bot — won't start**.
 3. **Move it to Ready** (drag the card to the Ready column). Ready and In progress are
    the columns the dispatcher takes cards from.
-4. **Make sure the dispatcher is running.** Open **Dispatcher**. If it says *No
+4. **A configured dispatcher launches Ready cards; start it.** Open **Dispatcher**. If it says *No
    dispatcher running*, press **Use default settings**: it builds the default
    configuration from your project's own bots (`bots/`) and starts it. A dispatcher that was
    configured before resumes by itself when the studio starts.
+   With no dispatcher config at all, the studio launches Ready cards itself.
 5. Within one poll (30 s by default) the card moves to **In progress** and shows
    a live run chip. Click it to open the run console; the run is also under
    **Runs**, and the console header says which card it came from.

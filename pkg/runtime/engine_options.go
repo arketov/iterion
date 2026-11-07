@@ -517,6 +517,14 @@ func WithWorktreeBaseCommit(commit string) EngineOption {
 	return func(e *Engine) { e.worktreeBaseCommit = strings.TrimSpace(commit) }
 }
 
+// WithRequireWorktree makes a worktree:auto run fail at setup, instead of
+// degrading to in-place, when the workspace cannot host a worktree (not a git
+// repository, or no commits yet). For unattended launches (the studio's board
+// lane) that must not write into the operator's project folder.
+func WithRequireWorktree() EngineOption {
+	return func(e *Engine) { e.requireWorktree = true }
+}
+
 // WithCallback records the run-completion webhook parameters on the run
 // metadata at creation. url is the http/https endpoint the completion
 // notifier POSTs to when the run reaches a terminal state; token is an

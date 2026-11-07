@@ -66,7 +66,7 @@ flowchart TD
     ADM --> VARS{"validateVarConstraints over run.Inputs, then refuseBundleRequiringNewerEngine"}
     VARS -->|"a value outside its enum or matching, or a bundle naming a newer engine"| XVAR["failed before a worktree or a sandbox is spun up - the stored values are never re-judged on resume, the engine requirement always is"]
     VARS --> WT{"worktree auto"}
-    WT -->|"a subbot child whose parent declared no isolated:, a run that adopted a parent's sandbox, a store with no filesystem root, a non-git workspace, an unborn HEAD"| INPL["in place, each degradation logged - auto is best-effort isolation, never a precondition"]
+    WT -->|"a subbot child whose parent declared no isolated:, a run that adopted a parent's sandbox, a store with no filesystem root, a non-git workspace, an unborn HEAD - except an unattended board launch, which refuses the last two and fails at setup"| INPL["in place, each degradation logged - auto is best-effort isolation, never a precondition"]
     WT --> POOL["EnforceWorktreePoolBound, then git worktree add at the ANCHOR checkout's HEAD, not the main repo's - the bound warns, it never refuses a run"]
     POOL --> FIN0["the finalizeOnExit defer is installed here, covering every later exit path"]
     INPL --> WS

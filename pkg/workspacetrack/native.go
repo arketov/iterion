@@ -1,6 +1,7 @@
 package workspacetrack
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -238,6 +239,12 @@ func (n *Native) saveCache(runID string, c *statCache) error {
 // Capture walks the workspace, stores any content it has not seen, and
 // writes a manifest chained onto the run's current head.
 func (n *Native) Capture(runID, workspaceDir, label string) (*Snapshot, error) {
+	return n.CaptureContext(context.Background(), runID, workspaceDir, label)
+}
+
+// CaptureContext is Capture that aborts when ctx is done. An aborted capture
+// writes no snapshot and no cache and never latches Overflowed.
+func (n *Native) CaptureContext(ctx context.Context, runID, workspaceDir, label string) (*Snapshot, error) {
 	if runID == "" || workspaceDir == "" {
 		return nil, fmt.Errorf("workspacetrack: capture needs a run id and a workspace dir")
 	}
@@ -266,6 +273,11 @@ func (n *Native) Capture(runID, workspaceDir, label string) (*Snapshot, error) {
 	racyFrom := c.racyFrom
 
 	err := filepath.WalkDir(workspaceDir, func(path string, d fs.DirEntry, walkErr error) error {
+		// First, so it also fires on the root and on a tolerated error:
+		// a huge folder must not hold a cancelled run for the whole walk.
+		if cerr := ctx.Err(); cerr != nil {
+			return fmt.Errorf("workspacetrack: capture interrupted: %w", cerr)
+		}
 		if walkErr != nil {
 			// The ROOT failing is a different animal from a sub-directory
 			// failing, and must be fatal. WalkDir reports it as a single

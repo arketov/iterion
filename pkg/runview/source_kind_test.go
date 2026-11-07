@@ -18,6 +18,7 @@ func TestDeriveSourceKind(t *testing.T) {
 		{"plain launch", store.Run{}, "manual"},
 		{"schedule", store.Run{Source: &store.RunSource{Kind: store.RunSourceKindSchedule, ScheduleID: "s1"}}, "schedule"},
 		{"dispatcher", store.Run{Source: &store.RunSource{Kind: store.RunSourceKindDispatcher, IssueID: "native:1"}}, "dispatcher"},
+		{"pipeline board", store.Run{Source: &store.RunSource{Kind: store.RunSourceKindPipelineBoard, IssueID: "native:1"}}, "pipeline_board"},
 		{"studio chat", store.Run{Source: &store.RunSource{Kind: store.RunSourceKindStudioChat, ClientID: "browser", ConversationID: "tab"}}, "studio_chat"},
 		{"webhook owner", store.Run{OwnerID: "webhook:gitlab"}, "webhook"},
 		// The TYPED webhook provenance the launch path now stamps (#1501):

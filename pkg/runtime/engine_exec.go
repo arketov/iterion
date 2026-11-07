@@ -817,7 +817,7 @@ func (e *Engine) snapshotAtNodeBoundary(rs *runState, nodeID string) {
 		// the wrong tool — the workspace is the operator's live checkout
 		// and `git add -A` would stage their own work. iterion's own
 		// versioning covers this shape.
-		e.captureWorkspace(rs, nodeID, workspacetrack.PhasePost)
+		e.captureWorkspace(rs.ctx, rs, nodeID, workspacetrack.PhasePost)
 		return
 	}
 	loopIter := e.currentLoopIteration(nodeID, runStateIterationCounters(rs))
@@ -1095,15 +1095,22 @@ func (e *Engine) selectEdgeRS(rs *runState, fromNodeID string, output map[string
 // captureWorkspace records the workspace through iterion's own tracker.
 // Best-effort, like its git twin: a capture failure costs the ability to
 // rewind that boundary's files, never the run.
-func (e *Engine) captureWorkspace(rs *runState, nodeID, phase string) {
+func (e *Engine) captureWorkspace(ctx context.Context, rs *runState, nodeID, phase string) {
 	if e.workspaceTracker == nil {
 		return
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	loopIter := e.currentLoopIteration(nodeID, runStateIterationCounters(rs))
-	snap, err := e.workspaceTracker.Capture(rs.runID, e.workDir, workspacetrack.Label(phase, nodeID, loopIter))
+	snap, err := e.workspaceTracker.CaptureContext(ctx, rs.runID, e.workDir, workspacetrack.Label(phase, nodeID, loopIter))
 	if err != nil {
 		if e.logger != nil {
-			e.logger.Warn("workspace capture: node %q iter %d: %v", nodeID, loopIter, err)
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				e.logger.Warn("workspace capture: node %q iter %d abandoned (cancelled or over its time budget): %v", nodeID, loopIter, err)
+			} else {
+				e.logger.Warn("workspace capture: node %q iter %d: %v", nodeID, loopIter, err)
+			}
 		}
 		// Invalidate the remembered anchor. It now predates whatever this
 		// node wrote, so leaving it would have the NEXT node's pre-marker
@@ -1165,10 +1172,12 @@ func (e *Engine) capturePauseBoundary(rs *runState, nodeID string) {
 // the run is persisted in a rewindable status an operator's `iterion
 // rewind` may claim it and start its own Capture on the same run, and
 // two concurrent captures of one run is not a contract this tracker
-// offers. The walk itself is bounded work on a local filesystem, and it
-// no-ops outright wherever versioning is off — cloud runners included,
-// which is where a termination grace period would otherwise argue for
-// the opposite order.
+// offers. The walk is NOT bounded work (a big project folder takes minutes),
+// and a status write waits behind it, so it runs under a detached context
+// with a time budget (stopBoundaryCaptureBudget): losing the boundary costs
+// rewind fidelity, never the cancel. It no-ops outright wherever versioning
+// is off — cloud runners included, which is where a termination grace period
+// would otherwise argue for the opposite order.
 func (e *Engine) captureStopBoundary(rs *runState, nodeID, phase string) {
 	if e.workDir == "" || rs == nil || nodeID == "" || e.workspaceTracker == nil {
 		return
@@ -1186,8 +1195,20 @@ func (e *Engine) captureStopBoundary(rs *runState, nodeID, phase string) {
 		return
 	}
 	rs.stopCaptured[label] = true
-	e.captureWorkspace(rs, nodeID, phase)
+	// The run's context is usually ALREADY cancelled here (that is why the run
+	// is stopping), so the capture gets a live context of its own, bounded.
+	parent := rs.ctx
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), stopBoundaryCaptureBudget)
+	defer cancel()
+	e.captureWorkspace(ctx, rs, nodeID, phase)
 }
+
+// stopBoundaryCaptureBudget bounds the fail:/pause: capture taken when a node
+// stops. A package var so a test can shrink it.
+var stopBoundaryCaptureBudget = 10 * time.Second
 
 // aliasWorkspacePre labels the state a node is about to execute against.
 // Nothing touches the workspace between the previous node's capture and
@@ -1211,7 +1232,7 @@ func (e *Engine) aliasWorkspacePre(rs *runState, nodeID string) {
 		// either would mint a spurious `resume:` and launder a fan-out's
 		// real production out of the scope.
 		rs.resumed = false
-		e.captureWorkspace(rs, nodeID, workspacetrack.PhaseResume)
+		e.captureWorkspace(rs.ctx, rs, nodeID, workspacetrack.PhaseResume)
 		if !hasPre && rs.lastWorkspaceSnapshot != "" {
 			// The run stopped BEFORE this node was bracketed — an
 			// operator pause is checked at the top of the iteration, so
@@ -1236,7 +1257,7 @@ func (e *Engine) aliasWorkspacePre(rs *runState, nodeID string) {
 	if head == "" {
 		// First node of a fresh run: capture, since there is no earlier
 		// boundary to point at.
-		e.captureWorkspace(rs, nodeID, workspacetrack.PhasePre)
+		e.captureWorkspace(rs.ctx, rs, nodeID, workspacetrack.PhasePre)
 		return
 	}
 	if err := e.workspaceTracker.Alias(rs.runID, label, head); err != nil && e.logger != nil {

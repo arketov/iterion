@@ -606,13 +606,19 @@ perform an N+1 traversal over issues, checkpoints and child runs:
 | `/api/v1/pipeline-board/bulk/recompute-deps` | POST | Re-promote `waiting_deps` tickets whose blockers are now satisfied |
 
 **Local concurrency cap.** `iterion studio` caps concurrent **root** pipelines
-at `--max-concurrent-pipelines` (default 3; also
-`ITERION_MAX_CONCURRENT_PIPELINES`). Ready tickets and direct launches beyond
+at `--max-concurrent-pipelines` (default 3 on `iterion studio`, the desktop app
+and `iterion server`; also `ITERION_MAX_CONCURRENT_PIPELINES`). Ready tickets and direct launches beyond
 the cap wait until a slot frees; a paused-for-review pipeline frees its slot so
 reviews never starve the queue. `0` disables the cap. Local (in-process) only;
 cloud admission stays on the NATS queue + org/team gates. The launch loop
-stands down while an operator-started dispatcher is running (it would otherwise
-race the same tickets).
+stands down while the project has a saved dispatcher config (started, paused,
+stopped or errored): a configured dispatcher owns the board, and Stop means
+nothing is launched from it. Only a project with no dispatcher config uses the
+loop (or the explicit "Launch now"). A board launch requires a git worktree:
+in a non-git folder, or a repository with no commits, it fails at setup instead
+of running in place in the project folder, and its run is labelled with the
+source `pipeline_board`. See
+[ADR-163](adr/163-the-studio-board-loop-yields-to-a-configured-dispatcher.md).
 
 Task ingestion reuses native issues in this slice. A task appears before launch
 only when its `Issue.Bot` names a bot; once a run exists, manual/API/scheduled

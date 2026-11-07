@@ -279,10 +279,20 @@ func (e *Engine) Run(ctx context.Context, runID string, inputs map[string]any) (
 				e.logger.Info("runtime: store has no filesystem root — running in place in %s (worktree isolation skipped: an ephemeral per-run workspace cannot host a durable worktree)", e.workDir)
 			}
 		} else if !workspaceIsGitRepo(e.workDir) {
+			if e.requireWorktree {
+				werr := fmt.Errorf("runtime: workspace %s is not a git repository and this launch requires an isolated worktree — `git init` and commit in the project folder, or declare `worktree: none` in the bot to run in place", e.workDir)
+				st, stCode := e.markFailedBestEffort(ctx, runID, "worktree setup", werr)
+				return setupErrFrom(st, stCode, werr)
+			}
 			if e.logger != nil {
 				e.logger.Warn("runtime: workspace %s is not a git repository — running in-place (set `worktree: none` to silence this)", e.workDir)
 			}
 		} else if !workspaceHasCommits(e.workDir) {
+			if e.requireWorktree {
+				werr := fmt.Errorf("runtime: workspace %s has no commits yet and this launch requires an isolated worktree (a worktree needs a HEAD to anchor on) — make a first commit in the project folder, or declare `worktree: none` in the bot to run in place", e.workDir)
+				st, stCode := e.markFailedBestEffort(ctx, runID, "worktree setup", werr)
+				return setupErrFrom(st, stCode, werr)
+			}
 			// An empty repository (unborn HEAD — a freshly created forge
 			// repo right after clone) can't anchor a worktree. Degrade
 			// in-place: the bot's first commit lands on the unborn default

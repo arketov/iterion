@@ -1053,6 +1053,9 @@ session, not the recovery marker.
 
 ## Dispatcher and last_run
 
+> The studio's launch loop stands down while a dispatcher config exists, so
+> the table describes the dispatcher whenever one is configured.
+
 A run is durable across a studio or dispatcher restart. If the board card
 still points at that run (`issue.last_run`) and the status is live or
 waiting, the dispatcher **does not mint a new run id**.

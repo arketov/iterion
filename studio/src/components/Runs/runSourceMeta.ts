@@ -1,6 +1,7 @@
 import {
   ClockIcon,
   ChatBubbleIcon,
+  LayersIcon,
   LightningBoltIcon,
   PersonIcon,
   RocketIcon,
@@ -27,6 +28,7 @@ export const SOURCE_KIND_ORDER: ReadonlyArray<RunSourceKind> = [
   "webhook",
   "schedule",
   "dispatcher",
+  "pipeline_board",
   "fork",
   "shard",
 ];
@@ -84,6 +86,14 @@ export const SOURCE_META: Record<RunSourceKind, SourceMeta> = {
     Icon: RocketIcon,
     variant: "info",
   },
+  // The studio's own pipeline board: the launch loop for Ready cards and the
+  // "Launch now" action. Not a dispatcher run, not a hand launch.
+  pipeline_board: {
+    label: "Pipeline board",
+    description: "Launched from a pipeline-board card (the studio launch loop or Launch now).",
+    Icon: LayersIcon,
+    variant: "info",
+  },
   // Resumed-from-a-prior-turn child run (POST /runs/:id/fork). Share1Icon
   // is the closest radix has to a branching glyph.
   fork: {
@@ -113,6 +123,7 @@ export function normalizeSourceKind(raw: string | undefined | null): RunSourceKi
     case "webhook":
     case "schedule":
     case "dispatcher":
+    case "pipeline_board":
     case "fork":
     case "shard":
     case "manual":

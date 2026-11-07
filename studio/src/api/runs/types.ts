@@ -42,6 +42,7 @@ export type RunSourceKind =
   | "webhook"
   | "schedule"
   | "dispatcher"
+  | "pipeline_board"
   | "fork"
   | "shard";
 
@@ -187,7 +188,7 @@ export interface RunSummary {
   // T-31).
   queue_position?: number;
   // Derived classifier (manual | studio_chat | webhook | schedule |
-  // dispatcher | fork | shard).
+  // dispatcher | pipeline_board | fork | shard).
   // Server omits the field for legacy runs and for the default value
   // "manual"; the UI must treat empty as "manual" — see
   // runSourceMeta.normalizeSourceKind.

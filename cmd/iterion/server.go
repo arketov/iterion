@@ -318,6 +318,8 @@ func runServer(cmd *cobra.Command, _ []string) error {
 			TrustedProxyCIDRs: cfg.Auth.TrustedProxyCIDRs,
 			TrustedProxyHops:  cfg.Auth.TrustedProxyHops,
 			ForwardedHeader:   cfg.Auth.ForwardedHeader,
+
+			MaxConcurrentPipelines: cli.DefaultMaxConcurrentPipelines,
 		}, newPrinter())
 	}
 

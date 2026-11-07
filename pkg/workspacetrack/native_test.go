@@ -1,6 +1,7 @@
 package workspacetrack
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -1492,5 +1493,36 @@ func TestNative_RefusesMalformedHash(t *testing.T) {
 	valid := strings.Repeat("ab", 32)
 	if _, err := tr.Object(valid); err == nil {
 		t.Error("a well-formed but absent hash should still error")
+	}
+}
+
+// A capture abandoned through its context leaves nothing behind: no snapshot,
+// no head, no overflow latch, no poisoned cache — so the stop-boundary budget
+// of a cancelled run can never corrupt the capture a later rewind takes.
+func TestCaptureContextAbortsWithoutSideEffects(t *testing.T) {
+	ws := t.TempDir()
+	for i := 0; i < 2000; i++ {
+		write(t, ws, fmt.Sprintf("d%d/f%d.txt", i%20, i), "x")
+	}
+	n := NewNative(t.TempDir())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	start := time.Now()
+	_, err := n.CaptureContext(ctx, "run1", ws, "fail:n")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("CaptureContext err = %v, want context.Canceled", err)
+	}
+	if d := time.Since(start); d > 5*time.Second {
+		t.Errorf("aborted capture took %s", d)
+	}
+	if h := n.Head("run1"); h != "" {
+		t.Errorf("Head = %q, want none after an aborted capture", h)
+	}
+	if n.Overflowed("run1") {
+		t.Error("an aborted capture latched Overflowed")
+	}
+	if _, err := n.Capture("run1", ws, "post:n"); err != nil {
+		t.Fatalf("a Background capture after an abort: %v", err)
 	}
 }

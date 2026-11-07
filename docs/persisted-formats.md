@@ -70,7 +70,7 @@ features can legitimately be absent.
 
 `source` is the run's TYPED provenance — who launched it — and is absent for
 an ordinary CLI / Studio Launch / fork-spawned run. `kind` is one of
-`dispatcher`, `schedule`, `studio_chat`, `webhook`
+`dispatcher`, `schedule`, `studio_chat`, `webhook`, `pipeline_board`
 ([`store.RunSourceKind*`](../pkg/store/run.go)), open-world like every other
 vocabulary here: a reader must accept a kind it does not know rather than
 treat the run as unlaunched. Beside it rides the id of the record that

@@ -68,11 +68,12 @@ func runHeadless() {
 	go func() {
 		printer := cli.NewPrinter(cli.OutputJSON)
 		opts := cli.StudioOptions{
-			Port:      -1,
-			Bind:      "127.0.0.1",
-			Dir:       projectDir,
-			StoreDir:  projectStoreDir,
-			NoBrowser: true,
+			Port:                   -1,
+			Bind:                   "127.0.0.1",
+			Dir:                    projectDir,
+			StoreDir:               projectStoreDir,
+			MaxConcurrentPipelines: cli.DefaultMaxConcurrentPipelines,
+			NoBrowser:              true,
 			OnReady: func(addr string) {
 				select {
 				case addrCh <- addr:
