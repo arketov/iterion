@@ -1881,12 +1881,20 @@ command line at the first line break — and iterion's multi-line
 --output-format=stream-json requires --verbose`. Both host spawns of
 the backend (the session and the structured-output formatting pass) therefore
 resolve the shim to the `claude.exe` it wraps and start that directly
-(`claudesdk.AdaptHostCmd`; the SDK's own spawn does the same); a `.cmd`/`.bat`
-that cannot be resolved (a node-based shim) fails the start with an error as
-soon as an argument holds a line break, instead of running a silently different
-command. `--verbose` itself is always emitted, because the SDK always
-speaks `stream-json`. Fix: point the node's `command:` / the CLI path at the
-native `claude.exe`.
+(`claudesdk.AdaptHostCmd`; the SDK's own spawn does the same). A `.cmd`/`.bat`
+that cannot be resolved (a node-based shim) still goes through `cmd.exe`, whose
+command line is capped at 8191 characters: there, when the system prompt holds a
+line break or the command line exceeds 8000 characters, the
+`--system-prompt` / `--append-system-prompt` value is written to a private
+temporary file (0600, removed when the pass ends) and passed as
+`--system-prompt-file` / `--append-system-prompt-file` — same replace/append
+semantics ([ADR-061](adr/061-per-backend-system-prompt-composition-mode.md)). The CLI must
+know those flags; an older one fails the start with an unknown-option error. A
+line break left in any other argument (`--json-schema`, the positional prompt of
+the one-shot formatting pass) still fails the start with an error instead of
+running a silently different command. `--verbose` itself is always emitted,
+because the SDK always speaks `stream-json`. Fix: point the node's `command:` /
+the CLI path at the native `claude.exe`.
 
 **MCP isolation.** User, project and plugin MCP server names must stay outside
 Iterion's reserved infrastructure namespace (`iterion`, `iterion_board`,

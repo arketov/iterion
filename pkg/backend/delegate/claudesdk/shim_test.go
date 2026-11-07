@@ -1,9 +1,11 @@
 package claudesdk
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -175,7 +177,7 @@ func TestAdaptHostCmd_SwapsNpmShimForNativeExe(t *testing.T) {
 	writeShimFile(t, exe, "MZ")
 
 	cmd := &exec.Cmd{Path: shim, Args: []string{"claude", "--append-system-prompt", "a\nb", "--verbose"}}
-	adaptHostCmd("windows", cmd)
+	adaptHostCmd("windows", cmd, nil)
 	if cmd.Path != exe {
 		t.Errorf("Path = %q, want %q", cmd.Path, exe)
 	}
@@ -193,7 +195,7 @@ func TestAdaptHostCmd_UnresolvableShimWithLineBreakFailsStart(t *testing.T) {
 	writeShimFile(t, shim, npmNodeShim)
 
 	cmd := &exec.Cmd{Path: shim, Args: []string{"claude", "--append-system-prompt", "a\nb"}}
-	adaptHostCmd("windows", cmd)
+	adaptHostCmd("windows", cmd, nil)
 	if cmd.Err == nil {
 		t.Fatal("cmd.Err must carry the refusal so Start fails")
 	}
@@ -202,14 +204,14 @@ func TestAdaptHostCmd_UnresolvableShimWithLineBreakFailsStart(t *testing.T) {
 	}
 
 	flat := &exec.Cmd{Path: shim, Args: []string{"claude", "--print"}}
-	adaptHostCmd("windows", flat)
+	adaptHostCmd("windows", flat, nil)
 	if flat.Err != nil {
 		t.Errorf("single-line args through a shim are intact: %v", flat.Err)
 	}
 }
 
 func TestAdaptHostCmd_NoOpElsewhere(t *testing.T) {
-	adaptHostCmd("windows", nil)
+	adaptHostCmd("windows", nil, nil)
 	for _, c := range []struct {
 		goos, path string
 	}{
@@ -217,14 +219,155 @@ func TestAdaptHostCmd_NoOpElsewhere(t *testing.T) {
 		{"windows", `C:\claude\claude.exe`},
 	} {
 		cmd := &exec.Cmd{Path: c.path, Args: []string{"claude", "a\nb"}}
-		adaptHostCmd(c.goos, cmd)
+		adaptHostCmd(c.goos, cmd, nil)
 		if cmd.Path != c.path || cmd.Err != nil {
 			t.Errorf("%s %s: changed (Path=%q Err=%v)", c.goos, c.path, cmd.Path, cmd.Err)
 		}
 	}
 	pre := &exec.Cmd{Path: `C:\npm\claude.cmd`, Args: []string{"claude", "a\nb"}, Err: os.ErrNotExist}
-	adaptHostCmd("windows", pre)
+	adaptHostCmd("windows", pre, nil)
 	if pre.Err != os.ErrNotExist {
 		t.Error("an Err already set by LookPath must be left as is")
+	}
+}
+
+// recordingSpill is a SpillFunc that keeps what it was asked to write and
+// answers with a fixed Windows-looking path per name.
+type recordingSpill struct {
+	files map[string]string
+	calls int
+}
+
+func (r *recordingSpill) spill(name string, content []byte) (string, error) {
+	r.calls++
+	if r.files == nil {
+		r.files = map[string]string{}
+	}
+	r.files[name] = string(content)
+	return `C:\tmp\` + name, nil
+}
+
+func nodeShimInDir(t *testing.T) string {
+	t.Helper()
+	shim := filepath.Join(t.TempDir(), "claude.cmd")
+	writeShimFile(t, shim, npmNodeShim)
+	return shim
+}
+
+func claudeArgv(cfg processConfig) []string {
+	return append([]string{"claude"}, buildArgs(cfg, true)...)
+}
+
+// A node-based shim cannot be swapped for a native exe, so the multi-line
+// system prompt must leave argv through a file instead of failing the start.
+func TestAdaptHostCmd_UnresolvableShimSpillsMultilineSystemPrompt(t *testing.T) {
+	shim := nodeShimInDir(t)
+	prompt := "Ты планировщик.\n- rule"
+	argv := claudeArgv(processConfig{AppendSystemPrompt: prompt, Model: "m"})
+	cmd := &exec.Cmd{Path: shim, Args: append([]string(nil), argv...)}
+	rec := &recordingSpill{}
+
+	adaptHostCmd("windows", cmd, rec.spill)
+
+	if cmd.Err != nil {
+		t.Fatalf("Err = %v, want nil: the prompt leaves argv through a file", cmd.Err)
+	}
+	want := make([]string, 0, len(argv))
+	for i := 0; i < len(argv); i++ {
+		if argv[i] == "--append-system-prompt" {
+			want = append(want, "--append-system-prompt-file", `C:\tmp\append-system-prompt.md`)
+			i++
+			continue
+		}
+		want = append(want, argv[i])
+	}
+	if !reflect.DeepEqual(cmd.Args, want) {
+		t.Errorf("Args = %q, want %q", cmd.Args, want)
+	}
+	if got := rec.files["append-system-prompt.md"]; got != prompt {
+		t.Errorf("spilled content = %q, want %q", got, prompt)
+	}
+	if cmd.Path != shim {
+		t.Errorf("Path = %q, want the shim unchanged", cmd.Path)
+	}
+}
+
+func TestAdaptHostCmd_UnresolvableShimSpillsOversizedSingleLinePrompt(t *testing.T) {
+	shim := nodeShimInDir(t)
+
+	big := strings.Repeat("x", 9000)
+	cmd := &exec.Cmd{Path: shim, Args: claudeArgv(processConfig{AppendSystemPrompt: big})}
+	rec := &recordingSpill{}
+	adaptHostCmd("windows", cmd, rec.spill)
+	if cmd.Err != nil || rec.files["append-system-prompt.md"] != big {
+		t.Errorf("oversized prompt not spilled (Err=%v, files=%d)", cmd.Err, len(rec.files))
+	}
+	if strings.Contains(strings.Join(cmd.Args, " "), big) {
+		t.Error("the oversized prompt must be gone from argv")
+	}
+
+	small := claudeArgv(processConfig{AppendSystemPrompt: strings.Repeat("x", 100)})
+	short := &exec.Cmd{Path: shim, Args: append([]string(nil), small...)}
+	rec = &recordingSpill{}
+	adaptHostCmd("windows", short, rec.spill)
+	if rec.calls != 0 || !reflect.DeepEqual(short.Args, small) || short.Err != nil {
+		t.Errorf("a short one-line prompt must stay on argv (calls=%d Err=%v Args=%q)", rec.calls, short.Err, short.Args)
+	}
+}
+
+func TestAdaptHostCmd_UnresolvableShimSpillsSystemPromptFlagAndRejectsLeftovers(t *testing.T) {
+	shim := nodeShimInDir(t)
+	rec := &recordingSpill{}
+	cmd := &exec.Cmd{Path: shim, Args: []string{"claude", "--system-prompt", "a\nb", "--verbose"}}
+	adaptHostCmd("windows", cmd, rec.spill)
+	want := []string{"claude", "--system-prompt-file", `C:\tmp\system-prompt.md`, "--verbose"}
+	if cmd.Err != nil || !reflect.DeepEqual(cmd.Args, want) {
+		t.Errorf("Err=%v Args=%q, want %q", cmd.Err, cmd.Args, want)
+	}
+	if rec.files["system-prompt.md"] != "a\nb" {
+		t.Errorf("spilled = %q", rec.files["system-prompt.md"])
+	}
+
+	// A line break the spill does not cover is still refused.
+	left := &exec.Cmd{Path: shim, Args: []string{"claude", "--append-system-prompt", "a\nb", "--json-schema", "{\n}"}}
+	adaptHostCmd("windows", left, (&recordingSpill{}).spill)
+	if left.Err == nil {
+		t.Error("a multi-line --json-schema through a shim must still fail the start")
+	}
+}
+
+func TestAdaptHostCmd_UnresolvableShimSpillErrorFailsStart(t *testing.T) {
+	shim := nodeShimInDir(t)
+	boom := errors.New("disk full")
+	orig := []string{"claude", "--append-system-prompt", "a\nb", "--verbose"}
+	cmd := &exec.Cmd{Path: shim, Args: append([]string(nil), orig...)}
+	adaptHostCmd("windows", cmd, func(string, []byte) (string, error) { return "", boom })
+	if !errors.Is(cmd.Err, boom) {
+		t.Errorf("Err = %v, want it to wrap the spill error", cmd.Err)
+	}
+	if !reflect.DeepEqual(cmd.Args, orig) {
+		t.Errorf("Args changed on a failed spill: %q", cmd.Args)
+	}
+}
+
+func TestAdaptHostCmd_NativeSwapAndNonShimNeverSpill(t *testing.T) {
+	dir := t.TempDir()
+	shim := filepath.Join(dir, "claude.cmd")
+	exe := filepath.Join(dir, "node_modules", "@anthropic-ai", "claude-code", "bin", "claude.exe")
+	writeShimFile(t, shim, npmNativeShim)
+	writeShimFile(t, exe, "MZ")
+
+	for _, c := range []struct{ goos, path string }{
+		{"windows", shim},
+		{"windows", `C:\claude\claude.exe`},
+		{"linux", "/usr/bin/claude.cmd"},
+	} {
+		orig := []string{"claude", "--append-system-prompt", "a\nb"}
+		cmd := &exec.Cmd{Path: c.path, Args: append([]string(nil), orig...)}
+		rec := &recordingSpill{}
+		adaptHostCmd(c.goos, cmd, rec.spill)
+		if rec.calls != 0 || cmd.Err != nil || !reflect.DeepEqual(cmd.Args, orig) {
+			t.Errorf("%s %s: spilled or changed (calls=%d Err=%v Args=%q)", c.goos, c.path, rec.calls, cmd.Err, cmd.Args)
+		}
 	}
 }
