@@ -672,6 +672,18 @@ func (c *Dispatcher) lastRunHoldBeforeClaim(iss tracker.Issue) bool {
 		reason := fmt.Sprintf("last run %s was cancelled by the operator — resume it explicitly, or `iterion issue update --clear-last-run` to free the ticket", prev)
 		c.recordLastRunHold(iss, reason)
 		return true
+	case store.RunStatusFinished:
+		// A clean finish does not hold the card — an operator dragging it
+		// back to an eligible column is the re-queue gesture. But when the
+		// DISPATCHER itself returned the card to completed_state (stamped
+		// run_finished) and that column is eligible, taking it again is an
+		// endless loop for a bot that does not move the card. Any operator
+		// move overwrites the stamp, so the gesture still works.
+		if iss.StateReason == tracker.ReasonRunFinished {
+			reason := fmt.Sprintf("last run %s finished cleanly and the dispatcher itself returned the card to %q — not re-dispatching; move the card to another column and back to re-queue it", prev, iss.WorkflowState)
+			c.recordLastRunHold(iss, reason)
+			return true
+		}
 	}
 
 	resumeID := ""
@@ -952,7 +964,9 @@ func (c *Dispatcher) resolveRunID(ctx context.Context, iss tracker.Issue) (runID
 	// the card: dragging it back to an eligible column is the
 	// operator's re-queue gesture (see lastRunForbidsFresh) — except an
 	// unfinished completed-state move, already handled in dispatch
-	// (finishedTransitionPending) before this point.
+	// (finishedTransitionPending) before this point, and a card the
+	// dispatcher itself returned (run_finished), held before the claim in
+	// lastRunHoldBeforeClaim.
 	if prev := c.lastRunID(iss.ID); prev != "" && !missingResumeWorkspace {
 		status, known := c.runStatusOnDisk(prev)
 		if !known {

@@ -255,6 +255,7 @@ func New(opts Options) (*Dispatcher, error) {
 // immediately; use Stop to shut down.
 func (c *Dispatcher) Start(ctx context.Context) {
 	c.startOnce.Do(func() {
+		c.warnCompletedStateIsLaunchColumn(c.cfg.Load())
 		c.sweepStaleLocalClaims()
 		c.startClaimReaper()
 		errtrack.Go("dispatcher.actorLoop", func() { c.actorLoop(ctx) })
@@ -466,6 +467,9 @@ func (c *Dispatcher) Reload(cfg *Config) {
 // runner. The caller keeps ownership of the runner it replaced and closes it
 // once Stop has drained the workers still dispatching on it.
 func (c *Dispatcher) ReloadWithRunner(cfg *Config, r Runner) {
+	// On the caller's goroutine, not the actor: the board read must not
+	// become a blocking tracker call on the actor (ADR-028).
+	c.warnCompletedStateIsLaunchColumn(cfg)
 	select {
 	case c.cmds <- cmdReload{cfg: cfg, runner: r}:
 	case <-c.stop:
@@ -479,6 +483,33 @@ func (c *Dispatcher) currentRunner() Runner {
 
 func (c *Dispatcher) setRunner(r Runner) {
 	c.runner.Store(&runnerBox{r: r})
+}
+
+// warnCompletedStateIsLaunchColumn warns when agent.completed_state names a
+// launch (eligible) column: a bot that does not move the card itself would
+// be dispatched again after every clean run. The dispatcher stamps the card
+// run_finished and holds it (lastRunHoldBeforeClaim), so this is a warning,
+// never a rejection. Trackers that cannot list their launch columns
+// (forge trackers) are not covered.
+func (c *Dispatcher) warnCompletedStateIsLaunchColumn(cfg *Config) {
+	if cfg == nil || cfg.Agent.CompletedState == "" || cfg.Agent.CompletedState == cfg.Agent.RunningState {
+		return
+	}
+	l, ok := c.tracker.(tracker.LaunchStateLister)
+	if !ok {
+		return
+	}
+	states, err := l.LaunchStates()
+	if err != nil {
+		c.logger.Debug("dispatcher: completed_state check: cannot read the launch states: %v", err)
+		return
+	}
+	for _, s := range states {
+		if s == cfg.Agent.CompletedState {
+			c.logger.Warn("dispatcher: agent.completed_state %q is also a launch (eligible) column — a bot that does not move the card itself would be re-dispatched after every clean run; the dispatcher stamps the card run_finished and holds it until an operator moves it to another column and back. Point completed_state at a non-eligible column (or `none`) unless the bot moves the card itself.", cfg.Agent.CompletedState)
+			return
+		}
+	}
 }
 
 // Pause stops new dispatches without touching runs already in flight

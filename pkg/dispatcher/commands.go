@@ -944,6 +944,13 @@ type ownedFromUpdater interface {
 	UpdateStateOwnedFrom(ctx context.Context, id, from, to string, tok tracker.ClaimToken) (bool, error)
 }
 
+// ownedFromReasonUpdater is ownedFromUpdater stamping an explicit
+// descriptive provenance on the card (native.Adapter over
+// BoardStore.SetStateOwnedFromReason).
+type ownedFromReasonUpdater interface {
+	UpdateStateOwnedFromReason(ctx context.Context, id, from, to string, tok tracker.ClaimToken, reason string) (bool, error)
+}
+
 // fencedUpdateState routes a state move through the claim fence when a
 // session token is available (UpdateStateOwned), else the legacy path.
 // The fence is what makes a superseded holder's late move a typed
@@ -1172,6 +1179,10 @@ func (c *Dispatcher) moveToAwaitingInput(issueID, identifier string, sess *claim
 //     board, blocking guard, etc.) — log + leave in RunningState.
 //     Operators with custom boards aren't forced to opt out.
 //
+// The move is stamped tracker.ReasonRunFinished (Issue.StateReason) so that
+// a CompletedState which is also a launch column does not re-dispatch the
+// card after every clean run (see lastRunHoldBeforeClaim).
+//
 // The motivation lives in the cfg.Agent.CompletedState comment in
 // config.go; this helper is just the application path. Detached
 // ctx is the caller's transition budget so a winding-down dispatcher
@@ -1181,12 +1192,26 @@ func (c *Dispatcher) maybeTransitionToCompleted(ctx context.Context, issueID, id
 		return nil
 	}
 	if sess != nil && c.leaser != nil {
-		if fu, ok := c.leaser.(ownedFromUpdater); ok {
-			// ONE fenced CAS: "still in the running column" and the move
-			// are the same write. A probe followed by a fenced overwrite
-			// lost an operator move that landed in between — while the
-			// watchdog, judging on the CAS-observed state, honoured it.
-			changed, err := fu.UpdateStateOwnedFrom(ctx, issueID, runningTarget, completed, sess.Token())
+		// ONE fenced CAS: "still in the running column" and the move are
+		// the same write. A probe followed by a fenced overwrite lost an
+		// operator move that landed in between — while the watchdog,
+		// judging on the CAS-observed state, honoured it. The move is
+		// stamped ReasonRunFinished so a card returned to an eligible
+		// column is told apart from one an operator dragged there
+		// (lastRunHoldBeforeClaim); a lease backend without the reasoned
+		// CAS still moves the card, unstamped.
+		var move func() (bool, error)
+		if fr, ok := c.leaser.(ownedFromReasonUpdater); ok {
+			move = func() (bool, error) {
+				return fr.UpdateStateOwnedFromReason(ctx, issueID, runningTarget, completed, sess.Token(), tracker.ReasonRunFinished)
+			}
+		} else if fu, ok := c.leaser.(ownedFromUpdater); ok {
+			move = func() (bool, error) {
+				return fu.UpdateStateOwnedFrom(ctx, issueID, runningTarget, completed, sess.Token())
+			}
+		}
+		if move != nil {
+			changed, err := move()
 			switch {
 			case errors.Is(err, tracker.ErrNotFound):
 				// Issue disappeared from the tracker — refreshRunningStates'

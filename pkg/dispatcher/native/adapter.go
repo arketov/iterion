@@ -191,6 +191,16 @@ func (a *Adapter) UpdateStateOwnedFrom(ctx context.Context, id, from, to string,
 	return changed, err
 }
 
+// UpdateStateOwnedFromReason is UpdateStateOwnedFrom stamping an explicit
+// descriptive provenance on the card (BoardStore.SetStateOwnedFromReason).
+func (a *Adapter) UpdateStateOwnedFromReason(ctx context.Context, id, from, to string, tok tracker.ClaimToken, reason string) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	_, changed, err := a.store.SetStateOwnedFromReason(id, from, to, tok, reason)
+	return changed, err
+}
+
 // UpdateStateOwnedReason is the fenced state write carrying an explicit
 // provenance (the watchdog's terminal verdicts) — see
 // native.SetStateOwnedReason.
@@ -445,6 +455,7 @@ func toTrackerIssue(iss *Issue) tracker.Issue {
 		Fields:        maps.Clone(iss.Fields),
 		Bot:           iss.Bot,
 		BotArgs:       maps.Clone(iss.BotArgs),
+		StateReason:   iss.StateReason,
 	}
 }
 

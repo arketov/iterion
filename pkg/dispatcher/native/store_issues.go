@@ -463,9 +463,16 @@ func (s *Store) SetStateOwnedReason(id, newState string, tok tracker.ClaimToken,
 // as "drifted" would be swallowed by the caller as an ordinary operator
 // move, losing the one signal the fence exists to surface.
 func (s *Store) SetStateOwnedFrom(id, from, to string, tok tracker.ClaimToken) (updated *Issue, changed bool, err error) {
+	return s.SetStateOwnedFromReason(id, from, to, tok, "")
+}
+
+// SetStateOwnedFromReason is SetStateOwnedFrom with an explicit descriptive
+// provenance overriding the marker-derived one (see SetStateOwnedReason).
+// An empty reason is exactly SetStateOwnedFrom.
+func (s *Store) SetStateOwnedFromReason(id, from, to string, tok tracker.ClaimToken, reason string) (updated *Issue, changed bool, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	defer s.recoverMutator("SetStateOwnedFrom", &err)
+	defer s.recoverMutator("SetStateOwnedFromReason", &err)
 	if s.board.StateByName(to) == nil {
 		return nil, false, fmt.Errorf("%w: unknown state %q", tracker.ErrTransitionRejected, to)
 	}
@@ -484,7 +491,7 @@ func (s *Store) SetStateOwnedFrom(id, from, to string, tok tracker.ClaimToken) (
 	if iss.State != from || from == to {
 		return cloneIssue(iss), false, nil
 	}
-	out, err := s.setStateLocked(iss, to, tok.Marker)
+	out, err := s.setStateReasonLocked(iss, to, tok.Marker, reason)
 	if err != nil {
 		return nil, false, err
 	}

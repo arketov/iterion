@@ -192,7 +192,7 @@ func (fx *lastRunFixture) restart(t *testing.T) {
 	t.Helper()
 	old := fx.disp
 	c, err := New(Options{
-		Config: old.cfg.Load(), Tracker: native.NewAdapter(fx.board), Runner: old.runner,
+		Config: old.cfg.Load(), Tracker: native.NewAdapter(fx.board), Runner: old.currentRunner(),
 		Workspaces: old.workspaces, Logger: old.logger, HostMarker: "test-host-2", StoreDir: old.storeDir,
 	})
 	if err != nil {

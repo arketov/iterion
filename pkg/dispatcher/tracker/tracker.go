@@ -74,6 +74,12 @@ type Issue struct {
 	// Metadata holds adapter-specific extras (e.g. github URL,
 	// milestone, html_url). Keep keys lowercase snake_case.
 	Metadata map[string]string
+
+	// StateReason is the provenance of the last column change (one of
+	// the Reason* values, empty for an unattributed or operator move).
+	// Only the native adapter populates it; trackers with no provenance
+	// leave it empty.
+	StateReason string
 }
 
 // Tracker is the contract every issue-source adapter must satisfy.
