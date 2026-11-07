@@ -1839,6 +1839,16 @@ retryable:
   evidence; the prose markers stay on the CLI's own error text and result
   render). One explicit `network connectivity issue detected` warn, so the
   loop retries instead of failing the node.
+- **`claude_code` OAuth refresh race**: parallel CLI processes sharing one
+  OAuth token race on its refresh, and the loser renders `Failed to refresh
+  OAuth token: another Claude Code process is refreshing it or exited
+  mid-refresh … retry in a minute` as the result text. It is neither an
+  answer nor a dead credential, so `renderedFailure` types it
+  `ErrTransient{Reason: oauth_refresh_race}` on every pass (before it could
+  reach schema validation and its correction loop, where the same text came
+  back and the node died as `SCHEMA_VALIDATION`). The match is bounded
+  (short text; both phrases prefix-anchored, after an optional `error:`
+  lead), so an answer quoting it, in prose or inside JSON, does not trigger. Retried on the adaptive budget below.
 - **Adaptive budget**: network/transient errors get a larger attempt
   budget (`MaxAttemptsTransient`, default **6**) than ordinary retryable
   errors (`MaxAttempts`, default **3**), so the backoff spans roughly a

@@ -70,6 +70,38 @@ func TestIsTransientAPIErrorResult(t *testing.T) {
 	}
 }
 
+// TestIsOAuthRefreshRaceResult pins the CLI's transient refresh-race render
+// ("Failed to refresh OAuth token: another Claude Code process is refreshing
+// it…") that parallel claude_code processes sharing one OAuth token produce.
+// It is a short bare render, not an answer and not a dead credential.
+func TestIsOAuthRefreshRaceResult(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"card text", "Failed to refresh OAuth token: another Claude Code process is refreshing it or exited mid-refresh. This is usually transient; retry in a minute", true},
+		{"card text with trailing newline", "Failed to refresh OAuth token: another Claude Code process is refreshing it or exited mid-refresh. This is usually transient; retry in a minute.\n", true},
+		{"lowercase", "failed to refresh oauth token: try again", true},
+		{"second signature alone", "Error: another Claude Code process is refreshing the token, retry in a minute", true},
+
+		{"empty", "", false},
+		{"normal answer", "Here is the plan: three lots, one gate each.", false},
+		{"long answer quoting the phrase", "I looked at the logs. The failure said: Failed to refresh OAuth token: another Claude Code process is refreshing it. " + longPad(), false},
+		{"mid-text mention", "The run died because we saw Failed to refresh OAuth token earlier, so add a retry.", false},
+		{"json answer with the words", `{"summary": "Failed to refresh OAuth token: another Claude Code process is refreshing it", "ok": false}`, false},
+		{"json answer with the second phrase", `{"summary": "another Claude Code process is refreshing it", "ok": false}`, false},
+		{"genuine auth failure", "Failed to authenticate. API Error: 401 Invalid bearer token", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isOAuthRefreshRaceResult(tt.in); got != tt.want {
+				t.Errorf("isOAuthRefreshRaceResult(%q) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
 // longPad returns filler pushing a string past the 400-char brevity guard so
 // the "long text" case exercises the length cutoff.
 func longPad() string {

@@ -136,6 +136,19 @@ func TestRenderedFailure(t *testing.T) {
 			}
 		}
 	})
+	t.Run("an OAuth refresh race is transient on every pass, not an answer or a credential verdict", func(t *testing.T) {
+		rm := &claudesdk.ResultMessage{Result: str("Failed to refresh OAuth token: another Claude Code process is refreshing it or exited mid-refresh. This is usually transient; retry in a minute"), IsError: true}
+		for _, pass := range []string{"pass 1", "formatting pass 1/2", "recovery formatting pass"} {
+			var tr *ErrTransient
+			err := b.renderedFailure(context.Background(), rm, task, pass, credSpawn{})
+			if !errors.As(err, &tr) || tr.Reason != "oauth_refresh_race" {
+				t.Fatalf("%s: want ErrTransient{oauth_refresh_race}, got %v", pass, err)
+			}
+			if !renderRetryable(err) {
+				t.Fatalf("%s: a refresh race must be retried on a formatting attempt", pass)
+			}
+		}
+	})
 	t.Run("a model the CLI cannot use fails fast", func(t *testing.T) {
 		rm := &claudesdk.ResultMessage{Result: str("There's an issue with the selected model (x/y). It may not exist or you may not have access to it.")}
 		err := b.renderedFailure(context.Background(), rm, task, "pass 1", credSpawn{})

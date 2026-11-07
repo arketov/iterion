@@ -1364,6 +1364,19 @@ func (b *ClaudeCodeBackend) renderedFailure(ctx context.Context, rm *claudesdk.R
 		return &ErrTransient{Provider: BackendClaudeCode, Reason: "api_error_result", Detail: detail}
 	}
 
+	// OAuth refresh-race guard. Parallel CLI processes sharing one OAuth token
+	// race on its refresh, and the loser renders "Failed to refresh OAuth
+	// token: another Claude Code process is refreshing it…" AS the result text.
+	// It is neither an answer nor a dead credential: type it transient so the
+	// executor retries with backoff instead of the text reaching schema
+	// validation and its correction loop.
+	if rm.Result != nil && isOAuthRefreshRaceResult(*rm.Result) {
+		detail := strings.TrimSpace(*rm.Result)
+		b.Logger.Warn("[%s#%d/claude-code %s] OAuth token refresh race result detected — flagging for retry: %.160s",
+			task.NodeID, task.Iteration, pass, detail)
+		return &ErrTransient{Provider: BackendClaudeCode, Reason: "oauth_refresh_race", Detail: detail}
+	}
+
 	return nil
 }
 
