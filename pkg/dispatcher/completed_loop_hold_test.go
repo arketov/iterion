@@ -80,6 +80,30 @@ func TestLastRunHold_DispatcherReturnedCardIsHeld(t *testing.T) {
 			t.Fatal("an operator's drag out of the column and back must clear the hold (the documented re-queue gesture)")
 		}
 	})
+	// A bugfix run returns its card to `review`, where a merge-train bot works
+	// the column: that is a hand-off to another bot, not a loop. Seen live
+	// (2026-11-07): every finished bugfix card sat in review with "won't
+	// dispatch" and the merger never ran.
+	t.Run("a different bot on the card is a hand-off, not held", func(t *testing.T) {
+		c, board, _ := newReaperHarness(t)
+		c.state = newState()
+		iss := finishedCardReturnedByDispatcher(t, c, board, native.StateReady)
+		cand := asCandidate(iss)
+		cand.Bot = "merger" // the finished run's workflow is "wf"
+		if c.lastRunHoldBeforeClaim(cand) {
+			t.Fatal("a card returned to a column served by ANOTHER bot was held — the hand-off never happens")
+		}
+	})
+	t.Run("the same bot on the card is still held", func(t *testing.T) {
+		c, board, _ := newReaperHarness(t)
+		c.state = newState()
+		iss := finishedCardReturnedByDispatcher(t, c, board, native.StateReady)
+		cand := asCandidate(iss)
+		cand.Bot = "wf"
+		if !c.lastRunHoldBeforeClaim(cand) {
+			t.Fatal("a card that would go back to the bot that just finished it must be held (the loop guard)")
+		}
+	})
 	t.Run("no stamp keeps the old behaviour", func(t *testing.T) {
 		c, board, _ := newReaperHarness(t)
 		c.state = newState()

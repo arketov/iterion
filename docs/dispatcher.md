@@ -212,7 +212,7 @@ sibling planner from the workflow entry:
 | `queued` | Hold without probing the run lock. Pipeline-queued runs deliberately have no lock owner until a concurrency slot opens; their queue owner advances their state machine. |
 | `failed_resumable` | Resume the **same** run id — unless the resume is refused because the bot source changed: that is a [source-changed hold](#source-changed-hold), not a park. Internal stops (stall reap, external state change, daemon shutdown) cancel the run context with `runtime.ErrRunInterrupted` as the cause, so the engine persists this status — which is what keeps stall/shutdown recovery automatic. |
 | `cancelled` | Hold, **never auto-resume**: only an operator produces this status now, and resuming it would undo their decision. The card is held before the claim with a visible reason; the way out is an explicit resume, or dropping the pointer (⋯ → *Retry from zero* on the pipeline board, `iterion issue update --clear-last-run` from a terminal). |
-| `finished` | No hold: a fresh run is allowed — dragging the card back to an eligible column **is** the re-queue gesture. The one exception: a card the dispatcher itself returned to its current column after the clean run (`state_reason = run_finished`, see [`completed_state` and eligible columns](#completed_state-and-eligible-columns)) is held until an operator moves it. |
+| `finished` | No hold: a fresh run is allowed — dragging the card back to an eligible column **is** the re-queue gesture. The one exception: a card the dispatcher itself returned to its current column after the clean run (`state_reason = run_finished`, see [`completed_state` and eligible columns](#completed_state-and-eligible-columns)) is held until an operator moves it — unless the card now names another bot than the one that finished, which is a hand-off and dispatches. |
 | none, or hard `failed`, and the ticket is explicitly eligible | The only other legitimate fresh run. |
 
 The stranded-pause sweep (`reconcileStrandedPaused`) also runs while
@@ -633,7 +633,13 @@ run per poll. The dispatcher breaks that loop:
   external-board reconciliation behave as before);
 - a card whose last run is `finished` and whose `state_reason` is
   `run_finished` is **held before the claim**, with a visible reason in the
-  dispatch-skip list ("the dispatcher itself returned the card …");
+  dispatch-skip list ("the dispatcher itself returned the card …") — but
+  only when the card would go back to the **same** bot. The finished run's
+  bot is its bundle (`bot_id`) or, for a plain `.bot`, its workflow name;
+  the card's is its `bot`, else its assignee. When they differ (a `bugfix`
+  run returning its card to `review`, where a `merger` bot works the
+  column) the card is handed off and dispatched as usual; when either side
+  is unknown the card is held;
 - any operator move (drag in the studio, `iterion issue move`, reopen)
   overwrites the stamp, so the way to re-queue the card is to move it to
   another column and back;

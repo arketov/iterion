@@ -679,7 +679,13 @@ func (c *Dispatcher) lastRunHoldBeforeClaim(iss tracker.Issue) bool {
 		// run_finished) and that column is eligible, taking it again is an
 		// endless loop for a bot that does not move the card. Any operator
 		// move overwrites the stamp, so the gesture still works.
-		if iss.StateReason == tracker.ReasonRunFinished {
+		//
+		// The loop only exists when the card would go back to the SAME bot.
+		// A column whose bot differs from the one that just finished (a
+		// bugfix run returning its card to `review`, where a merge-train
+		// bot works the column) is a hand-off, not a loop: dispatching it
+		// is the point of the board.
+		if iss.StateReason == tracker.ReasonRunFinished && sameBotFinished(r, iss) {
 			reason := fmt.Sprintf("last run %s finished cleanly and the dispatcher itself returned the card to %q — not re-dispatching; move the card to another column and back to re-queue it", prev, iss.WorkflowState)
 			c.recordLastRunHold(iss, reason)
 			return true
@@ -1547,4 +1553,27 @@ func (c *Dispatcher) dispatchEnv(entry *runningEntry, spec DispatchSpec) []strin
 		env = append(env, "ITERION_STORE_DIR="+spec.StoreDir)
 	}
 	return env
+}
+
+// sameBotFinished reports whether the finished run r was made by the bot the
+// card would be dispatched to now (iss.Bot, else iss.Assignee). The run names
+// its bot by BotID (the bundle) or, for a plain .bot launch, its workflow
+// name. When either side is unknown it answers true, so the run_finished hold
+// keeps its old, conservative behaviour.
+func sameBotFinished(r *store.Run, iss tracker.Issue) bool {
+	next := strings.TrimSpace(iss.Bot)
+	if next == "" {
+		next = strings.TrimSpace(iss.Assignee)
+	}
+	if r == nil || next == "" {
+		return true
+	}
+	finished := strings.TrimSpace(r.BotID)
+	if finished == "" {
+		finished = strings.TrimSpace(r.WorkflowName)
+	}
+	if finished == "" {
+		return true
+	}
+	return strings.EqualFold(finished, next)
 }
