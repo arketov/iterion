@@ -142,7 +142,7 @@ func NewManager(opts ManagerOptions) (*Manager, error) {
 		runEnv:           append([]string(nil), opts.RunEnv...),
 		defaultsFn:       opts.DefaultsFn,
 		adaptRuntime:     opts.AdaptRuntime,
-		state:           ManagerStateIdle,
+		state:            ManagerStateIdle,
 	}
 	if raw, err := readConfigJSON(m.configPath); err == nil {
 		// A preset an older version saved is rewritten on the RAW config: it
