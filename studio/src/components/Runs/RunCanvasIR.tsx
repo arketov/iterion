@@ -496,7 +496,8 @@ export default function RunCanvasIR({
           : undefined;
       // Loop backedges get the iteration-palette color so the eye can
       // associate them with the matching node-pip color when scanning
-      // the canvas. Other edges stay neutral.
+      // the canvas. Other edges stay neutral. The loop's dash march is the
+      // `edge-flow` class (app.css), not React Flow's built-in `animated`.
       const lastIter = (execsByNode.get(e.from)?.length ?? 0) - 1;
       const loopStroke = isLoop ? iterationColor(Math.max(lastIter, 0)) : undefined;
       return {
@@ -504,7 +505,7 @@ export default function RunCanvasIR({
         source: e.from,
         target: e.to,
         markerEnd: loopStroke ? { ...ARROW, color: loopStroke } : ARROW,
-        animated: isLoop,
+        className: isLoop ? "edge-flow" : undefined,
         label,
         labelStyle: { fontSize: 10 },
         labelBgStyle: { fill: "var(--color-surface-0)", opacity: 0.9 },

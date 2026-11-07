@@ -30,6 +30,11 @@ import {
   WORKSPACE_PANE_VISIBILITY_REQUEST,
   WORKSPACE_UNREAD_COUNT,
 } from "@/lib/workspacePaneVisibility";
+import {
+  setWindowMinimised,
+  WINDOW_MINIMISED,
+  WINDOW_MINIMISED_REQUEST,
+} from "@/lib/viewIdle";
 
 // errorMessage reads a Wails rejection, which arrives as a string, an Error
 // or a plain object, as text a person can read.
@@ -101,6 +106,8 @@ export default function WorkspaceShell() {
   const iframeRefs = useRef<Record<string, HTMLIFrameElement | null>>({});
   const activeIdRef = useRef<string | null>(null);
   const splitIdRef = useRef<string | null>(null);
+  // Last "window minimised" state from the Go poller, relayed to the panes.
+  const minimisedRef = useRef(false);
   const latestWorkspaceSwitchRef = useRef<string | null>(null);
   useEffect(() => {
     activeIdRef.current = activeId;
@@ -367,6 +374,19 @@ export default function WorkspaceShell() {
       onDesktopEvent(DesktopEvent.MenuAbout, () => forwardMenu("settings", "about")),
       onDesktopEvent(DesktopEvent.MenuUndo, () => forwardMenu("undo")),
       onDesktopEvent(DesktopEvent.MenuRedo, () => forwardMenu("redo")),
+      // Minimised window: pause the shell's own animations and tell every pane
+      // (each iframe is its own document, so a root attribute set here would
+      // never reach the run canvas).
+      onDesktopEvent<boolean>(DesktopEvent.WindowMinimised, (minimised) => {
+        minimisedRef.current = minimised;
+        setWindowMinimised(minimised);
+        for (const el of Object.values(iframeRefs.current)) {
+          el?.contentWindow?.postMessage(
+            { source: "iterion-shell", type: WINDOW_MINIMISED, minimised },
+            window.location.origin,
+          );
+        }
+      }),
     ];
     // A pane whose cloud session expired asks the shell (its parent) to prompt
     // re-login — the pane can't (no window.go), so it postMessages up here.
@@ -412,6 +432,21 @@ export default function WorkspaceShell() {
             visible:
               activeIdRef.current === d.projectId ||
               (!browserWorkspace && splitIdRef.current === d.projectId),
+          },
+          window.location.origin,
+        );
+      }
+      if (
+        d?.source === "iterion-pane" &&
+        d.type === WINDOW_MINIMISED_REQUEST &&
+        d.projectId &&
+        e.source === iframeRefs.current[d.projectId]?.contentWindow
+      ) {
+        (e.source as Window).postMessage(
+          {
+            source: "iterion-shell",
+            type: WINDOW_MINIMISED,
+            minimised: minimisedRef.current,
           },
           window.location.origin,
         );

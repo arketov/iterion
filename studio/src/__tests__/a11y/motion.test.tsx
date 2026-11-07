@@ -47,11 +47,28 @@ describe("motion preference", () => {
     // The selector list spans lines and sits BEFORE the brace: capture the
     // list itself, not the block body.
     const gated = /\[data-motion="reduced"\][^{]*?(?=\{)/.exec(appCss)?.[0] ?? "";
-    for (const sel of [".animate-pulse", ".animate-ping", ".animate-caret-blink", ".ch-stack-track"]) {
+    for (const sel of [".animate-pulse", ".animate-ping", ".animate-caret-blink", ".ch-stack-track", ".edge-flow"]) {
       if (!gated.includes(sel)) {
         throw new Error(`the reduced-motion reset does not register ${sel} — the setting would silently miss it`);
       }
     }
+  });
+
+  it("the idle pause rule covers the edge animation", () => {
+    // A hidden page or a minimised window sets <html data-view-idle>; the
+    // loop-edge animation must stop on it (nobody is looking at the canvas).
+    expect(appCss).toContain("[data-view-idle] .edge-flow");
+    expect(appCss).toMatch(/\[data-view-idle\] \.edge-flow[^{]*\{[^}]*animation-play-state:\s*paused/);
+  });
+
+  it("no production source uses React Flow's built-in edge animation", () => {
+    // `animated: true` turns on `.react-flow__edge.animated path` (dashdraw),
+    // which repaints the whole edge layer every frame and is gated by nothing.
+    // Loop edges carry the registered `edge-flow` class instead.
+    const builtIn = files
+      .filter(([p, src]) => p.endsWith(".tsx") && /\banimated\s*:\s*(true|\w)/.test(src))
+      .map(([p]) => p);
+    expect(builtIn).toEqual([]);
   });
 
   it("every inline infinite animation sits behind the motion gate", () => {
