@@ -17,6 +17,25 @@ describe("previewData", () => {
   });
 });
 
+describe("previewData attempt", () => {
+  it("shows an attempt object as a short id and start time, not [object Object]", () => {
+    const preview = previewData({
+      attempt: { id: "01a1b07e-8568-7475-ad86-aa13ef58de7a", started_at: "2026-11-06T10:00:00Z" },
+    });
+    expect(preview).not.toContain("[object Object]");
+    expect(preview).toBe("attempt=01a1b07e @2026-11-06T10:00:00Z");
+  });
+
+  it("keeps a scalar attempt as a number", () => {
+    expect(previewData({ attempt: 2 })).toBe("attempt=2");
+  });
+
+  it("renders an attempt object without id as compact JSON", () => {
+    const preview = previewData({ attempt: { foo: "bar" } });
+    expect(preview).toBe('attempt={"foo":"bar"}');
+  });
+});
+
 it("shows a schema mismatch as a warning with field names", () => {
   expect(EVENT_BADGE.node_output_schema_mismatch).toBe("bg-warning-soft text-warning-fg");
   const preview = previewData({ schema: "verdict", fields: ["ok", "reason"] });

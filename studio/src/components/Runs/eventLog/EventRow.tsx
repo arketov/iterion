@@ -52,6 +52,16 @@ export const EventRow = memo(function EventRow({
       ? ((data["error"] as string) ?? (data["message"] as string) ?? undefined)
       : undefined;
 
+  // run_started carries the full attempt snapshot; the row preview only
+  // shows a short form, so expose the whole object on demand.
+  const attemptObject =
+    e.type === "run_started" &&
+    typeof data["attempt"] === "object" &&
+    data["attempt"] !== null &&
+    !Array.isArray(data["attempt"])
+      ? data["attempt"]
+      : undefined;
+
   return (
     <div className="w-full">
       <button
@@ -79,6 +89,15 @@ export const EventRow = memo(function EventRow({
         <span className="text-fg-default truncate">{e.node_id ?? "-"}</span>
         <span className="text-fg-subtle truncate">{ann.preview}</span>
       </button>
+
+      {attemptObject && (
+        <details className="pl-8 pr-1 pb-0.5 text-caption font-mono text-fg-subtle">
+          <summary className="cursor-pointer">attempt</summary>
+          <pre className="whitespace-pre-wrap break-words">
+            {JSON.stringify(attemptObject, null, 2)}
+          </pre>
+        </details>
+      )}
 
       {(input || output || errorMsg) && (
         <div className="pl-8 pr-1 pb-0.5">

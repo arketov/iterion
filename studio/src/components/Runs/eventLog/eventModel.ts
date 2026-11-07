@@ -135,14 +135,33 @@ export function previewData(data: Record<string, unknown> | undefined): string {
   ];
   const parts: string[] = [];
   for (const k of interesting) {
-    if (data[k] !== undefined) parts.push(`${k}=${formatValue(data[k])}`);
+    if (data[k] === undefined) continue;
+    const text = k === "attempt" && isPlainObject(data[k]) ? formatAttempt(data[k]) : formatValue(data[k]);
+    parts.push(`${k}=${text}`);
   }
   return parts.join(" ");
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+// run_started carries the whole attempt snapshot ({id, started_at, …}); the
+// row shows a short id and the start time, the full object is expandable.
+function formatAttempt(a: Record<string, unknown>): string {
+  const id = typeof a["id"] === "string" ? a["id"].slice(0, 8) : "";
+  const startedAt = typeof a["started_at"] === "string" ? a["started_at"] : "";
+  if (!id && !startedAt) return formatValue(a);
+  return [id, startedAt && `@${startedAt}`].filter(Boolean).join(" ");
 }
 
 export function formatValue(v: unknown): string {
   if (typeof v === "string") {
     return v.length > 60 ? v.slice(0, 57) + "…" : v;
+  }
+  if (isPlainObject(v)) {
+    const json = JSON.stringify(v);
+    return json.length > 60 ? json.slice(0, 57) + "…" : json;
   }
   return String(v);
 }
