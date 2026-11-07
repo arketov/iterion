@@ -312,6 +312,8 @@ function Form({ cfg, setCfg }: FormProps) {
           onChange={(vars) => update("dispatch", { ...(cfg.dispatch ?? {}), vars })}
           keyPlaceholder="feature_prompt"
           valuePlaceholder="Issue {{issue.identifier}}: {{issue.title}}"
+          keyLabel="Dispatch variable name"
+          valueLabel="Dispatch variable template"
         />
       </Section>
 
@@ -671,6 +673,8 @@ function AssigneeDispatchField({
             }
             keyPlaceholder="task"
             valuePlaceholder="{{issue.title}}: {{issue.body}}"
+            keyLabel={`Per-bot variable name (row ${i + 1})`}
+            valueLabel={`Per-bot variable template (row ${i + 1})`}
           />
         </div>
       ))}
@@ -862,16 +866,34 @@ function StateMappingField({
   );
 }
 
+// A workflow var name is an identifier, like the DSL's `vars:` (a letter or
+// underscore, then letters, digits, underscores). Anything else — typically a
+// `{{...}}` template typed into the name field — is warned about, never refused.
+const VAR_NAME_RE = /^[\p{L}_][\p{L}\p{N}_]*$/u;
+
+function varNameWarning(name: string): string | null {
+  if (name === "") return "Variable name is empty.";
+  if (name.includes("{{"))
+    return "This looks like a template. The name goes in the first field, the template in the second.";
+  if (!VAR_NAME_RE.test(name))
+    return "A variable name should be an identifier: letters, digits and underscores, not starting with a digit.";
+  return null;
+}
+
 function KVTable({
   rows,
   onChange,
   keyPlaceholder,
   valuePlaceholder,
+  keyLabel = "Variable name",
+  valueLabel = "Template",
 }: {
   rows: Record<string, string>;
   onChange: (v: Record<string, string>) => void;
   keyPlaceholder?: string;
   valuePlaceholder?: string;
+  keyLabel?: string;
+  valueLabel?: string;
 }) {
   const entries = Object.entries(rows);
   const setKey = (oldKey: string, newKey: string) => {
@@ -887,32 +909,52 @@ function KVTable({
   };
   return (
     <div className="space-y-2">
-      {entries.map(([k, v]) => (
-        <div key={k} className="flex gap-2">
-          <Input
-            size="sm"
-            className="w-32"
-            value={k}
-            placeholder={keyPlaceholder}
-            onChange={(e) => setKey(k, e.target.value)}
-          />
-          <Textarea
-            className="flex-1 min-h-[2.25rem]"
-            rows={1}
-            value={v}
-            placeholder={valuePlaceholder}
-            onChange={(e) => setVal(k, e.target.value)}
-          />
-          <IconButton
-            size="sm"
-            variant="danger"
-            label={k ? `Remove ${k}` : "Remove row"}
-            onClick={() => remove(k)}
-          >
-            ×
-          </IconButton>
+      {entries.length > 0 && (
+        <div className="flex gap-2 text-xs text-fg-muted">
+          <span className="w-32">Variable name</span>
+          <span className="flex-1">Template</span>
         </div>
-      ))}
+      )}
+      {entries.map(([k, v], i) => {
+        const warning = varNameWarning(k);
+        return (
+          // Keyed by position: the name is editable, so keying by it would
+          // remount the row (and drop focus) on every keystroke.
+          <div key={i} className="space-y-1">
+            <div className="flex gap-2">
+              <Input
+                size="sm"
+                className="w-32"
+                value={k}
+                aria-label={keyLabel}
+                placeholder={keyPlaceholder}
+                onChange={(e) => setKey(k, e.target.value)}
+              />
+              <Textarea
+                className="flex-1 min-h-[2.25rem]"
+                rows={1}
+                value={v}
+                aria-label={valueLabel}
+                placeholder={valuePlaceholder}
+                onChange={(e) => setVal(k, e.target.value)}
+              />
+              <IconButton
+                size="sm"
+                variant="danger"
+                label={k ? `Remove ${k}` : "Remove row"}
+                onClick={() => remove(k)}
+              >
+                ×
+              </IconButton>
+            </div>
+            {warning && (
+              <p role="alert" className="text-xs text-warning-fg">
+                {warning}
+              </p>
+            )}
+          </div>
+        );
+      })}
       <Button
         variant="ghost"
         size="sm"

@@ -92,7 +92,9 @@ Rules that bite:
 
 - **Keys are var names.** `task` must be declared in the workflow's `vars:`. A
   key that names no var is **silently dropped at dispatch time**; `iterion
-  validate bots/my-helper` warns `C200` for it. Run it after every edit.
+  validate bots/my-helper` warns `C200` for it. Run it after every edit. The
+  dispatcher's Settings form warns when a var name is empty or is not an
+  identifier, for example a `{{issue.title}}` template put in the name field.
 - **Values are templates**, rendered once per card: `{{issue.title}}`,
   `{{issue.body}}`, `{{issue.identifier}}` and the rest of the
   [dispatch templates](dispatcher.md#dispatch-templates). `|-` keeps the YAML

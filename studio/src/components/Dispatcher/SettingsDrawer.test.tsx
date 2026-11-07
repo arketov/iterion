@@ -107,6 +107,33 @@ describe("SettingsDrawer saves what it shows and what it does not show", () => {
     expect(name.value).toBe("feature-dev");
   });
 
+  it("warns when a dispatch var name is a template, and still saves it", async () => {
+    const swapped: DispatcherConfig = {
+      ...structuredClone(saved),
+      dispatch: { vars: { "{{issue.title}}": "" } },
+    };
+    api.getConfig.mockResolvedValue(structuredClone(swapped));
+    render(<SettingsDrawer open onClose={() => {}} onSaved={() => {}} />);
+    const name = (await screen.findByLabelText("Dispatch variable name")) as HTMLInputElement;
+    expect(name.value).toBe("{{issue.title}}");
+    expect(screen.getByRole("alert").textContent).toMatch(/looks like a template/i);
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.saveConfig).toHaveBeenCalledTimes(1));
+    expect((api.saveConfig.mock.calls[0]![0] as DispatcherConfig).dispatch?.vars).toEqual({
+      "{{issue.title}}": "",
+    });
+  });
+
+  it("does not warn about a valid dispatch var name", async () => {
+    api.getConfig.mockResolvedValue({
+      ...structuredClone(saved),
+      dispatch: { vars: { task: "{{issue.title}}" } },
+    });
+    render(<SettingsDrawer open onClose={() => {}} onSaved={() => {}} />);
+    await screen.findByLabelText("Dispatch variable name");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("starts a new dispatcher with require_assignee on", async () => {
     api.getConfig.mockResolvedValue(null);
     const sent = await openAndSave();
