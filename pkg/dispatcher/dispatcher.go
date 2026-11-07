@@ -129,7 +129,21 @@ type Dispatcher struct {
 	shutdownRevertBudget  time.Duration
 	shutdownReleaseBudget time.Duration
 
+	// completionBackoffFn is the test seam for the pause between retries of a
+	// failed completed-state move (nil → computeBackoff).
+	completionBackoffFn func(attempt int, cap time.Duration) time.Duration
+
 	ws *wsBridge
+}
+
+// completionBackoff is the pause before the next retry of a failed
+// completed-state move: the retry queue's capped exponential, without its
+// attempt accounting (a transition retry is not a run).
+func (c *Dispatcher) completionBackoff(attempt int, cap time.Duration) time.Duration {
+	if c.completionBackoffFn != nil {
+		return c.completionBackoffFn(attempt, cap)
+	}
+	return computeBackoff(attempt, cap)
 }
 
 // budget returns the configured duration or the production default.

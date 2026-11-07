@@ -43,6 +43,10 @@ type Issue struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
+	// StateAt is when the card's column last changed. Zero when the tracker
+	// cannot say or the card predates the field.
+	StateAt time.Time
+
 	Labels   []string
 	Assignee string
 

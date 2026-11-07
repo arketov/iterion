@@ -271,4 +271,12 @@ describe("IssueCard no-bot badge", () => {
     expect(screen.getByText(/no assignee — won't start/i)).toBeTruthy();
     expect(screen.queryByText(/no bot — won't start/i)).toBeNull();
   });
+
+  it("says the move is being retried, not that the card won't start, for a completion_pending skip", () => {
+    renderWithSkip({ kind: "completion_pending", reason: "finished cleanly but the move to \"review\" failed" });
+    expect(screen.getByText(/finishing — move retrying/i)).toBeTruthy();
+    expect(screen.queryByText(/won't dispatch/i)).toBeNull();
+    const badge = screen.getByRole("button", { name: /finishing/i });
+    expect(badge.getAttribute("title") ?? "").toContain("will not run again");
+  });
 });

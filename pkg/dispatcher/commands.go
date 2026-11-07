@@ -324,6 +324,34 @@ func (m cmdDropRetry) apply(c *Dispatcher, _ context.Context) {
 	c.fireSnapshot()
 }
 
+// cmdCompletionPending is posted by the finish worker while the move of a
+// cleanly-finished card to completed_state keeps failing: it records the
+// completion_pending skip so the Dispatcher page and the card show why the
+// card still sits in the running column. Actor-only write of dispatchSkips.
+type cmdCompletionPending struct {
+	issueID    string
+	identifier string
+	reason     string
+}
+
+func (m cmdCompletionPending) apply(c *Dispatcher, _ context.Context) {
+	c.recordDispatchSkipKind(tracker.Issue{ID: m.issueID, Identifier: m.identifier}, DispatchSkipCompletionPending, m.reason)
+	c.fireSnapshot()
+}
+
+// cmdCompletionDone clears the completion_pending skip once the move landed.
+// Only that kind is dropped: any other skip on the card is not ours.
+type cmdCompletionDone struct {
+	issueID string
+}
+
+func (m cmdCompletionDone) apply(c *Dispatcher, _ context.Context) {
+	if sk, ok := c.state.dispatchSkips[m.issueID]; ok && sk.Kind == DispatchSkipCompletionPending {
+		delete(c.state.dispatchSkips, m.issueID)
+	}
+	c.fireSnapshot()
+}
+
 // finishKind selects which tracker transition the off-actor finish worker
 // performs in addition to the always-present Release. The actor decides the
 // kind synchronously from c.state (in finishRun) and the worker only executes
@@ -395,8 +423,11 @@ type finishPlan struct {
 	sourceState    string // r.TransitionedFromState (revert / give-up fallback)
 	failedState    string // cfg.Agent.FailedState snapshot (give-up only)
 	attemptCount   int    // r.Attempt+1, for give-up logging only
-	runID          string // for give-up logging only
+	runID          string // give-up and completed-move logging only
 	runErrText     string // for give-up logging only
+	// retryCap caps the pause between retries of a failed completed-state
+	// move (cfg.MaxRetryBackoff() snapshot, finishCompleted only).
+	retryCap time.Duration
 	// session is the claim's heartbeat, carried into the worker so it
 	// outlives the actor's entry and stops only AFTER the last write
 	// (release). nil when the tracker has no lease backend.
@@ -565,6 +596,8 @@ func (c *Dispatcher) finishRun(ctx context.Context, issueID string, err error) {
 		}
 		plan.kind = finishCompleted
 		plan.completedState = cfg.Agent.CompletedState
+		plan.runID = r.RunID
+		plan.retryCap = cfg.MaxRetryBackoff()
 		// NOTE: workspace teardown (incl. the before_remove hook) is NOT
 		// done here. It runs on the dispatch worker goroutine in runWorker,
 		// before postFinished — so a shell hook can't block the actor and
@@ -759,7 +792,7 @@ func (c *Dispatcher) runFinishWorker(plan finishPlan) {
 
 	switch plan.kind {
 	case finishCompleted:
-		c.maybeTransitionToCompleted(trCtx, plan.issueID, plan.identifier, plan.runningTarget, plan.completedState, plan.session)
+		c.completeWithRetry(plan)
 	case finishRevert:
 		// Revert the in-progress transition so the next retry/dispatch tick
 		// sees the issue eligible again from its source state. Without it the
@@ -785,6 +818,45 @@ func (c *Dispatcher) runFinishWorker(plan finishPlan) {
 			// filing it as acknowledged history.
 			c.stampGiveUp(plan)
 			c.postCmd(cmdDropRetry{issueID: plan.issueID})
+		}
+	}
+}
+
+// completeWithRetry moves a cleanly-finished card to completed_state and, on a
+// transient tracker failure, keeps trying with a capped backoff while the
+// worker still holds the claim. Without it a single failed write left the card
+// in the (eligible) running column and the next tick bought a second run of an
+// already-finished task. Runs on the finish worker goroutine and reads only
+// the plan and dispatcher immutables. The loop ends when the move lands (or is
+// benignly refused), the claim is superseded, or the dispatcher stops; in the
+// last case the claim is released by the worker's defer and the dispatch-time
+// guard (finishedTransitionPending) finishes the move after restart.
+func (c *Dispatcher) completeWithRetry(plan finishPlan) {
+	for attempt := 1; ; attempt++ {
+		ctx, cancel := context.WithTimeout(context.Background(), c.budget(c.shutdownRevertBudget, 5*time.Second))
+		err := c.maybeTransitionToCompleted(ctx, plan.issueID, plan.identifier, plan.runningTarget, plan.completedState, plan.session)
+		cancel()
+		if err == nil {
+			if attempt > 1 {
+				c.postCmd(cmdCompletionDone{issueID: plan.issueID})
+			}
+			return
+		}
+		delay := c.completionBackoff(attempt, plan.retryCap)
+		c.logger.Warn("dispatcher: %s finished cleanly (run=%s) but the move to %q failed (attempt %d): %v — card stays held, retrying in %s",
+			plan.identifier, plan.runID, plan.completedState, attempt, err, delay)
+		c.postCmd(cmdCompletionPending{
+			issueID:    plan.issueID,
+			identifier: plan.identifier,
+			reason: fmt.Sprintf("finished cleanly (run %s) but the move to %q failed: %v — retrying in %s (attempt %d); the card is held and will NOT be re-run",
+				plan.runID, plan.completedState, err, delay, attempt),
+		})
+		timer := time.NewTimer(delay)
+		select {
+		case <-timer.C:
+		case <-c.stop:
+			timer.Stop()
+			return
 		}
 	}
 }
@@ -1058,9 +1130,9 @@ func (c *Dispatcher) moveToAwaitingInput(issueID, identifier string, sess *claim
 // config.go; this helper is just the application path. Detached
 // ctx is the caller's transition budget so a winding-down dispatcher
 // still completes the move (parallels the Release path).
-func (c *Dispatcher) maybeTransitionToCompleted(ctx context.Context, issueID, identifier, runningTarget, completed string, sess *claimSession) {
+func (c *Dispatcher) maybeTransitionToCompleted(ctx context.Context, issueID, identifier, runningTarget, completed string, sess *claimSession) error {
 	if completed == "" || completed == runningTarget {
-		return
+		return nil
 	}
 	if sess != nil && c.leaser != nil {
 		if fu, ok := c.leaser.(ownedFromUpdater); ok {
@@ -1075,15 +1147,18 @@ func (c *Dispatcher) maybeTransitionToCompleted(ctx context.Context, issueID, id
 				// tombstone path already handled its cleanup.
 			case errors.Is(err, tracker.ErrTransitionRejected) || errors.Is(err, tracker.ErrNotSupported):
 				c.logger.Info("dispatcher: %s stayed in %s (tracker rejected move to %q): %v", identifier, runningTarget, completed, err)
+			case errors.Is(err, tracker.ErrClaimConflict):
+				c.logger.Info("dispatcher: %s claim superseded before the auto-transition, leaving it to the new owner: %v", identifier, err)
 			case err != nil:
 				c.logger.Warn("dispatcher: completed-state move %s → %s: %v", identifier, completed, err)
+				return err
 			case !changed:
 				// Workflow (or operator) already moved the state. Honor it.
 				c.logger.Info("dispatcher: %s already left %s before the auto-transition — leaving it where it was moved", identifier, runningTarget)
 			default:
 				c.logger.Info("dispatcher: %s moved %s → %s (workflow didn't change state, default auto-transition)", identifier, runningTarget, completed)
 			}
-			return
+			return nil
 		}
 	}
 	// Tokenless trackers (forge labels) carry no CAS: probe, then write —
@@ -1091,27 +1166,34 @@ func (c *Dispatcher) maybeTransitionToCompleted(ctx context.Context, issueID, id
 	states, err := c.tracker.RefreshStates(ctx, []string{issueID})
 	if err != nil {
 		c.logger.Debug("dispatcher: completed-state probe %s: %v", identifier, err)
-		return
+		return err
 	}
 	cur, ok := states[issueID]
 	if !ok {
 		// Issue disappeared from the tracker — refreshRunningStates'
 		// tombstone path already handled its cleanup; nothing to do.
-		return
+		return nil
 	}
 	if cur != runningTarget {
 		// Workflow (or operator) already moved the state. Honor it.
-		return
+		return nil
 	}
 	if err := c.fencedUpdateState(ctx, issueID, completed, sess); err != nil {
-		if errors.Is(err, tracker.ErrTransitionRejected) || errors.Is(err, tracker.ErrNotSupported) {
+		switch {
+		case errors.Is(err, tracker.ErrTransitionRejected) || errors.Is(err, tracker.ErrNotSupported):
 			c.logger.Info("dispatcher: %s stayed in %s (tracker rejected move to %q): %v", identifier, runningTarget, completed, err)
-			return
+			return nil
+		case errors.Is(err, tracker.ErrClaimConflict):
+			c.logger.Info("dispatcher: %s claim superseded before the auto-transition, leaving it to the new owner: %v", identifier, err)
+			return nil
+		case errors.Is(err, tracker.ErrNotFound):
+			return nil
 		}
 		c.logger.Warn("dispatcher: completed-state move %s → %s: %v", identifier, completed, err)
-		return
+		return err
 	}
 	c.logger.Info("dispatcher: %s moved %s → %s (workflow didn't change state, default auto-transition)", identifier, runningTarget, completed)
+	return nil
 }
 
 // probeRunJSON reads <storeDir>/runs/<runID>/run.json and decodes it into

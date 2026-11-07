@@ -325,6 +325,11 @@ const DispatchSkipNoAssignee = "no_assignee"
 // not run: the dispatcher never falls back to a default bot for it.
 const DispatchSkipNoBot = "no_bot"
 
+// DispatchSkipCompletionPending is DispatchSkipView.Kind for a card whose run
+// finished cleanly but whose move to completed_state failed: the dispatcher
+// keeps the claim and retries the move, and will NOT run the card again.
+const DispatchSkipCompletionPending = "completion_pending"
+
 // DispatchSkipView is one entry of the "won't dispatch" surface: an
 // eligible issue the dispatcher refused to claim because its explicit
 // bot can't be resolved to a workflow file, or resolves but has no
@@ -341,8 +346,10 @@ type DispatchSkipView struct {
 	Reason   string `json:"reason"`
 	// Kind classifies the skip so the UI can give it its own state:
 	// "no_assignee" (ready card with no assignee/bot while require_assignee
-	// is on), "no_bot" (the assignee is not a routable bot, same policy), or
-	// empty for the bot-misconfiguration family.
+	// is on), "no_bot" (the assignee is not a routable bot, same policy),
+	// "completion_pending" (the run finished but the move to completed_state
+	// failed and is being retried), or empty for the bot-misconfiguration
+	// family.
 	Kind string `json:"kind,omitempty"`
 }
 

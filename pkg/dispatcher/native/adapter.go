@@ -438,6 +438,7 @@ func toTrackerIssue(iss *Issue) tracker.Issue {
 		Priority:      iss.Priority,
 		CreatedAt:     iss.CreatedAt,
 		UpdatedAt:     iss.UpdatedAt,
+		StateAt:       iss.StateAt,
 		Labels:        append([]string(nil), iss.Labels...),
 		Assignee:      iss.Assignee,
 		Blockers:      append([]string(nil), iss.Blockers...),

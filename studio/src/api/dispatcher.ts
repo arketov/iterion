@@ -283,6 +283,8 @@ export interface DispatchSkipView {
   assignee?: string;
   // "no_assignee": a ready card with no assignee/bot (require_assignee on).
   // "no_bot": its assignee is not a bot the dispatcher can route to.
+  // "completion_pending": the run finished but the move to completed_state
+  // failed; the dispatcher keeps retrying and will not run the card again.
   // Absent for the bot-misconfiguration family.
   kind?: string;
 }

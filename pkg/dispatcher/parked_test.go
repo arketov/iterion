@@ -430,10 +430,10 @@ func TestDispatch_RefusesFreshRunWhenLastRunIsStillLive(t *testing.T) {
 // that card unobtainable forever (review R16dca9).
 func TestDispatch_MintsFreshWhenLastRunFinished(t *testing.T) {
 	fx := newLastRunFixture(t, store.RunStatusFinished, native.StateInProgress)
-	fx.disp.dispatch(context.Background(), tracker.Issue{
-		ID: fx.issue.ID, Identifier: fx.issue.ID, Title: fx.issue.Title,
-		WorkflowState: native.StateInProgress,
-	})
+	// The card entered in_progress AFTER the run finished: the re-queue
+	// gesture, not an unfinished completed-state move.
+	setRunFinishedAt(t, fx, time.Now().Add(-time.Hour))
+	fx.disp.dispatch(context.Background(), candidateOf(t, fx, native.StateInProgress))
 	fx.disp.workersWG.Wait()
 	if fx.launched != 1 {
 		t.Fatalf("finished last_run: launched %d time(s), want 1 fresh run", fx.launched)
