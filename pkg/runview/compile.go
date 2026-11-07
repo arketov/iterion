@@ -45,6 +45,11 @@ type CompiledSource struct {
 	// Included lists the files the {{include}} markers read, by slash path
 	// from the bundle root when bundled, otherwise the unit root, sorted.
 	Included []string
+	// MCPSkipped lists the ambient MCP servers the compile left out of the
+	// catalog (a reserved name). The compile has no per-run logger — a
+	// preview or a check compiles too — so the launch surface that raises
+	// one shows these on the run's log (Service.logMCPSkips).
+	MCPSkipped []mcp.SkippedServer
 }
 
 // workflowIdentity folds the unit's source into one digest, in an order
@@ -642,9 +647,11 @@ func compileLoadedUnitMode(u *unit.Unit, path, name string, withHash bool, b *bu
 		mcpDir = filepath.Dir(path)
 	}
 	if prepareExecution {
-		if err := mcp.PrepareWorkflow(cr.Workflow, mcpDir, workspace); err != nil {
+		skipped, err := mcp.PrepareWorkflowReport(cr.Workflow, mcpDir, workspace)
+		if err != nil {
 			return nil, nil, err
 		}
+		cs.MCPSkipped = skipped
 	}
 
 	return cr.Workflow, cs, nil
