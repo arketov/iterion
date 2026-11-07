@@ -20,6 +20,9 @@ import (
 // partial JSON that LoadRun could no longer decode, making the run permanently
 // unresumable.
 //
+// On Windows a rename blocked by a transient handle on the destination is
+// retried for about 2s.
+//
 // On error, the temp file is best-effort removed so we don't leak it.
 //
 // Exported so other on-disk subsystems (e.g. the privacy vault) can reuse
@@ -62,7 +65,7 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 		_ = os.Remove(tmp)
 		return fmt.Errorf("store: close temp file: %w", err)
 	}
-	if err := os.Rename(tmp, path); err != nil {
+	if err := renameReplace(tmp, path); err != nil {
 		_ = os.Remove(tmp)
 		return fmt.Errorf("store: rename temp file: %w", err)
 	}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // claimEntry is one issue claim this dispatcher process placed on the
@@ -148,12 +149,7 @@ func (j *claimJournal) persistLocked() {
 		j.logger.Warn("dispatcher: claim journal dir: %v", err)
 		return
 	}
-	tmp := j.path + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o644); err != nil {
+	if err := store.WriteFileAtomic(j.path, raw, 0o644); err != nil {
 		j.logger.Warn("dispatcher: claim journal write: %v", err)
-		return
-	}
-	if err := os.Rename(tmp, j.path); err != nil {
-		j.logger.Warn("dispatcher: claim journal rename: %v", err)
 	}
 }
