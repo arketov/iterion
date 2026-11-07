@@ -3149,7 +3149,8 @@ hosts, tries to bind-mount a discovered host `iterion` binary at
 use an iterion sandbox image that includes the binary, add it to your
 custom image, set `ITERION_BIN` so the host can mount it, or add an
 explicit read-only mount that places a compatible `iterion` binary on
-the container PATH.
+the container PATH. A Windows host never mounts its `iterion.exe` (a PE file
+cannot run in the Linux container), so the image must ship its own `iterion`.
 
 The bind and the `sandbox_claw_routed_via_runner` event are decided on
 the backend DISPATCH resolves, launch overrides included — so a workflow

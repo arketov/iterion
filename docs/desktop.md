@@ -68,7 +68,7 @@ You can also drag `Iterion.app` to `/Applications/` for a permanent install.
 ### Windows
 
 - **Portable** : double-click `iterion-desktop-windows-amd64.exe`. SmartScreen will warn ("Unknown publisher" — V1 is unsigned) → "More info" → "Run anyway".
-- **Installer** : run `iterion-desktop-windows-amd64-installer.exe` for a per-user install with Start Menu shortcut.
+- **Installer** : run `iterion-desktop-windows-amd64-installer.exe` for an install with Start Menu shortcut; it also installs `iterion.exe` (the CLI the desktop spawns for the board and `ask_user` MCP servers) next to the desktop. The portable `.exe` needs `iterion.exe` in the same folder or `ITERION_BIN` for those.
 
 ## First launch
 

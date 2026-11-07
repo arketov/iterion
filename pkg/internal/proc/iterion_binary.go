@@ -3,6 +3,7 @@ package proc
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -10,27 +11,26 @@ import (
 // binary suitable for subprocess invocation (MCP stdio servers,
 // detached runners, sandbox bind-mounts, …). Resolution order:
 //
-//  1. <dirof(os.Executable())>/iterion — the binary right next to the
-//     currently-running one. Critical for desktop deployments where the
-//     daemon is `iterion-desktop` (a Wails wrapper that does not
-//     dispatch hidden CLI subcommands like `__mcp-board`). os.Executable
-//     alone would point at the desktop wrapper; spawning that with a
-//     subcommand opens a phantom GUI window instead of running the
-//     subprocess (the wrapper falls through to wails.Run on unknown
-//     args).
+//  1. <dirof(os.Executable())>/iterion (iterion.exe on Windows) — the
+//     binary right next to the currently-running one. Critical for
+//     desktop deployments where the daemon is `iterion-desktop` (a Wails
+//     wrapper that does not dispatch hidden CLI subcommands like
+//     `__mcp-board`). os.Executable alone would point at the desktop
+//     wrapper; spawning that with a subcommand opens a phantom GUI window
+//     instead of running the subprocess (the wrapper falls through to
+//     wails.Run on unknown args).
 //  2. $ITERION_BIN env var — escape hatch for unusual installs (e.g.
 //     CI containers, vendored toolchains).
-//  3. Standard Linux install paths: /usr/local/bin/iterion,
-//     /usr/bin/iterion, ~/.local/bin/iterion.
+//  3. Standard install paths: /usr/local/bin/iterion, /usr/bin/iterion,
+//     ~/.local/bin/iterion on Unix; %ProgramFiles%\Iterion\iterion.exe
+//     (the desktop installer's directory) on Windows.
+//
+// On Windows a file counts as executable when it is a regular file with an
+// .exe extension: Go reports no execute permission bits there.
 //
 // Returns "" when no binary can be located. Callers either fall back
 // to a degraded mode (skip MCP wiring, log a warning) or expect the
 // target environment to ship its own copy on PATH.
-//
-// Symmetry note: the same logic lives in pkg/runtime/sandbox.go as
-// locateHostIterionBinary, kept inline there to avoid leaking the
-// sandbox's bind-mount semantics into this generic helper. Edits to
-// the lookup contract should land in both places.
 func LocateIterionBinary() string {
 	p := locateIterionBinaryCandidate()
 	if p == "" {
@@ -50,7 +50,7 @@ func LocateIterionBinary() string {
 
 func locateIterionBinaryCandidate() string {
 	if exe, err := os.Executable(); err == nil && !isVolatileBuildPath(exe) {
-		candidate := filepath.Join(filepath.Dir(exe), "iterion")
+		candidate := filepath.Join(filepath.Dir(exe), iterionBinaryName(runtime.GOOS))
 		if isExecutableFile(candidate) {
 			return candidate
 		}
@@ -74,7 +74,22 @@ func locateIterionBinaryCandidate() string {
 // real binary; production never replaces it.
 var installPathCandidates = defaultInstallPathCandidates
 
+// iterionBinaryName is the file name of the iterion CLI on goos.
+func iterionBinaryName(goos string) string {
+	if goos == "windows" {
+		return "iterion.exe"
+	}
+	return "iterion"
+}
+
 func defaultInstallPathCandidates() []string {
+	if runtime.GOOS == "windows" {
+		// The desktop installer's $INSTDIR ($PROGRAMFILES64\Iterion).
+		if pf := os.Getenv("ProgramFiles"); pf != "" {
+			return []string{filepath.Join(pf, "Iterion", "iterion.exe")}
+		}
+		return nil
+	}
 	candidates := []string{"/usr/local/bin/iterion", "/usr/bin/iterion"}
 	if home, err := os.UserHomeDir(); err == nil {
 		candidates = append(candidates, filepath.Join(home, ".local", "bin", "iterion"))
@@ -100,8 +115,11 @@ func SetInstallPathCandidates(paths func() []string) (restore func()) {
 // shortcut for these paths and falls through to stable install
 // locations instead.
 //
-// Matches both Linux `/tmp/go-build*` and macOS `/var/folders/.../T/go-build*`.
+// Matches Linux `/tmp/go-build*`, macOS `/var/folders/.../T/go-build*` and
+// Windows `...\Temp\go-build*` (separators are normalised so a Windows path
+// is recognised on any host).
 func isVolatileBuildPath(p string) bool {
+	p = strings.ReplaceAll(p, `\`, "/")
 	return strings.Contains(p, "/go-build") || strings.Contains(p, "/T/go-build")
 }
 
@@ -115,12 +133,22 @@ func IsVolatileExecutable(p string) bool {
 }
 
 func isExecutableFile(p string) bool {
+	return isExecutableFileFor(runtime.GOOS, p)
+}
+
+// isExecutableFileFor reports whether p is a runnable file on goos. Windows
+// carries no execute permission bits (Go reports none for any file), so there
+// it means a regular file with an .exe extension.
+func isExecutableFileFor(goos, p string) bool {
 	// #nosec G304 G703 — p originates from os.Executable(), the operator-set
 	// ITERION_BIN override, or fixed install-path constants (see
 	// LocateIterionBinary), never raw external request input.
 	info, err := os.Stat(p)
 	if err != nil || info.IsDir() {
 		return false
+	}
+	if goos == "windows" {
+		return info.Mode().IsRegular() && strings.EqualFold(filepath.Ext(p), ".exe")
 	}
 	return info.Mode().Perm()&0o111 != 0
 }

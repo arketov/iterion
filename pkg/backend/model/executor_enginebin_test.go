@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/arketov/iterion/pkg/sandbox"
@@ -17,7 +18,11 @@ import (
 func canaryEngineBin(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	bin := filepath.Join(dir, "iterion")
+	name := "iterion"
+	if runtime.GOOS == "windows" {
+		name = "iterion.exe" // the lookup requires an .exe extension there
+	}
+	bin := filepath.Join(dir, name)
 	if err := os.WriteFile(bin, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}

@@ -1152,17 +1152,41 @@ tasks:
 
   desktop:build:windows:amd64:
     desc: Build Iterion Desktop for Windows amd64 (must run on Windows)
-    deps: [studio:build]
+    deps: [studio:build, cli:build:windows:amd64]
     dir: cmd/iterion-desktop
     cmds:
       - wails build -tags desktop -platform windows/amd64 -clean -trimpath -skipbindings -s -ldflags "{{.LDFLAGS}}" -nsis -o iterion-desktop-windows-amd64.exe
 
   desktop:build:windows:arm64:
     desc: Build Iterion Desktop for Windows arm64 (must run on Windows)
-    deps: [studio:build]
+    deps: [studio:build, cli:build:windows:arm64]
     dir: cmd/iterion-desktop
     cmds:
       - wails build -tags desktop -platform windows/arm64 -clean -trimpath -skipbindings -s -ldflags "{{.LDFLAGS}}" -nsis -o iterion-desktop-windows-arm64.exe
+
+  cli:build:windows:amd64:
+    desc: Build the iterion CLI for Windows amd64 (output build/windows/installer/iterion.exe, bundled by the NSIS installer)
+    # Not build/bin: `wails build -clean` wipes it, and makensis runs inside
+    # build/windows/installer, where project.nsi picks the file up.
+    deps: [studio:build]
+    env:
+      CGO_ENABLED: "0"
+      GOOS: windows
+      GOARCH: amd64
+    cmds:
+      - go build -trimpath -ldflags "{{.LDFLAGS}}" -o build/windows/installer/iterion.exe {{.CMD}}
+
+  cli:build:windows:arm64:
+    desc: Build the iterion CLI for Windows arm64 (output build/windows/installer/iterion.exe, bundled by the NSIS installer)
+    # Not build/bin: `wails build -clean` wipes it, and makensis runs inside
+    # build/windows/installer, where project.nsi picks the file up.
+    deps: [studio:build]
+    env:
+      CGO_ENABLED: "0"
+      GOOS: windows
+      GOARCH: arm64
+    cmds:
+      - go build -trimpath -ldflags "{{.LDFLAGS}}" -o build/windows/installer/iterion.exe {{.CMD}}
 
   desktop:build:linux:amd64:
     desc: Build Iterion Desktop for Linux amd64 (production with DevTools enabled)

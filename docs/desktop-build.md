@@ -90,7 +90,11 @@ Silicon) and produces a single `darwin/universal` .app via Wails'
 The CI runs on `windows-latest`. Wails uses WebView2 which is bundled with
 modern Windows; the build needs `nsis` only for the installer step (`-nsis`
 flag in the Taskfile target). On the runner this is auto-installed via the
-[`Wails CLI`] download.
+[`Wails CLI`] download. The installer also contains `iterion.exe`, the console
+CLI of the same version, built by `cli:build:windows:<arch>` (a dependency of
+`desktop:build:windows:<arch>`) into `build/windows/installer/`: the Wails
+wrapper does not dispatch hidden subcommands such as `__mcp-board`, so the
+desktop spawns the CLI sitting next to it. The portable `.exe` ships alone.
 
 ### Alternative: nix-provided headers (no apt / no sudo)
 
