@@ -75,7 +75,7 @@ describe("reloading the desktop workspace window", () => {
     expect(visible(await pane("alpha"))).toBe(false);
   });
 
-  it("restores the order of the tabs the registry lists in no stable order", async () => {
+  it("restores the saved tab order over the order the registry lists", async () => {
     window.sessionStorage.setItem("iterion.workspace.pane-order", JSON.stringify(["b", "a"]));
     boot(["a", "b"]);
 

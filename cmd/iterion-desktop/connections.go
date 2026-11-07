@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"sort"
 	"strings"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -56,6 +57,7 @@ type activeConn struct {
 	serverURL string // trailing-slash base: http://127.0.0.1:<port>/ or https://<cloud>/
 	jar       *cloudTokenJar
 	cancel    context.CancelFunc // cloud refresh loop; nil for local
+	seq       uint64             // opening order; kept when an entry is replaced
 }
 
 // lookupConn returns the open connection with the given id, or nil.
@@ -74,8 +76,15 @@ func (a *App) registerConnLocked(c *activeConn) {
 	if a.conns == nil {
 		a.conns = make(map[string]*activeConn)
 	}
-	if prev, ok := a.conns[c.id]; ok && prev.cancel != nil {
-		prev.cancel()
+	if prev, ok := a.conns[c.id]; ok {
+		if prev.cancel != nil {
+			prev.cancel()
+		}
+		// A replacement (re-open, sign-in) keeps the tab's place.
+		c.seq = prev.seq
+	} else {
+		a.connSeq++
+		c.seq = a.connSeq
 	}
 	a.conns[c.id] = c
 }
@@ -233,7 +242,8 @@ func (a *App) CloseConnection(id string) error {
 }
 
 // GetOpenConnections returns the ids of the connections currently open in the
-// workspace, so the shell can restore its panes after a reload.
+// workspace, in the order they were opened (ties broken by id), so the shell
+// can restore its panes after a reload.
 func (a *App) GetOpenConnections() []string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -241,6 +251,13 @@ func (a *App) GetOpenConnections() []string {
 	for id := range a.conns {
 		out = append(out, id)
 	}
+	sort.Slice(out, func(i, j int) bool {
+		ci, cj := a.conns[out[i]], a.conns[out[j]]
+		if ci.seq != cj.seq {
+			return ci.seq < cj.seq
+		}
+		return out[i] < out[j]
+	})
 	return out
 }
 

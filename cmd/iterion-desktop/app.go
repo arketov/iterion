@@ -53,6 +53,9 @@ type App struct {
 	// usingDaemon) still drive the unscoped /api/* path for browser mode and
 	// the pre-workspace desktop shell; conns drives every /x/<connID>/*.
 	conns map[string]*activeConn
+	// connSeq numbers the entries of conns in opening order (see
+	// activeConn.seq), so GetOpenConnections is stable. Guarded by mu.
+	connSeq uint64
 
 	// cloudJar holds the live tokens for the current CLOUD connection, or
 	// nil when the current connection is local. The asset proxy reads it to

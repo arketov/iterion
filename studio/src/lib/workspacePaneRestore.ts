@@ -80,8 +80,8 @@ export function writePaneOrder(ids: readonly string[]): void {
 /**
  * `open` in the recorded order: ids the record knows come first in its order,
  * ids it does not know follow in the order they came. The desktop's registry
- * lists its open connections in no stable order, so without this the tabs
- * reshuffle on every reload.
+ * lists its open connections in opening order, so without this a tab order
+ * changed since (or a registry that does not keep one) would be lost on reload.
  */
 export function sortByPaneOrder(open: readonly string[], order: readonly string[]): string[] {
   const openSet = new Set(open);

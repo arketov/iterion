@@ -335,7 +335,8 @@ export default function WorkspaceShell() {
           return;
         }
       }
-      // The registry lists its open connections in no stable order.
+      // The registry lists its open connections in opening order; the saved
+      // tab order (the user may have dragged tabs) wins over it.
       const ordered = sortByPaneOrder(open, savedOrder);
       setOpenIds(ordered);
       setActiveId((a) => a ?? (savedActive && ordered.includes(savedActive) ? savedActive : (ordered[0] ?? null)));
