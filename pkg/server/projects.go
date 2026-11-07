@@ -285,6 +285,35 @@ func (s *Server) handleRemoveProject(w http.ResponseWriter, r *http.Request) {
 // switch proceeds and runview logs what it could not wait for.
 const hotSwapStopBudget = 5 * time.Second
 
+// projectExamplesDir is the studio's default examples folder for a project:
+// <dir>/bots, else the legacy <dir>/examples, else "" (pkg/cli/studio.go
+// derives the boot value by the same rule).
+func projectExamplesDir(dir string) string {
+	for _, sub := range []string{"bots", "examples"} {
+		p := filepath.Join(dir, sub)
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
+// examplesDirFollowsProject reports whether examplesDir is the default of the
+// project at workDir — empty, or its bots/ or examples/ — and so is re-derived
+// on a switch. Any other folder is an operator's explicit choice.
+func examplesDirFollowsProject(workDir, examplesDir string) bool {
+	if examplesDir == "" {
+		return true
+	}
+	examplesDir = filepath.Clean(examplesDir)
+	for _, sub := range []string{"bots", "examples"} {
+		if examplesDir == filepath.Clean(filepath.Join(workDir, sub)) {
+			return true
+		}
+	}
+	return false
+}
+
 // swapWorkDir is the hot-swap primitive. Builds a fresh runview.Service
 // and Watcher for the new directory, then atomically replaces the
 // server's references under stateMu. In-flight engine goroutines from
@@ -296,6 +325,11 @@ const hotSwapStopBudget = 5 * time.Second
 // server's, not the runs'. Left alive they scan a store the server no longer
 // serves — one more orphan-reconcile ticker, pipeline scheduler and stall
 // poll per switch, for the process lifetime.
+//
+// ExamplesDir follows the project when it was the studio's default for the
+// previous one (see examplesDirFollowsProject); an explicit folder stays.
+// Bots.Paths is not touched: an explicit root stays, and the default catalog
+// already derives from the live WorkDir.
 func (s *Server) swapWorkDir(ctx context.Context, newDir string) error {
 	abs, err := filepath.Abs(newDir)
 	if err != nil {
@@ -413,6 +447,9 @@ func (s *Server) swapWorkDir(ctx context.Context, newDir string) error {
 	s.stateMu.Lock()
 	oldWatcher := s.watcher
 	oldRuns := s.runs
+	if s.cfg.Mode != "cloud" && examplesDirFollowsProject(s.cfg.WorkDir, s.cfg.ExamplesDir) {
+		s.cfg.ExamplesDir = projectExamplesDir(abs)
+	}
 	s.cfg.WorkDir = abs
 	s.cfg.StoreDir = storeDir
 	s.runs = newRuns
