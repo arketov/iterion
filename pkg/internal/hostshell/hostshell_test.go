@@ -425,3 +425,40 @@ func TestLooksPosixSkipsBlockCommentsAndNestedBraces(t *testing.T) {
 		t.Error("an sh line after a block comment must still be read")
 	}
 }
+
+func wslLook(name string) (string, error) {
+	if name == "bash" {
+		return `C:\Windows\System32\bash.exe`, nil
+	}
+	return "", &exec.Error{Name: name, Err: exec.ErrNotFound}
+}
+
+func TestExplicitBashSkipsWSLLauncherOnWindows(t *testing.T) {
+	withSeams(t, wslLook, "")
+	var nf *NotFoundError
+	_, err := resolve(Request{Name: "bash"}, "windows")
+	if !errors.As(err, &nf) || !errors.Is(err, exec.ErrNotFound) {
+		t.Fatalf("shell: bash must not start the WSL launcher: %v", err)
+	}
+	if !strings.Contains(err.Error(), "WSL") {
+		t.Errorf("error %q should say the WSL launcher was skipped", err)
+	}
+	withSeams(t, wslLook, "bash")
+	if _, err := resolve(Request{}, "windows"); !errors.As(err, &nf) {
+		t.Fatalf("ITERION_SHELL=bash must not start the WSL launcher: %v", err)
+	}
+	if _, _, ok, err := scriptInterpreter("bash", "windows"); !ok || !errors.As(err, &nf) {
+		t.Fatalf("language: bash must not start the WSL launcher: ok=%v err=%v", ok, err)
+	}
+	if _, _, err := fileCommand(`C:\hooks\run.sh`, "bash", "windows"); !errors.As(err, &nf) {
+		t.Fatalf("file hook shell: bash must not start the WSL launcher: %v", err)
+	}
+}
+
+func TestExplicitWSLLauncherPathIsHonoured(t *testing.T) {
+	withSeams(t, wslLook, "")
+	sh, err := resolve(Request{Name: `C:\Windows\System32\bash.exe`}, "windows")
+	if err != nil || sh.Kind != KindBash {
+		t.Fatalf("an explicit path is the operator's own choice: %+v, %v", sh, err)
+	}
+}

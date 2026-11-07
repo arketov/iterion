@@ -604,8 +604,11 @@ shells just call). The sh forms that do not survive PowerShell: `[ -d x ]`,
 `language: powershell` (aliases `pwsh`, `ps1`) runs a `.ps1` file under
 PowerShell, written with a UTF-8 byte order mark so Windows PowerShell 5.1 reads
 non-ASCII text in it, with the output and exit codes described above;
-`language: sh`/`bash` on Windows needs that shell on PATH and says
-so if it is missing. On Windows `iterion` does not parse-check tool bodies
+`language: sh`/`bash` on Windows (and an explicit `shell: bash`, or
+`ITERION_SHELL=bash`) needs that shell on PATH and says so if it is missing;
+the WSL launcher `System32\bash.exe` is not that shell, so a bare `bash` that
+resolves only to it counts as missing (name the shell by its full path to use
+it anyway). On Windows `iterion` does not parse-check tool bodies
 (`iterion` dry-run reports them unchecked), since the `bash -n` check does not
 apply to PowerShell.
 
