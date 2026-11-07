@@ -77,7 +77,17 @@ unrelated projects — is gone on purpose.
 
 The consequence worth remembering: **the CLI and the studio share runs only if
 they resolve to the same store.** Both start from a folder, so run the CLI from the
-same folder the studio serves (a subfolder gives a different key), or pass the same `--store-dir` to both.
+same folder the studio serves, or pass the same `--store-dir` to both.
+
+A subfolder is a different project as far as the store is concerned: from
+`<project>/bots/x` the CLI uses that subfolder's own `.iterion` or its own slot
+(a subfolder gives a different key), never the store of `<project>`, even when
+`<project>/.iterion` is a managed store. Nothing is moved or merged for you.
+When `iterion run` lands in such a slot inside a git repository and a folder
+between it and the repository root already holds a store with `runs/`, it prints
+a warning on stderr (and into `run.log`) naming that store and the exact
+`--store-dir` to pass. The warning changes nothing: the run still goes where the
+rules above put it.
 
 ## Moving a project folder
 
@@ -164,6 +174,13 @@ From PowerShell on Windows:
 ```powershell
 Get-ChildItem $HOME\.iterion\projects          # one folder per project you have opened
 Get-ChildItem $env:APPDATA\Iterion             # desktop settings and locks
+```
+
+To launch from a subfolder into the store the studio serves at the project root:
+
+```powershell
+cd C:\Users\Anna\shop\bots\x
+iterion run main.bot --store-dir C:\Users\Anna\shop\.iterion
 ```
 
 A run's own files are under `<store>/runs/<run-id>/`; the exact formats are in

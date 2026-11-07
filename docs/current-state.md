@@ -180,7 +180,9 @@ Local state does not automatically pollute the repository. Without an explicit
 exists; otherwise it selects a deterministic project slot under
 `$ITERION_HOME/projects/` (normally `~/.iterion/projects/`). Pass the same
 `--store-dir` to CLI commands that must share a store, or point the studio at
-that store.
+that store. The CLI keys the store on the current directory, so a run launched
+from a project subfolder lands in the subfolder's own slot; `iterion run` warns
+and names the project store when it finds one in the same git repository.
 
 The local store persists `run.json`, `events.jsonl`, versioned artifacts,
 interactions, tool blobs, messages, and reports. The checkpoint inside
