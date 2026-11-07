@@ -84,7 +84,8 @@ hook ran under, or was asked for, and why it was chosen), `error` (full text),
 `stderr` tail, `at`, `attempt`, the minted `run_id` (no run exists under it) and
 `log_path` (the host log, from `ITERION_DAEMON_LOG`). At most 20 entries, newest
 last; the list is cleared when a run is next stamped on the card, and when the
-operator reopens the card. Both stores (files and Mongo) carry it,
+operator reopens the card. Both stores (files and Mongo) carry it (in Mongo a
+record is one atomic append, so concurrent attempts are not lost),
 `UpdatedAt` is not bumped (it orders dispatching), and the studio renders it on
 the board card, in the card's Ticket tab, and in the *Did not start* panel of
 the Runs and Dispatcher pages. See [dispatcher](dispatcher.md#retry-queue).

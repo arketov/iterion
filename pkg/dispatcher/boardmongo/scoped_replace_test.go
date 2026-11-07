@@ -677,3 +677,171 @@ func TestAddComment_DollarBodiesAreDataNotExpressions(t *testing.T) {
 		t.Fatal("the witness card vanished from the tenant listing")
 	}
 }
+
+// Two concurrent launch-failure records both land: the append is an atomic
+// pipeline, not a read-modify-$set of the whole array (which lost one of
+// every concurrent pair, like the comment race above).
+func TestScopedReplace_ConcurrentLaunchFailuresAllLand(t *testing.T) {
+	s := scopedMongo(t)
+	const N = 40
+	lost := 0
+	for i := 0; i < N; i++ {
+		iss, err := s.Create(native.Issue{Title: "launch failure race", State: native.StateInProgress})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var wg sync.WaitGroup
+		wg.Add(2)
+		for a := 1; a <= 2; a++ {
+			go func(a int) {
+				defer wg.Done()
+				_ = s.RecordLaunchFailure(iss.ID, native.LaunchFailure{Attempt: a, Hook: "after_create", Error: "boom"})
+			}(a)
+		}
+		wg.Wait()
+		if got, _ := s.Get(iss.ID); len(got.LaunchFailures) != 2 {
+			lost++
+		}
+	}
+	if lost > 0 {
+		t.Fatalf("a launch failure was LOST in %d/%d concurrent pairs", lost, N)
+	}
+}
+
+// Sixteen concurrent writers: every attempt is kept (16 < the cap).
+func TestScopedReplace_ManyConcurrentLaunchFailuresAllLand(t *testing.T) {
+	s := scopedMongo(t)
+	iss, err := s.Create(native.Issue{Title: "launch failure burst", State: native.StateInProgress})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const N = 16
+	var wg sync.WaitGroup
+	wg.Add(N)
+	for i := 1; i <= N; i++ {
+		go func(i int) {
+			defer wg.Done()
+			_ = s.RecordLaunchFailure(iss.ID, native.LaunchFailure{Attempt: i, Hook: "after_create"})
+		}(i)
+	}
+	wg.Wait()
+	got, err := s.Get(iss.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[int]bool{}
+	for _, f := range got.LaunchFailures {
+		seen[f.Attempt] = true
+	}
+	if len(got.LaunchFailures) != N || len(seen) != N {
+		t.Fatalf("kept %d records (%d distinct attempts), want %d", len(got.LaunchFailures), len(seen), N)
+	}
+}
+
+// Sequential records keep the newest MaxLaunchFailures, oldest dropped,
+// newest last — the FS twin's contract.
+func TestRecordLaunchFailure_CapKeepsNewestInOrder(t *testing.T) {
+	s := scopedMongo(t)
+	iss, err := s.Create(native.Issue{Title: "launch failure cap", State: native.StateInProgress})
+	if err != nil {
+		t.Fatal(err)
+	}
+	total := native.MaxLaunchFailures + 5
+	for a := 1; a <= total; a++ {
+		if err := s.RecordLaunchFailure(iss.ID, native.LaunchFailure{Attempt: a, Hook: "after_create"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := s.Get(iss.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.LaunchFailures) != native.MaxLaunchFailures {
+		t.Fatalf("kept %d records, want %d", len(got.LaunchFailures), native.MaxLaunchFailures)
+	}
+	if first, last := got.LaunchFailures[0].Attempt, got.LaunchFailures[len(got.LaunchFailures)-1].Attempt; first != 6 || last != total {
+		t.Fatalf("attempts run %d..%d, want 6..%d", first, last, total)
+	}
+}
+
+// Launch-failure text is free text evaluated nowhere: "$"-leading output
+// must persist verbatim and must not break the tenant listing.
+func TestRecordLaunchFailure_DollarTextIsDataNotExpressions(t *testing.T) {
+	s := scopedMongo(t)
+	iss, err := s.Create(native.Issue{Title: "victim", State: native.StateInProgress})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordLaunchFailure(iss.ID, native.LaunchFailure{Attempt: 1, Hook: "after_create", Error: "$ go test", Stderr: "$issue.labels"}); err != nil {
+		t.Fatalf("RecordLaunchFailure: %v — free text hard-failed the write", err)
+	}
+	got, err := s.Get(iss.ID)
+	if err != nil {
+		t.Fatalf("the card is no longer decodable: %v", err)
+	}
+	if len(got.LaunchFailures) != 1 || got.LaunchFailures[0].Error != "$ go test" || got.LaunchFailures[0].Stderr != "$issue.labels" {
+		t.Fatalf("launch failures = %+v, want the text verbatim", got.LaunchFailures)
+	}
+	if _, err := s.List(native.ListFilter{}); err != nil {
+		t.Fatalf("tenant listing broken: %v", err)
+	}
+}
+
+// A stamp (SetLastRun with a run id) resets the array to null; the next
+// record must start a fresh one-element array, not fail on null.
+func TestRecordLaunchFailure_AfterResetStartsFresh(t *testing.T) {
+	s := scopedMongo(t)
+	iss, err := s.Create(native.Issue{Title: "reset", State: native.StateInProgress})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordLaunchFailure(iss.ID, native.LaunchFailure{Attempt: 1, Hook: "after_create"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetLastRun(iss.ID, "run-1", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RecordLaunchFailure(iss.ID, native.LaunchFailure{Attempt: 2, Hook: "after_create"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Get(iss.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.LaunchFailures) != 1 || got.LaunchFailures[0].Attempt != 2 {
+		t.Fatalf("launch failures = %+v, want exactly attempt 2", got.LaunchFailures)
+	}
+}
+
+// A launch failure never writes UpdatedAt: a comment landing concurrently
+// bumps it, and the recorder must not roll it back to its stale snapshot.
+func TestRecordLaunchFailure_DoesNotRollBackUpdatedAt(t *testing.T) {
+	s := scopedMongo(t)
+	const N = 30
+	for i := 0; i < N; i++ {
+		iss, err := s.Create(native.Issue{Title: "updatedat race", State: native.StateInProgress})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var wg sync.WaitGroup
+		var cm *native.Comment
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			_ = s.RecordLaunchFailure(iss.ID, native.LaunchFailure{Attempt: 1, Hook: "after_create"})
+		}()
+		go func() { defer wg.Done(); _, cm, _ = s.AddComment(iss.ID, "op", "note") }()
+		wg.Wait()
+		if cm == nil {
+			t.Fatal("AddComment failed")
+		}
+		got, err := s.Get(iss.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Mongo stores milliseconds; compare at that precision.
+		if got.UpdatedAt.Before(cm.CreatedAt.Truncate(time.Millisecond)) {
+			t.Fatalf("UpdatedAt %s rolled back below the comment's %s by a launch-failure record", got.UpdatedAt, cm.CreatedAt)
+		}
+	}
+}

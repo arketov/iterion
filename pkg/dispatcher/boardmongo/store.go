@@ -897,8 +897,32 @@ func (s *Store) SetAwaitingInput(id string, v bool) error {
 	return s.emit(native.Event{Type: native.EvtIssueUpdated, IssueID: id, Payload: map[string]any{"awaiting_input": v}})
 }
 
-// RecordLaunchFailure appends a failed dispatch attempt to the card; mirrors
-// the FS twin (native.Store.RecordLaunchFailure), UpdatedAt untouched.
+// launchFailureAppendPipeline is the update RecordLaunchFailure sends: an
+// atomic APPEND (capped at native.MaxLaunchFailures, newest kept), not a
+// read-modify-$set of the whole array — two concurrent records through the
+// snapshot form lost one of the two. $push cannot serve: a nil slice
+// persists as null (no bson tags), which $push refuses — the pipeline form
+// coalesces null to [] first. $literal shields the free text (Error, Stderr,
+// LogPath): a value starting with "$" would otherwise be a FIELD PATH.
+// issue.updatedat is deliberately NOT written: a diagnostic is not an edit of
+// the card, UpdatedAt orders dispatch, and a snapshot value would roll back a
+// concurrent writer's bump.
+func launchFailureAppendPipeline(f native.LaunchFailure) (mongo.Pipeline, error) {
+	fm, err := toBSON(f)
+	if err != nil {
+		return nil, err
+	}
+	return mongo.Pipeline{{{Key: "$set", Value: bson.M{
+		"issue.launchfailures": bson.M{"$slice": bson.A{
+			bson.M{"$concatArrays": bson.A{
+				bson.M{"$ifNull": bson.A{"$issue.launchfailures", bson.A{}}}, bson.M{"$literal": bson.A{fm}}}},
+			-native.MaxLaunchFailures}},
+	}}}}, nil
+}
+
+// RecordLaunchFailure appends a failed dispatch attempt to the card with one
+// atomic pipeline update; mirrors the FS twin (native.Store.RecordLaunchFailure),
+// UpdatedAt untouched.
 func (s *Store) RecordLaunchFailure(id string, f native.LaunchFailure) error {
 	ctx, cancel := ctxWithTimeout()
 	defer cancel()
@@ -906,9 +930,12 @@ func (s *Store) RecordLaunchFailure(id string, f native.LaunchFailure) error {
 	if err != nil {
 		return err
 	}
-	iss.LaunchFailures = native.AppendLaunchFailure(iss.LaunchFailures, f)
-	if err := s.replace(ctx, iss, "launchfailures"); err != nil {
-		return err
+	pipe, err := launchFailureAppendPipeline(f)
+	if err != nil {
+		return fmt.Errorf("boardmongo: marshal launch failure: %w", err)
+	}
+	if _, err := s.issues.UpdateOne(ctx, bson.M{"_id": iss.ID, "tenant_id": s.tenant}, pipe); err != nil {
+		return fmt.Errorf("boardmongo: append launch failure: %w", err)
 	}
 	return s.emit(native.Event{Type: native.EvtIssueUpdated, IssueID: id, Payload: map[string]any{"launch_failure": f.Hook}})
 }
