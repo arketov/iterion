@@ -2,6 +2,8 @@ package store
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -105,7 +107,7 @@ func isManagedStore(candidate string) bool {
 // globalProjectStoreDir returns the per-project subdir of the global
 // iterion data dir for absWorkDir. Layout: <iterionHome>/projects/<key>/.
 func globalProjectStoreDir(absWorkDir string) string {
-	return filepath.Join(GlobalIterionDataDir(), "projects", EncodeWorkDirKey(absWorkDir))
+	return ProjectSlotDir(GlobalIterionDataDir(), absWorkDir)
 }
 
 // GlobalIterionDataDir locates the user's iterion data dir: IterionHome,
@@ -414,11 +416,42 @@ func strictlyInside(p, root string) bool {
 //	      -> "-home-jo-lab-devthefuture-modjo"
 //
 //	Windows: "C:\\foo\\bar"
-//	      -> "-C-foo-bar"
+//	      -> "-C--foo-bar"
 //
-// Different absolute paths therefore yield different keys, including
-// when one project is a clone of another at a different location.
+// That substitution (the "stem", see EncodeWorkDirKeyStem) is not
+// injective: `C:\a-b` and `C:\a\b` share a stem. A Windows-shaped path
+// (`X:\...`, `X:/...` or a `\\` UNC path) whose part after the drive
+// contains "-", "~" or ":" therefore gets "~<16 hex>" appended, the
+// hash of the canonical path (drive upper-cased, "/" turned into "\").
+// A stem never contains "~" for such a path, so a plain key and a
+// suffixed key cannot collide. The drive letter is always upper-cased
+// (`c:\x` and `C:\x` are one directory on NTFS and one key).
+//
+//	Windows: "C:\\my-app"
+//	      -> "-C--my-app~<16 hex>"
+//
+// Unix keys, and Windows keys without a dash, are unchanged: stores
+// written under the old encoding stay reachable (see ProjectSlotDir).
+// Unix `/a-b` and `/a/b` still share a key.
 func EncodeWorkDirKey(absPath string) string {
+	stem := EncodeWorkDirKeyStem(absPath)
+	if !windowsNeedsHash(absPath) {
+		return stem
+	}
+	sum := sha256.Sum256([]byte(canonicalWindowsPath(absPath)))
+	return stem + "~" + hex.EncodeToString(sum[:8])
+}
+
+// EncodeWorkDirKeyStem is EncodeWorkDirKey without the "~<hash>" suffix:
+// the legacy substitution with the drive letter upper-cased. A key built
+// from it as a prefix matches both suffixed and plain keys.
+func EncodeWorkDirKeyStem(absPath string) string {
+	return legacyWorkDirKey(upperDrive(absPath))
+}
+
+// legacyWorkDirKey is the original encoding, kept byte for byte: it
+// names the directories existing stores were written under.
+func legacyWorkDirKey(absPath string) string {
 	p := filepath.ToSlash(absPath)
 	// Replace both separator flavours regardless of the runtime OS
 	// so the key for a given path is the same whether iterion sees
@@ -433,4 +466,60 @@ func EncodeWorkDirKey(absPath string) string {
 		p = "-" + p
 	}
 	return p
+}
+
+// hasDriveLetter reports whether p starts with `X:` followed by a
+// separator. Pure string logic: the answer does not depend on the host OS.
+func hasDriveLetter(p string) bool {
+	if len(p) < 3 || p[1] != ':' || (p[2] != '\\' && p[2] != '/') {
+		return false
+	}
+	c := p[0]
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
+// upperDrive upper-cases the drive letter of a `X:\...` path.
+func upperDrive(p string) string {
+	if hasDriveLetter(p) {
+		return strings.ToUpper(p[:1]) + p[1:]
+	}
+	return p
+}
+
+// windowsNeedsHash reports whether p is Windows-shaped and its part
+// after the drive (or after the leading `\\`) contains "-", "~" or ":".
+func windowsNeedsHash(p string) bool {
+	switch {
+	case hasDriveLetter(p), strings.HasPrefix(p, `\\`):
+		return strings.ContainsAny(p[2:], "-~:")
+	}
+	return false
+}
+
+// canonicalWindowsPath is the input of the key hash: drive upper-cased,
+// every "/" turned into "\".
+func canonicalWindowsPath(p string) string {
+	return strings.ReplaceAll(upperDrive(p), "/", `\`)
+}
+
+// ProjectSlotDir returns <dataDir>/projects/<key> for absWorkDir. When
+// the directory for the current key does not exist but the one under the
+// legacy encoding does, the legacy directory is returned, so data written
+// before the key became unique stays reachable. Nothing is created,
+// renamed or deleted, so the choice sticks until the new directory exists.
+// A legacy directory written by a colliding sibling project is adopted
+// the same way; nothing records its owner.
+func ProjectSlotDir(dataDir, absWorkDir string) string {
+	dir := filepath.Join(dataDir, "projects", EncodeWorkDirKey(absWorkDir))
+	legacy := filepath.Join(dataDir, "projects", legacyWorkDirKey(absWorkDir))
+	if legacy == dir {
+		return dir
+	}
+	if _, err := os.Stat(dir); err == nil {
+		return dir
+	}
+	if info, err := os.Stat(legacy); err == nil && info.IsDir() {
+		return legacy
+	}
+	return dir
 }

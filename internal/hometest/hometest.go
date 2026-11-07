@@ -64,7 +64,9 @@ func realHomeTestEntries() map[string]bool {
 		}
 		return nil
 	}
-	tmpPrefix := store.EncodeWorkDirKey(os.TempDir()) + "-Test"
+	// The stem, not the full key: a hash suffix is appended after it, so the
+	// prefix match must stay on the stem.
+	tmpPrefix := store.EncodeWorkDirKeyStem(os.TempDir()) + "-Test"
 	out := make(map[string]bool)
 	for _, e := range entries {
 		n := e.Name()

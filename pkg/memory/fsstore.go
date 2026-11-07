@@ -52,7 +52,9 @@ func LegacyBotRef(memBase, scope string) knowledge.SpaceRef {
 }
 
 // ProjectKey encodes a memory base dir (run workdir or repo root) into
-// the stable, filesystem-safe project key used in the on-disk layout.
+// the stable, filesystem-safe project key used in the on-disk layout: the
+// name of the project's slot directory (store.ProjectSlotDir), so records
+// written under a legacy key stay reachable.
 func ProjectKey(memBase string) string {
 	if memBase == "" {
 		return ""
@@ -63,7 +65,7 @@ func ProjectKey(memBase string) string {
 			abs = resolved
 		}
 	}
-	return store.EncodeWorkDirKey(abs)
+	return filepath.Base(store.ProjectSlotDir(store.GlobalIterionDataDir(), abs))
 }
 
 // SpaceRefInputs are the per-run identity values used to resolve a

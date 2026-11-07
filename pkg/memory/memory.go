@@ -69,7 +69,7 @@ func workspaceSubdirOn(dataDir, workDir, subdir string) string {
 		}
 		abs = resolved
 	}
-	return filepath.Join(dataDir, "projects", store.EncodeWorkDirKey(abs), subdir)
+	return filepath.Join(store.ProjectSlotDir(dataDir, abs), subdir)
 }
 
 // Scope is a sandboxed view of a single feature subfolder. All

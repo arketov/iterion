@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -176,5 +177,28 @@ func TestOpenScope_BadScopeName(t *testing.T) {
 	t.Setenv("ITERION_HOME", t.TempDir())
 	if _, err := OpenScope("/tmp/wn", "../session"); err == nil {
 		t.Fatalf("expected rejection")
+	}
+}
+
+func TestProjectKey_FollowsLegacySlotDir(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("needs a Windows-style absolute path")
+	}
+	home := t.TempDir()
+	t.Setenv("ITERION_HOME", home)
+	const work = `C:\my-app`
+	fresh := ProjectKey(work)
+	if !strings.Contains(fresh, "~") {
+		t.Fatalf("fresh home: key %q should carry the hash suffix", fresh)
+	}
+	if err := os.MkdirAll(filepath.Join(home, "projects", "-C--my-app"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if got := ProjectKey(work); got != "-C--my-app" {
+		t.Errorf("legacy slot present: ProjectKey = %q, want %q", got, "-C--my-app")
+	}
+	want := filepath.Join(home, "projects", "-C--my-app", "memory")
+	if got := WorkspaceMemoryDir(work); got != want {
+		t.Errorf("WorkspaceMemoryDir = %q, want %q", got, want)
 	}
 }

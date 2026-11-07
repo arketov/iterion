@@ -14,6 +14,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // daemonInfo is the on-disk shape of a per-project daemon's discovery
@@ -352,11 +354,41 @@ func projectKeyForStorePath(storePath string) (string, bool) {
 // only when exactly one existing directory matches, otherwise "" so the
 // caller stays on its current daemon instead of spawning one for a
 // nonexistent directory.
+//
+// A key ending in "~<16 hex>" (a Windows path with a literal dash, see
+// store.EncodeWorkDirKey) is decoded from its stem and accepted only when the
+// decoded directory encodes back to exactly that key; otherwise a sibling
+// directory with the same stem would be returned.
 func projectDirFromKey(key string) string {
 	if runtime.GOOS == "windows" {
-		return decodeWindowsProjectKey(key, dirExists)
+		return decodeHashedWindowsProjectKey(key, dirExists)
 	}
 	return decodeUnixProjectKey(key)
+}
+
+// decodeHashedWindowsProjectKey is decodeWindowsProjectKey that also
+// understands the "~<16 hex>" suffix: it strips the suffix, decodes the stem
+// and verifies the result against the full key.
+func decodeHashedWindowsProjectKey(key string, isDir func(string) bool) string {
+	i := len(key) - 17
+	if i < 0 || key[i] != '~' || !isLowerHex(key[i+1:]) {
+		return decodeWindowsProjectKey(key, isDir)
+	}
+	got := decodeWindowsProjectKey(key[:i], isDir)
+	if got == "" || store.EncodeWorkDirKey(got) != key {
+		return ""
+	}
+	return got
+}
+
+func isLowerHex(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func decodeUnixProjectKey(key string) string {
@@ -497,23 +529,12 @@ func findDaemonForStorePath(storePath string) (string, bool) {
 	return "", false
 }
 
-// encodeProjectDirKey mirrors pkg/store/storedir.go's encodeWorkDirKey
-// without importing the store package (which would drag the runtime in
-// via init chains). Same encoding rules: forward + backward separators
-// become "-", colons too (Windows drive letters), and a leading "-" is
-// guaranteed so the result is a single safe filesystem component.
+// encodeProjectDirKey is the project key of store.EncodeWorkDirKey, so the
+// discovery file, the lock and the log file are named after the same key as
+// the project's store directory.
 //
 //	/home/user/work/<project>  ->  -home-user-work-<project>
-//	C:\users\u\<project>       ->  -C-users-u-<project>
-//
-// Keep this in sync with pkg/store/storedir.go if that encoding changes.
+//	C:\users\u\<project>       ->  -C--users-u-<project>
 func encodeProjectDirKey(absPath string) string {
-	p := filepath.ToSlash(absPath)
-	p = strings.ReplaceAll(p, `\`, "-")
-	p = strings.ReplaceAll(p, ":", "-")
-	p = strings.ReplaceAll(p, "/", "-")
-	if !strings.HasPrefix(p, "-") {
-		p = "-" + p
-	}
-	return p
+	return store.EncodeWorkDirKey(absPath)
 }
