@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/arketov/iterion/pkg/dispatcher/native/boardops"
+	"github.com/arketov/iterion/pkg/internal/proc"
 )
 
 // boardMCPServerName is the name under which iterion registers its internal
@@ -14,6 +15,27 @@ const boardMCPServerName = "iterion_board"
 // boardMCPSubcommand is the cobra subcommand exposed by the iterion binary
 // when invoked as `iterion __mcp-board`. See cmd/iterion/mcp_board.go.
 const boardMCPSubcommand = "__mcp-board"
+
+// boardServerBinary resolves the executable that serves `__mcp-board` for the
+// stdio transport: the iterion CLI, or the desktop binary serving it itself.
+func boardServerBinary() string { return proc.LocateBoardMCPBinary() }
+
+// refuseBoardWithoutServer refuses a node holding board.* capabilities when no
+// executable can serve the stdio board MCP server. Without it the node would
+// run with the board tools allow-listed but no server behind them: the agent
+// searches for the tools, finds nothing and silently carries on without a
+// board. Returns nil when a server binary resolves.
+func refuseBoardWithoutServer(task Task, backend string) error {
+	if boardServerBinary() != "" {
+		return nil
+	}
+	return &ErrCapabilityUnsupported{
+		NodeID:     task.NodeID,
+		Backend:    backend,
+		Capability: "board.* capabilities (no iterion binary can serve the board MCP server `" + boardMCPSubcommand + "`: board tools unavailable in nodes)",
+		Remedy:     "put the iterion CLI next to this executable or on a standard install path, use a desktop build that serves " + boardMCPSubcommand + " itself, or route the node to the claw backend (it serves the board in-process)",
+	}
+}
 
 // boardCapabilityPrefix is the namespace prefix that flags a capability as
 // addressing the board. Capabilities outside this prefix are ignored by the

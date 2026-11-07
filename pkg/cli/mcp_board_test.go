@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"bytes"
@@ -150,5 +150,59 @@ func TestMCPBoard_MethodNotFound(t *testing.T) {
 	})
 	if int(resps[0]["error"].(map[string]any)["code"].(float64)) != -32601 {
 		t.Fatalf("expected -32601")
+	}
+}
+
+// The desktop binary has no cobra root: its main() hands argv to
+// MaybeServeBoardMCP, which must answer the JSON-RPC session itself.
+//
+// Mutation seen red: make MaybeServeBoardMCP return handled=false — the
+// desktop falls through to wails.Run and opens a window instead of serving.
+func TestMaybeServeBoardMCP_ServesOverStdio(t *testing.T) {
+	t.Setenv("ITERION_STORE_DIR", t.TempDir())
+	t.Setenv("ITERION_BOARD_CAPS", "board.read")
+	in := strings.NewReader(strings.Join([]string{
+		`{"jsonrpc":"2.0","id":1,"method":"initialize"}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`,
+	}, "\n") + "\n")
+	out := &bytes.Buffer{}
+
+	handled, err := MaybeServeBoardMCP([]string{BoardMCPSubcommand}, in, out)
+	if !handled || err != nil {
+		t.Fatalf("MaybeServeBoardMCP = (%v, %v), want (true, nil)", handled, err)
+	}
+	dec := json.NewDecoder(out)
+	var init, list map[string]any
+	if err := dec.Decode(&init); err != nil {
+		t.Fatalf("decode initialize: %v", err)
+	}
+	if err := dec.Decode(&list); err != nil {
+		t.Fatalf("decode tools/list: %v", err)
+	}
+	result, _ := list["result"].(map[string]any)
+	tools, _ := result["tools"].([]any)
+	if len(tools) == 0 {
+		t.Fatalf("tools/list returned no tools for board.read: %v", list)
+	}
+	found := false
+	for _, tool := range tools {
+		if m, _ := tool.(map[string]any); m["name"] == "list_issues" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("tools/list lacks list_issues: %v", list)
+	}
+}
+
+// Any other argv belongs to the desktop's normal startup: nothing is served
+// and nothing is written to stdout.
+func TestMaybeServeBoardMCP_IgnoresOtherArgs(t *testing.T) {
+	for _, args := range [][]string{{"--server-only"}, {}, {BoardMCPSubcommand, "extra"}} {
+		out := &bytes.Buffer{}
+		handled, err := MaybeServeBoardMCP(args, strings.NewReader(""), out)
+		if handled || err != nil || out.Len() != 0 {
+			t.Fatalf("args %v: handled=%v err=%v out=%q, want (false, nil, empty)", args, handled, err, out.String())
+		}
 	}
 }

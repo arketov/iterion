@@ -8,7 +8,8 @@ to via `iterion remote`.
 
 It is distinct from the hidden `__mcp-*` servers (`__mcp-board`,
 `__mcp-ask-user`, `__mcp-control`), which are internal per-run
-transports the engine wires up for its own bots. It is also the
+transports the engine wires up for its own bots (the desktop binary
+serves `__mcp-board` too). It is also the
 complement of the [agent skill](skill.md): the skill teaches an agent
 to *author* `.bot` workflows; the MCP server gives it typed tools to
 *operate* iterion (launch, follow, answer, board, cloud).

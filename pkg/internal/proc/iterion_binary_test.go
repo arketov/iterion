@@ -160,3 +160,55 @@ func exeSuffix() string {
 	}
 	return ""
 }
+
+// The board MCP server resolves its own binary: with no iterion CLI to be
+// found, a process that declared it serves `__mcp-board` itself (the desktop)
+// is its own server — without any executable-bit check, which Windows never
+// reports — and any other process gets "" so the node is refused.
+//
+// Mutation seen red: drop the selfServesBoardMCP fallback — the desktop gets
+// "" and its board nodes run with no board.
+func TestLocateBoardMCPBinary_SelfServes(t *testing.T) {
+	t.Setenv("ITERION_BIN", "")
+	t.Setenv("HOME", t.TempDir())
+	restore := SetInstallPathCandidates(func() []string { return nil })
+	defer restore()
+
+	SetSelfServesBoardMCP(false)
+	if got := LocateBoardMCPBinary(); got != "" {
+		t.Fatalf("LocateBoardMCPBinary() = %q for a process that does not serve the board, want \"\"", got)
+	}
+
+	SetSelfServesBoardMCP(true)
+	t.Cleanup(func() { SetSelfServesBoardMCP(false) })
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := filepath.Abs(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := LocateBoardMCPBinary(); got != want {
+		t.Fatalf("LocateBoardMCPBinary() = %q, want the process's own executable %q", got, want)
+	}
+}
+
+// An explicit ITERION_BIN keeps priority over self-serving: the operator's
+// choice is never silently replaced.
+func TestLocateBoardMCPBinary_ITERIONBINBeatsSelfServing(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the executable-bit lookup of ITERION_BIN does not resolve on Windows")
+	}
+	bin := filepath.Join(t.TempDir(), "iterion")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ITERION_BIN", bin)
+	SetSelfServesBoardMCP(true)
+	t.Cleanup(func() { SetSelfServesBoardMCP(false) })
+
+	if got := LocateBoardMCPBinary(); got != bin {
+		t.Fatalf("LocateBoardMCPBinary() = %q, want the ITERION_BIN override %q", got, bin)
+	}
+}

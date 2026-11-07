@@ -637,8 +637,8 @@ func piMCPServers(task Task, logger *iterlog.Logger) []piMCPServerSpec {
 				Headers:   map[string]string{"X-Iterion-Run": task.BoardRunToken},
 			})
 		case task.Hostless():
-			if selfPath := proc.LocateIterionBinary(); selfPath == "" {
-				warn("[%s#%d/%s] board capabilities granted but the iterion CLI binary could not be resolved; board disabled for this node",
+			if selfPath := boardServerBinary(); selfPath == "" {
+				warn("[%s#%d/%s] board capabilities granted but no binary could be resolved to serve the board MCP server; board disabled for this node",
 					task.NodeID, task.Iteration, BackendPi)
 			} else {
 				out = append(out, piMCPServerSpec{

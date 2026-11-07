@@ -1238,6 +1238,9 @@ func TestEngineRun_HostDevbox_UnlocatableEngineBinaryWarns(t *testing.T) {
 	if !strings.Contains(buf.String(), "no iterion binary could be located") {
 		t.Fatalf("no warn about the unlocatable engine binary; log:\n%s", buf.String())
 	}
+	if !strings.Contains(buf.String(), "board tools unavailable in nodes") {
+		t.Fatalf("the warn does not name the board consequence; log:\n%s", buf.String())
+	}
 }
 
 // TestEngineRun_HostDevbox_DeclinedRepoSetterEventCarriesTheRunPath: the
