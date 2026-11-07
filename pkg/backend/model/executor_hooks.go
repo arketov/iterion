@@ -345,6 +345,12 @@ type EventHooks struct {
 	// OnToolNodeResult is called for direct tool nodes (not LLM tool loops)
 	// with full input/output content for detailed logging.
 	OnToolNodeResult func(nodeID string, toolName string, input []byte, output string, elapsed time.Duration, err error)
+	// OnToolNodeHeartbeat fires once per interval while a shell/script tool
+	// node's command is still running, up to the node's heartbeat ceiling
+	// (ITERION_TOOL_NODE_HEARTBEAT_MAX). It fires from a goroutine alongside
+	// the running command, so it must be safe for concurrent use with the
+	// other hooks; it never fires after OnToolNodeResult.
+	OnToolNodeHeartbeat func(nodeID string, info ToolNodeHeartbeatInfo)
 	// OnToolNodeDeliverables fires for a direct tool node whose recipe
 	// SUCCEEDED, right after OnToolNodeResult, and hands over the files
 	// its output declared (`[iterion] attachment=`,
@@ -490,6 +496,7 @@ func ChainHooks(a, b EventHooks) EventHooks {
 		OnToolStarted:        chainCb2(a.OnToolStarted, b.OnToolStarted),
 		OnToolCall:           chainCb2(a.OnToolCall, b.OnToolCall),
 		OnToolNodeResult:     chainCb6(a.OnToolNodeResult, b.OnToolNodeResult),
+		OnToolNodeHeartbeat:  chainCb2(a.OnToolNodeHeartbeat, b.OnToolNodeHeartbeat),
 		OnToolNodeDeliverables: chainCb2Err(
 			a.OnToolNodeDeliverables, b.OnToolNodeDeliverables),
 		OnDelegateStarted:         chainCb2(a.OnDelegateStarted, b.OnDelegateStarted),

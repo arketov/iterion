@@ -144,6 +144,17 @@ type BackgroundWorkInfo struct {
 	Reason    string
 }
 
+// ToolNodeHeartbeatInfo is one beat of a shell/script tool node vouching that
+// its command's process is still alive, passed to the OnToolNodeHeartbeat
+// hook.
+type ToolNodeHeartbeatInfo struct {
+	ToolName string
+	// Command is a one-line preview of the resolved command (placeholder
+	// form, never materialised secrets).
+	Command string
+	Elapsed time.Duration
+}
+
 // LLMToolCallInfo describes a tool call execution, passed to the OnToolCall hook.
 type LLMToolCallInfo struct {
 	ToolName  string

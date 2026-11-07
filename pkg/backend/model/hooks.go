@@ -815,6 +815,16 @@ func (h *storeHooks) onBackgroundWork(nodeID string, info BackgroundWorkInfo) {
 	h.emit(nodeID, store.EventDelegateBackground, data)
 }
 
+// onToolNodeHeartbeat persists one beat of a running shell/script tool node,
+// so stall detection sees a live command that prints nothing as alive.
+func (h *storeHooks) onToolNodeHeartbeat(nodeID string, info ToolNodeHeartbeatInfo) {
+	h.emit(nodeID, store.EventToolHeartbeat, map[string]any{
+		"tool":       info.ToolName,
+		"command":    info.Command,
+		"elapsed_ms": info.Elapsed.Milliseconds(),
+	})
+}
+
 // isLikelyStructuredPayload reports whether text is a bare JSON object
 // or array — the shape of a structured-output answer rather than
 // human-facing narration.
@@ -1783,6 +1793,8 @@ func NewStoreEventHooks(ctx context.Context, emitter EventEmitter, runID string,
 		OnMCPServerDegraded: h.onMCPServerDegraded,
 		// OnToolNodeResult handles direct tool nodes with full I/O content.
 		OnToolNodeResult: h.onToolNodeResult,
+		// OnToolNodeHeartbeat vouches that a silent command is still alive.
+		OnToolNodeHeartbeat: h.onToolNodeHeartbeat,
 		// …and OnToolNodeDeliverables hands over the files that output
 		// declared, which is the one hook that can fail the node.
 		OnToolNodeDeliverables: h.onToolNodeDeliverables,

@@ -106,7 +106,7 @@ stateDiagram-v2
 stateDiagram-v2
 %% vocabulary: alert.runState
     [*] --> active: the first observed event of the run
-    active --> active: any event advances lastProgressAt - run_health and run_workspace_checkpoint are IGNORED, which is what makes the loop structurally impossible and keeps a checkpoint ticker from masking a hung run
+    active --> active: any event advances lastProgressAt - run_health and run_workspace_checkpoint are IGNORED, which is what makes the loop structurally impossible and keeps a checkpoint ticker from masking a hung run; tool_heartbeat DOES count (the node emits it itself, only while its command lives), and its ceiling returns the run to the stall check
     active --> paused: run_paused or human_input_requested - an async question is explicitly NOT a pause, so long runs keep their alarm
     paused --> active: node_started or run_resumed
     active --> stalled: the poller finds no activity for longer than the stall timeout and no blocking-human-wait proof in flight
@@ -122,7 +122,7 @@ stateDiagram-v2
 |---|---|---|
 | active | liveness advancing, `currentNode` recorded | `budget_warning`, `budget_exceeded` |
 | paused | an intentional wait: `checkStalls` skips the candidate and leaves its state untouched, so only `node_started`, `run_resumed` or a terminal event moves it | nothing |
-| stalled | `stallAlerted`, once per episode; the next observed event of any kind clears it | `stall`, then `stall_recovered` on the way out |
+| stalled | `stallAlerted`, once per episode; the next observed event of any kind clears it | `stall` (its text names the tool and command when the last event was a `tool_heartbeat`), then `stall_recovered` on the way out |
 | terminal | `terminalAt` stamped, reaped after 30 minutes | `run_failed` |
 
 ## Steps

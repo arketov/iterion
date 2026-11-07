@@ -44,11 +44,18 @@ const (
 	// (claude_code streams no llm_step_finished). Structured-payload
 	// text (the node's JSON answer) is filtered at the emitter.
 	// Data: {text, iteration}
-	EventAssistantText   EventType = "assistant_text"
-	EventLLMCompacted    EventType = "llm_compacted"
-	EventToolStarted     EventType = "tool_started"
-	EventToolCalled      EventType = "tool_called"
-	EventToolError       EventType = "tool_error"
+	EventAssistantText EventType = "assistant_text"
+	EventLLMCompacted  EventType = "llm_compacted"
+	EventToolStarted   EventType = "tool_started"
+	EventToolCalled    EventType = "tool_called"
+	EventToolError     EventType = "tool_error"
+	// EventToolHeartbeat is a shell/script tool node vouching, once per
+	// interval, that its command's process is still alive while it prints
+	// nothing. Observational — it advances stall detection of both the alert
+	// Manager and the dispatcher, up to the node's heartbeat ceiling
+	// (ITERION_TOOL_NODE_HEARTBEAT_MAX).
+	// Data: {tool, command (preview, placeholder form, ≤200 runes), elapsed_ms}
+	EventToolHeartbeat   EventType = "tool_heartbeat"
 	EventArtifactWritten EventType = "artifact_written"
 	// EventArtifactContractViolation records mismatches observed under the
 	// report-only rollout policy. Execution continues, but the pilot remains

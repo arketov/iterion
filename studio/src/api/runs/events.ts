@@ -437,6 +437,7 @@ export type PassthroughEventType =
   | "delegate_retry"
   | "delegate_stall"
   | "delegate_background"
+  | "tool_heartbeat"
   | "model_fallback"
   | "model_drift"
   | "model_served_via_facade"

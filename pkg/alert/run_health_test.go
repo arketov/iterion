@@ -1,6 +1,7 @@
 package alert
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -103,6 +104,55 @@ func TestObserve_WorkspaceCheckpointIsNotProgress(t *testing.T) {
 	clock = base.Add(8 * time.Minute)
 	if fired := m.checkStalls(clock); len(fired) != 0 {
 		t.Fatalf("a real event did not re-arm the run: %+v", fired)
+	}
+}
+
+// TestObserve_ToolHeartbeatIsProgressAndNamesTheCommand: a shell/script tool
+// node vouches for its quiet command with one tool_heartbeat a minute, and
+// that is progress — unlike the checkpoint timer, the node emits it itself
+// and only while its process lives. When the beats stop (its ceiling), the
+// stall text names the silent command, and the next ordinary event closes
+// the episode and drops the detail.
+func TestObserve_ToolHeartbeatIsProgressAndNamesTheCommand(t *testing.T) {
+	base := time.Now()
+	clock := base
+	m := NewManager(WithStallTimeout(5 * time.Minute))
+	m.now = func() time.Time { return clock }
+
+	m.Observe(store.Event{RunID: "r1", Type: store.EventNodeStarted, NodeID: "gate", Timestamp: base})
+	for i := 1; i <= 9; i++ {
+		m.Observe(store.Event{RunID: "r1", Type: store.EventToolHeartbeat, NodeID: "gate",
+			Timestamp: base.Add(time.Duration(i) * time.Minute),
+			Data: map[string]any{
+				"tool": "shell:gate", "command": "go test ./pkg/...",
+				"elapsed_ms": int64(i) * 60000,
+			}})
+	}
+	if fired := m.checkStalls(base.Add(10 * time.Minute)); len(fired) != 0 {
+		t.Fatalf("a node whose heartbeat is alive was reported stalled: %+v", fired)
+	}
+
+	fired := m.checkStalls(base.Add(16 * time.Minute))
+	if len(fired) != 1 || fired[0].Kind != KindStall {
+		t.Fatalf("want one stall once the beats stop, got %+v", fired)
+	}
+	if fired[0].NodeID != "gate" {
+		t.Fatalf("stall NodeID = %q, want gate", fired[0].NodeID)
+	}
+	for _, want := range []string{"no activity for", "shell:gate", "go test ./pkg/..."} {
+		if !strings.Contains(fired[0].Reason, want) {
+			t.Fatalf("stall reason %q lacks %q", fired[0].Reason, want)
+		}
+	}
+
+	// A following ordinary event closes the episode and clears the detail.
+	m.Observe(store.Event{RunID: "r1", Type: store.EventToolCalled, NodeID: "gate", Timestamp: base.Add(17 * time.Minute)})
+	fired = m.checkStalls(base.Add(23 * time.Minute))
+	if len(fired) != 1 || fired[0].Kind != KindStall {
+		t.Fatalf("want a second stall, got %+v", fired)
+	}
+	if strings.Contains(fired[0].Reason, "last signal") {
+		t.Fatalf("the second stall still names the heartbeat: %q", fired[0].Reason)
 	}
 }
 

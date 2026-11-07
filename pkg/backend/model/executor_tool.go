@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/arketov/iterion/internal/envtrust"
@@ -467,7 +468,11 @@ func (e *ClawExecutor) runToolNodeCore(
 	// `[detached HEAD ...]` line, a `script: js` body's console.error)
 	// without that prose breaking the JSON parse downstream.
 	// CombinedOutput() conflated the two and poisoned the parse.
+	stopBeat := e.startToolNodeHeartbeat(node.ID, toolName, resolved, e.toolHeartbeatInterval(),
+		resolveToolNodeHeartbeatMax(os.Getenv(toolNodeHeartbeatMaxEnv), &toolNodeHeartbeatWarnOnce, os.Stderr))
+	defer stopBeat()
 	stdoutBytes, stderrStr, drainBound, runErr := runWithSeparateStreams(tc.cmd)
+	stopBeat()
 	duration := time.Since(start)
 	drainCut := proc.DrainCutShort(runErr)
 	if drainCut {
@@ -764,6 +769,126 @@ func (e *ClawExecutor) toolNodePolicyIdentity(ctx context.Context, name string) 
 // lost. So a recipe whose answer comes from a process it did not wait for
 // has nothing to read under a sandbox.
 const toolNodeDrainBound = 2 * time.Second
+
+// A shell/script tool node has no timeout of its own and prints nothing to the
+// run's event stream while its command runs, so both stall detectors (the
+// alert Manager's and the dispatcher's) judge a long, quiet command — a `go
+// test` over big packages — as silence and take a live run down. The node
+// therefore vouches for its command itself: one tool_heartbeat event per
+// [toolNodeHeartbeatEvery] while the process lives.
+//
+// The beat is bounded, because a timer in the executor is not proof of
+// progress and a command that is really hung must still meet the watchdog:
+// past [defaultToolNodeHeartbeatMax] the beats stop and the stall detectors
+// apply again. [toolNodeHeartbeatMaxEnv] moves the bound (a Go duration), or
+// removes it with 0/off/no/none/unbounded.
+const (
+	toolNodeHeartbeatEvery        = time.Minute
+	defaultToolNodeHeartbeatMax   = time.Hour
+	toolNodeHeartbeatMaxEnv       = "ITERION_TOOL_NODE_HEARTBEAT_MAX"
+	toolNodeHeartbeatCommandRunes = 200
+)
+
+// toolNodeHeartbeatWarnOnce holds the override's complaint to one stderr line
+// per process, like the drain-bound override it mirrors (proc.WaitDelayEnv).
+var toolNodeHeartbeatWarnOnce sync.Once
+
+// resolveToolNodeHeartbeatMax decides the heartbeat ceiling from the raw
+// override. Empty is the default; 0/off/no/none/unbounded (any case) is 0, no
+// ceiling; a positive Go duration is itself; anything else keeps the default
+// and says so once. The value is read at the point of use, never memoised.
+func resolveToolNodeHeartbeatMax(raw string, warnOnce *sync.Once, warn io.Writer) time.Duration {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return defaultToolNodeHeartbeatMax
+	}
+	unbound := func() time.Duration {
+		warnOnce.Do(func() {
+			fmt.Fprintf(warn,
+				"iterion: %s=%q removes the tool node heartbeat ceiling — a hung command now keeps its run alive for as long as it lives\n",
+				toolNodeHeartbeatMaxEnv, raw)
+		})
+		return 0
+	}
+	switch strings.ToLower(raw) {
+	case "off", "no", "none", "unbounded":
+		return unbound()
+	}
+	d, err := time.ParseDuration(raw)
+	switch {
+	case err != nil || d < 0:
+		warnOnce.Do(func() {
+			fmt.Fprintf(warn,
+				"iterion: %s=%q is not a non-negative Go duration (use e.g. 10m, 1h, or 0 for no ceiling) — using the default %s\n",
+				toolNodeHeartbeatMaxEnv, raw, defaultToolNodeHeartbeatMax)
+		})
+		return defaultToolNodeHeartbeatMax
+	case d == 0:
+		return unbound()
+	}
+	return d
+}
+
+// toolHeartbeatInterval is the beat interval in force.
+func (e *ClawExecutor) toolHeartbeatInterval() time.Duration {
+	if e.toolHeartbeatEvery > 0 {
+		return e.toolHeartbeatEvery
+	}
+	return toolNodeHeartbeatEvery
+}
+
+// toolHeartbeatPreview is the one-line, bounded form of the resolved command
+// a beat carries.
+func toolHeartbeatPreview(resolved string) string {
+	s := strings.Join(strings.Fields(resolved), " ")
+	if r := []rune(s); len(r) > toolNodeHeartbeatCommandRunes {
+		s = string(r[:toolNodeHeartbeatCommandRunes]) + "…"
+	}
+	return s
+}
+
+// startToolNodeHeartbeat fires OnToolNodeHeartbeat every `every` until the
+// returned stop is called or, when max > 0, until the node has run for max —
+// at which point it warns once and goes quiet, handing the run back to the
+// stall detectors. stop is idempotent and WAITS for the beat goroutine, so no
+// beat can follow the node's finish event. Without a hook, or with a
+// non-positive interval, it is a no-op.
+func (e *ClawExecutor) startToolNodeHeartbeat(nodeID, toolName, resolved string, every, max time.Duration) (stop func()) {
+	hook := e.hooks.OnToolNodeHeartbeat
+	if hook == nil || every <= 0 {
+		return func() {}
+	}
+	preview := toolHeartbeatPreview(resolved)
+	start := time.Now()
+	quit := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(every)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-quit:
+				return
+			case <-ticker.C:
+				elapsed := time.Since(start)
+				if max > 0 && elapsed >= max {
+					if e.logger != nil {
+						e.logger.Warn("tool node %q: still running after %s — its heartbeat stops here and the stall watchdog applies again (raise or remove the bound with %s)",
+							nodeID, elapsed.Round(time.Second), toolNodeHeartbeatMaxEnv)
+					}
+					return
+				}
+				hook(nodeID, ToolNodeHeartbeatInfo{ToolName: toolName, Command: preview, Elapsed: elapsed})
+			}
+		}
+	}()
+	var once sync.Once
+	return func() {
+		once.Do(func() { close(quit) })
+		<-done
+	}
+}
 
 // runWithSeparateStreams runs cmd with stdout and stderr captured into
 // distinct buffers. Returns (stdout bytes, stderr string, the drain bound in
