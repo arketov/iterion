@@ -14,6 +14,7 @@ import (
 
 	"github.com/arketov/iterion/pkg/auth"
 	"github.com/arketov/iterion/pkg/backend/mcp"
+	"github.com/arketov/iterion/pkg/backend/model"
 	"github.com/arketov/iterion/pkg/botsource"
 	"github.com/arketov/iterion/pkg/bundle"
 	"github.com/arketov/iterion/pkg/bundlelint"
@@ -456,6 +457,7 @@ func (s *Server) handleValidate(w http.ResponseWriter, r *http.Request) {
 		resp.NodeCount = len(cr.Workflow.Nodes)
 		resp.EdgeCount = len(cr.Workflow.Edges)
 		s.appendMCPCatalogIssues(&resp, cr.Workflow, catalogDir)
+		s.appendUnknownModelIssues(&resp, cr.Workflow)
 	}
 
 	writeJSON(w, resp)
@@ -495,6 +497,19 @@ func (s *Server) appendMCPCatalogIssues(resp *validateResponse, wf *ir.Workflow,
 	}
 	for _, d := range mcp.UnknownToolServerDiagnostics(wf) {
 		add(irDiagToDTO(d))
+	}
+}
+
+// appendUnknownModelIssues is C338 for the studio: a literal anthropic/openai
+// model the registry does not list. Unlike the MCP catalog it depends only on
+// the binary and the process's model table, never on the host's project, so it
+// runs in every mode, cloud included. A warning: it never marks the document
+// invalid, and Issues and Warnings stay the same length.
+func (s *Server) appendUnknownModelIssues(resp *validateResponse, wf *ir.Workflow) {
+	for _, d := range model.UnknownModelDiagnostics(wf) {
+		dto := irDiagToDTO(d)
+		resp.Issues = append(resp.Issues, dto)
+		resp.Warnings = append(resp.Warnings, dto.Message)
 	}
 }
 

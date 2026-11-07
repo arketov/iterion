@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/arketov/iterion/pkg/backend/mcp"
+	"github.com/arketov/iterion/pkg/backend/model"
 	"github.com/arketov/iterion/pkg/bundle"
 	"github.com/arketov/iterion/pkg/bundlelint"
 	"github.com/arketov/iterion/pkg/dsl/expr"
@@ -608,6 +609,19 @@ func RunValidateWithContext(ctx context.Context, path string, p *Printer, opts V
 					NodeID:   d.NodeID,
 				})
 			}
+		}
+		// C338 reads the model registry, not the MCP catalog, so it runs even
+		// when the catalog could not be built. A warning kept out of
+		// CompileDiagnostics for the reason the plugin warning above is.
+		for _, d := range model.UnknownModelDiagnostics(cr.Workflow) {
+			result.Diagnostics = append(result.Diagnostics, ValidateDiagnostic{
+				Source:   "compile",
+				Code:     string(d.Code),
+				Severity: d.Severity.String(),
+				Message:  d.Message,
+				Hint:     d.Hint,
+				NodeID:   d.NodeID,
+			})
 		}
 		result.WorkflowName = cr.Workflow.Name
 		result.NodeCount = len(cr.Workflow.Nodes)
