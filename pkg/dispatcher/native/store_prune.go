@@ -42,22 +42,71 @@ type PrunedRunRefs struct {
 // what a phantom pointer already caused, instead of silently resuming an older
 // failed run the card had moved past. The outcome tuple of the dead pointer is
 // dropped with it (it described a run that never was).
+//
+// Locking: exists is a disk probe (slow on a network or OneDrive drive), so it
+// is called WITHOUT s.mu, once per run id. The pass runs in three phases: a
+// snapshot of the candidate ids under the lock, the disk checks without it, and
+// then — only when some run was found missing — a second look at every card
+// under the lock, which re-applies the claim and grace rules to the fresh card
+// and treats any id it did not confirm missing as existing.
 func (s *Store) PruneRunRefs(exists func(runID string) bool, grace time.Duration) (pruned []PrunedRunRefs, err error) {
+	cutoff := time.Now().UTC().Add(-grace)
+
+	// Phase 1: snapshot the run ids worth a disk check.
+	toCheck := map[string]struct{}{}
+	var ids []string
+	func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		for id, iss := range s.index {
+			if iss.Claim != "" {
+				continue
+			}
+			candidate := false
+			for _, r := range iss.Runs {
+				if r.RunID != "" && !r.At.After(cutoff) {
+					toCheck[r.RunID] = struct{}{}
+					candidate = true
+				}
+			}
+			if iss.LastRunID != "" && (len(iss.Runs) == 0 || !iss.UpdatedAt.After(cutoff)) {
+				toCheck[iss.LastRunID] = struct{}{}
+				candidate = true
+			}
+			if candidate {
+				ids = append(ids, id)
+			}
+		}
+	}()
+	if len(toCheck) == 0 {
+		return nil, nil
+	}
+
+	// Phase 2: the disk, without the store lock.
+	missing := map[string]bool{}
+	for runID := range toCheck {
+		if !exists(runID) {
+			missing[runID] = true
+		}
+	}
+	if len(missing) == 0 {
+		return nil, nil
+	}
+	// An id not confirmed missing (e.g. added after the snapshot) counts as
+	// existing.
+	confirmedExists := func(runID string) bool { return !missing[runID] }
+
+	// Phase 3: re-check each card against its fresh state and write.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	defer s.recoverMutator("PruneRunRefs", &err)
 
-	cutoff := time.Now().UTC().Add(-grace)
-	ids := make([]string, 0, len(s.index))
-	for id := range s.index {
-		ids = append(ids, id)
-	}
 	for _, id := range ids {
 		iss, rerr := s.readIssueLocked(id)
 		if rerr != nil || iss.Claim != "" {
 			continue
 		}
-		gone, pointerChanged := PruneGhostRunRefs(iss, exists, cutoff)
+		gone, pointerChanged := PruneGhostRunRefs(iss, confirmedExists, cutoff)
 		if len(gone) == 0 {
 			continue
 		}

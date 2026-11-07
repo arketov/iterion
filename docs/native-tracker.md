@@ -96,7 +96,9 @@ hook failed first never started and is never recorded (the failure shows in
 the dispatcher's Retry queue instead). Cards written by older builds may carry
 such phantoms; at boot the dispatcher manager removes the entries that have no
 run directory under `<store>/runs` (skipping claimed cards and entries younger
-than 10 minutes; the pointer is cleared, history kept). The cloud server
+than 10 minutes; the pointer is cleared, history kept). The disk check runs
+without the store lock, once per run id, and each card is re-read under the
+lock before it is written. The cloud server
 (Mongo board) does the same once when it starts, one pass over the tenants that
 have cards with run references: a run counts as absent only when the run store
 answers *not found* or *deleted* (any other error means it is alive), claimed
