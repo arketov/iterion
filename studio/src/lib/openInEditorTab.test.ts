@@ -18,6 +18,7 @@ import {
   importFileInNewTab,
   importFileIntoStore,
   isMissingFileError,
+  isNotWorkflowFileError,
   openFileInNewTab,
 } from "./openInEditorTab";
 import { ReplaceDeadlineError } from "./replaceDocument";
@@ -56,6 +57,25 @@ describe("isMissingFileError", () => {
   });
 });
 
+const notWorkflow = (path: string) =>
+  new client.ApiError(
+    400,
+    `API error 400: only workflow files (.bot) open here: ${path}`,
+    "not_workflow_file",
+  );
+
+describe("isNotWorkflowFileError", () => {
+  it("recognises the server's not_workflow_file refusal by its code, not its text", () => {
+    expect(isNotWorkflowFileError(notWorkflow(".env"))).toBe(true);
+    expect(isNotWorkflowFileError(new client.ApiError(400, "API error 400: bad request", "bad_request"))).toBe(false);
+    expect(isNotWorkflowFileError(new Error("only workflow files (.bot) open here: .env"))).toBe(false);
+  });
+
+  it("is not a missing file, even when the path carries 404", () => {
+    expect(isMissingFileError(notWorkflow("logs/http-404.txt"))).toBe(false);
+  });
+});
+
 describe("small helpers", () => {
   it("builds the editor deep link with the path encoded", () => {
     expect(editorFileHref("bots/a b.bot")).toBe("/editor?file=bots%2Fa%20b.bot");
@@ -89,6 +109,19 @@ describe("openFileInNewTab", () => {
     expect(useTabsStore.getState().tabs).toHaveLength(0);
     expect(useRecentsStore.getState().recents).toEqual(["kept.bot"]);
     expect(d.addToast).toHaveBeenCalledWith("Removed missing file from recents: gone.bot", "warning");
+    expect(d.navigate).not.toHaveBeenCalled();
+  });
+
+  it("a recent the server refuses as not a workflow file: removed from recents, with its own words", async () => {
+    useRecentsStore.setState({ recents: [".env", "kept.bot"] });
+    vi.mocked(client.openFile).mockRejectedValueOnce(notWorkflow(".env"));
+    const d = deps();
+
+    expect(await openFileInNewTab(".env", d)).toBe("unsupported");
+
+    expect(useTabsStore.getState().tabs).toHaveLength(0);
+    expect(useRecentsStore.getState().recents).toEqual(["kept.bot"]);
+    expect(d.addToast).toHaveBeenCalledWith("Removed from recents, not a workflow file: .env", "warning");
     expect(d.navigate).not.toHaveBeenCalled();
   });
 
