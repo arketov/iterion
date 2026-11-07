@@ -81,6 +81,10 @@ func (n *Native) runDir(runID string) string {
 // and PruneObjects cannot drift apart.
 const objectsDir = "workspace-objects"
 
+// createTemp is the pool's temp-file constructor; a seam so a test can
+// prove a dedup hit stages nothing.
+var createTemp = os.CreateTemp
+
 // objectPath is deliberately NOT keyed by run: content is content, and a
 // per-run pool means every run of the same bot on the same repo rewrites
 // the entire workspace from scratch (measured: 318 MiB per run on this
@@ -488,15 +492,30 @@ func prevModAtOrAfter(e statEntry, stamp int64) bool {
 
 // storeObject hashes a file and writes it into the content-addressed
 // store when that content is new. Same content from any path, any run
-// boundary, is stored once.
+// boundary, is stored once. It hashes read-only first: a dedup hit writes
+// nothing, so a run's first capture of content already in the pool costs
+// reads only (a fresh run has an empty stat cache and probes every file).
 func (n *Native) storeObject(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
 	defer func() { _ = f.Close() }()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	hash := hex.EncodeToString(h.Sum(nil))
+	dest := n.objectPath(hash)
+	if _, err := os.Stat(dest); err == nil {
+		touchObject(dest)
+		return hash, nil
+	}
 	pool := filepath.Join(n.root, objectsDir)
 	if err := os.MkdirAll(pool, storeDirPerm); err != nil {
+		return "", err
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		return "", err
 	}
 	// A UNIQUE temp name, and streamed rather than buffered whole.
@@ -514,13 +533,16 @@ func (n *Native) storeObject(path string) (string, error) {
 	// and copying again cost 2x file size on the heap, which the media
 	// workspaces this feature targets (mp4s, with
 	// ITERION_WORKSPACE_MAX_FILE_MB raised) make material.
-	tmp, err := os.CreateTemp(pool, ".obj-*")
+	tmp, err := createTemp(pool, ".obj-*")
 	if err != nil {
 		return "", err
 	}
 	tmpName := tmp.Name()
 	defer func() { _ = os.Remove(tmpName) }()
-	h := sha256.New()
+	// The file may have changed since the first pass, or another run may
+	// have stored it meanwhile: the hash of what is actually copied names
+	// the object, and the dedup check is repeated.
+	h = sha256.New()
 	if _, err := io.Copy(io.MultiWriter(h, tmp), f); err != nil {
 		_ = tmp.Close()
 		return "", err
@@ -528,26 +550,10 @@ func (n *Native) storeObject(path string) (string, error) {
 	if err := tmp.Close(); err != nil {
 		return "", err
 	}
-	hash := hex.EncodeToString(h.Sum(nil))
-	dest := n.objectPath(hash)
+	hash = hex.EncodeToString(h.Sum(nil))
+	dest = n.objectPath(hash)
 	if _, err := os.Stat(dest); err == nil {
-		// Already stored — but TOUCH it, because PruneObjects' safety
-		// argument ("objects are written before the manifest, so anything
-		// younger than the grace window may be alive") only covers objects
-		// this capture actually wrote. On a dedup hit the file keeps the
-		// mtime of whichever run first stored it, possibly days old and
-		// possibly since pruned. A sweep whose mark phase ran before this
-		// run's first manifest landed would then find the hash
-		// unreferenced AND old enough, and delete content this run is
-		// about to name — after which the stat cache keeps reusing the
-		// same hash, so every later manifest of the run names dead content
-		// too. On a store where a bot runs repeatedly against one repo,
-		// deduped content is most of the workspace.
-		//
-		// Best-effort: failing to touch costs the grace window, not the
-		// capture.
-		now := time.Now()
-		_ = os.Chtimes(dest, now, now)
+		touchObject(dest)
 		return hash, nil
 	}
 	if err := os.MkdirAll(filepath.Dir(dest), storeDirPerm); err != nil {
@@ -563,6 +569,26 @@ func (n *Native) storeObject(path string) (string, error) {
 		return "", err
 	}
 	return hash, nil
+}
+
+// touchObject refreshes the mtime of an object that is already stored.
+//
+// A dedup hit must TOUCH it, because PruneObjects' safety argument
+// ("objects are written before the manifest, so anything younger than the
+// grace window may be alive") only covers objects this capture actually
+// wrote. On a dedup hit the file keeps the mtime of whichever run first
+// stored it, possibly days old and possibly since pruned. A sweep whose
+// mark phase ran before this run's first manifest landed would then find
+// the hash unreferenced AND old enough, and delete content this run is
+// about to name — after which the stat cache keeps reusing the same hash,
+// so every later manifest of the run names dead content too. On a store
+// where a bot runs repeatedly against one repo, deduped content is most of
+// the workspace.
+//
+// Best-effort: failing to touch costs the grace window, not the capture.
+func touchObject(dest string) {
+	now := time.Now()
+	_ = os.Chtimes(dest, now, now)
 }
 
 func (n *Native) writeSnapshot(runID string, snap *Snapshot) error {
