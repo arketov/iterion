@@ -23,13 +23,15 @@ import (
 // When the dispatcher is paused, the dispatch step is skipped — runs
 // already in flight continue, stall detection still fires, retries
 // still queue, and stranded paused last_runs are re-parked. Paused
-// means "no new work", not "stop everything".
+// means "no new work", not "stop everything". Retry entries of cards moved
+// out of the dispatch columns are dropped on a pause too.
 func (c *Dispatcher) tick(ctx context.Context) {
 	cfg := c.cfg.Load()
 	c.state.lastTickAt = time.Now().UTC()
 
 	c.reconcileStalled(ctx, cfg)
 	c.refreshRunningStates(ctx)
+	c.pruneRetriesOutOfLaunch(ctx)
 	c.reconcileParked(ctx)
 	c.reconcileSourceHolds(ctx)
 	// Reclaim paused last_runs even while dispatch is suspended: a
@@ -340,6 +342,69 @@ func (c *Dispatcher) refreshRunningStates(ctx context.Context) {
 				r.Cancel(runtime.ErrRunInterrupted)
 			}
 		}
+	}
+}
+
+// pruneRetriesOutOfLaunch drops retry-queue entries whose card was moved out
+// of the dispatch columns (dragged to done or blocked). Such a card never
+// shows up in ListCandidates again, so dispatch — the only path that clears an
+// entry on a re-run — never sees it and the row would outlive the card's
+// move until restart.
+//
+// Conservative by design: nothing is dropped unless the tracker reports its
+// launch columns (tracker.LaunchStateLister) AND the card's refreshed state is
+// known and outside them. A card that is absent from the refresh answer, in
+// agent.running_state (the finish worker's revert window), running, or whose
+// entry is held by an operator removal (Removing) keeps its entry.
+func (c *Dispatcher) pruneRetriesOutOfLaunch(ctx context.Context) {
+	if len(c.state.retries) == 0 {
+		return
+	}
+	launchList := c.launchStates()
+	if len(launchList) == 0 {
+		return
+	}
+	ids := make([]string, 0, len(c.state.retries))
+	for id, e := range c.state.retries {
+		if e.Removing {
+			continue
+		}
+		if _, running := c.state.running[id]; running {
+			continue
+		}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return
+	}
+	sort.Strings(ids)
+	states, err := c.tracker.RefreshStates(ctx, ids)
+	if err != nil {
+		c.logger.Warn("dispatcher: tracker RefreshStates (retry queue): %v", err)
+		return
+	}
+	launch := make(map[string]struct{}, len(launchList))
+	for _, s := range launchList {
+		launch[s] = struct{}{}
+	}
+	runningState := c.cfg.Load().Agent.RunningState
+	for _, id := range ids {
+		st, ok := states[id]
+		if !ok {
+			continue
+		}
+		if _, inLaunch := launch[st]; inLaunch || st == runningState {
+			continue
+		}
+		e, ok := c.state.retries[id]
+		if !ok || e.Removing {
+			continue
+		}
+		if e.Timer != nil {
+			e.Timer.Stop()
+		}
+		delete(c.state.retries, id)
+		c.logger.Info("dispatcher: %s left the dispatch columns (%s) — retry dropped", e.Identifier, st)
 	}
 }
 

@@ -489,6 +489,18 @@ Each row of the Dispatcher page's *Retry queue* has two actions:
 
 Both are plain HTTP calls too — see [HTTP / WS surface](#http--ws-surface).
 
+A row also disappears by itself when its card is dragged out of the dispatch
+columns on the board (for example to `done` or `blocked`): a card there is no
+candidate any more, so nothing would ever re-launch it and clear the entry.
+Every tick, paused or not, the dispatcher re-reads the state of each queued
+card and drops the entry (stopping its timer) when the state is known and is
+neither one of the tracker's launch columns nor `agent.running_state`. A card
+that cannot be read, or is missing from the answer, keeps its row, and so does
+a row whose *Remove from queue* is being written. This check needs a tracker
+that reports its launch columns, which only `tracker.kind: native` does; for
+`github`, `gitlab` and `forgejo` the row stays until the card is launched again
+or the dispatcher restarts.
+
 The Dispatcher page's *Retry queue* shows the **full** last error
 (*Show full error* unfolds it; the board card shows up to three lines),
 which lifecycle hook failed and with what exit code, the shell it ran
