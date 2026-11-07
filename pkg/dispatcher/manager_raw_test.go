@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // rawTestManager is an idle manager over a fresh store; projectDir may be "".
@@ -95,6 +96,82 @@ func TestSaveConfigKeepsNoneAndNegativeEscapes(t *testing.T) {
 	}
 	if rt := m.Config(); rt.Agent.RunningState != "" || rt.Agent.MaxAttempts != 0 {
 		t.Fatalf("the running config must read them as opt-outs: %+v", rt.Agent)
+	}
+}
+
+// An explicit stall.timeout_ms: 0 is the operator's "off": it reaches
+// dispatcher.json, the running copy and a reload, and the HTTP round trip keeps
+// it. An unset key stays unset on disk and runs with the default.
+func TestSaveConfigKeepsExplicitZeroStallTimeout(t *testing.T) {
+	botsDir := t.TempDir()
+	m, cfgPath := rawTestManager(t, "")
+	save := func(stall StallConfig) {
+		t.Helper()
+		if err := m.SaveConfig(&Config{
+			RequireAssignee: true,
+			Tracker:         TrackerConfig{Kind: TrackerKindNative},
+			Bots:            botsConfig(botsDir),
+			Stall:           stall,
+		}); err != nil {
+			t.Fatalf("SaveConfig: %v", err)
+		}
+	}
+
+	save(StallConfig{TimeoutMS: new(0)})
+	disk, _ := os.ReadFile(cfgPath)
+	var onDisk Config
+	if err := json.Unmarshal(disk, &onDisk); err != nil {
+		t.Fatal(err)
+	}
+	if onDisk.Stall.TimeoutMS == nil || *onDisk.Stall.TimeoutMS != 0 {
+		t.Fatalf("an explicit 0 must survive the save:\n%s", disk)
+	}
+	if got := m.Config().StallTimeout(); got != 0 {
+		t.Fatalf("running StallTimeout() = %v, want 0 (disabled)", got)
+	}
+	reloaded, err := onDisk.Resolved(botsDir, nil)
+	if err != nil {
+		t.Fatalf("Resolved: %v", err)
+	}
+	if got := reloaded.StallTimeout(); got != 0 {
+		t.Fatalf("reloaded StallTimeout() = %v, want 0 (disabled)", got)
+	}
+
+	rec := httptest.NewRecorder()
+	m.handleGetConfig(rec, httptest.NewRequest(http.MethodGet, "/config", nil))
+	var got Config
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Stall.TimeoutMS == nil || *got.Stall.TimeoutMS != 0 {
+		t.Fatalf("GET /config must return timeout_ms 0: %s", rec.Body.String())
+	}
+
+	save(StallConfig{})
+	disk, _ = os.ReadFile(cfgPath)
+	if strings.Contains(string(disk), "timeout_ms") {
+		t.Fatalf("an unset stall.timeout_ms must not be written:\n%s", disk)
+	}
+	if got := m.Config().StallTimeout(); got != 10*time.Minute {
+		t.Fatalf("running StallTimeout() = %v, want the 10m default", got)
+	}
+
+	// PUT /config with an explicit 0 turns the detector off again.
+	bots, err := json.Marshal(botsConfig(botsDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := `{"require_assignee":true,"tracker":{"kind":"native"},"bots":` + string(bots) + `,"stall":{"timeout_ms":0}}`
+	rec = httptest.NewRecorder()
+	m.handlePutConfig(rec, httptest.NewRequest(http.MethodPut, "/config", strings.NewReader(body)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PUT: %d %s", rec.Code, rec.Body.String())
+	}
+	if got := m.Config().StallTimeout(); got != 0 {
+		t.Fatalf("after PUT running StallTimeout() = %v, want 0", got)
+	}
+	if raw := m.RawConfig(); raw.Stall.TimeoutMS == nil || *raw.Stall.TimeoutMS != 0 {
+		t.Fatalf("after PUT the saved form must keep 0: %v", raw.Stall.TimeoutMS)
 	}
 }
 

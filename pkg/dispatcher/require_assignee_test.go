@@ -83,7 +83,7 @@ func TestFailedAfterCreateLeavesNoPhantomRun(t *testing.T) {
 		Polling:   PollingConfig{IntervalMS: 30},
 		Agent:     AgentConfig{MaxConcurrent: 4, MaxRetryBackoffMS: 60000, RunningState: "in_progress"},
 		Workspace: WorkspaceConfig{Root: filepath.Join(dir, "ws")},
-		Stall:     StallConfig{TimeoutMS: 0},
+		Stall:     StallConfig{},
 		Hooks:     Hooks{AfterCreate: &Hook{Script: "exit 3"}},
 	}
 	cfg.applyDefaults()

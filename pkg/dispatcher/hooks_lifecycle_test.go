@@ -59,7 +59,7 @@ func newHookLifecycleDispatcher(t *testing.T, wsRoot string, hooks Hooks, runner
 		Polling:   PollingConfig{IntervalMS: 50},
 		Agent:     AgentConfig{MaxConcurrent: 4, MaxRetryBackoffMS: 1000, RunningState: "in_progress"},
 		Workspace: WorkspaceConfig{Root: wsRoot, Persist: WorkspacePersistCleanupOnDone},
-		Stall:     StallConfig{TimeoutMS: 0},
+		Stall:     StallConfig{},
 		Hooks:     hooks,
 	}
 	cfg.applyDefaults()

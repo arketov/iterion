@@ -29,7 +29,7 @@ func newOffloadTestDispatcher(t *testing.T, runner Runner, ft *fakeTracker, poll
 			RunningState:      "in_progress",
 		},
 		Workspace: WorkspaceConfig{Root: wsDir},
-		Stall:     StallConfig{TimeoutMS: 0},
+		Stall:     StallConfig{},
 	}
 	if cfg.Polling.IntervalMS <= 0 {
 		cfg.Polling.IntervalMS = DefaultPollingInterval

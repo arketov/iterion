@@ -79,7 +79,7 @@ func newStallTestDispatcher(t *testing.T, storeDir string) *Dispatcher {
 		Workspace: WorkspaceConfig{Root: wsDir},
 		// A deliberately short stall window: the whole point is that a park
 		// outlives it without being reaped.
-		Stall: StallConfig{TimeoutMS: 50},
+		Stall: StallConfig{TimeoutMS: new(50)},
 	}
 	cfg.applyDefaults()
 	ws, err := NewWorkspaces(wsDir)

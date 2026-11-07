@@ -44,11 +44,11 @@ func TestReconcileStalled_ForceReapsCtxIgnoringWorker(t *testing.T) {
 	}}
 
 	c := newTestDispatcher(t, runner, ft, 50*time.Millisecond)
-	// newTestDispatcher leaves Stall disabled (TimeoutMS=0). Reload
+	// newTestDispatcher leaves Stall disabled (TimeoutMS unset). Reload
 	// with a tight stall window so the force-reap path fires fast.
 	stalledCfg := *c.cfg.Load()
 	stalledCfg.Polling = PollingConfig{IntervalMS: 50}
-	stalledCfg.Stall = StallConfig{TimeoutMS: 100}
+	stalledCfg.Stall = StallConfig{TimeoutMS: new(100)}
 	stalledCfg.applyDefaults()
 	c.Reload(&stalledCfg)
 

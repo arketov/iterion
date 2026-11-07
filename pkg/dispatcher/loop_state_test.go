@@ -124,7 +124,7 @@ func newStateTestDispatcher(t *testing.T, runner Runner, ft *stateAwareTracker, 
 			RunningState:      runningState,
 		},
 		Workspace: WorkspaceConfig{Root: wsDir},
-		Stall:     StallConfig{TimeoutMS: 0},
+		Stall:     StallConfig{},
 	}
 	// applyDefaults would clobber an intentionally-empty RunningState
 	// back to "in_progress"; tests that exercise the disabled path
@@ -316,7 +316,7 @@ func TestDispatch_RevertsOnWorkspaceCreateFailure(t *testing.T) {
 		// asynchronous CreateForRun failure path; operational probe failures
 		// are now deferred synchronously and covered by workspace probe tests.
 		Workspace: WorkspaceConfig{Root: wsDir, Persist: WorkspacePersistCleanupOnDone},
-		Stall:     StallConfig{TimeoutMS: 0},
+		Stall:     StallConfig{},
 	}
 	c, err := New(Options{
 		Config:     cfg,

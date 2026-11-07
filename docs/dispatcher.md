@@ -316,7 +316,10 @@ Each tick (`polling.interval_ms`, default 30s):
 1. **Reconcile stalled.** For every in-flight run, if
    `time.Since(LastEventAt) > stall.timeout_ms`, cancel its context.
    The worker goroutine then returns and the actor schedules a retry.
-   Set `stall.timeout_ms: 0` to disable. A shell/script tool node whose
+   Omit `stall.timeout_ms` for the default (600000 ms = 10 min). Set
+   `stall.timeout_ms: 0` — or any negative value — to disable the
+   detector; an explicit 0 is kept when the config is saved from the
+   studio and reloaded. A shell/script tool node whose
    command runs quietly emits a `tool_heartbeat` event once a minute
    while its process lives, and that counts as an event — so a long
    silent command (a `go test` over big packages) is not reaped. The

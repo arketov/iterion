@@ -189,7 +189,7 @@ func newTestDispatcher(t *testing.T, runner Runner, ft *fakeTracker, polling tim
 		Polling:   PollingConfig{IntervalMS: int(polling.Milliseconds())},
 		Agent:     AgentConfig{MaxConcurrent: 4, MaxRetryBackoffMS: 1000},
 		Workspace: WorkspaceConfig{Root: wsDir},
-		Stall:     StallConfig{TimeoutMS: 0},
+		Stall:     StallConfig{},
 	}
 	cfg.applyDefaults()
 	ws, err := NewWorkspaces(wsDir)
