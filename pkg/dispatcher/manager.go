@@ -73,6 +73,12 @@ type ManagerOptions struct {
 	// true means it changed and is written back. Injected from pkg/cli for
 	// the same reason as DefaultsFn.
 	MigrateConfig func(*Config) bool
+	// AdaptRuntime, when set, is called with the runtime copy of the config
+	// (the one the dispatcher runs) every time it is built, and may rewrite it
+	// in place for this host; true means it changed. The change is never
+	// persisted: the saved file may be shared with another OS. Injected from
+	// pkg/cli for the same reason as MigrateConfig.
+	AdaptRuntime func(*Config) bool
 }
 
 // Manager owns the lifecycle of an in-process Dispatcher instance.
@@ -91,6 +97,7 @@ type Manager struct {
 	projectDir       string
 	runEnv           []string
 	defaultsFn       func() (*Config, error)
+	adaptRuntime     func(*Config) bool
 
 	mu sync.Mutex
 	// raw is the config as saved on disk: `$GITHUB_TOKEN` stays a reference,
@@ -134,7 +141,8 @@ func NewManager(opts ManagerOptions) (*Manager, error) {
 		projectDir:       opts.ProjectDir,
 		runEnv:           append([]string(nil), opts.RunEnv...),
 		defaultsFn:       opts.DefaultsFn,
-		state:            ManagerStateIdle,
+		adaptRuntime:     opts.AdaptRuntime,
+		state:           ManagerStateIdle,
 	}
 	if raw, err := readConfigJSON(m.configPath); err == nil {
 		// A preset an older version saved is rewritten on the RAW config: it
@@ -363,6 +371,10 @@ func (m *Manager) resolve(raw *Config) (*Config, error) {
 		return nil, err
 	}
 	m.warnUnsetTokenRefs(raw, rt)
+	if m.adaptRuntime != nil && m.adaptRuntime(rt) && m.logger != nil {
+		m.logger.Info("manager: the saved after_create hook is the seed preset of another host (its project path does not exist here): "+
+			"running the preset for this host instead; %s is unchanged", m.configPath)
+	}
 	return rt, nil
 }
 

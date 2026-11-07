@@ -140,6 +140,83 @@ func legacySeedProjectDir(script string) (string, bool) {
 	return dir, true
 }
 
+// powerShellSeedProjectDir reports whether script is the PowerShell seed preset
+// (workspaceSeedPowerShell), and for which project directory it was written.
+func powerShellSeedProjectDir(script string) (string, bool) {
+	script = strings.ReplaceAll(script, "\r\n", "\n")
+	pre, post, ok := strings.Cut(workspaceSeedPowerShell(""), "$projectDir = ''")
+	if !ok {
+		return "", false
+	}
+	head := pre + "$projectDir = "
+	if !strings.HasPrefix(script, head) || !strings.HasSuffix(script, post) {
+		return "", false
+	}
+	quoted := strings.TrimSuffix(strings.TrimPrefix(script, head), post)
+	if len(quoted) < 2 || quoted[0] != '\'' || quoted[len(quoted)-1] != '\'' {
+		return "", false
+	}
+	inner := quoted[1 : len(quoted)-1]
+	dir := strings.ReplaceAll(inner, "''", "'")
+	// A quote left over once the doubled ones are folded is not one the preset
+	// wrote: the text was edited.
+	if dir == "" || strings.Contains(strings.ReplaceAll(inner, "''", ""), "'") {
+		return "", false
+	}
+	return dir, true
+}
+
+// seedPresetProjectDir reports whether h is exactly one of the seed presets of
+// either dialect, as seedHookForHost writes them, and for which project
+// directory. A hook the operator edited, or one that names another shell, is
+// not a preset.
+func seedPresetProjectDir(h *dispatcher.Hook) (string, bool) {
+	if h == nil {
+		return "", false
+	}
+	shell := strings.TrimSpace(h.Shell)
+	if shell == "" {
+		if dir, ok := legacySeedProjectDir(h.Script); ok {
+			return dir, true
+		}
+	}
+	if shell == "" || strings.EqualFold(shell, "pwsh") || strings.EqualFold(shell, "powershell") {
+		return powerShellSeedProjectDir(h.Script)
+	}
+	return "", false
+}
+
+// AdaptSavedConfig is the dispatcher.Manager AdaptRuntime hook for the project
+// at projectDir. The saved after_create preset is built once, on the host that
+// created the config, and carries that host's `shell:` and project path; the
+// same config opened from another OS (WSL or Linux over a shared `.iterion`,
+// ITERION_HOME or --store-dir) cannot run it. When the hook is exactly a seed
+// preset whose project path is not an absolute path on this host (`C:\proj` on
+// Linux, `/mnt/c/proj` on Windows), the running copy gets this host's preset
+// for projectDir instead. Only that copy changes: the saved file is shared
+// between the two OSes, and rewriting it would have each of them undo the
+// other. Reports whether cfg changed.
+func AdaptSavedConfig(projectDir string) func(*dispatcher.Config) bool {
+	abs := ""
+	if projectDir != "" {
+		if a, err := filepath.Abs(projectDir); err == nil {
+			abs = a
+		}
+	}
+	return func(cfg *dispatcher.Config) bool {
+		if abs == "" || cfg == nil || cfg.Hooks.AfterCreate == nil {
+			return false
+		}
+		h := cfg.Hooks.AfterCreate
+		dir, ok := seedPresetProjectDir(h)
+		if !ok || filepath.IsAbs(dir) {
+			return false
+		}
+		h.Script, h.Shell = seedHookForHost(abs)
+		return true
+	}
+}
+
 // MigrateLegacySeedHook rewrites, in place, a saved dispatcher config whose
 // after_create hook is the old sh seed preset with no `shell:` into the preset
 // for this host's shell, with `shell:` saved explicitly. It changes nothing

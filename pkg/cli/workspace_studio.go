@@ -229,6 +229,7 @@ func newWorkspaceProjectServer(opts StudioOptions, project projects.Project, log
 					return BuildDefaultConfig(project.Dir)
 				},
 				MigrateConfig: MigrateSavedConfig(project.StoreDir),
+				AdaptRuntime:  AdaptSavedConfig(project.Dir),
 				// A relative path in the saved settings is the project's.
 				ProjectDir: project.Dir,
 			})
