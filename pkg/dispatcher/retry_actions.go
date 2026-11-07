@@ -126,19 +126,30 @@ func (m cmdReleaseRetryHold) apply(c *Dispatcher, _ context.Context) {
 // RetryNow makes the pending retry of issueID due now, keeping its attempt
 // count and its resume pointer. found is false when the issue has no pending
 // retry; paused reports that dispatch is paused, so the retry runs after
-// Resume. Blocks until the actor answers; false after Stop.
-func (c *Dispatcher) RetryNow(issueID string) (found, paused bool) {
+// Resume. Blocks until the actor answers; false after Stop. It returns
+// ctx.Err() when the caller gave up first: a command already enqueued still
+// applies, which is harmless — it is idempotent.
+func (c *Dispatcher) RetryNow(ctx context.Context, issueID string) (found, paused bool, err error) {
+	// A select with two ready cases picks one at random: a cancelled request
+	// must not enqueue anything.
+	if err := ctx.Err(); err != nil {
+		return false, false, err
+	}
 	reply := make(chan retryNowReply, 1)
 	select {
 	case c.cmds <- cmdRetryNow{issueID: issueID, reply: reply}:
+	case <-ctx.Done():
+		return false, false, ctx.Err()
 	case <-c.stop:
-		return false, false
+		return false, false, nil
 	}
 	select {
 	case r := <-reply:
-		return r.found, r.paused
+		return r.found, r.paused, nil
+	case <-ctx.Done():
+		return false, false, ctx.Err()
 	case <-c.stop:
-		return false, false
+		return false, false, nil
 	}
 }
 
@@ -149,17 +160,40 @@ func (c *Dispatcher) RetryNow(issueID string) (found, paused bool) {
 // from attempt 0; the filed state is what makes the removal stick, and
 // reopening the card on the board is the way back. state is the state the
 // card was filed under. Errors: ErrRetryNotQueued, ErrRetryNoFailedState, or
-// the tracker's refusal of the move (the entry is then left as it was).
+// the tracker's refusal of the move (the entry is then left as it was), or
+// ctx.Err() when the caller gave up while waiting for the actor.
 func (c *Dispatcher) GiveUpRetry(ctx context.Context, issueID string) (state string, err error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	reply := make(chan holdRetryReply, 1)
 	select {
 	case c.cmds <- cmdHoldRetry{issueID: issueID, reply: reply}:
+	case <-ctx.Done():
+		return "", ctx.Err()
 	case <-c.stop:
 		return "", ErrRetryNotQueued
 	}
 	var held holdRetryReply
 	select {
 	case held = <-reply:
+	case <-ctx.Done():
+		// The hold is queued and will apply. Lift it once the actor answers —
+		// only when it did find the entry: a release after !found would lift
+		// another request's hold. The release must not depend on ctx.
+		go func() {
+			select {
+			case h := <-reply:
+				if h.found {
+					select {
+					case c.cmds <- cmdReleaseRetryHold{issueID: issueID}:
+					case <-c.stop:
+					}
+				}
+			case <-c.stop:
+			}
+		}()
+		return "", ctx.Err()
 	case <-c.stop:
 		return "", ErrRetryNotQueued
 	}
@@ -208,10 +242,15 @@ func (c *Dispatcher) GiveUpRetry(ctx context.Context, issueID string) (state str
 }
 
 // serveRetryNow is POST .../retries/{id}/run-now: 202 {"issue_id","status":
-// "due","paused"}; 404 when the issue has no pending retry.
+// "due","paused"}; 404 when the issue has no pending retry; 503 when the
+// request was cancelled before the dispatcher answered.
 func (c *Dispatcher) serveRetryNow(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	found, paused := c.RetryNow(id)
+	found, paused, err := c.RetryNow(r.Context(), id)
+	if err != nil {
+		WriteErr(w, http.StatusServiceUnavailable, err)
+		return
+	}
 	if !found {
 		WriteErr(w, http.StatusNotFound, ErrRetryNotQueued)
 		return
@@ -222,7 +261,8 @@ func (c *Dispatcher) serveRetryNow(w http.ResponseWriter, r *http.Request) {
 // serveRetryDrop is DELETE .../retries/{id}: 200 {"issue_id","status":
 // "given_up","state"}; 404 when the issue has no pending retry; 409 when there
 // is no state to file the card under or the board refuses the move; 502 when
-// the tracker fails.
+// the tracker fails; 503 when the request was cancelled or timed out before
+// the dispatcher answered.
 func (c *Dispatcher) serveRetryDrop(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	state, err := c.GiveUpRetry(r.Context(), id)
@@ -235,6 +275,8 @@ func (c *Dispatcher) serveRetryDrop(w http.ResponseWriter, r *http.Request) {
 		WriteErr(w, http.StatusConflict, fmt.Errorf("%w: move the card out of the dispatch column on the board instead", err))
 	case errors.Is(err, tracker.ErrTransitionRejected), errors.Is(err, tracker.ErrNotSupported):
 		WriteErr(w, http.StatusConflict, err)
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		WriteErr(w, http.StatusServiceUnavailable, err)
 	default:
 		WriteErr(w, http.StatusBadGateway, err)
 	}

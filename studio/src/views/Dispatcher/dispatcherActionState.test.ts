@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { dispatcherActionState } from "./dispatcherActionState";
+import { dispatcherActionState, retryNowNotice } from "./dispatcherActionState";
 
 describe("dispatcherActionState", () => {
   it("allows Poll now only while the dispatcher is running", () => {
@@ -30,5 +30,18 @@ describe("dispatcherActionState", () => {
     expect(dispatcherActionState("running").canReloadConfig).toBe(true);
     expect(dispatcherActionState("paused").canReloadConfig).toBe(true);
     expect(dispatcherActionState("idle").canReloadConfig).toBe(false);
+  });
+});
+
+describe("retryNowNotice", () => {
+  it("tells the operator a paused dispatcher runs the retry after Resume", () => {
+    const notice = retryNowNotice("T-1", true);
+
+    expect(notice).toMatch(/T-1/);
+    expect(notice).toMatch(/resume/i);
+  });
+
+  it("needs no note when the dispatcher is running", () => {
+    expect(retryNowNotice("T-1", false)).toBeNull();
   });
 });

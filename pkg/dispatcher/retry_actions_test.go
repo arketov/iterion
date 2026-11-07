@@ -197,3 +197,132 @@ func TestServeRetryDrop_UnknownIssueIs404(t *testing.T) {
 		t.Fatalf("status = %d, want 404", rec.Code)
 	}
 }
+
+func fillCmds(c *Dispatcher) {
+	for len(c.cmds) < cap(c.cmds) {
+		c.cmds <- cmdRefresh{}
+	}
+}
+
+func TestRetryNow_ReturnsWhenContextIsCancelled(t *testing.T) {
+	t.Run("already cancelled enqueues nothing", func(t *testing.T) {
+		c, _, _ := newQueuedRetry(t, "i1", 1, time.Hour)
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		if _, _, err := c.RetryNow(ctx, "i1"); !errors.Is(err, context.Canceled) {
+			t.Fatalf("err = %v, want context.Canceled", err)
+		}
+		if n := len(c.cmds); n != 0 {
+			t.Fatalf("%d command(s) enqueued by a cancelled request", n)
+		}
+	})
+	t.Run("busy actor", func(t *testing.T) {
+		c, _, _ := newQueuedRetry(t, "i1", 1, time.Hour)
+		fillCmds(c)
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+		done := make(chan error, 1)
+		go func() {
+			_, _, err := c.RetryNow(ctx, "i1")
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			if !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("err = %v, want context.DeadlineExceeded", err)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("RetryNow kept waiting on a full command channel after its ctx expired")
+		}
+	})
+	t.Run("cancelled while waiting for the reply", func(t *testing.T) {
+		c, _, _ := newQueuedRetry(t, "i1", 1, time.Hour)
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan error, 1)
+		go func() {
+			_, _, err := c.RetryNow(ctx, "i1")
+			done <- err
+		}()
+		for len(c.cmds) == 0 {
+			time.Sleep(time.Millisecond)
+		}
+		cancel()
+		select {
+		case err := <-done:
+			if !errors.Is(err, context.Canceled) {
+				t.Fatalf("err = %v, want context.Canceled", err)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("RetryNow kept waiting for the actor's reply after its ctx was cancelled")
+		}
+	})
+}
+
+func TestGiveUpRetry_CancelledWhileWaitingForHoldReleasesTheHold(t *testing.T) {
+	c, _, e := newQueuedRetry(t, "i1", 2, time.Hour)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		_, err := c.GiveUpRetry(ctx, "i1")
+		done <- err
+	}()
+	for len(c.cmds) == 0 {
+		time.Sleep(time.Millisecond)
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("err = %v, want context.Canceled", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("GiveUpRetry kept waiting for the hold reply after its ctx was cancelled")
+	}
+	bg := context.Background()
+	applyNextCmd(t, c, bg) // cmdHoldRetry: the entry becomes Removing
+	if !e.Removing {
+		t.Fatal("the queued hold was not applied")
+	}
+	applyNextCmd(t, c, bg) // cmdReleaseRetryHold, sent for the abandoned hold
+	if e.Removing {
+		t.Fatal("the hold of a cancelled request was never released")
+	}
+	if cur, ok := c.state.retries["i1"]; !ok || cur != e {
+		t.Fatal("the entry must stay queued")
+	}
+}
+
+func TestGiveUpRetry_CancelledBeforeSendEnqueuesNothing(t *testing.T) {
+	c, _, _ := newQueuedRetry(t, "i1", 2, time.Hour)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := c.GiveUpRetry(ctx, "i1"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+	if n := len(c.cmds); n != 0 {
+		t.Fatalf("%d command(s) enqueued by a cancelled request", n)
+	}
+}
+
+func TestServeRetryNow_CancelledRequestIs503(t *testing.T) {
+	c, _, _ := newQueuedRetry(t, "i1", 1, time.Hour)
+	fillCmds(c)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	req := httptest.NewRequest(http.MethodPost, "/retries/i1/run-now", nil).WithContext(ctx)
+	req.SetPathValue("id", "i1")
+	rec := httptest.NewRecorder()
+	done := make(chan struct{})
+	go func() {
+		c.serveRetryNow(rec, req)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("handler kept waiting after the request was cancelled")
+	}
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503", rec.Code)
+	}
+}
