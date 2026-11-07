@@ -216,10 +216,17 @@ func (m cmdCandidates) apply(c *Dispatcher, ctx context.Context) {
 // cmdReload swaps in a new validated config.
 type cmdReload struct {
 	cfg *Config
+	// runner, when non-nil, is the already-built routing for cfg: swapped in
+	// before the config so a dispatch never sees one without the other.
+	runner Runner
 }
 
 func (m cmdReload) apply(c *Dispatcher, _ context.Context) {
 	old := c.cfg.Load()
+	if m.runner != nil {
+		c.setRunner(m.runner)
+		c.logger.Info("dispatcher: routing rebuilt (workflow=%s)", workflowLabel(m.cfg))
+	}
 	c.cfg.Store(m.cfg)
 	// c.hooks is no longer the source of truth — worker goroutines
 	// read hooks via c.cfg.Load().Hooks each time so the atomic

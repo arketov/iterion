@@ -782,3 +782,25 @@ func TestBackoffMath(t *testing.T) {
 		}
 	}
 }
+
+// cmdReload carrying a runner swaps the runner the workers and the actor read;
+// one without a runner (Reload) leaves it alone.
+func TestReloadWithRunnerSwapsRunner(t *testing.T) {
+	first := &StubRunner{}
+	c := newTestDispatcher(t, first, newFakeTracker(), time.Hour)
+	if c.currentRunner() != Runner(first) {
+		t.Fatal("the runner given to New is not the current one")
+	}
+
+	cfg := *c.cfg.Load()
+	cmdReload{cfg: &cfg}.apply(c, context.Background())
+	if c.currentRunner() != Runner(first) {
+		t.Fatal("a reload without a runner replaced it")
+	}
+
+	second := &StubRunner{}
+	cmdReload{cfg: &cfg, runner: second}.apply(c, context.Background())
+	if c.currentRunner() != Runner(second) {
+		t.Fatal("a reload carrying a runner did not swap it")
+	}
+}

@@ -21,10 +21,10 @@ func writeBotWithVars(t *testing.T, botsDir, name, vars string) {
 func varsDispatcher(t *testing.T, botsDir string) *Dispatcher {
 	t.Helper()
 	d := newMinimalDispatcher(t)
-	d.runner = &RoutingRunner{
+	d.setRunner(&RoutingRunner{
 		BotsPaths: []string{botsDir},
 		compile:   func(string) (Runner, error) { return &recordingRunner{name: "dynamic"}, nil },
-	}
+	})
 	return d
 }
 

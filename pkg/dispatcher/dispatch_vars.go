@@ -21,7 +21,7 @@ func (c *Dispatcher) dispatchConfigFor(cfg *Config, routeKey string) DispatchCon
 	if ov, ok := lookupBotKey(cfg.AssigneeDispatch, routeKey); ok {
 		return ov
 	}
-	if bv, ok := c.runner.(interface {
+	if bv, ok := c.currentRunner().(interface {
 		BotDispatchVars(string) (map[string]string, bool)
 	}); ok {
 		if vars, found := bv.BotDispatchVars(routeKey); found && len(vars) > 0 {

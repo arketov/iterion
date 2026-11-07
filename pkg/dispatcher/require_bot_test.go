@@ -30,7 +30,7 @@ func requireBotDispatcher(t *testing.T) (*Dispatcher, *RoutingRunner) {
 		BotsPaths: []string{botsDir},
 		compile:   func(string) (Runner, error) { return &recordingRunner{name: "dynamic"}, nil },
 	}
-	c.runner = rr
+	c.setRunner(rr)
 
 	cfg := *c.cfg.Load()
 	cfg.TicketRouter = TicketRouterConfig{}

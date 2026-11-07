@@ -980,7 +980,8 @@ into `issue.assignee`; GitHub and Forgejo adapters use the first
 assignee's login — with `require_assignee` on, a card whose assignee is a
 person's login is therefore *no bot*, never a run.
 
-Each `assignee_workflows` workflow is pre-compiled at startup and
+Each `assignee_workflows` workflow is pre-compiled at startup (and again when a
+saved config changes the routing fields, see [Hot-reload](#hot-reload)) and
 reused across dispatches — the same lifecycle as the default
 `workflow:`. A relative path in a YAML file is resolved against the folder of
 that file. Missing files fail `iterion dispatch` startup with a precise error.
@@ -1174,16 +1175,22 @@ The dispatcher watches `iterion.dispatcher.yaml` via fsnotify with a
 | `workspace.persist`                            | applied next dispatch; resumed runs preserve their original workspace shape |
 | `stall.timeout_ms`                             | applied next tick                    |
 | `require_assignee`, `assignee_dispatch`        | applied next dispatch                |
-| `workflow:`, `assignee_workflows`, `bots.paths`, `tracker.kind:`, `workspace.root` | warn-only; require restart (Stop, then Start) |
+| `workflow:`, `assignee_workflows`, `bots.paths`   | routing rebuilt on save: new dispatches use the new routing, runs in flight finish on the old one |
+| `tracker.kind:`, `workspace.root`              | warn-only; require restart (Stop, then Start) |
 | `tracker.*` credentials                        | warn-only; require restart           |
 
 Invalid reloads (YAML errors, template parse errors, missing workflow
-file) keep the previous config and log a warning. The same holds for a save
-from the studio's settings form: the routing is built when the dispatcher
-starts, so a changed fallback workflow or bot folder takes effect after Stop and
-Start. A dispatcher that was started with no fallback workflow (the default
-preset) keeps refusing a card no bot routes to, even if `require_assignee` is
-switched off meanwhile.
+file) keep the previous config and log a warning. A save from the studio's
+settings form that changes the fallback workflow, `assignee_workflows` or
+`bots.paths` rebuilds the routing of the running dispatcher: the new routing is
+compiled before anything is written, so a workflow that does not compile rejects
+the save (`PUT /config` answers `400`) and the previous config stays. A run
+already in flight finishes on the routing it started with; the replaced routing
+is released when the dispatcher stops. A dispatcher whose routing has no fallback
+workflow (the default preset) keeps refusing a card no bot routes to, even if
+`require_assignee` is switched off, until a workflow is saved. A bot's own file
+edited without touching those fields is not re-read (dynamically resolved bots
+are cached by name): Stop and Start to pick it up.
 
 ## Tracker adapters
 
@@ -1387,6 +1394,10 @@ root** (`workflow:`, `assignee_workflows:`, `bots.paths`, `workspace.root`, hook
 same way, with the YAML's own relative paths made absolute first (and a relative
 `bots.paths` entry, which used to be read from the process's working directory,
 is now taken from the YAML's folder).
+
+Saving while the dispatcher runs reloads it: the resolved copy replaces the
+running config, and when `workflow:`, `assignee_workflows` or `bots.paths`
+changed the routing is rebuilt from it too (see [Hot-reload](#hot-reload)).
 
 `GET /config` shows the saved form with a literal secret masked as `***`
 (an `$ENV` reference is not a secret and stays visible; GitHub, Forgejo and
