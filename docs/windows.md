@@ -68,6 +68,10 @@ dispatcher and schedule hooks, plugin lifecycle commands and
 - **Output:** the engine turns PowerShell's CRLF line ends into LF, so a
   variable built from a tool node's stdout reads as it would from `sh`; the
   rest of what it normalises is in the portability rule below.
+- **Quoting of `{{…}}` values:** a value substituted into a `command:` is
+  wrapped in single quotes and every single-quote character in it is doubled —
+  the ASCII `'` and the typographic ‘ ’ ‚ ‛ (U+2018–U+201B), which PowerShell
+  also reads as quotes — so the value reaches the command as plain text.
 - **Dry run:** there is no syntax check for PowerShell bodies. When a body
   would run under PowerShell, the dry run lists it as unchecked instead of
   reporting it valid.

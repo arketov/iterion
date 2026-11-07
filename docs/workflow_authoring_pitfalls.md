@@ -864,8 +864,10 @@ records these assignments where they are written, not where they run:
 
 A tool `command:` resolves `{{input.x}}` / `{{vars.x}}` through
 `shellEscapeValue` (`pkg/backend/model/executor_tool.go`): complex values are
-JSON-encoded and the whole token is wrapped + `'\''`-escaped, so it survives
-`bash -c` no matter what it contains. The **raw** form `{{!input.x}}` (bang
+JSON-encoded and the whole token is wrapped and single-quote-escaped for the
+host shell — `'\''` for `sh`/`bash`; on a Windows (PowerShell) host `'` and the
+typographic quotes ‘ ’ ‚ ‛ (U+2018–U+201B, which PowerShell also reads as
+quotes) are doubled — so it survives the shell no matter what it contains. The **raw** form `{{!input.x}}` (bang
 prefix) deliberately bypasses that escaping and inserts the value verbatim —
 intended only for *trusted* shell snippets an upstream node hands down.
 

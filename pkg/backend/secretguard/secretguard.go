@@ -958,8 +958,9 @@ func (g *Guard) MaterializeFor(sink, s string) string {
 // Materialize) lets a value containing a single quote break OUT of that quoting
 // — shell injection / RCE on the runner, reachable in multi-tenant cloud where
 // the principal that SETS a secret-binding value differs from the bot author.
-// Escape each value for inside-single-quote use (each single quote becomes
-// close-quote + backslash-quote + reopen-quote) so the surrounding quotes stay
+// Escape each value for inside-single-quote use in the host shell's form
+// (sh: close-quote + backslash-quote + reopen-quote; PowerShell: every single
+// quote, typographic ones included, doubled) so the surrounding quotes stay
 // balanced and the value can never be interpreted as shell syntax.
 // Use this at every shell/tool-node exec site of an AUTHORED body (a tool
 // node's script: the `command` sink); the (raw) Materialize is for a model's
@@ -973,7 +974,7 @@ func (g *Guard) MaterializeShell(s string) string {
 		if !st.resolvesAt(ph, secretsink.Command) {
 			continue
 		}
-		s = strings.ReplaceAll(s, ph, strings.ReplaceAll(val, "'", hostshell.SingleQuoteEscape()))
+		s = strings.ReplaceAll(s, ph, hostshell.EscapeSingleQuoted(val))
 	}
 	return s
 }
@@ -1050,7 +1051,7 @@ func (g *Guard) materializeShellEnvAt(sink, s string) (string, map[string]string
 			continue
 		}
 		if strings.Contains(s, ph) {
-			s = strings.ReplaceAll(s, ph, strings.ReplaceAll(val, "'", hostshell.SingleQuoteEscape()))
+			s = strings.ReplaceAll(s, ph, hostshell.EscapeSingleQuoted(val))
 		}
 	}
 	return s, env

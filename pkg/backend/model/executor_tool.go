@@ -2361,9 +2361,10 @@ func sliceHasComplexElement(s []any) bool {
 // the quoting and re-open command-injection paths. Apply such expansions
 // to the raw command template BEFORE substitution, never after.
 func shellEscape(s string) string {
-	// Replace each ' with '\'': end current quote, insert escaped quote, reopen quote.
-	// On a Windows host the word is PowerShell's, where a quote is doubled.
-	return "'" + strings.ReplaceAll(s, "'", hostshell.SingleQuoteEscape()) + "'"
+	// sh: each ' becomes '\'' (end current quote, insert escaped quote, reopen).
+	// On a Windows host the word is PowerShell's, where ' and the typographic
+	// single quotes U+2018..U+201B are doubled.
+	return "'" + hostshell.EscapeSingleQuoted(s) + "'"
 }
 
 // scriptScratchDir decides where a tool node's script file is written, and

@@ -159,6 +159,64 @@ func TestPowerShellLongScriptNativeStdinDoesNotEatScript(t *testing.T) {
 	}
 }
 
+func TestEscapeSingleQuotedPowerShellQuotes(t *testing.T) {
+	tests := []struct {
+		name, platform, in, want string
+	}{
+		{"ascii apostrophe", "windows", "it's", "it''s"},
+		{"right single quote", "windows", "a’b", "a’’b"},
+		{"subexpression in typographic quotes", "windows", "‘$(Write-Output pwned)’", "‘‘$(Write-Output pwned)’’"},
+		{"all four typographic quotes", "windows", "‘’‚‛", "‘‘’’‚‚‛‛"},
+		{"ascii next to typographic", "windows", "'’", "''’’"},
+		{"empty", "windows", "", ""},
+		{"not single quotes", "windows", "Привет “q” \"d\"", "Привет “q” \"d\""},
+		{"posix apostrophe", "linux", "it's", `it'\''s`},
+		{"posix typographic quotes are plain bytes", "linux", "‘a’", "‘a’"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := escapeSingleQuoted(tc.in, tc.platform); got != tc.want {
+				t.Fatalf("escapeSingleQuoted(%q, %q) = %q, want %q", tc.in, tc.platform, got, tc.want)
+			}
+		})
+	}
+}
+
+// A quoted value must reach a real PowerShell as text: its tokenizer closes a
+// '...' literal on a lone U+2018..U+201B, and what follows would run as code.
+func TestPowerShellLiteralRoundTripsTypographicQuotes(t *testing.T) {
+	values := []string{
+		"a’b",
+		"‘$(Write-Output pwned)’",
+		"x‚y‛z‘w",
+		"it's ’",
+	}
+	ran := 0
+	for _, name := range []string{"pwsh", "powershell"} {
+		path, err := exec.LookPath(name)
+		if err != nil {
+			continue
+		}
+		ran++
+		sh := Shell{Kind: KindPowerShell, Path: path}
+		for _, v := range values {
+			t.Run(name+"/"+v, func(t *testing.T) {
+				script := "[Console]::Out.Write('" + escapeSingleQuoted(v, "windows") + "')"
+				out, err := sh.Command(context.Background(), script, false).Output()
+				if err != nil {
+					t.Fatalf("run %q: %v", script, err)
+				}
+				if string(out) != v {
+					t.Fatalf("got %q, want %q", out, v)
+				}
+			})
+		}
+	}
+	if ran == 0 {
+		t.Skip("no pwsh/powershell on PATH")
+	}
+}
+
 func TestOutputForNormalisesCRLFOnlyForPowerShell(t *testing.T) {
 	ps := exec.Command("pwsh", "-NoLogo", "-NoProfile")
 	var got strings.Builder
