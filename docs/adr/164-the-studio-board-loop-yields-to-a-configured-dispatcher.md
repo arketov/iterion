@@ -1,4 +1,4 @@
-# ADR-163 — The studio board loop yields to a configured dispatcher, and a board launch never runs in place
+# ADR-164 — The studio board loop yields to a configured dispatcher, and a board launch never runs in place
 
 - **Status**: Accepted
 - **Date**: 2026-11-06

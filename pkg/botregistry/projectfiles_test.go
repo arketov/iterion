@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
+	"strings"
 	"testing"
 )
 
@@ -276,5 +278,113 @@ func TestListProjectWorkflows_ARelativeRootIsListed(t *testing.T) {
 	res := ListProjectWorkflows(".", []string{"flows"}, 0)
 	if got := relsOf(res.Items); !reflect.DeepEqual(got, []string{"flows/dev-flow.bot"}) {
 		t.Fatalf("got %v", got)
+	}
+}
+
+// The bot catalog (discoverBots) and the project list (ListProjectWorkflows)
+// walk the discovery roots by ONE rule: neither enters a hidden directory,
+// node_modules, testdata or a nested git checkout, and a bundle that is itself
+// a clone is still a bundle in both.
+func TestCatalogAndProjectListWalkTheSameTree(t *testing.T) {
+	root := t.TempDir()
+	body := "workflow w:\n"
+	mkGit := func(dir string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Kept.
+	bundleAt(t, filepath.Join(root, "bots", "x"))
+	writeProjectFile(t, filepath.Join(root, "bots", "x", "lib", "n.bot"), body)
+	writeProjectFile(t, filepath.Join(root, "bots", "review.bot"), body)
+	writeProjectFile(t, filepath.Join(root, "bots", "multi", "main.bot"), body)
+	writeProjectFile(t, filepath.Join(root, "bots", "multi", "lib", "p.bot"), body)
+	writeProjectFile(t, filepath.Join(root, "examples", "demo.bot"), body)
+	bundleAt(t, filepath.Join(root, ".botz", "packed"))
+	bundleAt(t, filepath.Join(root, "bots", "cloned-bundle"))
+	mkGit(filepath.Join(root, "bots", "cloned-bundle"))
+	// Never listed: a nested clone, a linked worktree, hidden directories, a
+	// scaffold staging directory, dependencies and test inputs.
+	writeProjectFile(t, filepath.Join(root, "bots", "clone", "a.bot"), body)
+	mkGit(filepath.Join(root, "bots", "clone"))
+	writeProjectFile(t, filepath.Join(root, "examples", "wt", "b.bot"), body)
+	writeProjectFile(t, filepath.Join(root, "examples", "wt", ".git"), "gitdir: x")
+	writeProjectFile(t, filepath.Join(root, "bots", ".hid", "h.bot"), body)
+	bundleAt(t, filepath.Join(root, "bots", ".hidbundle"))
+	bundleAt(t, filepath.Join(root, "bots", ".x.scaffold-1"))
+	writeProjectFile(t, filepath.Join(root, "bots", "node_modules", "n2.bot"), body)
+	writeProjectFile(t, filepath.Join(root, "bots", "testdata", "t.bot"), body)
+	writeProjectFile(t, filepath.Join(root, "bots", "testdata", "sub", "u.bot"), body)
+	writeProjectFile(t, filepath.Join(root, "examples", "deep", "testdata", "v.bot"), body)
+
+	want := []string{
+		".botz/packed/main.bot",
+		"bots/cloned-bundle/main.bot",
+		"bots/multi/main.bot",
+		"bots/review.bot",
+		"bots/x/main.bot",
+		"examples/demo.bot",
+	}
+
+	entries, diags, err := ListWithDiagnostics(ListOptions{Paths: DefaultPaths(root)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("catalog diagnostics = %+v, want none", diags)
+	}
+	var catalog []string
+	for _, e := range entries {
+		rel, err := filepath.Rel(root, e.MainFile())
+		if err != nil {
+			t.Fatal(err)
+		}
+		catalog = append(catalog, filepath.ToSlash(rel))
+	}
+	sort.Strings(catalog)
+
+	list := relsOf(ListProjectWorkflows(root, DefaultPaths(root), 0).Items)
+	sort.Strings(list)
+
+	if !reflect.DeepEqual(catalog, want) {
+		t.Errorf("catalog = %v, want %v", catalog, want)
+	}
+	if !reflect.DeepEqual(list, want) {
+		t.Errorf("project list = %v, want %v", list, want)
+	}
+}
+
+// The one place the two surfaces differ, by design: the catalog answers "what
+// is routable", so a bundle whose manifest does not load is a discovery error;
+// the project list answers "what the editor can open", so the same bundle
+// stays a row — the editor is where it is repaired.
+func TestCatalogAndProjectListDifferOnABrokenManifestByDesign(t *testing.T) {
+	root := t.TempDir()
+	writeProjectFile(t, filepath.Join(root, "bots", "bad", "manifest.yaml"), `name: bad
+chat:
+  nodes:
+    chat:
+      kind: human
+`)
+	writeProjectFile(t, filepath.Join(root, "bots", "bad", "main.bot"), "agent x:\n  model: \"test\"\n")
+
+	entries, diags, err := ListWithDiagnostics(ListOptions{Paths: DefaultPaths(root)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("catalog entries = %+v, want none", entries)
+	}
+	if len(diags) != 1 || diags[0].Kind != DiscoveryErrorBundle || !strings.HasSuffix(filepath.ToSlash(diags[0].Path), "bots/bad") {
+		t.Fatalf("catalog diags = %+v, want one bundle diagnostic for bots/bad", diags)
+	}
+
+	res := ListProjectWorkflows(root, DefaultPaths(root), 0)
+	if got := relsOf(res.Items); !reflect.DeepEqual(got, []string{"bots/bad/main.bot"}) {
+		t.Fatalf("project list = %v, want the broken bundle as a row", got)
+	}
+	if len(res.Skipped) != 0 {
+		t.Fatalf("skipped = %+v, want none", res.Skipped)
 	}
 }

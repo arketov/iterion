@@ -582,14 +582,18 @@ func AnyRootPresent(paths []string) bool {
 // botscaffold's staging directories ("."+slug+".scaffold-"+random), whose
 // leftover beside the roots is no bot. The spelling lives here because
 // botscaffold's tests sit in its own package (an import would cycle them);
-// TestTheStagingSpellingsAgree holds the two to one shape.
+// TestTheStagingSpellingsAgree holds the two to one shape. The walk's hidden
+// rule (walkSkippedDir) subsumes it; it stays as that test's pin.
 func isScaffoldStagingDir(name string) bool {
 	return strings.HasPrefix(name, ".") && strings.Contains(name, ".scaffold-")
 }
 
 // discoverBots walks each root and produces one Entry per discovered
 // bot. Bundles (directories with manifest.yaml + main.bot) collapse
-// into one entry; individual .bot files become one entry each.
+// into one entry; individual .bot files become one entry each. Below a
+// root the walk prunes by the project's one rule (walkSkippedDir: hidden
+// directories, node_modules, testdata; isNestedRepo: another project's
+// checkout), the fragments of a bot's lib/ and the inside of a bundle.
 // Missing roots are skipped silently so callers can pass optimistic
 // default paths. A source that produces no entry is recorded as a
 // DiscoveryError and skipped — it failed to load (malformed manifest,
@@ -685,11 +689,12 @@ func discoverBots(roots []string) ([]Entry, []DiscoveryError, error) {
 				return nil
 			}
 			if d.IsDir() {
-				if path != root && isScaffoldStagingDir(d.Name()) {
-					// A scaffold's staging directory left by a create that
-					// died before its publish is no bot: never listed,
-					// never enabled, never routable, and it claims no name
-					// (SweepStale removes the stale ones at start).
+				if path != root && walkSkippedDir(d.Name()) {
+					// Hidden directories (a scaffold's staging directory
+					// left by a create that died before its publish among
+					// them; SweepStale removes the stale ones at start),
+					// node_modules and testdata are no bots: never listed,
+					// never enabled, never routable, and they claim no name.
 					return filepath.SkipDir
 				}
 				if path != root && isFragmentDir(path) {
@@ -702,6 +707,12 @@ func discoverBots(roots []string) ([]Entry, []DiscoveryError, error) {
 				}
 				claimed, openable, _ := bundle.DirClaim(path)
 				if !claimed {
+					if path != root && isNestedRepo(path) {
+						// Another project's checkout, not this project's
+						// bots. A claimed bundle that is a clone is still
+						// listed: the claim precedes this check (ADR-140).
+						return filepath.SkipDir
+					}
 					return nil
 				}
 				if !openable {

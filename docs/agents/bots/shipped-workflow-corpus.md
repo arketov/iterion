@@ -36,10 +36,14 @@ hand a narrowed root on — a `-run` that selects a single guard included.
 
 That table of globs is not the same thing as what the engine ROUTES:
 `botregistry.discoverBots` walks each root of `DefaultPaths` with
-`filepath.WalkDir` at unbounded depth, pruning only a bot's `lib/` fragments
-and the inside of a bundle. So `examples/a/b/c.bot` is routable and matches no
-root, and the twelve parser fixtures under `bots/testdata/` are routable
-entries. `TestEveryRoutableBotIsAShippedWorkflow` asks the registry itself
+`filepath.WalkDir` at unbounded depth, pruning hidden directories,
+`node_modules`, `testdata`, nested git checkouts, a bot's `lib/` fragments and
+the inside of a bundle (the one rule the Project files list shares,
+[ADR-165](../../adr/165-one-walk-rule-for-the-bot-catalog-and-project-lists.md)).
+So `examples/a/b/c.bot` is routable and matches no root, while the twelve
+parser fixtures under `bots/testdata/` are NOT routable: `routableNonWorkflows`
+holds only `examples/cursors/cursors.bot`.
+`TestEveryRoutableBotIsAShippedWorkflow` asks the registry itself
 which bots this workspace routes and requires each one to be in the corpus or
 named in `routableNonWorkflows` with the reason it ships no workflow — it calls
 the discovery rather than re-modelling its walk, so a change to the depth, the

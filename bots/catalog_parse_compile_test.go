@@ -176,40 +176,19 @@ func catalogWorkflowFiles(t *testing.T) []string {
 	return targets
 }
 
-// fixtureNotShippedReason is why a .bot under a testdata/ directory is
-// routable here yet owes none of the catalogue's contracts: it is an input to
-// this repository's own Go tests. The engine reaches it because discovery
-// walks a root at unbounded depth, which only ever happens in a workspace that
-// holds iterion's test tree — the released binaries ship no testdata/.
-const fixtureNotShippedReason = "a fixture of this repository's Go tests, not a workflow it ships"
-
 // routableNonWorkflows are the .bot files botregistry's discovery turns into
 // routable entries that this repository does not SHIP as workflows, each with
 // the reason it owes none of the catalogue's contracts. Keyed by the
-// repository-relative file, per file rather than per directory: a new fixture
+// repository-relative file, per file rather than per directory: a new one
 // reddens TestEveryRoutableBotIsAShippedWorkflow until its reason is written
 // down here, which is the whole point of naming them.
 //
-// Every one of these holds acting prompts the class does not reach (18 under
-// bots/testdata/ today, all on the full native claude_code toolset). Making
-// them unroutable is a change to discovery, and papering them is prose in a
-// parser fixture: both are decisions about the engine's walk, not about this
-// corpus, so what this table buys is that the next one cannot arrive in
-// silence.
+// Discovery prunes testdata/ (the fixtures of this repository's Go tests are
+// no routable bots), hidden directories, node_modules and nested checkouts, so
+// the table names only what discovery still routes without the repository
+// shipping it as a workflow.
 var routableNonWorkflows = map[string]string{
-	"bots/testdata/input_mapping/action_params.bot":  fixtureNotShippedReason,
-	"bots/testdata/input_mapping/agent_prompt.bot":   fixtureNotShippedReason,
-	"bots/testdata/input_mapping/compute_expr.bot":   fixtureNotShippedReason,
-	"bots/testdata/input_mapping/human_prompt.bot":   fixtureNotShippedReason,
-	"bots/testdata/input_mapping/judge_prompt.bot":   fixtureNotShippedReason,
-	"bots/testdata/input_mapping/llm_router.bot":     fixtureNotShippedReason,
-	"bots/testdata/input_mapping/mapped.bot":         fixtureNotShippedReason,
-	"bots/testdata/input_mapping/review_url.bot":     fixtureNotShippedReason,
-	"bots/testdata/input_mapping/tool_command.bot":   fixtureNotShippedReason,
-	"bots/testdata/input_mapping/tool_script.bot":    fixtureNotShippedReason,
-	"bots/testdata/prose_input_refs/human_entry.bot": fixtureNotShippedReason,
-	"bots/testdata/prose_input_refs/surfaces.bot":    fixtureNotShippedReason,
-	"examples/cursors/cursors.bot":                   "a declaration catalogue meant to be pasted into a workflow (exampleFragments), which discovery routes anyway because it is a .bot file",
+	"examples/cursors/cursors.bot": "a declaration catalogue meant to be pasted into a workflow (exampleFragments), which discovery routes anyway because it is a .bot file",
 }
 
 // repoRelativeBotFile spells a path this package globbed, or one a discovered
@@ -241,13 +220,14 @@ func routedWorkflowFile(e botregistry.Entry) string {
 // below cannot read two different discoveries, and neither can read one that
 // returned nothing: the floor is here, under both of them. A registry that
 // stopped walking would leave every comparison built on it vacuously green,
-// and that is the one failure a guard cannot report about itself. 74 sources
-// reach it today; the floor sits under that so a bot may be retired.
+// and that is the one failure a guard cannot report about itself. about 62
+// sources reach it today (testdata/ is pruned); the floor sits under that so a
+// bot may be retired.
 func discoveredBotSources(t *testing.T) ([]botregistry.Entry, []botregistry.DiscoveryError) {
 	t.Helper()
 	entries, diags := shippedBotSources(t, "..")
-	if len(entries) < 60 {
-		t.Fatalf("discovery over %v returned %d bot(s), want at least 60: the registry stopped reading this workspace, so every guard built on it is now comparing nothing", botregistry.DefaultPaths(".."), len(entries))
+	if len(entries) < 50 {
+		t.Fatalf("discovery over %v returned %d bot(s), want at least 50: the registry stopped reading this workspace, so every guard built on it is now comparing nothing", botregistry.DefaultPaths(".."), len(entries))
 	}
 	return entries, diags
 }
@@ -355,10 +335,10 @@ func gitIgnoredPaths(t *testing.T, root string, paths []string) map[string]bool 
 //
 // catalogRoots is a table of globs that reach one directory level;
 // botregistry.discoverBots walks botregistry.DefaultPaths — [bots examples
-// .botz] — with filepath.WalkDir at UNBOUNDED depth, pruning only a bot's
-// `lib/` fragments and the inside of a bundle. The two disagree:
-// `examples/a/b/c.bot` is routable and matches no root, and 12 files under
-// bots/testdata/ are routable entries the globs never see. Where they
+// .botz] — with filepath.WalkDir at UNBOUNDED depth, pruning a bot's
+// `lib/` fragments, hidden directories, node_modules, testdata/, nested
+// checkouts and the inside of a bundle. The two disagree:
+// `examples/a/b/c.bot` is routable and matches no root. Where they
 // disagree, an acting prompt ships with no paragraph and no guard able to
 // redden, which is why this guard asks the registry itself — the resolver
 // `iterion run`, the zero-config dispatcher, the studio and the server all go

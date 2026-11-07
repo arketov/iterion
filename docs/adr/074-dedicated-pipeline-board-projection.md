@@ -1,6 +1,6 @@
 # ADR-074 — A dedicated pipeline board projection
 
-> **Amended by [ADR-163](163-the-studio-board-loop-yields-to-a-configured-dispatcher.md)**: D5's default cap of 3 now applies to every local entry point (it was the `iterion studio` flag only), and D6's launch-loop gate is a saved dispatcher config, not `State != running`.
+> **Amended by [ADR-164](164-the-studio-board-loop-yields-to-a-configured-dispatcher.md)**: D5's default cap of 3 now applies to every local entry point (it was the `iterion studio` flag only), and D6's launch-loop gate is a saved dispatcher config, not `State != running`.
 
 Status: **proposed** (2026-07-14, revised same day). Refines ADR-071 and
 implements the core product direction described in
