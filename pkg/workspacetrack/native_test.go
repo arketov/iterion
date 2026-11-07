@@ -1065,6 +1065,60 @@ func TestStoreObject_DedupHitRefreshesMtime(t *testing.T) {
 	}
 }
 
+// TestStoreObject_DedupHitWritesNothing pins that a run's first capture of
+// content already in the pool only reads it: a fresh run has an empty stat
+// cache, so every file reaches storeObject, and staging each one through a
+// temp file before the dedup check rewrote the whole workspace per run.
+func TestStoreObject_DedupHitWritesNothing(t *testing.T) {
+	storeDir, ws := t.TempDir(), t.TempDir()
+	write(t, ws, "a.txt", "content already pooled")
+	n := NewNative(storeDir)
+	first, err := n.Capture("run-a", ws, "post:a:0")
+	if err != nil {
+		t.Fatalf("first capture: %v", err)
+	}
+
+	orig := createTemp
+	calls := 0
+	createTemp = func(dir, pattern string) (*os.File, error) {
+		calls++
+		return orig(dir, pattern)
+	}
+	t.Cleanup(func() { createTemp = orig })
+
+	n2 := NewNative(storeDir)
+	second, err := n2.Capture("run-b", ws, "post:a:0")
+	if err != nil {
+		t.Fatalf("second capture: %v", err)
+	}
+	if calls != 0 {
+		t.Errorf("a dedup hit staged %d temp file(s), want 0", calls)
+	}
+	if len(first.Entries) != 1 || len(second.Entries) != 1 || first.Entries[0].Hash != second.Entries[0].Hash {
+		t.Fatalf("entries differ between runs: %+v vs %+v", first.Entries, second.Entries)
+	}
+
+	// Control: genuinely new content is still written, through one temp file.
+	write(t, ws, "b.txt", "content never seen before")
+	third, err := NewNative(storeDir).Capture("run-c", ws, "post:a:0")
+	if err != nil {
+		t.Fatalf("third capture: %v", err)
+	}
+	if calls != 1 {
+		t.Errorf("new content staged %d temp file(s), want 1", calls)
+	}
+	for _, e := range third.Entries {
+		if _, err := os.Stat(NewNative(storeDir).objectPath(e.Hash)); err != nil {
+			t.Errorf("object for %s missing from the pool: %v", e.Path, err)
+		}
+	}
+
+	leftovers, _ := filepath.Glob(filepath.Join(storeDir, objectsDir, ".obj-*"))
+	if len(leftovers) != 0 {
+		t.Errorf("temp files left in the pool root: %v", leftovers)
+	}
+}
+
 // TestRestore_PreservesAFileTheCaptureCouldNotRead is Revi's R1d5285 —
 // and a consequence of the earlier fix that made a vanished file
 // non-fatal. Tolerating it dropped the path from Entries WITHOUT adding
