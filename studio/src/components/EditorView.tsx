@@ -6,6 +6,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import Canvas from "@/components/Canvas/Canvas";
 import Inspector from "@/components/Inspector/Inspector";
 import Toolbar from "@/components/Toolbar/Toolbar";
+import ExpandedFilePicker from "@/components/Toolbar/ExpandedFilePicker";
 import DiagnosticsPanel from "@/components/Diagnostics/DiagnosticsPanel";
 import LibraryPanel from "@/components/Library/LibraryPanel";
 import SubNodePalette from "@/components/Canvas/SubNodePalette";
@@ -407,6 +408,7 @@ export default function EditorView({ active = true }: EditorViewProps) {
           </div>
         )}
       </div>
+      {expanded && <ExpandedFilePicker />}
       </DesktopOnlyNotice>
       </div>
     </ReactFlowProvider>
