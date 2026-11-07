@@ -627,12 +627,15 @@ you have accepted their loss.
 - **Cron expressions are passed through verbatim.** `iterion` only
   checks the field count (5); range validity is the host cron's job.
 - **Host cron only.** `schedule install`/`uninstall` shell out to
-  `crontab`. On a host without it (e.g. a minimal container, Windows),
-  `schedule install --print` previews the cron block but does not create
-  its wrapper. Configure your scheduler (systemd timer, Task Scheduler,
-  a CI cron) to invoke `iterion schedule run <name>` directly with its
-  required PATH and working directory. The manifest + `schedule run
-  <name>` work everywhere.
+  `crontab`. On a host without it (e.g. a minimal container, Windows)
+  they fail up front with an error that says so and names the manual
+  route; `schedule install --print` previews the POSIX cron block but
+  does not create its wrapper. Configure your scheduler (systemd timer,
+  Task Scheduler, a CI cron) to invoke
+  `iterion schedule run <name> --manifest <path>` directly with its
+  required PATH; `schedule run` changes into the entry's `workdir`
+  itself, and `--dry-run` shows the resolved command. The manifest +
+  `schedule run <name>` work everywhere.
 - **No TTY at firing time.** Scheduled runs are non-interactive; a bot
   that pauses for human input will pause and persist a resumable
   checkpoint (resume it later with [`iterion resume`](resume.md)),

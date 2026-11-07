@@ -604,7 +604,26 @@ var (
 	crontabWriter = defaultCrontabWrite
 )
 
+// requireCrontab fails up front, with the manual route, on a host that has no
+// `crontab` binary (Windows, a minimal container) instead of surfacing the raw
+// "executable file not found" exec error.
+func requireCrontab() error {
+	if _, err := exec.LookPath("crontab"); err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			return fmt.Errorf("%w: `schedule install`/`uninstall` manage the host crontab and this host has no `crontab` on PATH; "+
+				"point your scheduler (Task Scheduler on Windows, a systemd timer, a CI cron) at "+
+				"`iterion schedule run <name> --manifest <manifest>` instead — it changes into the entry's workdir itself, "+
+				"and `iterion schedule run <name> --dry-run` shows the resolved command (`schedule install --print` only previews a POSIX cron block)", err)
+		}
+		return fmt.Errorf("locate crontab: %w", err)
+	}
+	return nil
+}
+
 func defaultCrontabRead() (string, error) {
+	if err := requireCrontab(); err != nil {
+		return "", err
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "crontab", "-l")
@@ -623,6 +642,9 @@ func defaultCrontabRead() (string, error) {
 }
 
 func defaultCrontabWrite(text string) error {
+	if err := requireCrontab(); err != nil {
+		return err
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "crontab", "-")

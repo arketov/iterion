@@ -2,7 +2,9 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -416,4 +418,32 @@ func TestRunScheduleRun_DryRun(t *testing.T) {
 	}); err == nil {
 		t.Errorf("running an unknown schedule should error")
 	}
+}
+
+// A host without `crontab` (Windows, a minimal container) must get the manual
+// route, not the raw exec "executable file not found" error.
+func TestRunScheduleInstallUninstall_NoCrontabOnPathExplainsManualRoute(t *testing.T) {
+	t.Setenv("PATH", t.TempDir()) // an empty directory: no crontab to find
+	path := filepath.Join(t.TempDir(), "schedules.yaml")
+	if err := saveScheduleManifest(path, sampleManifest()); err != nil {
+		t.Fatalf("seed manifest: %v", err)
+	}
+	p, _ := testPrinter()
+
+	check := func(name string, err error) {
+		t.Helper()
+		if err == nil {
+			t.Fatalf("%s: want an error on a host without crontab", name)
+		}
+		if !errors.Is(err, exec.ErrNotFound) {
+			t.Errorf("%s: error should wrap exec.ErrNotFound, got %v", name, err)
+		}
+		for _, want := range []string{"crontab", "schedule run", "--manifest", "--dry-run"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("%s: error should mention %q, got: %v", name, want, err)
+			}
+		}
+	}
+	check("install", RunScheduleInstall(p, ScheduleInstallOptions{ScheduleCommonOptions: ScheduleCommonOptions{ManifestPath: path}}))
+	check("uninstall", RunScheduleUninstall(p, ScheduleCommonOptions{ManifestPath: path}))
 }
