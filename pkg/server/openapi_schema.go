@@ -11,6 +11,7 @@ import (
 	"github.com/arketov/iterion/pkg/forge"
 	"github.com/arketov/iterion/pkg/modelcatalog"
 	"github.com/arketov/iterion/pkg/pat"
+	"github.com/arketov/iterion/pkg/plugin"
 	"github.com/arketov/iterion/pkg/platformcfg"
 	"github.com/arketov/iterion/pkg/runview"
 	"github.com/arketov/iterion/pkg/secrets"
@@ -528,6 +529,16 @@ func routeSchemas() map[string]routeOp {
 	}
 }
 
+// schemaNameOverrides publishes a component under a name other than its Go
+// type name, for a type whose bare name is too generic to survive in a
+// generated client (components["schemas"]["View"]). Keyed by type, so the
+// name follows the type wherever it is reached from — here plugin.View
+// directly and plugin.ConfigField through View.ConfigSchema.
+var schemaNameOverrides = map[reflect.Type]string{
+	reflect.TypeOf(plugin.View{}):        "PluginView",
+	reflect.TypeOf(plugin.ConfigField{}): "PluginConfigField",
+}
+
 // schemaGen builds OpenAPI 3.1 schemas, collecting named struct schemas into a
 // reusable components map and referencing them with $ref so generators emit
 // named types. Anonymous structs are inlined.
@@ -607,6 +618,9 @@ func (g *schemaGen) refForStruct(t reflect.Type) map[string]any {
 // different packages with a package-suffix.
 func (g *schemaGen) uniqueName(t reflect.Type) string {
 	base := t.Name()
+	if o, ok := schemaNameOverrides[t]; ok {
+		base = o
+	}
 	taken := false
 	for _, n := range g.names {
 		if n == base {

@@ -889,38 +889,6 @@
         ],
         "type": "object"
       },
-      "ConfigField": {
-        "properties": {
-          "default": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "key": {
-            "type": "string"
-          },
-          "label": {
-            "type": "string"
-          },
-          "options": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "required": {
-            "type": "boolean"
-          },
-          "type": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "key"
-        ],
-        "type": "object"
-      },
       "ContextRef": {
         "properties": {
           "id": {
@@ -2914,6 +2882,91 @@
         ],
         "type": "object"
       },
+      "PluginConfigField": {
+        "properties": {
+          "default": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "type": "object"
+      },
+      "PluginView": {
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "builtin": {
+            "type": "boolean"
+          },
+          "config_schema": {
+            "items": {
+              "$ref": "#/components/schemas/PluginConfigField"
+            },
+            "type": "array"
+          },
+          "config_secret_set": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "config_values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "kinds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "enabled",
+          "builtin",
+          "kinds"
+        ],
+        "type": "object"
+      },
       "Policy": {
         "properties": {
           "cross_harness": {
@@ -4059,59 +4112,6 @@
           "email",
           "status",
           "is_super_admin"
-        ],
-        "type": "object"
-      },
-      "View": {
-        "properties": {
-          "author": {
-            "type": "string"
-          },
-          "builtin": {
-            "type": "boolean"
-          },
-          "config_schema": {
-            "items": {
-              "$ref": "#/components/schemas/ConfigField"
-            },
-            "type": "array"
-          },
-          "config_secret_set": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "config_values": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "type": "object"
-          },
-          "description": {
-            "type": "string"
-          },
-          "enabled": {
-            "type": "boolean"
-          },
-          "kinds": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "name": {
-            "type": "string"
-          },
-          "version": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "enabled",
-          "builtin",
-          "kinds"
         ],
         "type": "object"
       },
@@ -6333,7 +6333,7 @@
           },
           "plugins": {
             "items": {
-              "$ref": "#/components/schemas/View"
+              "$ref": "#/components/schemas/PluginView"
             },
             "type": "array"
           }
