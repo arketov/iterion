@@ -427,7 +427,7 @@ func TestLooksPosixSkipsBlockCommentsAndNestedBraces(t *testing.T) {
 }
 
 func wslLook(name string) (string, error) {
-	if name == "bash" {
+	if name == "bash" || strings.EqualFold(name, `C:\Windows\System32\bash.exe`) {
 		return `C:\Windows\System32\bash.exe`, nil
 	}
 	return "", &exec.Error{Name: name, Err: exec.ErrNotFound}
