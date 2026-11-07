@@ -493,6 +493,29 @@ func (c *Dispatcher) finishRun(ctx context.Context, issueID string, err error) {
 		// column, and a dashboard skip entry — otherwise the ticket
 		// strands invisibly: claimed, no live worker, no badge, and
 		// absent from the snapshot's running and retry tables.
+		//
+		// A tracker that persists last_run (native) does NOT park: nobody has
+		// anything to answer, so the card goes back to the column it was
+		// taken from, the claim is released, and an in-memory hold keyed by
+		// the run (source_hold.go) refuses the card before Claim until the run
+		// is force-resumed or last_run is reset. The legacy park below stays
+		// for pointer-less trackers (github/forgejo), which have no way to
+		// release such a hold.
+		if c.hasLastRunSeam() {
+			c.stampLastRun(issueID, r)
+			c.holdSourceChanged(issueID, r)
+			cfg := c.cfg.Load()
+			c.fireSnapshot()
+			c.launchFinish(finishPlan{
+				kind:          finishRevert,
+				issueID:       issueID,
+				identifier:    r.Identifier,
+				runningTarget: cfg.Agent.RunningState,
+				sourceState:   r.TransitionedFromState,
+				session:       r.claim,
+			})
+			return
+		}
 		c.stampLastRun(issueID, r)
 		c.setAwaitingInput(issueID, true, r.claim)
 		c.moveToAwaitingInput(issueID, r.Identifier, r.claim)

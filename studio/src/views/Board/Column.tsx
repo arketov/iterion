@@ -44,6 +44,8 @@ interface ColumnProps {
   onLabelClick: (label: string) => void;
   activeLabels: Set<string>;
   onCancelRun: (issueID: string) => void;
+  onForceResume?: (issueID: string) => void;
+  onRestartFresh?: (issueID: string) => void;
   onOpenRun: (runId: string) => void;
   // dimmed: tells the column to render desaturated (grayscale). Used when the
   // dispatcher is paused so eligible columns visually fade — the cards
@@ -80,6 +82,8 @@ export function Column({
   onLabelClick,
   activeLabels,
   onCancelRun,
+  onForceResume,
+  onRestartFresh,
   onOpenRun,
   dimmed,
   onEditColumn,
@@ -275,6 +279,8 @@ export function Column({
             onDragStart={(e) => onDragStartCard(iss, e)}
             onLabelClick={onLabelClick}
             onCancelRun={() => onCancelRun(iss.id)}
+            onForceResume={onForceResume ? () => onForceResume(iss.id) : undefined}
+            onRestartFresh={onRestartFresh ? () => onRestartFresh(iss.id) : undefined}
             onOpenRun={onOpenRun}
             onShowRetryDetails={() => onOpenCard(iss)}
           />

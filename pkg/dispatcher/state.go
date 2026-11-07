@@ -75,6 +75,14 @@ type state struct {
 	// at production log levels while they silently changed dispatch
 	// decisions. Actor-goroutine-owned; no mutex needed.
 	degradedWarned map[string]bool
+	// sourceHolds are the cards whose last_run refused to resume because the
+	// bot source changed (see source_hold.go). Keyed by issueID.
+	// Actor-goroutine-owned. A not-yet-adopted hold is memory-only: a restart
+	// costs one extra claim → refusal → hold cycle. An ADOPTED hold (the card
+	// sits in an eligible column with no claim) is journalled to
+	// dispatcher/source-holds.json and seeded in New, so a restart does not
+	// turn the finished run into a fresh sibling.
+	sourceHolds map[string]*sourceHold
 }
 
 func newState() *state {
@@ -86,6 +94,7 @@ func newState() *state {
 		dispatchSkips:     map[string]DispatchSkipView{},
 		lastRunHoldWarned: map[string]string{},
 		degradedWarned:    map[string]bool{},
+		sourceHolds:       map[string]*sourceHold{},
 	}
 }
 
@@ -338,6 +347,12 @@ const DispatchSkipNoBot = "no_bot"
 // keeps the claim and retries the move, and will NOT run the card again.
 const DispatchSkipCompletionPending = "completion_pending"
 
+// DispatchSkipSourceChanged is DispatchSkipView.Kind for a card whose last_run
+// cannot be resumed because the bot source changed since it started. The card
+// stays in its source column; the operator force-resumes the run or resets
+// last_run.
+const DispatchSkipSourceChanged = "source_changed"
+
 // DispatchSkipView is one entry of the "won't dispatch" surface: an
 // eligible issue the dispatcher refused to claim because its explicit
 // bot can't be resolved to a workflow file, or resolves but has no
@@ -356,7 +371,8 @@ type DispatchSkipView struct {
 	// "no_assignee" (ready card with no assignee/bot while require_assignee
 	// is on), "no_bot" (the assignee is not a routable bot, same policy),
 	// "completion_pending" (the run finished but the move to completed_state
-	// failed and is being retried), or empty for the bot-misconfiguration
+	// failed and is being retried), "source_changed" (the last run cannot
+	// resume: the bot source changed), or empty for the bot-misconfiguration
 	// family.
 	Kind string `json:"kind,omitempty"`
 }

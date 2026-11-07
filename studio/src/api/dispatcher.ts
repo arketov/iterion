@@ -285,6 +285,8 @@ export interface DispatchSkipView {
   // "no_bot": its assignee is not a bot the dispatcher can route to.
   // "completion_pending": the run finished but the move to completed_state
   // failed; the dispatcher keeps retrying and will not run the card again.
+  // "source_changed": the last run cannot resume because the bot source
+  // changed; the card stays in its column (force-resume or start over).
   // Absent for the bot-misconfiguration family.
   kind?: string;
 }

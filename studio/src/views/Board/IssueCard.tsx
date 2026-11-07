@@ -51,6 +51,12 @@ interface IssueCardProps {
   onCancelRun: () => void;
   onOpenRun: (runId: string) => void;
   onShowRetryDetails: () => void;
+  // The two ways out of a "bot source changed" refusal (skip.kind ===
+  // "source_changed"): continue the last run with the new bot version
+  // (resume --force) or start over (reset last run). Optional — a host that
+  // supplies neither keeps the generic badge behaviour.
+  onForceResume?: () => void;
+  onRestartFresh?: () => void;
 }
 
 export function IssueCard({
@@ -67,6 +73,8 @@ export function IssueCard({
   onCancelRun,
   onOpenRun,
   onShowRetryDetails,
+  onForceResume,
+  onRestartFresh,
 }: IssueCardProps) {
   // Hover preview: synthesise a multi-line title combining body
   // (truncated) + key fields + blocker count so the OS-native tooltip
@@ -363,7 +371,46 @@ export function IssueCard({
           stale retry queued — will be skipped (issue in {iss.state})
         </div>
       )}
-      {!running && skip && (
+      {!running && skip && skip.kind === "source_changed" && (
+        <div
+          className="mt-1 rounded bg-danger-soft px-1.5 py-1 text-caption text-danger-fg"
+          data-testid="source-changed-banner"
+        >
+          ⚠ bot source changed — won't resume automatically
+          <span className="block text-danger-fg break-words">{skip.reason}</span>
+          <div className="mt-1 flex flex-wrap gap-1">
+            <button
+              type="button"
+              className="rounded border border-danger/40 px-1.5 py-0.5 text-caption hover:bg-danger-soft disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!iss.last_run_id || !onForceResume}
+              title={
+                iss.last_run_id
+                  ? `Resume run ${iss.last_run_id} from its checkpoint with the current bot source (resume --force).`
+                  : "This card has no last run to resume."
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                onForceResume?.();
+              }}
+            >
+              Continue with the new bot version (force)
+            </button>
+            <button
+              type="button"
+              className="rounded border border-danger/40 px-1.5 py-0.5 text-caption hover:bg-danger-soft disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!onRestartFresh}
+              title="Forget the last run and start the card from the beginning (reset last run). The old run stays readable in the run console."
+              onClick={(e) => {
+                e.stopPropagation();
+                onRestartFresh?.();
+              }}
+            >
+              Start over (reset last run)
+            </button>
+          </div>
+        </div>
+      )}
+      {!running && skip && skip.kind !== "source_changed" && (
         <button
           type="button"
           className="mt-1 w-full text-left rounded bg-danger-soft px-1.5 py-1 text-caption text-danger-fg cursor-pointer hover:bg-danger-soft"

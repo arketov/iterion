@@ -77,6 +77,9 @@ type Dispatcher struct {
 	// only recovery path for external trackers, whose claim label
 	// carries no host/PID marker. Nil when StoreDir is unset.
 	claims *claimJournal
+	// holdJournal persists the adopted source holds (source_hold.go) across a
+	// daemon restart. Nil when StoreDir is unset.
+	holdJournal *sourceHoldJournal
 
 	state *state
 	cmds  chan cmd
@@ -211,6 +214,8 @@ func New(opts Options) (*Dispatcher, error) {
 		ws:         newWsBridge(opts.Logger),
 		claims:     newClaimJournal(opts.StoreDir, opts.Logger),
 	}
+	c.holdJournal = newSourceHoldJournal(opts.StoreDir, opts.Logger)
+	c.state.sourceHolds = c.holdJournal.Load()
 	if l, ok := opts.Tracker.(tracker.ClaimLeaser); ok {
 		c.leaser = l
 	} else {

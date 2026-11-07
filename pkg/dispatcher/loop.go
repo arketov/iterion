@@ -31,6 +31,7 @@ func (c *Dispatcher) tick(ctx context.Context) {
 	c.reconcileStalled(ctx, cfg)
 	c.refreshRunningStates(ctx)
 	c.reconcileParked(ctx)
+	c.reconcileSourceHolds(ctx)
 	// Reclaim paused last_runs even while dispatch is suspended: a
 	// reboot with desired=paused must re-park, never mint a sibling.
 	c.reconcileStrandedPaused(ctx)
@@ -604,6 +605,9 @@ func (c *Dispatcher) completeFinishedCard(cfg *Config, iss tracker.Issue, claimT
 // states fall through so normal resume/fresh resolution can proceed.
 func (c *Dispatcher) lastRunHoldBeforeClaim(iss tracker.Issue) bool {
 	prev := c.lastRunID(iss.ID)
+	if c.sourceHoldBeforeClaim(iss, prev) {
+		return true
+	}
 	if prev == "" {
 		return false
 	}

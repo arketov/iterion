@@ -280,3 +280,65 @@ describe("IssueCard no-bot badge", () => {
     expect(badge.getAttribute("title") ?? "").toContain("will not run again");
   });
 });
+
+// A refused resume (the bot source changed since the last run started) keeps
+// the card in its column and offers the two explicit ways out.
+describe("IssueCard source-changed banner", () => {
+  const skip = {
+    issue_id: baseIssue.id,
+    identifier: "T-1",
+    kind: "source_changed",
+    reason: "bot source changed since run run-1 started",
+  };
+  const renderBanner = (
+    iss: NativeIssue,
+    handlers: { onForceResume?: () => void; onRestartFresh?: () => void } = {},
+    skipOverride = skip,
+  ) =>
+    render(
+      <IssueCard
+        iss={iss}
+        selected={false}
+        skip={skipOverride}
+        activeLabels={new Set()}
+        onClick={() => {}}
+        onOpen={() => {}}
+        onDragStart={() => {}}
+        onLabelClick={() => {}}
+        onCancelRun={() => {}}
+        onOpenRun={() => {}}
+        onShowRetryDetails={() => {}}
+        {...handlers}
+      />,
+    );
+
+  it("renders source-changed banner with force and fresh buttons", async () => {
+    const onForceResume = vi.fn();
+    const onRestartFresh = vi.fn();
+    const { container } = renderBanner(
+      { ...baseIssue, state: "ready", last_run_id: "run-1" },
+      { onForceResume, onRestartFresh },
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Continue with the new bot version/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Start over/ }));
+    expect(onForceResume).toHaveBeenCalledTimes(1);
+    expect(onRestartFresh).toHaveBeenCalledTimes(1);
+    await expectNoViolationsStrict(container, "IssueCard");
+  });
+
+  it("disables force when the card has no last run", () => {
+    renderBanner({ ...baseIssue, state: "ready" }, { onForceResume: () => {}, onRestartFresh: () => {} });
+    const force = screen.getByRole("button", { name: /Continue with the new bot version/ });
+    expect((force as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("shows no way-out buttons for a no_bot skip", () => {
+    renderBanner(
+      { ...baseIssue, state: "ready", last_run_id: "run-1" },
+      { onForceResume: () => {}, onRestartFresh: () => {} },
+      { ...skip, kind: "no_bot" },
+    );
+    expect(screen.queryByRole("button", { name: /Continue with the new bot version/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Start over/ })).toBeNull();
+  });
+});
