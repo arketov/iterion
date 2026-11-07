@@ -110,7 +110,7 @@ func (f dependencyTransactionFixture) assertRestored(t *testing.T, installed boo
 		}
 	}
 	info, err := os.Stat(filepath.Join(f.root, "bots.lock"))
-	if err != nil || info.Mode().Perm() != 0o640 {
+	if err != nil || info.Mode().Perm() != dependencyTestPerm(0o640) {
 		t.Fatalf("lock mode: %v %v", info, err)
 	}
 	if got := strings.TrimSpace(gitTestRead(t, f.root, "rev-parse", "HEAD")); got != f.head {
@@ -234,7 +234,7 @@ func TestAssistantDependencyTransactionPreparationFailures(t *testing.T) {
 				if e := os.Rename(path, saved); e != nil {
 					t.Fatal(e)
 				}
-				if e := os.Symlink(saved, path); e != nil {
+				if e := symlinkOrSkip(t, saved, path); e != nil {
 					t.Fatal(e)
 				}
 				_, err = assistantDependencyBotsUpdate(t.Context(), f.root, f.req)
@@ -425,7 +425,7 @@ func TestAssistantDependencyOriginRollbackAndRetry(t *testing.T) {
 						t.Fatalf("origin not restored: %q %v", body, err)
 					}
 					info, err := os.Stat(originPath)
-					if err != nil || info.Mode().Perm() != 0o640 {
+					if err != nil || info.Mode().Perm() != dependencyTestPerm(0o640) {
 						t.Fatalf("origin mode %v %v", info, err)
 					}
 				} else if _, err := os.Lstat(originPath); !os.IsNotExist(err) {
@@ -564,7 +564,7 @@ func TestAssistantDependencyOriginInterference(t *testing.T) {
 					}
 				case "parent-mode":
 					info, e := os.Stat(filepath.Dir(originPath))
-					if e != nil || info.Mode().Perm() != 0o755 {
+					if e != nil || info.Mode().Perm() != dependencyTestPerm(0o755) {
 						t.Fatal("parent permissions overwritten")
 					}
 				}
@@ -579,7 +579,7 @@ func TestAssistantDependencyOriginRejectsUnsupportedObjects(t *testing.T) {
 			f := newDependencyTransactionFixture(t, true, false)
 			path := filepath.Join(f.root, ".botz", ".origins")
 			if kind == "parent-symlink" {
-				if err := os.Symlink(t.TempDir(), path); err != nil {
+				if err := symlinkOrSkip(t, t.TempDir(), path); err != nil {
 					t.Fatal(err)
 				}
 			} else {
@@ -592,7 +592,7 @@ func TestAssistantDependencyOriginRejectsUnsupportedObjects(t *testing.T) {
 						t.Fatal(err)
 					}
 				} else {
-					if err := os.Symlink(filepath.Join(f.root, "bots.lock"), path); err != nil {
+					if err := symlinkOrSkip(t, filepath.Join(f.root, "bots.lock"), path); err != nil {
 						t.Fatal(err)
 					}
 				}
@@ -793,7 +793,7 @@ func TestAssistantDependencyOriginParentReplacementBeforeRename(t *testing.T) {
 			if err := os.Rename(tx.originParent, tx.originParent+"-kept"); err != nil {
 				return err
 			}
-			if err := os.Symlink(outside, tx.originParent); err != nil {
+			if err := symlinkOrSkip(t, outside, tx.originParent); err != nil {
 				return err
 			}
 		}
