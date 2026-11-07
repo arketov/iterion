@@ -3,6 +3,8 @@ package schedgate
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -81,12 +83,15 @@ func TestRunGuard_DoesNotTouchParentCtx(t *testing.T) {
 func TestRunGuard_WorkingDirectory(t *testing.T) {
 	scrubHome(t)
 	dir := t.TempDir()
-	res := RunGuard(context.Background(), GuardSpec{Command: "pwd", Dir: dir})
+	// A relative write proves the guard ran in Dir, whatever the host shell
+	// prints for a working directory (pwd is a POSIX path under Git Bash on
+	// Windows).
+	res := RunGuard(context.Background(), GuardSpec{Command: "echo ok > guard-marker.txt", Dir: dir})
 	if res.Kind != GuardOK {
 		t.Fatalf("Kind = %v, want GuardOK", res.Kind)
 	}
-	if strings.TrimSpace(res.Stdout) != dir {
-		t.Fatalf("pwd = %q, want %q", strings.TrimSpace(res.Stdout), dir)
+	if _, err := os.Stat(filepath.Join(dir, "guard-marker.txt")); err != nil {
+		t.Fatalf("the guard did not run in its Dir: %v", err)
 	}
 }
 

@@ -371,8 +371,15 @@ func TestWorkdirFromPaths(t *testing.T) {
 		{nil, ""},
 	}
 	for _, c := range cases {
-		if got := WorkdirFromPaths(c.in); got != c.want {
-			t.Errorf("WorkdirFromPaths(%v) = %q, want %q", c.in, got, c.want)
+		// The paths are OS paths: "/w/bots" is "\w\bots" on Windows, whose
+		// parent is `\w`, not "/w".
+		in := make([]string, len(c.in))
+		for i, p := range c.in {
+			in[i] = filepath.FromSlash(p)
+		}
+		want := filepath.FromSlash(c.want)
+		if got := WorkdirFromPaths(in); got != want {
+			t.Errorf("WorkdirFromPaths(%v) = %q, want %q", in, got, want)
 		}
 	}
 }

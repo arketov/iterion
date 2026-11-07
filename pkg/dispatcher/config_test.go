@@ -211,7 +211,9 @@ workspace:
 }
 
 func TestConfigHomeExpansion(t *testing.T) {
-	t.Setenv("HOME", "/tmp/fakehome")
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	p := writeConfig(t, `workflow: {{WORKFLOW}}
 tracker:
   kind: native
@@ -222,7 +224,7 @@ workspace:
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if !strings.HasPrefix(cfg.Workspace.Root, "/tmp/fakehome/") {
+	if !strings.HasPrefix(cfg.Workspace.Root, filepath.Join(home, "iterion-ws")) {
 		t.Fatalf("home not expanded: %s", cfg.Workspace.Root)
 	}
 }

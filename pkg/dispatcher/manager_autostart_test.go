@@ -1,6 +1,7 @@
 package dispatcher
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -33,7 +34,10 @@ workflow minimal:
 		t.Fatalf("write workflow: %v", err)
 	}
 	cfgPath := filepath.Join(dir, "dispatcher", "dispatcher.json")
-	cfgBody := []byte(`{"workflow":"` + wfPath + `","tracker":{"kind":"native"}}`)
+	cfgBody, err := json.Marshal(map[string]any{"workflow": wfPath, "tracker": map[string]any{"kind": "native"}})
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
 	if err := os.WriteFile(cfgPath, cfgBody, 0o600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
