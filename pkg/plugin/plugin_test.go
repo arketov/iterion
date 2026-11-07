@@ -3,6 +3,7 @@ package plugin
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -107,6 +108,9 @@ func TestLoadBuiltinsAndEnableState(t *testing.T) {
 // neither makes the database nor chmods the directory it would live in (it
 // makes that directory owner-only first: /dev itself, for /dev/null).
 func TestTheBuiltinRtkRunsWithItsStoresOff(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("[platform] RTK_DB_PATH is a POSIX path (/dev/null/...); no Windows path is both absolute and guaranteed uncreatable")
+	}
 	t.Setenv("ITERION_HOME", t.TempDir())
 	reg, err := Load()
 	if err != nil {

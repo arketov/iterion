@@ -3,6 +3,7 @@ package plugin
 import (
 	"bytes"
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,7 +13,7 @@ func TestRunLifecycle(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("ITERION_HOME", home)
 	writeFileT(t, filepath.Join(home, pluginsSubdir, "lc-demo", ManifestFile),
-		"name: lc-demo\ncontributes:\n  lifecycle:\n    index: echo \"indexing {{workspace}}\" && pwd\n")
+		"name: lc-demo\ncontributes:\n  lifecycle:\n    index: echo \"indexing {{workspace}}\" && echo ok > lc-marker.txt\n")
 	reg, err := Load()
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -26,9 +27,11 @@ func TestRunLifecycle(t *testing.T) {
 	if !strings.Contains(out, "indexing "+workspace) {
 		t.Errorf("stdout missing expanded {{workspace}}: %q", out)
 	}
-	// pwd proves the command ran with Dir = workspace.
-	if !strings.Contains(out, "\n"+workspace+"\n") {
-		t.Errorf("stdout missing pwd = workspace: %q", out)
+	// A relative write proves the command ran with Dir = workspace, whatever
+	// the host shell prints for a working directory (pwd is a POSIX path
+	// under Git Bash on Windows).
+	if _, err := os.Stat(filepath.Join(workspace, "lc-marker.txt")); err != nil {
+		t.Errorf("the command did not run with Dir = workspace: %v", err)
 	}
 
 	// Error paths are explicit.
