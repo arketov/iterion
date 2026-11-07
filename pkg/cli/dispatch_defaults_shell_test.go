@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -78,6 +79,51 @@ func TestWorkspaceSeedPowerShell_SeedsARealWorktree(t *testing.T) {
 			again := runSeedHook(t, shell, project, ws)
 			if !strings.Contains(again, "skipping seed") {
 				t.Fatalf("a non-empty workspace must be left alone: %s", again)
+			}
+		})
+	}
+}
+
+// A project on a deep path makes `git worktree add` fail on Windows ("'$GIT_DIR'
+// too big"): git's own message names no remedy, so the preset adds one, and the
+// hook still exits with git's code. Windows-only: elsewhere git has no such limit.
+func TestWorkspaceSeedPowerShell_AdvisesMovingAProjectWhoseGitdirIsTooLong(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("the gitdir length limit is git on Windows")
+	}
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not on PATH")
+	}
+	for _, shell := range []string{"pwsh", "powershell"} {
+		t.Run(shell, func(t *testing.T) {
+			if _, err := exec.LookPath(shell); err != nil {
+				t.Skipf("%s is not on PATH", shell)
+			}
+			project := t.TempDir()
+			for len(project) < 170 {
+				project = filepath.Join(project, "deep-project-folder")
+			}
+			if err := os.MkdirAll(project, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			gitRepoWithCommit(t, project)
+			// <project>\.git\worktrees\<42-char name> is over 220 bytes.
+			ws := filepath.Join(t.TempDir(), strings.Repeat("w", 42))
+			if err := os.MkdirAll(ws, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			h := &dispatcher.Hook{Script: workspaceSeedPowerShell(project), Shell: shell, TimeoutMS: 60_000}
+			var logs bytes.Buffer
+			err := h.Run(context.Background(), iterlog.New(iterlog.LevelInfo, &logs), "after_create", ws, []string{"ITERION_WORKSPACE=" + ws})
+			var he *dispatcher.HookError
+			if !errors.As(err, &he) {
+				t.Fatalf("a too-long gitdir must fail the seed hook, got %v\n%s", err, logs.String())
+			}
+			if he.ExitCode == 0 {
+				t.Fatalf("the hook must keep git's non-zero exit code: %+v", he)
+			}
+			if !strings.Contains(he.Stderr, "move the project") {
+				t.Fatalf("the hook's stderr lacks the advice to move the project: %q", he.Stderr)
 			}
 		})
 	}
