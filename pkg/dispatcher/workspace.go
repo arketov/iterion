@@ -460,6 +460,12 @@ func (w *Workspaces) RetireForRun(issueID, runID string) error {
 	}
 	defer w.lockGeneration(issueID, runID)()
 
+	// An unseeded legacy generation is removed outright: it has no short-named
+	// marker to retire, and nothing in it is worth a retirement.
+	if discarded, err := w.discardUnseededLegacyForTeardown(issueID, runID); err != nil || discarded {
+		return err
+	}
+
 	ownerPath := w.ownerPathForRun(issueID, runID)
 	owner, err := readWorkspaceOwner(ownerPath)
 	if err != nil {
@@ -511,6 +517,12 @@ func (w *Workspaces) RemoveForRun(issueID, runID string) error {
 		return errors.New("workspace: issue id required")
 	}
 	defer w.lockGeneration(issueID, runID)()
+
+	// keyFor sends an unseeded legacy generation to the short name, where nothing
+	// exists: clear its long-named leftover here, or it stays on disk for good.
+	if _, err := w.discardUnseededLegacyForTeardown(issueID, runID); err != nil {
+		return err
+	}
 
 	target := w.PathForRun(issueID, runID)
 	ownerPath := w.ownerPathForRun(issueID, runID)
@@ -672,6 +684,20 @@ func (w *Workspaces) discardUnseededLegacy(issueID, runID, rootCanon string) (bo
 		return false, fmt.Errorf("workspace: remove ownership marker %s of a discarded workspace: %w", markerPath, err)
 	}
 	return true, nil
+}
+
+// discardUnseededLegacyForTeardown is discardUnseededLegacy for the retire and
+// remove paths, which have no root canonicalization of their own. A root that
+// does not exist holds nothing to discard. The caller holds w.mu.
+func (w *Workspaces) discardUnseededLegacyForTeardown(issueID, runID string) (bool, error) {
+	rootCanon, err := filepath.EvalSymlinks(w.root)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("workspace: canonicalize root: %w", err)
+	}
+	return w.discardUnseededLegacy(issueID, runID, rootCanon)
 }
 
 // keyPresent reports whether a generation's directory or ownership marker

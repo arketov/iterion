@@ -361,6 +361,79 @@ func TestLegacyWorkspaceRetireAndRemove(t *testing.T) {
 	}
 }
 
+// A legacy generation whose seeding never finished is leftover nobody returns
+// to (cleanup_on_done gives the next run a new id): retiring and removing it
+// clears both its long-named directory and its marker, instead of looking for the
+// short name only and leaving them on disk.
+func TestLegacyUnseededWorkspaceIsClearedByRetireAndRemove(t *testing.T) {
+	cases := []struct {
+		name  string
+		owner workspaceOwnerRecord
+		files bool
+	}{
+		{"pending-half", workspaceOwnerRecord{State: workspaceOwnerActive, SeedPending: true, SeedTracked: true}, true},
+		{"pending-empty", workspaceOwnerRecord{State: workspaceOwnerActive, SeedPending: true, SeedTracked: true}, false},
+		{"unmarked-empty", workspaceOwnerRecord{State: workspaceOwnerActive}, false},
+	}
+	steps := []struct {
+		name string
+		run  func(w *Workspaces, runID string) error
+	}{
+		{"retire-remove", func(w *Workspaces, runID string) error {
+			if err := w.RetireForRun(nativeCardID, runID); err != nil {
+				return err
+			}
+			return w.RemoveForRun(nativeCardID, runID)
+		}},
+		{"remove", func(w *Workspaces, runID string) error { return w.RemoveForRun(nativeCardID, runID) }},
+		{"remove-api", func(w *Workspaces, runID string) error {
+			if runID != "" {
+				return w.RemoveForRun(nativeCardID, runID)
+			}
+			return w.Remove(nativeCardID)
+		}},
+	}
+	for _, tc := range cases {
+		for _, step := range steps {
+			for _, runID := range []string{"", "run-x"} {
+				t.Run(tc.name+"-"+step.name+"-"+strings.TrimPrefix(runID, "run-"), func(t *testing.T) {
+					w := newSeedTestWorkspaces(t)
+					w.SetSeedConfigured(func() bool { return true })
+					dir, marker := makeLegacyGeneration(t, w, nativeCardID, runID, tc.owner)
+					if tc.files {
+						writeSeedProbe(t, dir)
+					}
+					if err := step.run(w, runID); err != nil {
+						t.Fatalf("teardown of an unseeded legacy workspace: %v", err)
+					}
+					for _, p := range []string{dir, marker} {
+						if _, err := os.Lstat(p); !errors.Is(err, os.ErrNotExist) {
+							t.Fatalf("legacy leftover %s survived (err=%v)", p, err)
+						}
+					}
+				})
+			}
+		}
+	}
+}
+
+// Teardown discards only the unseeded leftover: a legacy workspace with content
+// under a marker that says nothing about seeding is not removed without a retire.
+func TestLegacyWorkspaceWithContentSurvivesRemoveForRunWithoutRetire(t *testing.T) {
+	w := newSeedTestWorkspaces(t)
+	w.SetSeedConfigured(func() bool { return true })
+	dir, marker := makeLegacyGeneration(t, w, nativeCardID, "run-keep", workspaceOwnerRecord{State: workspaceOwnerActive})
+	probe := writeSeedProbe(t, dir)
+	if err := w.RemoveForRun(nativeCardID, "run-keep"); err == nil {
+		t.Fatal("RemoveForRun of an active seeded legacy workspace must still be refused")
+	}
+	for _, p := range []string{probe, marker} {
+		if _, err := os.Stat(p); err != nil {
+			t.Fatalf("%s is gone: %v", p, err)
+		}
+	}
+}
+
 // Only the marker of a legacy generation is left (its directory was removed by
 // hand): the generation still resolves to the legacy key, so the fail-closed
 // "owned target is missing" refusal is kept instead of a silent fresh start.

@@ -704,7 +704,8 @@ workspace whose seeding never finished (its record says `seed_pending`, or, when
 `after_create` is configured, it is an empty folder under a record from a build
 before those marks): `after_create` could only fail on it again, so the dispatch
 deletes it and its record, creates the short-named workspace and runs
-`after_create` there. Ownership records live outside the checkout in
+`after_create` there. Retiring or removing such a generation deletes the same
+leftover, so it does not stay on disk when no dispatch returns to it. Ownership records live outside the checkout in
 the sibling `.owners/` directory.
 
 Workspace operations are serialised per issue/run generation, not globally, so
