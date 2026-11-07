@@ -48,6 +48,9 @@ Walk this list before tagging a release.
       desktop builds omit any token query parameter because
       `GetSessionToken` returns an empty string; only a future hosted-auth
       desktop flow should add one.
+- [ ] Open editor tabs and a recent file in two projects, then reload the
+      window (Ctrl/Cmd+R): each project comes back with its own tabs and its
+      own Recent list.
 - [ ] Removing a project leaves its filesystem untouched.
 
 ## Settings

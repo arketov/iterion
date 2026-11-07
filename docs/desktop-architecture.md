@@ -112,8 +112,12 @@ recorded route is accepted only if it starts with a single `/` and carries no
 scheme, backslash, control character or `.`/`..` segment, because it ends up in an iframe `src`.
 In the browser workspace the window's own focused tab wins over the server's
 "current project", which is one value shared by every window. Open editor
-tabs come back from `iterion.tabs` in `localStorage`; unsaved buffers are not
-kept. See
+tabs come back from `localStorage`, and so does the Recent list; both are kept
+per pane, under `iterion.tabs/x/<connID>` and `iterion.recents/x/<connID>`
+(the browser studio keeps the bare `iterion.tabs` and `iterion.recents`), so one
+connection's tabs and recents are never overwritten or pruned by another.
+The bare keys written by earlier builds are not migrated into panes; unsaved
+buffers are not kept. See
 [workspacePaneRestore.ts](../studio/src/lib/workspacePaneRestore.ts).
 
 Auth in a cloud pane is desktop-owned: the demux strips the request Cookie

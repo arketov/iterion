@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
+import { scopePrefix } from "@/lib/scope";
 import { disposeRunStore } from "@/store/run";
 import { disposeDocumentStore } from "@/store/document";
 import { disposeSelectionStore } from "@/store/selection";
@@ -357,7 +358,11 @@ export const useTabsStore = create<TabsState>()(
       },
     }),
     {
-      name: "iterion.tabs",
+      // One key per workspace pane: every pane iframe shares the origin's
+      // localStorage, so a single key would let the last pane to write
+      // overwrite the tabs of the others. "" outside a pane keeps the
+      // historical key.
+      name: "iterion.tabs" + scopePrefix(),
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         tabs: state.tabs.map((t) => ({
