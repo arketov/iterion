@@ -89,6 +89,7 @@ var serialFamily = map[string]string{
 	"capabilities_flags_test.go":               "Setenv",
 	"capabilities_public_test.go":              "SetDefault",
 	"claw_ambient_credential_header_test.go":   "Setenv",
+	"claw_ambient_unix_test.go":                "via clawTree() in claw_ambient_test.go",
 	"claw_ambient_test.go":                     "Setenv",
 	"claw_arm_account_test.go":                 "Setenv",
 	"claw_credential_keys_test.go":             "Setenv",
@@ -189,8 +190,9 @@ var serialFamily = map[string]string{
 // no longer exists, is stale and the guard says so — an exemption reaches the
 // file its own line names and no other.
 var serialByDesign = map[string]string{
-	"claw_sandbox_crossing_test.go": "counts THIS process's open descriptors (/proc/self/fd) before and after a sandboxed run; any parallel test opening a file moves the count",
-	"generation_tracing_test.go":    "errtrack installs its client once per PROCESS: these tests share one span transport and read the transactions appended since their own start",
+	"claw_sandbox_crossing_test.go":      "counts THIS process's open descriptors (/proc/self/fd) before and after a sandboxed run; any parallel test opening a file moves the count",
+	"claw_sandbox_crossing_unix_test.go": "lowers RLIMIT_NOFILE for the whole process and counts THIS process's open descriptors; any parallel test opening a file moves the count",
+	"generation_tracing_test.go":         "errtrack installs its client once per PROCESS: these tests share one span transport and read the transactions appended since their own start",
 }
 
 // globalMutators are the calls that make a test's effect outlive its own
