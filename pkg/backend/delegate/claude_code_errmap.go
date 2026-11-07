@@ -69,6 +69,27 @@ func isTransientAPIErrorResult(s string) bool {
 	return MatchesNetworkSignature(low)
 }
 
+// isOAuthRefreshRaceResult detects the claude CLI's rendered OAuth refresh
+// race: with several Claude Code processes sharing one OAuth token, one of
+// them refreshes it and the others render "Failed to refresh OAuth token:
+// another Claude Code process is refreshing it or exited mid-refresh. This is
+// usually transient; retry in a minute" AS the result text. It matches no
+// auth or API-error signature, so untouched it was parsed as the model's
+// answer, the schema correction got the same text back, and the node died as
+// SCHEMA_VALIDATION. Transient — the other process finishes the refresh.
+// Bounded length keeps an agent quoting the phrase in a long answer from
+// false-positiving; the first signature is prefix-anchored, so a mid-text
+// mention is not a match either.
+func isOAuthRefreshRaceResult(s string) bool {
+	t := strings.TrimSpace(s)
+	if t == "" || len(t) >= 400 {
+		return false
+	}
+	low := strings.ToLower(t)
+	return strings.HasPrefix(low, "failed to refresh oauth token") ||
+		strings.Contains(low, "another claude code process is refreshing")
+}
+
 // isModelUnavailableResult detects the claude CLI's "bad/unauthorized model"
 // completion. An invalid or inaccessible `--model` does NOT fail the stream
 // (subtype=success, IsError=false); the CLI renders its model-error sentence AS
