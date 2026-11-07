@@ -413,7 +413,9 @@ named like a builtin (for example `repo-falcon/` with an unparseable
 `plugin.yaml`; the builtin and its enable state stay). Uninstall also drops a
 stale `plugins.yaml` entry left after a directory was deleted by hand; loading
 never rewrites `plugins.yaml`. `plugin disable` does not silence the message: the manifest is read
-before the enabled state is consulted.
+before the enabled state is consulted. For the same reason `plugin enable` and
+`plugin disable` on such a plugin answer that its manifest could not be loaded
+(not "not found") and leave `plugins.yaml` untouched.
 
 That message is a real fault only for a directory with no builtin behind its
 name. A builtin plugin keeps its `{{plugin.cache}}` under
