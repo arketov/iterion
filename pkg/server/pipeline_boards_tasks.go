@@ -250,6 +250,11 @@ func (s *Server) handlePipelineBoardTaskCreate(w http.ResponseWriter, r *http.Re
 		Bot:      bot.Name,
 		BotArgs:  botArgs,
 		External: req.External,
+		// The blockers that chose the state above ride the card, or
+		// PromoteUnblockedDependents never finds it; ParentID is the typed twin
+		// of the spawned_from stamp.
+		Blockers: blockers,
+		ParentID: parentID,
 	}
 	// Prefer the store-side atomic unique-title create (no list-then-check
 	// race); degrade to the best-effort helper for backends without it.

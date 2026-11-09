@@ -226,3 +226,46 @@ func TestPipelineBoardBulkDelete(t *testing.T) {
 		t.Fatal("live must remain")
 	}
 }
+
+func TestPipelineBoardTaskCreatePersistsBlockersAndParent(t *testing.T) {
+	env := newPipelineBoardTestEnv(t)
+	blocker, err := env.board.Create(native.Issue{Title: "blocker", Bot: "review", State: native.StateInProgress})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := `{
+		"bot":"review",
+		"title":"dependent",
+		"blockers":["` + blocker.ID + `"],
+		"parent_id":"` + blocker.ID + `",
+		"bot_args":{"auto_ready":"true"}
+	}`
+	resp, err := http.Post(env.http.URL+"/api/v1/pipeline-board/tasks", "application/json", bytes.NewBufferString(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create status = %d", resp.StatusCode)
+	}
+	var created native.Issue
+	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
+		t.Fatal(err)
+	}
+	if len(created.Blockers) != 1 || created.Blockers[0] != blocker.ID {
+		t.Fatalf("response blockers = %v, want [%s]", created.Blockers, blocker.ID)
+	}
+	if created.ParentID != blocker.ID {
+		t.Fatalf("response parent_id = %q, want %s", created.ParentID, blocker.ID)
+	}
+	if created.State != native.StateWaitingDeps {
+		t.Fatalf("state = %q, want %s", created.State, native.StateWaitingDeps)
+	}
+	stored, err := env.board.Get(created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stored.Blockers) != 1 || stored.Blockers[0] != blocker.ID || stored.ParentID != blocker.ID {
+		t.Fatalf("stored blockers=%v parent_id=%q, want [%s] / %s", stored.Blockers, stored.ParentID, blocker.ID, blocker.ID)
+	}
+}
