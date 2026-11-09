@@ -18,6 +18,7 @@ import (
 	"github.com/arketov/iterion/pkg/dsl/unit"
 	"github.com/arketov/iterion/pkg/dsl/unit/unittest"
 	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // The production GPT reviewer completed, then its merger failed resolving
@@ -36,7 +37,7 @@ func TestReviewPrGPTMergeWithRepositoryMCP(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(project, ".mcp.json"), []byte(`{"mcpServers":{"repo_probe":{"command":"/not-started"}}}`), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := mcp.PrepareWorkflow(wf, project, project); err != nil {
+	if err := mcp.PrepareWorkflow(wf, project, project, store.RunTrustDefault); err != nil {
 		t.Fatal(err)
 	}
 	if !slices.Contains(ir.NodeActiveMCPServers(wf.Nodes["reviewer_gpt"]), "repo_probe") {
@@ -126,7 +127,8 @@ func TestReviewPrGPTMergeWithRepositoryMCP(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("resolve granted board creation: %v", err)
 	}
-	out, err := create.Execute(context.Background(), json.RawMessage(`{"title":"Review finding"}`))
+	grantCtx := tool.WithHostCapabilities(context.Background(), []string{"board.create"}, nil)
+	out, err := create.Execute(grantCtx, json.RawMessage(`{"title":"Review finding"}`))
 	if err != nil || !strings.Contains(out, "Review finding") {
 		t.Fatalf("granted board operation did not execute: %s / %v", out, err)
 	}

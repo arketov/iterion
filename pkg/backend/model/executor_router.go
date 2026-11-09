@@ -239,7 +239,7 @@ func (e *ClawExecutor) executeLLMRouterUnified(ctx context.Context, node *ir.Rou
 		// A router prompt may invoke a workspace `.claude/commands/`
 		// command too. Resolved per backend, inside assemble, because the
 		// substitution is claw's alone — claude_code expands it natively.
-		routerText, _ := expandWorkspaceSlashCommand(userText, e.WorkDir(), bn, node.ID, LoopIterationFromContext(ctx), e.logger, &e.slashWarnedOnce, sess)
+		routerText, _ := e.expandWorkspaceSlashCommand(userText, bn, node.ID, LoopIterationFromContext(ctx), sess)
 		// ONE prompt event, emitted here rather than before the chain, and
 		// carrying the text this backend actually receives. Before the
 		// chain it could only carry the invocation; emitting a second,
@@ -252,7 +252,7 @@ func (e *ClawExecutor) executeLLMRouterUnified(ctx context.Context, node *ir.Rou
 		if sess.claimPrompt(routerText, bn) && e.hooks.OnLLMPrompt != nil {
 			e.hooks.OnLLMPrompt(node.ID, systemText, routerText)
 		}
-		return &delegate.Task{
+		t := &delegate.Task{
 			NodeID:           node.ID,
 			Iteration:        LoopIterationFromContext(ctx),
 			SystemPrompt:     systemText,
@@ -260,7 +260,6 @@ func (e *ClawExecutor) executeLLMRouterUnified(ctx context.Context, node *ir.Rou
 			UserPrompt:       routerText,
 			OutputSchema:     jsonSchema,
 			Model:            expanded,
-			WorkDir:          e.WorkDir(),
 			// wireEffort collapses the "ultracode" mode to xhigh so the raw token
 			// never reaches the provider; identity for every other level. Routers
 			// don't get the orchestration prerogative (they route, not orchestrate).
@@ -278,7 +277,11 @@ func (e *ClawExecutor) executeLLMRouterUnified(ctx context.Context, node *ir.Rou
 			// What the router's spawn left and its end stopped reaches the run
 			// as the agent path's does (docs/adr/127-an-agent-nodes-processes-end-with-the-node.md).
 			Hooks: delegate.TaskHooks{OnBackgroundWork: e.delegateHooksFor(node.ID, bn, LoopIterationFromContext(ctx)).OnBackgroundWork},
-		}, nil
+		}
+		// The router's task names the workspace too, so it takes the same
+		// stamp as the agent task: the directory and who wrote it.
+		e.stampWorkspace(t)
+		return t, nil
 	}
 
 	chain := collapseHintOnlyChain(e.resolveProviderChain(node), backendName)

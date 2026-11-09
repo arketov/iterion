@@ -2220,6 +2220,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/orgs/{id}/price-feeds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** GET /api/orgs/{id}/price-feeds */
+        get: operations["getOrgsByIdPriceFeeds"];
+        /** PUT /api/orgs/{id}/price-feeds */
+        put: operations["putOrgsByIdPriceFeeds"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/orgs/{id}/price-feeds/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * POST /api/orgs/{id}/price-feeds/sync
+         * @description Org-admin only. Forces one feed's refresh (name) or every enabled feed's, answering what changed per id.
+         */
+        post: operations["postOrgsByIdPriceFeedsSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/orgs/{id}/provision-approvals": {
         parameters: {
             query?: never;
@@ -5023,6 +5065,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/teams/{id}/price-feeds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** GET /api/teams/{id}/price-feeds */
+        get: operations["getTeamsByIdPriceFeeds"];
+        /** PUT /api/teams/{id}/price-feeds */
+        put: operations["putTeamsByIdPriceFeeds"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/teams/{id}/price-feeds/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * POST /api/teams/{id}/price-feeds/sync
+         * @description Team-admin only. Forces one feed's refresh (name) or every enabled feed's, answering what changed per id.
+         */
+        post: operations["postTeamsByIdPriceFeedsSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/teams/{id}/provision-approvals": {
         parameters: {
             query?: never;
@@ -6895,6 +6979,11 @@ export interface components {
             unusable_reason?: string;
             usable: boolean;
         };
+        EntryChange: {
+            id: string;
+            new?: components["schemas"]["Spec"];
+            old?: components["schemas"]["Spec"];
+        };
         ExecutionContext: {
             business_stores?: components["schemas"]["ContextRef"][];
             launch_surface?: string;
@@ -6951,6 +7040,16 @@ export interface components {
             node_id: string;
             served_by?: string;
             skipped?: boolean;
+        };
+        FeedConfig: {
+            enabled: boolean;
+            interval: number;
+            name: string;
+            params?: {
+                [key: string]: string;
+            };
+            timeout: number;
+            type: string;
         };
         ForgeConnection: {
             /** Format: date-time */
@@ -7625,6 +7724,16 @@ export interface components {
             updated_by?: string;
             week_pct?: number;
         };
+        Spec: {
+            cache_read_cost_per_m?: number;
+            context_window?: number;
+            input_cost_per_m?: number;
+            max_output_tokens?: number;
+            output_cost_per_m?: number;
+            reasoning?: boolean;
+            temperature?: boolean;
+            tool_call?: boolean;
+        };
         StatusMapping: {
             state: string;
             status: string;
@@ -7677,6 +7786,15 @@ export interface components {
             vars?: {
                 [key: string]: string;
             };
+        };
+        SyncOutcome: {
+            changes?: components["schemas"]["EntryChange"][];
+            error?: string;
+            feed: string;
+            fresh_for?: number;
+            /** Format: date-time */
+            refreshed_at?: string;
+            status: string;
         };
         Token: {
             /** Format: date-time */
@@ -8391,6 +8509,36 @@ export interface components {
             backend: components["schemas"]["previewEffectiveKnob"];
             compress: components["schemas"]["previewEffectiveKnob"];
             permission: components["schemas"]["previewEffectiveKnob"];
+        };
+        priceFeedView: {
+            entries?: number;
+            feed: components["schemas"]["FeedConfig"];
+            fresh_for?: number;
+            last_error?: string;
+            /** Format: date-time */
+            refreshed_at?: string;
+            status: string;
+        };
+        priceFeedsPutReq: {
+            /** Format: date-time */
+            expected_updated_at?: string;
+            /** Format: byte */
+            feeds: string;
+        };
+        priceFeedsSyncReq: {
+            name?: string;
+        };
+        priceFeedsSyncResponse: {
+            results: components["schemas"]["SyncOutcome"][];
+        };
+        priceFeedsView: {
+            feeds: components["schemas"]["priceFeedView"][];
+            origin: string;
+            scope: string;
+            source_types: string[];
+            /** Format: date-time */
+            updated_at?: string;
+            updated_by?: string;
         };
         registerReq: {
             email: string;
@@ -12605,6 +12753,80 @@ export interface operations {
             };
         };
     };
+    getOrgsByIdPriceFeeds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["priceFeedsView"];
+                };
+            };
+        };
+    };
+    putOrgsByIdPriceFeeds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["priceFeedsPutReq"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["priceFeedsView"];
+                };
+            };
+        };
+    };
+    postOrgsByIdPriceFeedsSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["priceFeedsSyncReq"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["priceFeedsSyncResponse"];
+                };
+            };
+        };
+    };
     getOrgsByIdProvisionApprovals: {
         parameters: {
             query?: never;
@@ -16759,6 +16981,80 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getTeamsByIdPriceFeeds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["priceFeedsView"];
+                };
+            };
+        };
+    };
+    putTeamsByIdPriceFeeds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["priceFeedsPutReq"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["priceFeedsView"];
+                };
+            };
+        };
+    };
+    postTeamsByIdPriceFeedsSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["priceFeedsSyncReq"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["priceFeedsSyncResponse"];
+                };
             };
         };
     };

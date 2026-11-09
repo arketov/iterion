@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -178,6 +179,13 @@ func (s *Service) Launch(parent context.Context, spec LaunchSpec) (*LaunchResult
 		// so the compile floor alone would leave a queued run behind.
 		return nil, bundle.AuthorDocumentError(spec.FilePath)
 	}
+	// A run launched FROM another works on what that run produced, so it is
+	// never more trusted than it (inheritSourceTrust) — settled before the
+	// in-process refusal below reads the trust, and before anything is
+	// compiled or published under it.
+	if err := s.inheritSourceTrust(parent, &spec); err != nil {
+		return nil, err
+	}
 	// Only the cloud publisher persists Trust and RepoSHAExpected onto the run
 	// document. The in-process path builds its run from its own field list, so
 	// an untrusted launch would land as a run reading TRUSTED — and every
@@ -242,7 +250,7 @@ func (s *Service) Launch(parent context.Context, spec LaunchSpec) (*LaunchResult
 		// The runner pod re-resolves the catalog against its own clone
 		// (loop.go's PrepareWorkflow); the expansion computed here carries
 		// the launch surface's answer for the pre-flight checks (#1800).
-		wf, cs, _, err := compileForLaunch(spec.FilePath, spec.Source, spec.BundleDir, spec.BundleEntry, s.effectiveWorkDir(spec.WorkDir))
+		wf, cs, _, err := compileForLaunch(spec.FilePath, spec.Source, spec.BundleDir, spec.BundleEntry, s.effectiveWorkDir(spec.WorkDir), spec.Trust)
 		if err != nil {
 			return nil, err
 		}
@@ -301,7 +309,7 @@ func (s *Service) Launch(parent context.Context, spec LaunchSpec) (*LaunchResult
 		// cap, or a backend that reports no readings, lets it finish
 		// (docs/usage-caps.md). The compile is paid ONLY on
 		// the blocked path, so the common case stays free.
-		if wf, _, _, err := compileForLaunch(spec.FilePath, spec.Source, spec.BundleDir, spec.BundleEntry, s.effectiveWorkDir(spec.WorkDir)); err != nil || wf.AlwaysReachesLLM() {
+		if wf, _, _, err := compileForLaunch(spec.FilePath, spec.Source, spec.BundleDir, spec.BundleEntry, s.effectiveWorkDir(spec.WorkDir), spec.Trust); err != nil || wf.AlwaysReachesLLM() {
 			return nil, fmt.Errorf("%w: %s", runtime.ErrUsageCapped, reason)
 		}
 	}
@@ -329,6 +337,36 @@ func (s *Service) Launch(parent context.Context, spec LaunchSpec) (*LaunchResult
 		return res, startErr
 	}
 	return s.startInProcess(parent, runID, spec, true)
+}
+
+// inheritSourceTrust lowers a launch's trust to that of the runs it is
+// launched from: its parent (parent_run_id — a REST child, a cloud shard of
+// `__scan-shards`) and the run a delegation repairs. The new run works on what
+// its source produced — a shard of its files, a repair of its failure on its
+// repository — so it takes the lower of the two trusts (store.RunTrust.Lowest),
+// read off the source's document under the launch's own identity.
+//
+// A source that cannot be read is refused, typed
+// (store.ErrChildParentUnreadable), the rule CreateChildRun applies to a
+// sub-bot's parent: an unknown provenance never resolves to trusted, and a
+// launch naming a run its tenant cannot read describes nothing the product
+// produces.
+func (s *Service) inheritSourceTrust(ctx context.Context, spec *LaunchSpec) error {
+	sources := []struct{ role, id string }{{"parent_run_id", spec.ParentRunID}}
+	if spec.Delegation != nil {
+		sources = append(sources, struct{ role, id string }{"delegation source run", spec.Delegation.SourceRunID})
+	}
+	for _, src := range sources {
+		if strings.TrimSpace(src.id) == "" {
+			continue
+		}
+		r, err := s.store.LoadRun(ctx, src.id)
+		if err != nil {
+			return fmt.Errorf("runview: %w: the launch's %s %q: %w", store.ErrChildParentUnreadable, src.role, src.id, err)
+		}
+		spec.Trust = spec.Trust.Lowest(r.Trust)
+	}
+	return nil
 }
 
 // hookEventObservers builds ExecutorSpec.EventObservers for every
@@ -380,7 +418,7 @@ func (s *Service) startInProcess(parent context.Context, runID string, spec Laun
 	// `{{workspace}}` placeholders resolve against at compile time,
 	// which is why it is resolved BEFORE the compile (#1800).
 	workDir := s.effectiveWorkDir(spec.WorkDir)
-	wf, cs, launchBundle, err := compileForLaunch(spec.FilePath, spec.Source, spec.BundleDir, spec.BundleEntry, workDir)
+	wf, cs, launchBundle, err := compileForLaunch(spec.FilePath, spec.Source, spec.BundleDir, spec.BundleEntry, workDir, spec.Trust)
 	if err != nil {
 		return nil, err
 	}
@@ -445,6 +483,10 @@ func (s *Service) startInProcess(parent context.Context, runID string, spec Laun
 	// via runtime.WithEventObserver (wired in engineOptions from
 	// launchExtras.observers). The raw store keeps every capability.
 	executor, err := BuildExecutor(ExecutorSpec{
+		// The launch's identity, detached from its cancellation: the
+		// executor's store calls outlive the request and are tenant-scoped,
+		// and on the Mongo store a tenantless one panics (see spawnRun).
+		Ctx:            context.WithoutCancel(parent),
 		Workflow:       wf,
 		Vars:           spec.Vars,
 		Store:          s.store,
@@ -602,7 +644,7 @@ func (s *Service) startInProcess(parent context.Context, runID string, spec Laun
 		precreateInputs,
 		launchExtras{workDir: workDir, dailyCap: spec.DailyCap, source: spec.SourceRef, routingPolicy: spec.RoutingPolicy, routePolicy: spec.LLMRoutePolicy, onOutcome: spec.OnOutcome, observers: spec.ExtraObservers, loopBudgetGuard: spec.LoopBudgetGuard, supervisors: spec.Supervisors, budgetAsk: spec.Budget, executionContext: ctxContract, permission: spec.Permission, worktreeBaseCommit: spec.WorktreeBaseCommit, requireWorktree: spec.RequireWorktree, botOrigin: spec.BotOrigin, delegation: spec.Delegation, budgetOverrides: rawBudget, compiled: cs, botSourceTier: spec.BotSourceTier},
 		s.store,
-		func(ctx context.Context, eng *runtime.Engine) error {
+		func(ctx, _ context.Context, eng *runtime.Engine) error {
 			return eng.Run(ctx, runID, inputs)
 		})
 }
@@ -674,7 +716,7 @@ func (s *Service) PreflightResume(parent context.Context, spec ResumeSpec) error
 		return err
 	}
 	spec.BundleDir = resumeBundleDir(r, spec)
-	wf, pfSources, pfBundle, err := compileForLaunch(spec.FilePath, spec.Source, spec.BundleDir, spec.BundleEntry, s.effectiveWorkDir(r.WorkDir))
+	wf, pfSources, pfBundle, err := compileForLaunch(spec.FilePath, spec.Source, spec.BundleDir, spec.BundleEntry, s.effectiveWorkDir(r.WorkDir), r.Trust)
 	if err != nil {
 		return err
 	}
@@ -816,7 +858,7 @@ func (s *Service) Resume(parent context.Context, spec ResumeSpec) (*LaunchResult
 	// Engine.Resume repeats the same check after acquiring the run lock, so a
 	// source/status change between this point and execution still fails closed.
 	spec.BundleDir = resumeBundleDir(r, spec)
-	wf, cs, resumeBundle, err := compileForLaunch(spec.FilePath, spec.Source, spec.BundleDir, spec.BundleEntry, s.effectiveWorkDir(r.WorkDir))
+	wf, cs, resumeBundle, err := compileForLaunch(spec.FilePath, spec.Source, spec.BundleDir, spec.BundleEntry, s.effectiveWorkDir(r.WorkDir), r.Trust)
 	if err != nil {
 		return nil, err
 	}
@@ -965,6 +1007,9 @@ func (s *Service) Resume(parent context.Context, spec ResumeSpec) (*LaunchResult
 	}
 
 	executorSpec := s.resumeExecutorSpec(wf, r, runLogger, spec.AutoMemory)
+	// The resume's identity, detached from its cancellation, as the launch's
+	// executor carries it (startInProcess).
+	executorSpec.Ctx = context.WithoutCancel(parent)
 	executorSpec.AmbientContext = spec.AmbientContext
 	executorSpec.Connectors, executorSpec.ConnectorClient = connectors, connectorClient
 	executor, err := BuildExecutor(executorSpec)
@@ -974,7 +1019,9 @@ func (s *Service) Resume(parent context.Context, spec ResumeSpec) (*LaunchResult
 	}
 	executor.SetRunExtraEnv(s.runEnv)
 	if len(r.Inputs) > 0 {
-		executor.SetVars(r.Inputs)
+		// The stored inputs are the launch's TEXT, undeclared names
+		// included: SetLaunchVars reads them as the launch seed does.
+		executor.SetLaunchVars(r.Inputs)
 	}
 
 	// Preserve an existing name; back-fill one for legacy runs that
@@ -1028,10 +1075,12 @@ func (s *Service) Resume(parent context.Context, spec ResumeSpec) (*LaunchResult
 			sandboxHostStateOverride: r.SandboxHostState,
 		},
 		nil,
-		func(ctx context.Context, eng *runtime.Engine) error {
+		func(ctx, sctx context.Context, eng *runtime.Engine) error {
 			// Re-validate under the lock acquired by spawnRun (TOCTOU
-			// guard against a concurrent resume / state change).
-			r2, err := s.store.LoadRun(context.Background(), spec.RunID)
+			// guard against a concurrent resume / state change), under the
+			// resume's identity: on the Mongo store a tenantless read here
+			// panics, and nothing recovers in the run goroutine.
+			r2, err := s.store.LoadRun(sctx, spec.RunID)
 			if err != nil {
 				return err
 			}
@@ -1277,9 +1326,12 @@ func validateResumable(r *store.Run, answers map[string]any, automatic ...bool) 
 
 // spawnRun owns the lock + register + goroutine + defer-cleanup
 // scaffolding shared by Launch and Resume. body is invoked inside the
-// goroutine with the registered ctx and the constructed engine; its
-// return value is fed into logRunOutcome. spawnRun returns once the
-// run handle is registered (so Cancel works from that moment).
+// goroutine with the registered ctx, the store context and the constructed
+// engine; its return value is fed into logRunOutcome. ctx is the run's,
+// cancellable, for the engine; sctx is the one every store call the body
+// makes takes — the launch's identity without its cancellation, the context
+// spawnRun's own store calls take. spawnRun returns once the run handle is
+// registered (so Cancel works from that moment).
 func (s *Service) spawnRun(
 	parent context.Context,
 	runID string,
@@ -1299,7 +1351,7 @@ func (s *Service) spawnRun(
 	precreateInputs map[string]any,
 	ex launchExtras,
 	emitStore store.RunStore,
-	body func(ctx context.Context, eng *runtime.Engine) error,
+	body func(ctx, sctx context.Context, eng *runtime.Engine) error,
 ) (*LaunchResult, error) {
 	// emitStore is the store the engine writes events through. It is the
 	// raw s.store — ADR-046 ExtraObservers ride the WithEventObserver /
@@ -1308,7 +1360,16 @@ func (s *Service) spawnRun(
 	if emitStore == nil {
 		emitStore = s.store
 	}
-	lock, err := s.store.LockRun(context.Background(), runID)
+	// Every store call below outlives the request, which is why none of them
+	// runs under parent itself — but each keeps the request's IDENTITY. The
+	// calls are tenant-scoped, and on the Mongo store a tenant-scoped call
+	// whose context carries no tenant does not fail soft: withTenantFilter
+	// panics, there being a programming error rather than a recoverable
+	// condition. CreateChildRun reads the parent to inherit its workspace
+	// provenance, so a parented launch would reach that panic on its first
+	// write. WithoutCancel drops only the cancellation and the deadline.
+	sctx := context.WithoutCancel(parent)
+	lock, err := s.store.LockRun(sctx, runID)
 	if err != nil {
 		s.dropRunLog(runID)
 		return nil, fmt.Errorf("runview: lock run: %w", err)
@@ -1342,11 +1403,11 @@ func (s *Service) spawnRun(
 		var createErr error
 		if parentRunID != "" {
 			if pc := store.AsParentedRunCreator(s.store); pc != nil {
-				_, createErr = pc.CreateChildRun(context.Background(), runID, wf.Name, parentRunID, precreateInputs)
+				_, createErr = pc.CreateChildRun(sctx, runID, wf.Name, parentRunID, precreateInputs)
 				startedRun = createErr == nil
 			} else {
 				var created *store.Run
-				created, createErr = s.store.CreateRun(context.Background(), runID, wf.Name, precreateInputs)
+				created, createErr = s.store.CreateRun(sctx, runID, wf.Name, precreateInputs)
 				if createErr == nil {
 					// THIS call made the document. Recorded here, from what
 					// the call returned, and never re-read from the store: a
@@ -1356,11 +1417,11 @@ func (s *Service) spawnRun(
 					// for it, once per attempt.
 					startedRun = true
 					created.ParentRunID = parentRunID
-					createErr = s.store.SaveRun(context.Background(), created)
+					createErr = s.store.SaveRun(sctx, created)
 				}
 			}
 		} else {
-			_, createErr = s.store.CreateRun(context.Background(), runID, wf.Name, precreateInputs)
+			_, createErr = s.store.CreateRun(sctx, runID, wf.Name, precreateInputs)
 			startedRun = createErr == nil
 		}
 		if createErr != nil {
@@ -1381,11 +1442,11 @@ func (s *Service) spawnRun(
 	// way the cloud runner replays RunMessage.LLMProviders. Nil on a resume
 	// and on a CLI launch, which resolved none: nothing to stamp.
 	if ex.routePolicy != nil {
-		doc, stampErr := s.store.LoadRun(context.Background(), runID)
+		doc, stampErr := s.store.LoadRun(sctx, runID)
 		if stampErr == nil {
 			lp := *ex.routePolicy // copy: never share the caller's pointer
 			doc.LLMRoutePolicy = &lp
-			stampErr = s.store.SaveRun(context.Background(), doc)
+			stampErr = s.store.SaveRun(sctx, doc)
 		}
 		if stampErr != nil {
 			s.manager.Deregister(runID)
@@ -1408,15 +1469,15 @@ func (s *Service) spawnRun(
 	if ex.budgetOverrides != nil {
 		var saveErr error
 		if patcher := store.AsRunBudgetOverridesPatcher(s.store); patcher != nil {
-			saveErr = patcher.PatchRunBudgetOverrides(context.Background(), runID, ex.budgetOverrides)
+			saveErr = patcher.PatchRunBudgetOverrides(sctx, runID, ex.budgetOverrides)
 		} else {
-			r, loadErr := s.store.LoadRun(context.Background(), runID)
+			r, loadErr := s.store.LoadRun(sctx, runID)
 			if loadErr != nil {
 				saveErr = loadErr
 			} else {
 				copy := *ex.budgetOverrides
 				r.BudgetOverrides = &copy
-				saveErr = s.store.SaveRun(context.Background(), r)
+				saveErr = s.store.SaveRun(sctx, r)
 			}
 		}
 		if saveErr != nil {
@@ -1566,7 +1627,7 @@ func (s *Service) spawnRun(
 		// model pin against the defaults alone, diverging from the nodes
 		// it watches.
 		spawnVars := precreateInputs
-		if run, err := s.store.LoadRun(context.Background(), runID); err == nil && run.Inputs != nil {
+		if run, err := s.store.LoadRun(sctx, runID); err == nil && run.Inputs != nil {
 			spawnVars = run.Inputs
 		}
 		stopSupervisors := s.startDeclaredSupervisors(ctx, runID, wf, eng.ResolveVars(spawnVars), runLogger, ex.supervisors)
@@ -1578,7 +1639,7 @@ func (s *Service) spawnRun(
 		stopBoard := s.startSessionBoard(ctx, runID, runName, supervise.WorkflowNamesGateway(wf), runLogger)
 		defer stopBoard()
 
-		bodyErr := body(ctx, eng)
+		bodyErr := body(ctx, sctx, eng)
 		// The engine has written its terminal/paused status to the store, so
 		// the run now READS resumable while this handle is still held through
 		// the teardown below (a completion webhook, a supervisor drain). Say
@@ -1595,12 +1656,14 @@ func (s *Service) spawnRun(
 			ex.onOutcome(bodyErr)
 		}
 		// Fire the run-completion webhook (no-op unless the run carries a
-		// callback URL). Uses a fresh, tenant-unfiltered ctx: the run ctx
-		// may be cancelled at this point, and the runID is already known.
-		// FireForRun re-reads the persisted run, so it sees the terminal
-		// status the engine just wrote regardless of bodyErr's shape.
+		// callback URL). Uses the detached launch context, not the run ctx,
+		// which may be cancelled at this point; WithoutTenantFilter keeps a
+		// launch that carried no tenant (a local one) able to read its own
+		// run, and a tenant it carried still scopes the read. FireForRun
+		// re-reads the persisted run, so it sees the terminal status the
+		// engine just wrote regardless of bodyErr's shape.
 		if s.completionNotifier != nil {
-			nctx := store.WithoutTenantFilter(context.Background())
+			nctx := store.WithoutTenantFilter(sctx)
 			s.completionNotifier.FireForRun(nctx, s.store, runID)
 		}
 		// Emit the run-outcome trigger event ("runned by iterion"): a
@@ -1617,10 +1680,11 @@ func (s *Service) spawnRun(
 		// call unconditionally.
 		if errors.Is(bodyErr, runtime.ErrRunCancelled) {
 			// Post-cancel housekeeping: the run ctx is cancelled at
-			// this point, so use a fresh ctx with WithoutTenantFilter
-			// — the runID is already known, and this is a system-level
-			// recovery operation, not a tenant-discovery lookup.
-			fctx := store.WithoutTenantFilter(context.Background())
+			// this point, so use the detached launch context with
+			// WithoutTenantFilter — the runID is already known, and this
+			// is a system-level recovery operation, not a
+			// tenant-discovery lookup.
+			fctx := store.WithoutTenantFilter(sctx)
 			if r, loadErr := s.store.LoadRun(fctx, runID); loadErr == nil {
 				// This run's logger, not the service's: RecoverFinalize logs
 				// the worktree's git output on the handle it is given, and
@@ -1945,6 +2009,12 @@ func consumeArtifactResumePreflight(opts []runtime.EngineOption, ex *launchExtra
 // future board transitions back to this run. The convention lives here,
 // not in the generic engine, so the runtime stays decoupled from a
 // bot-specific schema field.
+//
+// Subscribing a run to issues is the `watch.subscribe` host capability by
+// another door, so it is decided by the one resolver of those: a run whose
+// workspace its tenant did not write holds none, and its nodes' output
+// subscribes it to nothing. The trust is read off the run document, fail
+// closed — a run that cannot be read is not trusted.
 func (s *Service) stampWatchedFromOutput(ctx context.Context, runID, _ string, output map[string]any) {
 	if output == nil {
 		return
@@ -1958,6 +2028,14 @@ func (s *Service) stampWatchedFromOutput(ctx context.Context, runID, _ string, o
 		// valueless call a tenant-filtered store panics on (#1805): drop
 		// the stamp loudly instead of smuggling a bypass through.
 		s.logger.Warn("runview: stamp watched issues on run %s: no context — not stamped", runID)
+		return
+	}
+	trust := store.RunTrust("unreadable")
+	if r, err := s.store.LoadRun(ctx, runID); err == nil && r != nil {
+		trust = r.Trust
+	}
+	if held, _ := trust.HostCapabilities([]string{ir.CapWatchSubscribe}); !slices.Contains(held, ir.CapWatchSubscribe) {
+		s.logger.Warn("runview: run %s: %d dispatched issue(s) not watched — the run holds no %s (workspace trust %q)", runID, len(ids), ir.CapWatchSubscribe, string(trust))
 		return
 	}
 	if _, err := s.store.AddWatchedIssues(ctx, runID, ids); err != nil {

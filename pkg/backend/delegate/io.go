@@ -9,6 +9,7 @@ import (
 	"github.com/arketov/iterion/pkg/backend/ambient"
 	"github.com/arketov/iterion/pkg/backend/credroute"
 	"github.com/arketov/iterion/pkg/plugin"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // IOTask is the on-the-wire form of a [Task] used by the claw
@@ -73,8 +74,25 @@ type IOTask struct {
 	ToolMaxSteps          int              `json:"tool_max_steps,omitempty"`
 	MaxTokens             int              `json:"max_tokens,omitempty"`
 	WorkDir               string           `json:"work_dir,omitempty"`
-	BaseDir               string           `json:"base_dir,omitempty"`
-	RepoRoot              string           `json:"repo_root,omitempty"`
+	// WorkspaceTrust travels WITH WorkDir, because the two answer one
+	// question about the same directory: a runner that rebuilt the task with
+	// the trusted zero value would read an outsider's checkout as the
+	// tenant's own exactly when the run is sandboxed. A launcher that predates
+	// the field sends nothing, which reads as trusted — and for an untrusted
+	// task the launcher also announces the trust before the task
+	// (EnvelopeWorkspaceTrust), which a runner that predates the field refuses.
+	WorkspaceTrust store.RunTrust `json:"workspace_trust,omitempty"`
+	// InjectedHooks travels WITH WorkspaceTrust, for the same reason: on an
+	// untrusted workspace it is the only hook configuration a node may run
+	// (see Task.InjectedHooks), and the on-disk record of those groups lives
+	// inside the checkout, where the runner must not go looking for it.
+	// Dropped here the sandboxed run fails closed — no hooks at all — which
+	// is why the field exists beside SettingsHooks rather than folding into
+	// it: SettingsHooks is the workspace's document, this is iterion's own
+	// in-memory record.
+	InjectedHooks map[string][]any `json:"injected_hooks,omitempty"`
+	BaseDir       string           `json:"base_dir,omitempty"`
+	RepoRoot      string           `json:"repo_root,omitempty"`
 	// ScratchDir is the run's scratch read root as the RUNNER sees it —
 	// the fixed container path on a sandbox crossing, where the host path
 	// would not exist. The runner's read tools (read_file, glob, grep)
@@ -298,6 +316,8 @@ func ToIOTask(t Task) IOTask {
 		ToolMaxSteps:           t.ToolMaxSteps,
 		MaxTokens:              t.MaxTokens,
 		WorkDir:                t.WorkDir,
+		WorkspaceTrust:         t.WorkspaceTrust,
+		InjectedHooks:          t.InjectedHooks,
 		BaseDir:                t.BaseDir,
 		RepoRoot:               t.RepoRoot,
 		ScratchReadRoots:       t.ScratchReadRoots,
@@ -365,6 +385,8 @@ func FromIOTask(t IOTask) Task {
 		ToolMaxSteps:           t.ToolMaxSteps,
 		MaxTokens:              t.MaxTokens,
 		WorkDir:                t.WorkDir,
+		WorkspaceTrust:         t.WorkspaceTrust,
+		InjectedHooks:          t.InjectedHooks,
 		BaseDir:                t.BaseDir,
 		RepoRoot:               t.RepoRoot,
 		ScratchReadRoots:       t.ScratchReadRoots,

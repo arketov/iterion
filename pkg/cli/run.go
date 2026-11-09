@@ -12,12 +12,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/arketov/iterion/internal/envtrust"
 	"github.com/arketov/iterion/pkg/backend/ambient"
 	"github.com/arketov/iterion/pkg/backend/automemory"
 	"github.com/arketov/iterion/pkg/backend/detect"
 	"github.com/arketov/iterion/pkg/backend/model"
 	"github.com/arketov/iterion/pkg/backend/recipe"
 	"github.com/arketov/iterion/pkg/bundle"
+	"github.com/arketov/iterion/pkg/connection"
 	"github.com/arketov/iterion/pkg/dsl/ir"
 	"github.com/arketov/iterion/pkg/dsl/workflowfile"
 	"github.com/arketov/iterion/pkg/git"
@@ -180,6 +182,37 @@ type RunOptions struct {
 	SkipMCPHealth bool
 }
 
+// cliLaunchTrust is the workspace trust a new `iterion run` launches with:
+// the trusted default, lowered by the run trust this process was started
+// under (envtrust.EnvRunTrust). Every process a node of an untrusted run
+// starts carries that trust, so an `iterion run` a script or an agent calls in
+// the outsider's checkout runs as what it is — compiled for it, its engine
+// admitted on it — rather than as the tenant's own. It can only lower.
+func cliLaunchTrust() store.RunTrust {
+	return store.RunTrustDefault.Lowest(store.RunTrust(envtrust.CarriedRunTrust()))
+}
+
+// cliRunTrust settles the workspace trust this `iterion run` executes under:
+// the carrier's (cliLaunchTrust), lowered by the recorded trust of the run
+// document `--run-id` names when one already exists. The engine adopts the
+// document's trust at Run (adoptRunTrust), so settling it here makes the
+// compile, the connector lineage and the MCP health check answer to the same
+// value instead of learning it after they have acted — re-entered with a fork
+// run's own id, the launch must not boot the operator's ambient MCP servers
+// or resolve the tenant's connectors first. A fresh id has no document; any
+// other read failure is returned, not guessed.
+func cliRunTrust(ctx context.Context, s store.RunStore, runID string) (store.RunTrust, error) {
+	trust := cliLaunchTrust()
+	r, err := s.LoadRun(ctx, runID)
+	switch {
+	case errors.Is(err, store.ErrRunNotFound):
+		return trust, nil
+	case err != nil:
+		return "", fmt.Errorf("read run %s to settle its workspace trust: %w", runID, err)
+	}
+	return trust.Lowest(r.Trust), nil
+}
+
 // skipMCPHealthFromEnv reports whether ITERION_SKIP_MCP_HEALTH is truthy, so
 // the toggle also applies without the CLI flag — e.g. to launcher scripts
 // that export it, and to any entry point that reuses RunRun.
@@ -248,9 +281,31 @@ func RunRun(ctx context.Context, opts RunOptions, p *Printer) error {
 	}
 	defer telemetry.shutdown()
 
+	// The launch trust settles BEFORE the compile, from a READ-ONLY view of
+	// the store (store.Open creates nothing): `--run-id` can name a run whose
+	// document already exists, and the trust that document holds floors this
+	// launch (cliRunTrust below) — the engine adopts it at Run, so the
+	// compile, the connector lineage and the MCP health check answer to the
+	// settled value instead of learning it after they have acted. The
+	// materializing open (tee + store.New) stays AFTER the compile door: a
+	// document the engine refuses must record no run at all, and a tee opened
+	// here would leave runs/<id>/ behind for every refused attempt. Anchored
+	// like every other store consumer of this run: the cwd, the .bot's dir
+	// only when the cwd cannot be read (runStoreDir).
+	storeDir := runStoreDir(opts.File, opts.StoreDir)
+
+	// A run started from inside an untrusted run's workspace is itself
+	// untrusted (cliLaunchTrust); an operator's own `iterion run` carries
+	// nothing and stays trusted; a `--run-id` that names an existing fork run
+	// is lowered to it. One value for the engine and the compile.
+	launchTrust, err := cliRunTrust(ctx, store.Open(storeDir), runID)
+	if err != nil {
+		return err
+	}
 	engineOpts := []runtime.EngineOption{
 		runtime.WithLogger(logger),
 		runtime.WithRecoveryDispatch(recovery.Dispatch(recovery.DefaultRecipes())),
+		runtime.WithTrust(launchTrust, ""),
 	}
 	if telemetry.prometheus != nil {
 		engineOpts = append(engineOpts, runtime.WithEventObserver(telemetry.prometheus.EventObserver()))
@@ -265,7 +320,7 @@ func RunRun(ctx context.Context, opts RunOptions, p *Printer) error {
 	// executor snapshots Prompts/Schemas/ToolPolicy/Budget/Compaction
 	// at construction time, so feeding it the raw workflow would make
 	// the recipe's overrides invisible to the model/tool layer.
-	wf, wfHash, iterFile, workflowName, bundleHandle, bundleCleanup, err := resolveWorkflow(opts)
+	wf, wfHash, iterFile, workflowName, bundleHandle, bundleCleanup, err := resolveWorkflow(opts, launchTrust)
 	// Install cleanup BEFORE the error check: resolveWorkflow returns a live
 	// cleanup (the .botz temp-dir remover) even on a bundle compile error, so
 	// returning on err without deferring it leaks the extracted bundle dir.
@@ -300,7 +355,6 @@ func RunRun(ctx context.Context, opts RunOptions, p *Printer) error {
 	}
 
 	runName := store.GenerateRunName(iterFile + ":" + runID)
-	storeDir := runStoreDir(iterFile, opts.StoreDir)
 	// Workspace versioning, on the same terms as a studio launch: a run
 	// started from the terminal must capture too, or `iterion rewind`
 	// cannot restore what its nodes produced.
@@ -351,7 +405,9 @@ func RunRun(ctx context.Context, opts RunOptions, p *Printer) error {
 	if superviseHub != nil {
 		hookObservers = []func(store.Event){superviseHub.Publish}
 	}
-	executor, err := buildRunExecutor(opts, tiersMatchTheEngine, wf, s, lineage{runID: runID}, storeDir, logger,
+	// The connectors resolve for the trust the engine and the compile were
+	// given above: launchTrust, the one value for the whole run.
+	executor, err := buildRunExecutor(opts, tiersMatchTheEngine, wf, s, lineage{runID: runID, trust: connection.TrustOfRun(launchTrust)}, storeDir, logger,
 		// This run's engine is built below with no WithWorkDir: it fills its
 		// own workDir with the process cwd and roots the run at that
 		// directory's repository, which is what the screen's probe then
@@ -565,12 +621,19 @@ const (
 	tiersUnknownToAChild sandboxTiersClaim = false
 )
 
-// lineage names the run an executor is built for: its own id, and the parent
+// lineage names the run an executor is built for: its own id, the parent
 // whose record holds the minted credentials this run may have been handed
-// under another name. A root run leaves parentRunID empty.
+// under another name, and the run's trust as its connector resolution
+// receives it. A root run leaves parentRunID empty.
+//
+// trust is a connection.ActionTrust rather than a store.RunTrust because the
+// latter's zero value is the TRUSTED one: a lineage built without it states
+// nothing, and its resolver refuses every mutating action instead of reading
+// as the tenant's own code.
 type lineage struct {
 	runID       string
 	parentRunID string
+	trust       connection.ActionTrust
 }
 
 func buildRunExecutor(
@@ -668,7 +731,7 @@ func buildRunExecutor(
 	}
 	execSpec.LocalSecrets = localStore
 	execSpec.LocalSealer = localSealer
-	connectors, connectorClient, err := localConnectorsForRun(wf, storeDir, logger)
+	connectors, connectorClient, err := localConnectorsForRun(wf, storeDir, logger, ln.trust)
 	if err != nil {
 		return nil, err
 	}
@@ -693,13 +756,20 @@ type subbotDepthKey struct{}
 // resolved `with:` data as inputs, and returns the child's terminal node
 // output (mapped to outputs.<subbot>.<field> by the engine).
 func subbotRunnerForCLI(parentPath, storeDir string, s store.RunStore, logger *iterlog.Logger, opts RunOptions) runtime.SubbotRunner {
-	sourceResolver := subbotsource.NewResolver(subbotsource.ResolverOptions{})
 	return func(ctx context.Context, req runtime.SubbotRequest) (map[string]any, error) {
 		depth, _ := ctx.Value(subbotDepthKey{}).(int)
 		if depth >= maxSubbotDepth {
 			return nil, fmt.Errorf("subbot recursion too deep (>%d) at %q — possible cycle", maxSubbotDepth, req.Source)
 		}
 
+		// The parent's trust decides whether `bot://` may resolve at all:
+		// read it before the source, so the refusal precedes any read of the
+		// checkout's lockfile. The resolver is per-request: the trust is.
+		trust, err := runview.SubbotParentTrust(ctx, s, req.ParentRunID)
+		if err != nil {
+			return nil, fmt.Errorf("subbot %s: %w", req.Source, err)
+		}
+		sourceResolver := subbotsource.NewResolver(subbotsource.ResolverOptions{Trust: trust})
 		resolvedSource, err := sourceResolver.Resolve(ctx, parentPath, req.Source)
 		if err != nil {
 			return nil, fmt.Errorf("resolve child %q: %w", req.Source, err)
@@ -722,7 +792,7 @@ func subbotRunnerForCLI(parentPath, storeDir string, s store.RunStore, logger *i
 			}
 			childWorkspace = wd
 		}
-		childWf, hash, childBundle, err := runview.CompileSubbotWorkflow(childPath, resolvedSource.Bundle, childWorkspace)
+		childWf, hash, childBundle, err := runview.CompileSubbotWorkflow(childPath, resolvedSource.Bundle, childWorkspace, trust)
 		if err != nil {
 			return nil, fmt.Errorf("compile child %q: %w", req.Source, err)
 		}
@@ -762,8 +832,11 @@ func subbotRunnerForCLI(parentPath, storeDir string, s store.RunStore, logger *i
 		// on the parent's handle the child's matcher would replace the
 		// parent's, which holds other values (iterion#2822).
 		childLogger := logger.WithOwnRedactor()
+		// The child's connectors resolve for the parent's trust, the value
+		// its compile read above: its code came out of the parent's
+		// workspace.
 		childExec, err := buildRunExecutor(childRunOpts, tiersUnknownToAChild, childWf, s,
-			lineage{runID: childRunID, parentRunID: req.ParentRunID}, storeDir, childLogger,
+			lineage{runID: childRunID, parentRunID: req.ParentRunID, trust: connection.TrustOfRun(trust)}, storeDir, childLogger,
 			// The child's engine below is rooted at the parent's effective
 			// workdir when the parent passed one, else at the process cwd —
 			// the same two cases its screen must probe.
@@ -974,7 +1047,10 @@ func buildEngine(
 // caller wires it into the engine via runtime.WithBundle and is also
 // responsible for the cleanup function (no-op for cache-hit paths but
 // reserved for future per-run extraction modes).
-func resolveWorkflow(opts RunOptions) (wf *ir.Workflow, hash, filePath, displayName string, b *bundle.Bundle, cleanup func() error, err error) {
+//
+// trust is the run's launch trust (cliLaunchTrust), the one its MCP catalog
+// is resolved for.
+func resolveWorkflow(opts RunOptions, trust store.RunTrust) (wf *ir.Workflow, hash, filePath, displayName string, b *bundle.Bundle, cleanup func() error, err error) {
 	cleanup = func() error { return nil }
 	// `iterion run` builds its engine with NO runtime.WithWorkDir: the
 	// engine fills its own workDir with the process cwd and roots the run
@@ -1001,7 +1077,7 @@ func resolveWorkflow(opts RunOptions) (wf *ir.Workflow, hash, filePath, displayN
 		}
 		// A recipe's `--file` may be a bare <bundle>/main.bot: promoted to
 		// its bundle, handle included, so its skills/ reach the run.
-		raw, h, promoted, compileErr := runview.CompileWorkflowPath(filePath, workspace)
+		raw, h, promoted, compileErr := runview.CompileWorkflowPath(filePath, workspace, trust)
 		if compileErr != nil {
 			return nil, "", "", "", nil, cleanup, compileErr
 		}
@@ -1029,7 +1105,7 @@ func resolveWorkflow(opts RunOptions) (wf *ir.Workflow, hash, filePath, displayN
 		if openErr != nil {
 			return nil, "", "", "", nil, cleanup, fmt.Errorf("bundle dir %s: %w", opts.BundleDir, openErr)
 		}
-		raw, h, compileErr := runview.CompileBundleWorkflow(resolved, opened, workspace)
+		raw, h, compileErr := runview.CompileBundleWorkflow(resolved, opened, workspace, trust)
 		if compileErr != nil {
 			return nil, "", "", "", opened, cleanup, compileErr
 		}
@@ -1045,7 +1121,7 @@ func resolveWorkflow(opts RunOptions) (wf *ir.Workflow, hash, filePath, displayN
 	}
 	if opened != nil {
 		cleanup = c
-		raw, h, compileErr := runview.CompileBundleWorkflow(iterPath, opened, workspace)
+		raw, h, compileErr := runview.CompileBundleWorkflow(iterPath, opened, workspace, trust)
 		if compileErr != nil {
 			return nil, "", "", "", opened, cleanup, compileErr
 		}
@@ -1059,7 +1135,7 @@ func resolveWorkflow(opts RunOptions) (wf *ir.Workflow, hash, filePath, displayN
 	// promoted to that bundle by openBundleOrFile (the skills/ mirrored
 	// into .claude/skills/, the prompts/*.md merged) — the same promotion
 	// every other surface gets; what reaches this line is a loose file.
-	raw, h, compileErr := runview.CompileWorkflowWithHash(resolved, workspace)
+	raw, h, compileErr := runview.CompileWorkflowWithHash(resolved, workspace, trust)
 	if compileErr != nil {
 		return nil, "", "", "", nil, cleanup, compileErr
 	}

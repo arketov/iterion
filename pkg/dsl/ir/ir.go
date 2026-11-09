@@ -94,6 +94,30 @@ type Workflow struct {
 	// resolution, not by the compiler itself.
 	ActiveMCPServers   []string
 	ResolvedMCPServers map[string]*MCPServer
+	// MCPPrepared records the resolution that filled the two fields above
+	// (mcp.PrepareWorkflow). Nil when no resolution ran: the catalog then
+	// holds only what its builder put there by hand.
+	MCPPrepared *MCPPreparation
+}
+
+// MCPPreparation is what one MCP resolution decided.
+type MCPPreparation struct {
+	// Trust is the workspace trust the catalog was resolved for — the string
+	// form of store.RunTrust (this package does not import store), "" for
+	// the trusted default.
+	Trust string
+	// Withdrawn is what the workspace-trust floor withheld from the catalog:
+	// ambient sources (the checkout's .mcp.json, plugin-contributed servers)
+	// an untrusted run is not booted with. The launcher announces it once.
+	Withdrawn []WithdrawnMCPServer
+}
+
+// WithdrawnMCPServer names one MCP server source the workspace-trust floor
+// withheld. Name is empty for the checkout's .mcp.json: its server names are
+// the checkout's text, and the source alone says what was withheld.
+type WithdrawnMCPServer struct {
+	Name   string
+	Source string
 }
 
 // ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/arketov/iterion/pkg/dsl/ir"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // A server the BOT declares under a reserved name is refused whole: its author
@@ -24,7 +25,7 @@ func TestPrepareWorkflowRefusesInternalMCPNames(t *testing.T) {
 					key, cfgName = "ordinary", name
 				}
 				wf.MCPServers = map[string]*ir.MCPServer{key: {Name: cfgName, Transport: ir.MCPTransportStdio, Command: "untrusted"}}
-				err := PrepareWorkflow(wf, dir, dir)
+				err := PrepareWorkflow(wf, dir, dir, store.RunTrustDefault)
 				if err == nil || !strings.Contains(err.Error(), "reserved") || !strings.Contains(err.Error(), "rename") {
 					t.Fatalf("want actionable reserved-name refusal, got %v", err)
 				}
@@ -57,7 +58,7 @@ func TestPrepareWorkflowSkipsAReservedProjectServerAndKeepsTheRest(t *testing.T)
 			writeProjectMCPFile(t, dir, string(data))
 			wf := &ir.Workflow{}
 
-			skipped, err := PrepareWorkflowReport(wf, dir, dir)
+			skipped, err := PrepareWorkflowReport(wf, dir, dir, store.RunTrustDefault)
 			if err != nil {
 				t.Fatalf("a reserved project entry must not refuse the catalog: %v", err)
 			}
@@ -92,7 +93,7 @@ func TestUnknownToolServerDiagnosticsStillRunAfterASkip(t *testing.T) {
 		"ask": &ir.AgentNode{BaseNode: ir.BaseNode{ID: "ask"}, Tools: []string{"mcp.docs.read", "mcp.barz.read", "mcp.iterion.x"}},
 	}}
 
-	if _, err := PrepareWorkflowReport(wf, dir, dir); err != nil {
+	if _, err := PrepareWorkflowReport(wf, dir, dir, store.RunTrustDefault); err != nil {
 		t.Fatal(err)
 	}
 	diags := UnknownToolServerDiagnostics(wf)
@@ -109,7 +110,7 @@ func TestPrepareWorkflowExplainsASkippedServerANodeNames(t *testing.T) {
 	writeProjectMCPFile(t, dir, `{"mcpServers":{"iterion":{"type":"stdio","command":"x"}}}`)
 	wf := &ir.Workflow{MCP: &ir.MCPConfig{Servers: []string{"iterion"}}}
 
-	skipped, err := PrepareWorkflowReport(wf, dir, dir)
+	skipped, err := PrepareWorkflowReport(wf, dir, dir, store.RunTrustDefault)
 	if err == nil || !strings.Contains(err.Error(), `unknown MCP server "iterion"`) || !strings.Contains(err.Error(), "skipped") || !strings.Contains(err.Error(), "rename") {
 		t.Fatalf("err = %v, want the unknown-server error with why it was skipped and how to rename it", err)
 	}
@@ -146,7 +147,7 @@ func TestPrepareWorkflowPreservesOrdinaryMCPNames(t *testing.T) {
 	dir := t.TempDir()
 	writeProjectMCPFile(t, dir, `{"mcpServers":{"docs":{"type":"stdio","command":"docs"},"my_iterion":{"type":"sse","url":"https://docs.invalid/sse"},"xiterion":{"type":"http","url":"https://docs.invalid/mcp"}}}`)
 	wf := &ir.Workflow{MCPServers: map[string]*ir.MCPServer{"docs": {Name: "docs", Transport: ir.MCPTransportHTTP, URL: "https://override.invalid/mcp"}}}
-	if err := PrepareWorkflow(wf, dir, dir); err != nil {
+	if err := PrepareWorkflow(wf, dir, dir, store.RunTrustDefault); err != nil {
 		t.Fatal(err)
 	}
 	if len(wf.ActiveMCPServers) != 3 || wf.ResolvedMCPServers["docs"].URL != "https://override.invalid/mcp" {
@@ -154,7 +155,7 @@ func TestPrepareWorkflowPreservesOrdinaryMCPNames(t *testing.T) {
 	}
 	writeProjectMCPFile(t, dir, `{"mcpServers":{"iterion_board":{"type":"stdio","command":"untrusted"}}}`)
 	t.Setenv(EnvAutoLoad, "false")
-	if err := PrepareWorkflow(&ir.Workflow{}, dir, dir); err != nil {
+	if err := PrepareWorkflow(&ir.Workflow{}, dir, dir, store.RunTrustDefault); err != nil {
 		t.Fatalf("disabled project autoload must not read project names: %v", err)
 	}
 }

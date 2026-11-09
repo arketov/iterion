@@ -212,7 +212,10 @@ const (
 	// pkg/connection's resolution; reads still resolve, which is what a review
 	// lane needs), and any mutating bot. It does NOT withdraw the LLM
 	// credential: the lane's whole purpose is to produce a review, and its
-	// spend is bounded by the per-author budget instead.
+	// spend is bounded by the per-author budget instead. And it withdraws
+	// every host capability the workflow declares (HostCapabilities): no
+	// board, no run store, no watch — said per node
+	// (workspace_trust_withdrawal).
 	RunTrustFork RunTrust = "fork"
 )
 
@@ -224,6 +227,64 @@ const (
 // for "fork" AND for anything this binary does not recognise, which is the
 // only safe answer to "I do not know who wrote this code".
 func (t RunTrust) Trusted() bool { return t == RunTrustDefault }
+
+// HostCapabilities is the one answer to "which of the host capabilities a
+// workflow declares (`capabilities:`) does a run of this trust hold".
+//
+// A capability reaches the TENANT's state beyond the workspace — its board, its
+// run store, the watch fan-out — and a card or a run is where a prompt injected
+// into an outsider's code would go to outlive the run: a board card names a bot
+// and the bot args it launches with. So a workspace its tenant did not write
+// holds none of them. The refusal is the whole declared list, not a family: a
+// capability this binary does not know yet is withdrawn with the rest, until
+// someone decides it is safe to hand an outsider's code.
+//
+// held is never nil on the untrusted side, so a caller that reads nil as
+// "inherit the workflow's list" cannot mistake the refusal for an absence.
+func (t RunTrust) HostCapabilities(declared []string) (held, withdrawn []string) {
+	if t.Trusted() {
+		return declared, nil
+	}
+	return []string{}, append([]string(nil), declared...)
+}
+
+// Lowest is the less trusted of two provenances: the untrusted one when either
+// is (t first), the trusted default only when both are. A run that learns its
+// provenance from two sources — its own launch and the run it was launched
+// from — holds the lower.
+func (t RunTrust) Lowest(other RunTrust) RunTrust {
+	if !t.Trusted() {
+		return t
+	}
+	return other
+}
+
+// ErrChildParentUnreadable refuses a run launched from another whose document
+// cannot be read: CreateChildRun's parent, a launch's parent_run_id.
+//
+// Typed because it is a refusal with a policy behind it, not an I/O accident.
+// A child executes in what its parent produced — the parent's workspace, a
+// shard of its files — so its provenance is the parent's; an unreadable parent
+// is an UNKNOWN provenance, and unknown never resolves to trusted. The wrapped
+// error says which case it was: a parent that does not exist, one in another
+// tenant (the read is tenant-scoped), a store failure.
+var ErrChildParentUnreadable = errors.New("store: the parent run cannot be read, so the child cannot inherit its workspace provenance")
+
+// ChildTrustFromParent gives a child run the workspace provenance of the run
+// that spawned it: its Trust, and the commit its admission pinned.
+//
+// A sub-bot executes in its parent's workspace — every local runner hands the
+// child the parent's WorkDir — so a child born with an empty Trust under an
+// untrusted parent would run the parent's checkout with every floor off. The
+// stores stamp it at creation (CreateChildRun) because the store is the one
+// place every launcher of a child crosses.
+func ChildTrustFromParent(child, parent *Run) {
+	if child == nil || parent == nil {
+		return
+	}
+	child.Trust = parent.Trust
+	child.RepoSHAExpected = parent.RepoSHAExpected
+}
 
 // IsFork names the one untrusted class this binary knows, for the sites that
 // must WORD a refusal or pick a lane rather than withhold a capability.

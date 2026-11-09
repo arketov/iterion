@@ -63,12 +63,15 @@ import (
 // surface, which takes no ctx — a breaking signature change for two test
 // files, refused here and recorded on #2789.
 var serialFamily = map[string]string{
+	"gateway_feed_test.go":              "Setenv",
 	"adverse_schema_test.go":            "Setenv",
 	"correction_budget_warning_test.go": "Setenv",
 	"reask_answered_pause_test.go":      "Setenv",
 	"reask_extraction_failure_test.go":  "Setenv",
 	"schema_feedback_size_test.go":      "Setenv",
 	"schema_mutation_witness_test.go":   "Setenv",
+	"subagent_cache_spend_test.go":      "SetGatewayPricer",
+	"hooks_usage_gateway_cache_test.go": "SetGatewayPricer",
 	"round2_chain_test.go":              "Setenv",
 	"round2_effort_test.go":             "Setenv",
 	"round2_extract_test.go":            "Setenv",
@@ -81,6 +84,7 @@ var serialFamily = map[string]string{
 	"round3_provider_ipc_test.go":       "Setenv",
 	"round3_tools_chain_test.go":        "Setenv",
 	"round6_chain_spend_test.go":        "Setenv",
+	"untrusted_memory_test.go":          "Setenv",
 
 	"anthropic_forfait_ctx_test.go":            "SetCredentialsLookup, SetOAuthDirLookup, Setenv",
 	"async_backend_test.go":                    "Setenv",
@@ -177,9 +181,11 @@ var serialFamily = map[string]string{
 	"settings_hooks_test.go":                   "Setenv",
 	"slash_commands_test.go":                   "Setenv",
 	"stream_error_wire_test.go":                "Setenv",
+	"task_context_window_test.go":              "Setenv",
 	"testparallel_test.go":                     "Setenv",
 	"tool_attachment_deliverable_link_test.go": "Setenv",
 	"tool_error_redaction_test.go":             "Setenv",
+	"trust_carrier_test.go":                    "Setenv",
 	"usage_presence_test.go":                   "Setenv",
 	"wire_reach_test.go":                       "Setenv",
 	"workflow_auto_test.go":                    "Setenv",
@@ -205,6 +211,7 @@ var globalMutators = map[string]bool{
 	"SetDefault":           true,
 	"SetCredentialsLookup": true,
 	"SetOAuthDirLookup":    true,
+	"SetGatewayPricer":     true,
 }
 
 // readCampaign reads this package's own test files through the shared reader

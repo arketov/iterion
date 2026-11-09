@@ -1,4 +1,4 @@
-# ADR-163 — The finish worker retries the completed-state move; an unfinished transition is completed, not re-run
+# ADR-166 — The finish worker retries the completed-state move; an unfinished transition is completed, not re-run
 
 - **Status**: Accepted — design by the architect for the bug "the dispatcher re-runs a finished card when the move to `completed_state` did not land" (card `native:45835db4`, live case of 2026-11-06).
 - **Date**: 2026-11-06

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/arketov/iterion/pkg/backend/mcp"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 // TestLaunchRunLogShowsAReservedMCPServerSkip pins the studio half of the
@@ -44,7 +45,7 @@ workflow main:
 		t.Fatalf("write .mcp.json: %v", err)
 	}
 
-	_, cs, _, err := compileForLaunch(bot, "", "", "", dir)
+	_, cs, _, err := compileForLaunch(bot, "", "", "", dir, store.RunTrustDefault)
 	if err != nil {
 		t.Fatalf("compileForLaunch: %v", err)
 	}

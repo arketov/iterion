@@ -417,7 +417,8 @@ func (p *Policy) isExempt(toolName string) bool {
 //
 //  1. a matching deny rule → Deny (wins in every mode);
 //  2. a matching trusted grant → Allow;
-//  3. a matching scoped ask rule → Ask;
+//  3. a matching scoped ask rule → Ask — a search rooted above a tree one
+//     names included (the ask half of the #3086 containment);
 //  4. a matching bare exact-tool ask rule → Ask, except a matching literal
 //     scoped allow for that same tool → Allow;
 //  5. another matching ask rule → Ask;
@@ -457,12 +458,26 @@ func (p *Policy) Evaluate(toolName string, input map[string]any) (Decision, stri
 	if r, ok := matchAny(p.engineDeny, toolName, canon, closed); ok {
 		return Deny, r.raw
 	}
+	// A `dir/**` deny never meets the text of a search rooted ABOVE dir,
+	// yet that search walks the tree whole: containment is the deny's
+	// other half, judged at the same rank (#3086).
+	if r, ok := p.searchTreeDeny(toolName, canon, input); ok {
+		return Deny, r.raw
+	}
 	if r, ok := matchAny(p.grants, toolName, canon, open); ok {
 		return Allow, r.raw
 	}
 	// A scoped ask is deliberately stronger than every allow. This lets an
 	// operator re-gate a single otherwise auto-allowed command.
 	if r, ok := matchScoped(p.ask, toolName, canon, closed, false); ok {
+		return Ask, r.raw
+	}
+	// The containment has an ask half too: an ask naming a tree re-gates the
+	// searches that walk it, and a search rooted ABOVE the tree walks it
+	// without its text ever meeting the rule's scope — the same gap #3086
+	// closed on the deny side. Judged here, at the scoped ask's rank: stronger
+	// than every allow, weaker than a grant the operator already gave.
+	if r, ok := p.searchTreeAsk(toolName, canon, input); ok {
 		return Ask, r.raw
 	}
 	// A bare exact-tool ask is a generic fallback, so an authored literal
@@ -575,7 +590,70 @@ func (p *Policy) matchingDeny(toolName string, input map[string]any) (rule, bool
 	if r, ok := matchAny(p.deny, toolName, canon, closed); ok {
 		return r, true
 	}
-	return matchAny(p.engineDeny, toolName, canon, closed)
+	if r, ok := matchAny(p.engineDeny, toolName, canon, closed); ok {
+		return r, true
+	}
+	return p.searchTreeDeny(toolName, canon, input)
+}
+
+// searchTreeDeny reports whether the call is a search or listing whose root
+// CONTAINS a tree a deny rule names (#3086). Judged with the deny lists it
+// extends, the containment wins in every mode and no allow or grant reopens
+// it. Refusing is the whole answer on the deny side: the gate has no
+// backend-enforced exclusion to narrow a search with, on either backend.
+func (p *Policy) searchTreeDeny(rawName, canon string, input map[string]any) (rule, bool) {
+	return p.searchTreeContainment(rawName, canon, input, p.deny, p.engineDeny)
+}
+
+// searchTreeAsk is the ask half of the same containment (#3086): a scoped
+// ask naming a tree re-gates the searches that walk it, and a search rooted
+// ABOVE the tree walks it as surely as one rooted inside, its text never
+// meeting the rule's scope. The verdict is Ask, not Deny — the operator
+// wrote a pause, not a refusal — and it judges at the scoped ask's rank, so
+// a grant the operator already gave still reopens it.
+func (p *Policy) searchTreeAsk(rawName, canon string, input map[string]any) (rule, bool) {
+	return p.searchTreeContainment(rawName, canon, input, p.ask)
+}
+
+// searchTreeContainment reports whether the call is a search or listing
+// whose root CONTAINS a tree one of the given rule lists names (#3086). A
+// `dir/**` scope is matched against the spellings the call carries, and none
+// of a search rooted at dir's PARENT — or any ancestor — is under dir: the
+// call walks the tree whole without its text ever meeting the rule. The
+// containment reads the same normalisation as the rest of the closing side —
+// every spelling of the root (cleaned, anchored on the agent's directory,
+// symlink-resolved) against every spelling of the rule's directory, folded
+// forms included. Only a tree-reading tool (the search families, the
+// listing, an MCP tool carrying a path key) can read a directory through a
+// container above it; a Read on the parent names one file the rule already
+// covers. A root spelled by omission is read too — the search defaults to
+// the agent's directory, so closingPaths answers it with pathRoot.
+func (p *Policy) searchTreeContainment(rawName, canon string, input map[string]any, lists ...[]rule) (rule, bool) {
+	if !readsADirectoryTree(canon) {
+		return rule{}, false
+	}
+	roots := closingPaths(canon, input, p.pathRoot)
+	if len(roots) == 0 {
+		return rule{}, false
+	}
+	for _, rs := range lists {
+		for _, r := range rs {
+			if r.treeRoot == "" || !r.matchesTool(rawName, canon) {
+				continue
+			}
+			for _, tree := range pathCandidates(r.treeRoot, p.pathRoot).exact {
+				foldedTree := foldPathSpelling(tree)
+				for _, root := range roots {
+					for _, spelling := range pathCandidates(root, p.pathRoot).exact {
+						if pathTreeContains(spelling, tree) || pathTreeContains(foldPathSpelling(spelling), foldedTree) {
+							return r, true
+						}
+					}
+				}
+			}
+		}
+	}
+	return rule{}, false
 }
 
 // candidateSets renders the two candidate sets a call is judged against:
@@ -732,6 +810,14 @@ type rule struct {
 	// re-read a rule's spelling to learn how wide it is; which spellings are
 	// that wide is argScopeIsUnbounded's.
 	anyArg bool
+	// treeRoot is the directory the scope names when it is exactly a tree
+	// (`<dir>/**`, the search tools' `path:<dir>/**` unwrapped) — the one
+	// scope shape a search or listing rooted ABOVE the directory walks
+	// through without its text ever matching the scope's pattern (#3086).
+	// Empty for every other scope: a wildcard in the directory part, a
+	// deeper pattern or a prefix rule names no single tree, so a
+	// containment question has nothing to read from it.
+	treeRoot string
 }
 
 // parseRule parses `Tool` or `Tool(content)` into a rule.
@@ -758,6 +844,7 @@ func parseRule(raw string) (rule, error) {
 		trimmedArg := strings.TrimSpace(argContent)
 		r.literalArg = !strings.HasSuffix(trimmedArg, ":*") && !strings.Contains(trimmedArg, "*")
 		r.anyArg = argScopeIsUnbounded(trimmedArg)
+		r.treeRoot = treeScopeRoot(trimmedArg)
 	}
 	toolPart = strings.TrimSpace(toolPart)
 	if toolPart == "" {
@@ -913,6 +1000,36 @@ func argScopeIsUnbounded(trimmedArg string) bool {
 		return true
 	}
 	return trimmedArg != "" && strings.Trim(trimmedArg, "*") == ""
+}
+
+// treeScopeRoot reads the directory a tree scope names: `<dir>/**`, with the
+// search tools' explicit dimension prefix unwrapped (`path:<dir>/**`). Every
+// other scope shape — a wildcard in the directory part, a pattern that does
+// not span the tree, a `:*` prefix — names no single directory, so the
+// containment question searchTreeDeny asks has no answer to read from it.
+func treeScopeRoot(arg string) string {
+	dir, found := strings.CutSuffix(arg, "/**")
+	if !found {
+		return ""
+	}
+	dir = strings.TrimPrefix(dir, "path:")
+	if dir == "" || strings.Contains(dir, "*") {
+		return ""
+	}
+	return dir
+}
+
+// pathTreeContains reports whether ancestor names a directory whose tree
+// holds descendant: descendant IS the directory, or names a path under it.
+// Both spellings are read from pathCandidates' output, so they are already
+// cleaned; the filesystem root is the one directory spelled with nothing
+// before its separator.
+func pathTreeContains(ancestor, descendant string) bool {
+	ancestor = strings.TrimSuffix(ancestor, "/")
+	if ancestor == "" {
+		return filepath.IsAbs(descendant)
+	}
+	return descendant == ancestor || strings.HasPrefix(descendant, ancestor+"/")
 }
 
 // matchAny returns the first rule in rs that matches the tool (by its raw
@@ -1207,16 +1324,21 @@ func denyCandidates(canon string, input map[string]any, root string, opening []s
 	// The path summarize read is already expanded; expanding a repeated
 	// value again would pay its filesystem walk twice for the same
 	// spellings. A climbing glob had none read there, so its root is
-	// expanded below with the rest.
+	// expanded below with the rest. An MCP call's paths were never expanded
+	// on the opening side — summarize reads them as opaque k=v text — so
+	// the primary one is expanded below with the rest too, its plain
+	// spellings a closing rule's to read, not only their folded twins.
 	var expanded []string
 	if !globPatternClimbs(canon, str(input, "pattern")) {
 		read := primaryPath(canon, input)
-		expanded = append(expanded, read)
+		if slices.Contains(opening, read) {
+			expanded = append(expanded, read)
+		}
 		for _, c := range foldedPathDimension(canon, read, root) {
 			cands = appendUnique(cands, c)
 		}
 	}
-	for _, raw := range closingPaths(canon, input) {
+	for _, raw := range closingPaths(canon, input, root) {
 		if slices.Contains(expanded, raw) {
 			continue
 		}
@@ -1240,10 +1362,27 @@ func denyCandidates(canon string, input map[string]any, root string, opening []s
 // segment as one directory; a globstar that a backend lets match zero would
 // climb one level higher, which is why the opening side places no climbing
 // glob at all.
-func closingPaths(canon string, input map[string]any) []string {
+//
+// A tree-reading call that spells no root still HAS one: the agent's
+// directory, the default both backends run the search from (#3086). The
+// omitted spelling is that root — read here, on the closing side alone, so
+// a pathless `Grep` walks no denied tree under the agent's directory with
+// the gate's blessing; the opening side keeps naming the tree it opens.
+func closingPaths(canon string, input map[string]any, root string) []string {
 	paths := []string{}
 	for _, key := range pathInputKeys(canon) {
 		paths = appendUnique(paths, str(input, key))
+	}
+	if isMCPToolName(canon) {
+		// The filesystem-shaped servers take a list of targets under
+		// `paths` (read_multiple_files): every element is one more path a
+		// closing verdict reads, beside the single-string keys.
+		for _, v := range strSlice(input, "paths") {
+			paths = appendUnique(paths, v)
+		}
+	}
+	if len(paths) == 0 && readsADirectoryTree(canon) {
+		paths = appendUnique(paths, root)
 	}
 	if pattern := str(input, "pattern"); globPatternClimbs(canon, pattern) {
 		paths = appendUnique(paths, filepath.Join(cmp.Or(primaryPath(canon, input), "."), pattern))
@@ -1292,13 +1431,26 @@ func foldPathSpelling(s string) string {
 // A new path-carrying tool joins THREE tables together, no enumeration
 // derives them: this one (which input keys hold the paths), summarize
 // (what the call's candidates are), and pathTreeTools (what an
-// engine-armed tree deny covers).
+// engine-armed tree deny covers). The MCP FQNs are the one exception the
+// catalogue forces: an MCP tool keeps its FQN as its canonical name
+// (CanonicalToolName), so no table row can name it — and none is needed.
+// The filesystem-shaped servers carry their targets under a small,
+// conventional key vocabulary — `path`, and the two endpoints of a move
+// (`source`, `destination`) — read here on the CLOSING side alone: a deny
+// naming the tree meets every path the call reads or writes, while
+// summarize's generic k=v fallback stays the opening reading (an allow
+// must name what it opens, and the gate knows no MCP tool's argument
+// semantics well enough to open by path). The list-valued `paths` key is
+// read beside these in closingPaths.
 func pathInputKeys(canon string) []string {
 	switch canon {
 	case "read", "write", "edit", "notebookedit":
 		return []string{"file_path", "path", "notebook_path"}
 	case "glob", "grep", "workspace_grep", "ls":
 		return []string{"path"}
+	}
+	if isMCPToolName(canon) {
+		return []string{"path", "source", "destination"}
 	}
 	return nil
 }
@@ -1390,9 +1542,20 @@ func searchesByPattern(canon string) bool {
 
 // readsADirectoryTree reports whether a tool's path argument is a
 // container it reads THROUGH (a search root, a listing) rather than the
-// single file it opens.
+// single file it opens. An MCP tool's `path` reads as one too: the gate
+// cannot tell a search server's root from a single-file read by name, and
+// on the closing side the distinction costs at most a refusal — a call
+// whose path IS a denied tree, or contains one, walks it either way.
 func readsADirectoryTree(canon string) bool {
-	return searchesByPattern(canon) || canon == "ls"
+	return searchesByPattern(canon) || canon == "ls" || isMCPToolName(canon)
+}
+
+// isMCPToolName reports whether a canonical name is an MCP server's tool.
+// The catalogue keeps every MCP FQN verbatim (CanonicalToolName checks the
+// same two prefixes), so the prefix is the whole recognition — no row of
+// any table can name a server attached after the gate was written.
+func isMCPToolName(canon string) bool {
+	return strings.HasPrefix(canon, "mcp__") || strings.HasPrefix(canon, "mcp_")
 }
 
 // pathCandidates is THE normalisation of one model-supplied filesystem
@@ -1504,6 +1667,26 @@ func str(m map[string]any, key string) string {
 		}
 	}
 	return ""
+}
+
+// strSlice reads a list-valued input key: the []any a JSON decoder
+// produces, or a []string a caller built directly. Non-string elements are
+// skipped — the gate reads the paths it can read, and a value it cannot
+// read simply names no path here.
+func strSlice(m map[string]any, key string) []string {
+	switch v := m[key].(type) {
+	case []string:
+		return v
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, e := range v {
+			if s, ok := e.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+	return nil
 }
 
 // IsInfrastructureTool reports whether a tool is iterion's own

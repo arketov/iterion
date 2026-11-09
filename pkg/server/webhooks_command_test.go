@@ -13,6 +13,7 @@ import (
 	"github.com/arketov/iterion/pkg/bundle"
 	"github.com/arketov/iterion/pkg/dispatcher/native"
 	"github.com/arketov/iterion/pkg/forge"
+	"github.com/arketov/iterion/pkg/store"
 	"github.com/arketov/iterion/pkg/webhooks"
 	"github.com/arketov/iterion/pkg/webhooks/gitlab"
 	"github.com/arketov/iterion/pkg/webhooks/prforge"
@@ -713,7 +714,7 @@ func TestPriorReviewSkipsABotThatDidNotAskForIt(t *testing.T) {
 		return "a review"
 	}
 	vars := map[string]string{}
-	s.stampHandoffs(context.Background(), webhooks.Config{}, "some-bot", vars, handoffQuery{PRURL: "https://f/o/r/pull/1"})
+	s.stampHandoffs(context.Background(), webhooks.Config{}, "some-bot", vars, handoffQuery{PRURL: "https://f/o/r/pull/1"}, store.RunTrustDefault)
 	if called {
 		t.Error("looked up a review for a bot that never declared it consumes one")
 	}
