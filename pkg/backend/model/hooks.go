@@ -717,16 +717,31 @@ func (h *storeHooks) usageProgressFromStep(nodeID string, step LLMStepInfo) {
 
 // usageSampleLocked decides whether the state warrants a sample and, when
 // it does, advances the debounce watermark and returns the event payload.
-// Caller holds upMu. The USD figure is an ESTIMATE for pacing (cache
-// writes at 1.25× the input rate, cache reads at 0.1× — the standard
-// Anthropic multipliers), never an invoice; when the model is unpriced
-// the sample carries tokens only — zero means unknown, never free.
+// Caller holds upMu. The USD figure is an ESTIMATE for pacing, never an
+// invoice; when the model is unpriced the sample carries tokens only —
+// zero means unknown, never free.
 func (h *storeHooks) usageSampleLocked(st *usageProgressState) map[string]any {
 	totalTokens := st.in + st.out + st.cacheRead + st.cacheWrite
-	equivIn := st.in + st.cacheWrite + st.cacheWrite/4 + st.cacheRead/10
 	var used float64
 	if st.model != "" {
-		used = cost.EstimateUSD(st.model, equivIn, st.out)
+		if modelroute.Parse(st.model).ChatCompletionsUsage() {
+			// Chat Completions accounting (Revi R7402a3, R2ae8f4): the
+			// wire's prompt count ALREADY includes the cached share —
+			// cached_tokens is a subset of prompt_tokens, on the gateway
+			// and on a direct openai route alike. Counting cacheRead on
+			// top would double it, and the Anthropic 0.1x read multiplier
+			// misprices a rate the operator table publishes itself. Only
+			// cacheWrite stays additive: only Anthropic wires populate it
+			// today.
+			totalTokens = st.in + st.out + st.cacheWrite
+			used = cost.EstimateUSDWithCache(st.model, st.in, st.out, st.cacheRead)
+		} else {
+			// Anthropic accounting: cache reads and writes are exclusive of
+			// the input count — cache writes at 1.25x the input rate, cache
+			// reads at 0.1x (the standard Anthropic multipliers).
+			equivIn := st.in + st.cacheWrite + st.cacheWrite/4 + st.cacheRead/10
+			used = cost.EstimateUSD(st.model, equivIn, st.out)
+		}
 	}
 	if used > 0 {
 		if used < usageProgressMinUSD {
@@ -1545,6 +1560,21 @@ func (h *storeHooks) onMCPServerDegraded(nodeID string, info MCPServerDegradedIn
 	h.emit(nodeID, store.EventMCPServerDegraded, data)
 }
 
+// onTrustWithdrawal implements the OnTrustWithdrawal hook: what a workspace
+// its tenant did not write cost the node becomes a first-class store event.
+// The executor has already logged it; this is the half a reader of
+// events.jsonl — the studio, a gate — can see.
+func (h *storeHooks) onTrustWithdrawal(nodeID string, info TrustWithdrawalInfo) {
+	data := map[string]any{
+		"withdrawn": info.What,
+		"reason":    info.Reason,
+	}
+	if len(info.Items) > 0 {
+		data["items"] = append([]string(nil), info.Items...)
+	}
+	h.emit(nodeID, store.EventWorkspaceTrustWithdrawal, data)
+}
+
 // onProviderFallback implements the OnProviderFallback hook: it turns a
 // chain fall-through into a first-class store event.
 //
@@ -1791,6 +1821,7 @@ func NewStoreEventHooks(ctx context.Context, emitter EventEmitter, runID string,
 		},
 		OnSessionDegraded:   h.onSessionDegraded,
 		OnMCPServerDegraded: h.onMCPServerDegraded,
+		OnTrustWithdrawal:   h.onTrustWithdrawal,
 		// OnToolNodeResult handles direct tool nodes with full I/O content.
 		OnToolNodeResult: h.onToolNodeResult,
 		// OnToolNodeHeartbeat vouches that a silent command is still alive.

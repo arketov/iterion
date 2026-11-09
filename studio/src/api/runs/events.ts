@@ -442,6 +442,7 @@ export type PassthroughEventType =
   | "model_drift"
   | "model_served_via_facade"
   | "session_degraded"
+  | "workspace_trust_withdrawal"
   | "sandbox_skipped"
   | "sandbox_floor_applied"
   | "sandbox_started"

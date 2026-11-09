@@ -186,6 +186,10 @@ func (e *Engine) Run(ctx context.Context, runID string, inputs map[string]any) (
 	if err != nil {
 		return err
 	}
+	// The run's trust is settled here, once, before anything reads it: the
+	// document a pickup or a sub-bot child was built from may carry what no
+	// engine option said (adoptRunTrust).
+	e.adoptRunTrust(run)
 
 	// The operator isolation floor (#1959): a non-operator bot source's
 	// `sandbox: none` is neutralized HERE — once, before admission and
@@ -793,6 +797,7 @@ func (e *Engine) runPersistWorkspace(ctx context.Context, runID string, run *sto
 	if s, ok := e.executor.(workDirSetter); ok {
 		s.SetWorkDir(e.workDir)
 	}
+	e.pushWorkspaceTrust()
 	// Push repoRoot (when known) so memory specs with `project_root: true`
 	// resolve against the operator's main checkout instead of the per-run
 	// workspace. Same minimal-interface pattern as SetWorkDir.
@@ -817,6 +822,20 @@ func (e *Engine) runPersistWorkspace(ctx context.Context, runID string, run *sto
 			e.logger.Warn("bot catalog regen: %v", catalogErr)
 		}
 	}
+	// The mirror pass: the tier bookkeeping every skill mirror shares, and the
+	// carrier of the workspace handle every write below goes through. Opened
+	// from the run's trust ONCE, here, and handed down — a pass re-opened
+	// downstream with a forgotten trust argument is the defect class the
+	// handle exists against, so there is exactly one open per sequence.
+	// LOCAL, never an Engine field: a field nil'd at sequence end answers
+	// "trusted" for a later reader that forgot to re-open, and a nil pass
+	// must answer the refusal instead.
+	pass, perr := newMirrorPass(e.workDir, e.trust)
+	if perr != nil {
+		st, stCode := e.markFailedBestEffort(ctx, runID, "open workspace handle", perr)
+		return setupErrFrom(st, stCode, fmt.Errorf("runtime: open workspace handle: %w", perr))
+	}
+	defer pass.Close()
 	// Bundle skill mirroring: when a .botz backs this run, copy the
 	// bundle's skills/ entries into <workDir>/.claude/skills/ so both
 	// claude_code's native skill lookup and the claw `skill` tool
@@ -824,8 +843,8 @@ func (e *Engine) runPersistWorkspace(ctx context.Context, runID string, run *sto
 	// collision (see runtime/bundle.go for the rule). Tier sidecars from a
 	// PREVIOUS run are wiped first: precedence arbitrates within this
 	// pass, never across runs.
-	ClearMirroredTierMarkers(e.workDir, e.logger)
-	ownedSkills, err := mirrorBundleSkills(e.workDir, e.bundle, e.logger)
+	ClearMirroredTierMarkers(e.workDir, pass, e.logger)
+	ownedSkills, err := mirrorBundleSkills(e.workDir, e.bundle, pass, e.logger)
 	if err != nil {
 		st, stCode := e.markFailedBestEffort(ctx, runID, "bundle skills", err)
 		return setupErrFrom(st, stCode, fmt.Errorf("runtime: bundle skills: %w", err))
@@ -843,7 +862,7 @@ func (e *Engine) runPersistWorkspace(ctx context.Context, runID string, run *sto
 	// per-plugin MirrorFiles failed, a skipped entry, or an unresolved
 	// ambient declaration) — the pruner must be skipped, or it treats last
 	// pass's plugin files as orphans (#1500 R2-F1 HIGH, R6 medium).
-	ownedPluginSkills, pluginsComplete, err := mirrorPluginContributions(e.workDir, e.contributions, e.contributionsUnresolved, e.logger)
+	ownedPluginSkills, pluginsComplete, err := mirrorPluginContributions(e.workDir, e.contributions, e.contributionsUnresolved, pass, e.logger)
 	if err != nil {
 		if e.logger != nil {
 			e.logger.Warn("runtime: plugin contributions: %v", err)
@@ -852,10 +871,11 @@ func (e *Engine) runPersistWorkspace(ctx context.Context, runID string, run *sto
 		return setupErrFrom(st, stCode, fmt.Errorf("runtime: plugin contributions: %w", err))
 	}
 	ownedSkills = append(ownedSkills, ownedPluginSkills...)
-	hooksComplete, hooksErr := mergePluginHooks(e.workDir, e.logger)
+	injectedHooks, hooksComplete, hooksErr := mergePluginHooks(e.workDir, pass, e.logger)
 	if hooksErr != nil && e.logger != nil {
 		e.logger.Warn("runtime: plugin hooks: %v", hooksErr)
 	}
+	e.pushInjectedHooks(injectedHooks)
 	// Skill-library skills referenced by the workflow (DSL `skills:`), mirrored
 	// LAST so a same-named bundle/plugin/workspace file wins on collision
 	// (precedence: bundle > plugin > library > hand-authored — ADR-059). The
@@ -864,12 +884,12 @@ func (e *Engine) runPersistWorkspace(ctx context.Context, runID string, run *sto
 	// once, after the last of them has run. I/O errors here are FATAL for the
 	// same reason as the plugin mirror — the DSL `skills:` list is exactly
 	// "declared and load-bearing".
-	ownedLibrarySkills, libraryComplete, libraryErr := e.applyLibrarySkills()
+	ownedLibrarySkills, libraryComplete, libraryErr := e.applyLibrarySkills(pass)
 	if libraryErr != nil {
 		st, stCode := e.markFailedBestEffort(ctx, runID, "library skills", libraryErr)
 		return setupErrFrom(st, stCode, fmt.Errorf("runtime: library skills: %w", libraryErr))
 	}
-	e.applyMirroredSkills(append(ownedSkills, ownedLibrarySkills...))
+	e.applyMirroredSkills(append(ownedSkills, ownedLibrarySkills...), pass)
 	// Prune orphans left by earlier passes on this worktree — a skill
 	// renamed or removed upstream keeps its copy and marker on disk
 	// forever otherwise, and claw's resolver keeps offering the flat form
@@ -904,7 +924,7 @@ func (e *Engine) runPersistWorkspace(ctx context.Context, runID string, run *sto
 	// r.Worktree — the pruner must see the SAME state whichever entry
 	// point it runs from.
 	if pluginsComplete && hooksComplete && libraryComplete && e.parentRunID == "" {
-		pruneWorkspaceMirror(e.workDir, run.Worktree, e.logger)
+		pruneWorkspaceMirror(e.workDir, pass, run.Worktree, e.logger)
 	} else if e.logger != nil {
 		reason := ""
 		switch {
@@ -967,6 +987,16 @@ func (e *Engine) runPersistWorkspace(ctx context.Context, runID string, run *sto
 // behind an editor — where the server's wait is its request's and the
 // operator's is their command's, both of which end on their own.
 func (e *Engine) regenerateBotCatalog(ctx context.Context, botID string) (string, error) {
+	// The refresh writes into a bundle the WORKSPACE carries, folding in
+	// the workspace overlay: on a checkout the operator did not write,
+	// regenerating rewrites checkout-shipped content under the run's
+	// authority and renders attacker text into a catalog other runs read.
+	// An untrusted run regenerates NOTHING — the refusal is typed so the
+	// caller warns with the reason, and the on-disk catalog is served as
+	// found (the mirror reads it, never writes it).
+	if !e.trust.Trusted() {
+		return "", fmt.Errorf("%w (workspace %s)", ErrUntrustedWorkspaceCatalog, e.workDir)
+	}
 	if e.bundle == nil && botID != "" {
 		return "", nil
 	}
@@ -977,6 +1007,11 @@ func (e *Engine) regenerateBotCatalog(ctx context.Context, botID string) (string
 	}
 	return botregistry.RegenerateWhatsNextCatalog(ctx, e.workDir)
 }
+
+// ErrUntrustedWorkspaceCatalog refuses the run-start bot-catalog
+// regeneration on a workspace the operator does not control: the write
+// would land in a bundle the checkout ships, under the run's authority.
+var ErrUntrustedWorkspaceCatalog = errors.New("runtime: bot catalog regeneration refused on an untrusted workspace")
 
 // catalogLockWait is how long a run start waits for a save that holds a
 // generated catalog's authoring lock. A save takes milliseconds; a wait
@@ -1030,8 +1065,8 @@ func (e *Engine) reconcileExecutionWorkspace(runID string, run *store.Run) error
 // mirrored by bundle/plugin); the pruner is skipped in that case, per the
 // #1500 R2-HIGH fix — a phase that could not mirror what it was ASKED to
 // mirror must not signal "everything not-touched is orphan".
-func (e *Engine) applyLibrarySkills() (owned []string, complete bool, err error) {
-	hints, owned, complete, err := mirrorLibrarySkills(e.workDir, e.store.Root(), e.workflow, e.extraSkills, e.contributions, e.logger)
+func (e *Engine) applyLibrarySkills(pass *mirrorPass) (owned []string, complete bool, err error) {
+	hints, owned, complete, err := mirrorLibrarySkills(e.workDir, e.store.Root(), e.workflow, e.extraSkills, e.contributions, pass, e.logger)
 	if err != nil {
 		if e.logger != nil {
 			e.logger.Warn("runtime: library skills: %v", err)
@@ -1060,7 +1095,7 @@ func (e *Engine) applyLibrarySkills() (owned []string, complete bool, err error)
 // An empty list is pushed too, rather than skipped: the setter is authoritative
 // for the run, and returning early would leave a reused executor advertising the
 // previous run's skills — paths in another workspace entirely.
-func (e *Engine) applyMirroredSkills(owned []string) {
+func (e *Engine) applyMirroredSkills(owned []string, pass *mirrorPass) {
 	e.rememberResourceSkills(owned)
 	type mirroredSkillSetter interface{ SetMirroredSkills([]string) }
 	if s, ok := e.executor.(mirroredSkillSetter); ok {
@@ -1086,7 +1121,7 @@ func (e *Engine) applyMirroredSkills(owned []string) {
 		s.SetSkillChannelRoot("")
 		return
 	}
-	root, allowlist, err := mirrorSkillChannel(e.workDir, owned, e.logger)
+	root, allowlist, err := mirrorSkillChannel(e.workDir, owned, pass, e.logger)
 	if err != nil {
 		if e.logger != nil {
 			e.logger.Warn("runtime: the skill channel could not be built (%v) — the untrusted run's skill tool serves NOTHING rather than walking the checkout", err)

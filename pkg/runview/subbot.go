@@ -91,13 +91,27 @@ func (s *Service) subbotRunnerFor(parentPath string, runLogger *iterlog.Logger) 
 		// this process runs many runs through s.logger (iterion#2822).
 		runLogger = s.logger.WithOwnRedactor()
 	}
-	sourceResolver := subbotsource.NewResolver(subbotsource.ResolverOptions{ParentlessBaseDir: s.workDir, WorkDir: s.workDir})
 	return func(ctx context.Context, req runtime.SubbotRequest) (map[string]any, error) {
 		depth, _ := ctx.Value(subbotDepthKey{}).(int)
 		if depth >= maxSubbotDepth {
 			return nil, fmt.Errorf("subbot recursion too deep (>%d) at %q — possible cycle", maxSubbotDepth, req.Source)
 		}
 
+		// The parent's run document, read ONCE and before the child is
+		// compiled: the child runs in what the parent produced, so it is
+		// compiled for the parent's trust, seeds its execution context from
+		// the parent's, and spends a connector credential on the parent's
+		// provenance. A parent that cannot be read is refused, typed — the
+		// rule the store applies when it creates the child's document.
+		//
+		// Read before the SOURCE is resolved too: the trust it carries
+		// decides whether `bot://` may resolve at all (subbotsource), so the
+		// refusal precedes any read of the checkout's lockfile.
+		parentRun, parentLoadErr := s.store.LoadRun(ctx, req.ParentRunID)
+		if parentLoadErr != nil {
+			return nil, fmt.Errorf("subbot %q: %w: %w", req.Source, store.ErrChildParentUnreadable, parentLoadErr)
+		}
+		sourceResolver := subbotsource.NewResolver(subbotsource.ResolverOptions{ParentlessBaseDir: s.workDir, WorkDir: s.workDir, Trust: parentRun.Trust})
 		resolvedSource, err := sourceResolver.Resolve(ctx, parentPath, req.Source)
 		if err != nil {
 			return nil, fmt.Errorf("resolve child %q: %w", req.Source, err)
@@ -122,7 +136,7 @@ func (s *Service) subbotRunnerFor(parentPath string, runLogger *iterlog.Logger) 
 		if req.WorkDir != "" {
 			childWorkDir = req.WorkDir
 		}
-		childWf, hash, childBundle, err := CompileSubbotWorkflow(childPath, resolvedSource.Bundle, childWorkDir)
+		childWf, hash, childBundle, err := CompileSubbotWorkflow(childPath, resolvedSource.Bundle, childWorkDir, parentRun.Trust)
 		if err != nil {
 			return nil, fmt.Errorf("compile child %q: %w", req.Source, err)
 		}
@@ -153,24 +167,13 @@ func (s *Service) subbotRunnerFor(parentPath string, runLogger *iterlog.Logger) 
 		if childBundle != nil && childBundle.Manifest != nil {
 			bundleName = childBundle.Manifest.Name
 		}
-		// The parent's run document, read ONCE and used twice below: for the
-		// execution context a child seeds from, and for WHO WROTE THE CODE
-		// this child would spend a connector credential for.
-		parentRun, parentLoadErr := s.store.LoadRun(ctx, req.ParentRunID)
-		if parentLoadErr != nil {
-			parentRun = nil
-			if runLogger != nil {
-				runLogger.Warn("subbot: parent run %q does not load (%v): the child's connector trust stays unstated, so a mutating `action:` node is refused", req.ParentRunID, parentLoadErr)
-			}
-		}
-
 		// A subbot is a run of its own and resolves its own `action:` nodes:
 		// the child's catalog is the SERVICE's workspace, not the child
 		// bundle's directory, since the project tier belongs to the checkout
 		// the operator is acting on.
 		//
-		// Its TRUST is the parent's (subbotConnectorTrust).
-		childConnectors, childConnectorClient, cerr := s.localConnectors(childWf, "", subbotConnectorTrust(parentRun))
+		// Its TRUST is the parent's (ConnectorTrustOfRun).
+		childConnectors, childConnectorClient, cerr := s.localConnectors(childWf, "", ConnectorTrustOfRun(parentRun))
 		if cerr != nil {
 			releaseChild()
 			return nil, cerr
@@ -232,13 +235,10 @@ func (s *Service) subbotRunnerFor(parentPath string, runLogger *iterlog.Logger) 
 		// fires concurrently when the child fans out parallel branches, so
 		// the capture is mutex-guarded.
 		var capture SubbotOutputCapture
-		var childContextSeed *store.ExecutionContext
-		if parentRun != nil {
-			childContextSeed = parentRun.ExecutionContext.Clone()
-			if childContextSeed != nil {
-				childContextSeed.Workflow = store.WorkflowContext{}
-				childContextSeed.Lineage = store.LineageContext{}
-			}
+		childContextSeed := parentRun.ExecutionContext.Clone()
+		if childContextSeed != nil {
+			childContextSeed.Workflow = store.WorkflowContext{}
+			childContextSeed.Lineage = store.LineageContext{}
 		}
 		childContext := ResolveExecutionContext(ctx, s.store, childRunID, LaunchSpec{
 			FilePath:         childPath,
@@ -387,26 +387,40 @@ func (c *SubbotOutputCapture) ByNode() map[string]map[string]any {
 	return byNode
 }
 
-// subbotConnectorTrust is a child's connector trust, read off the PARENT's run
-// document — the same place pkg/runner's subbot reads it for
-// runtime.WithTrust.
+// SubbotParentTrust is the trust a sub-bot child is compiled for: its
+// parent's, read off the parent's run document — the child runs in the
+// parent's workspace, and the store stamps the same value on the child's
+// document when it creates it (store.ChildTrustFromParent). A parent that
+// cannot be read is refused, typed (store.ErrChildParentUnreadable), the rule
+// CreateChildRun applies: an unknown provenance never compiles as trusted.
+func SubbotParentTrust(ctx context.Context, st store.RunStore, parentRunID string) (store.RunTrust, error) {
+	parent, err := st.LoadRun(ctx, parentRunID)
+	if err != nil {
+		return "", fmt.Errorf("%w: sub-bot parent %q: %w", store.ErrChildParentUnreadable, parentRunID, err)
+	}
+	return parent.Trust, nil
+}
+
+// ConnectorTrustOfRun is the connector trust read off a run document: a
+// sub-bot child's PARENT (the same place pkg/runner's subbot reads it for
+// runtime.WithTrust), or the run an `iterion resume` replays.
 //
 // A child is a run of its own, but its code came out of the parent's
-// workspace, so inheriting is the only honest answer. A parent that does not
-// load leaves it UNSTATED rather than assumed: store.RunTrust's zero value is
-// the TRUSTED one, so "no document" and "the operator's own checkout" are the
-// same bytes, and only the resolver's ActionTrust can tell them apart. The
-// child still runs and still reads; a mutating `action:` node is refused
-// naming why.
+// workspace, so inheriting is the only honest answer; a resumed fork run is
+// still a fork run. A document that does not load leaves it UNSTATED rather
+// than assumed: store.RunTrust's zero value is the TRUSTED one, so "no
+// document" and "the operator's own checkout" are the same bytes, and only the
+// resolver's ActionTrust can tell them apart. The run still runs and still
+// reads; a mutating `action:` node is refused naming why.
 //
-// A named function rather than three lines at the call site: this is the one
+// A named function rather than three lines at each call site: this is the one
 // trust decision in the tree that is a RULE rather than a field read, and a
 // rule with no name has no test.
-func subbotConnectorTrust(parentRun *store.Run) connection.ActionTrust {
-	if parentRun == nil {
+func ConnectorTrustOfRun(run *store.Run) connection.ActionTrust {
+	if run == nil {
 		return connection.TrustUnknown()
 	}
-	return connection.TrustOfRun(parentRun.Trust)
+	return connection.TrustOfRun(run.Trust)
 }
 
 // RecordSubbotChild persists childRunID under req.ReattachKey on the parent

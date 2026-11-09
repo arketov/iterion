@@ -241,7 +241,11 @@ func claudeReadonlyWithheld() []string {
 //     (see formatOutput).
 func claudeSpawnBounds(task Task) []claudesdk.Option {
 	var opts []claudesdk.Option
-	if strictMCPFromEnv() {
+	// Strict on an untrusted workspace whatever the environment says: without
+	// it the CLI — whose cwd IS that checkout — merges the operator's personal
+	// servers and the servers its own scopes find there. The escape hatch is
+	// the trusted operator's, like the setting sources' floor.
+	if strictMCPFromEnv() || !task.WorkspaceTrust.Trusted() {
 		opts = append(opts, claudesdk.WithStrictMCPConfig(true))
 	}
 	opts = append(opts, claudesdk.WithDisallowedTools(claudeSpawnBoundWithheld(task)...))
@@ -843,7 +847,7 @@ func (b *ClaudeCodeBackend) buildSpawnOptions(task Task) ([]claudesdk.Option, fu
 		mark := sandboxDelegateMark(task)
 		se.end = killSandboxDelegateReporting(run, mark, ownerOf(b.Logger, task, BackendClaudeCode), sandboxSpawnFiles(mark)...)
 		opts = append(opts, claudesdk.WithCommandBuilder(func(ctx context.Context, path string, args []string, cwd string, env map[string]string, openStdin bool) *exec.Cmd {
-			env = claudeModelDefaultEnv(env)
+			env = claudeContextWindowEnv(claudeModelDefaultEnv(env), task)
 			// Surface the resolved CLI invocation so failures like
 			// "session ended without result" can be traced back to a
 			// concrete `docker exec` command. Without this every silent
@@ -886,7 +890,7 @@ func (b *ClaudeCodeBackend) buildSpawnOptions(task Task) ([]claudesdk.Option, fu
 			return SweepLocalNodeSession(b.Logger, task, BackendClaudeCode, token, se.sinceStart())
 		}
 		opts = append(opts, claudesdk.WithCommandBuilder(func(ctx context.Context, path string, args []string, cwd string, env map[string]string, openStdin bool) *exec.Cmd {
-			env = withNodeSessionEnv(claudeModelDefaultEnv(env), token)
+			env = claudeContextWindowEnv(withNodeSessionEnv(claudeModelDefaultEnv(env), token), task)
 			keys := make([]string, 0, len(env))
 			for k := range env {
 				keys = append(keys, k)
@@ -2022,32 +2026,57 @@ func claudeEnvPinsAndDropped(task Task) (map[string]string, []string) {
 // here, once. `autoMemoryDirectory` is one key the CLI refuses to read from a
 // checked-in `.claude/settings.json` at all, so the target repository cannot
 // redirect where the memory is written.
+//
+// The same object carries iterion's own plugin-contributed hook groups
+// (task.InjectedHooks) whenever the spawn does not load the `project` source —
+// the file those groups are merged into on a trusted run. Keyed on the
+// RESOLVED sources, not on the trust: an untrusted run (whose checkout scopes
+// claudeAmbient strips) and an operator's own `none` alike get them inline,
+// and a run that loads `project` does not configure them twice. Measured on
+// claude-code 2.1.220: a Stop hook passed through `--settings` with
+// `--setting-sources user` FIRES, and the same hook left only in the project
+// file does not.
 func claudeSpawnPins(task Task) (env map[string]string, settings []byte) {
 	env = claudeEnvPins(task)
 	_, memory := autoMemorySpawn(task)
-	excludes := claudeAmbient(task).excludes
-	settings, err := claudeFlagSettings(env, memory, excludes)
+	amb := claudeAmbient(task)
+	var hooks map[string][]any
+	if len(task.InjectedHooks) > 0 && !loadsProjectSource(amb.sources) {
+		hooks = task.InjectedHooks
+	}
+	settings, err := claudeFlagSettings(env, memory, amb.excludes, hooks)
 	if err != nil {
 		// Strings and a bool cannot fail to marshal. If they somehow did,
 		// enabling auto-memory without pinning the directory would send the
 		// agent's notes to the operator's personal memory instead of the
 		// run's space: stay off rather than write to the wrong place.
 		env[autoMemoryDisableEnv] = "1"
-		settings, _ = claudeFlagSettings(env, nil, excludes)
+		settings, _ = claudeFlagSettings(env, nil, amb.excludes, hooks)
 	}
 	return env, settings
 }
 
+// loadsProjectSource reports whether a resolved source list loads the
+// workspace's project settings — the file iterion's own hooks are merged
+// into on a trusted run.
+func loadsProjectSource(srcs []claudesdk.SettingSource) bool {
+	return slices.Contains(srcs, claudesdk.SettingSourceProject)
+}
+
 // claudeFlagSettings is the `--settings` object: the pinned environment as an
-// `env` block, the memory keys when there are any, and the memory files the
-// node's ambient-context policy keeps out (`claudeMdExcludes`).
-func claudeFlagSettings(env map[string]string, memory map[string]any, excludes []string) ([]byte, error) {
+// `env` block, the memory keys when there are any, the memory files the
+// node's ambient-context policy keeps out (`claudeMdExcludes`), and iterion's
+// own hook groups when the spawn loads no project source (claudeSpawnPins).
+func claudeFlagSettings(env map[string]string, memory map[string]any, excludes []string, hooks map[string][]any) ([]byte, error) {
 	settings := map[string]any{"env": env}
 	for key, value := range memory {
 		settings[key] = value
 	}
 	if len(excludes) > 0 {
 		settings["claudeMdExcludes"] = excludes
+	}
+	if len(hooks) > 0 {
+		settings["hooks"] = hooks
 	}
 	return json.Marshal(settings)
 }
@@ -2304,7 +2333,7 @@ func (b *ClaudeCodeBackend) formatOutput(ctx context.Context, task Task, session
 		mark := sandboxDelegateMark(task) + "-fmt"
 		fe.end = killSandboxDelegateReporting(run, mark, ownerOf(b.Logger, task, BackendClaudeCode), sandboxSpawnFiles(mark)...)
 		opts = append(opts, claudesdk.WithCommandBuilder(func(ctx context.Context, path string, args []string, cwd string, env map[string]string, openStdin bool) *exec.Cmd {
-			env = claudeModelDefaultEnv(env)
+			env = claudeContextWindowEnv(claudeModelDefaultEnv(env), task)
 			b.Logger.Info("claude-code [fmt]: exec %v (cwd=%s, env_keys=%d, stdin=%v)",
 				redactedArgvPreview(path, args), cwd, len(env), openStdin)
 			// The MCP catalog is moved into a private in-container file and
@@ -2338,7 +2367,7 @@ func (b *ClaudeCodeBackend) formatOutput(ctx context.Context, task Task, session
 			return SweepLocalNodeSession(b.Logger, task, BackendClaudeCode, token, fe.sinceStart())
 		}
 		opts = append(opts, claudesdk.WithCommandBuilder(func(ctx context.Context, path string, args []string, cwd string, env map[string]string, openStdin bool) *exec.Cmd {
-			env = withNodeSessionEnv(claudeModelDefaultEnv(env), token)
+			env = claudeContextWindowEnv(withNodeSessionEnv(claudeModelDefaultEnv(env), token), task)
 			cmd := proc.CommandContext(ctx, path, args...)
 			claudesdk.AdaptHostCmd(cmd, files.writePrivate) // npm claude.cmd shim → native claude.exe, or the system prompt into a file (Windows)
 			// Seed os.Environ() before the per-task entries — matching the

@@ -11,6 +11,7 @@ import (
 	"github.com/arketov/iterion/pkg/queue"
 	"github.com/arketov/iterion/pkg/runtime"
 	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/store"
 )
 
 func TestPodSubbotBundleResourceScope(t *testing.T) {
@@ -18,7 +19,7 @@ func TestPodSubbotBundleResourceScope(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			f := subbottest.New(t, kind)
 			r, st := subbotTestRunner(t)
-			wf, hash, b, err := runview.CompileWorkflowPath(f.Parent, "")
+			wf, hash, b, err := runview.CompileWorkflowPath(f.Parent, "", store.RunTrustDefault)
 			if err != nil {
 				t.Fatal(err)
 			}

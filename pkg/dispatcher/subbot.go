@@ -53,7 +53,6 @@ func subbotRunnerForDispatch(parentPath, storeDir, workDir string, s store.RunSt
 	if len(runEnv) > 0 {
 		projectEnv = runEnv[0]
 	}
-	sourceResolver := subbotsource.NewResolver(subbotsource.ResolverOptions{WorkDir: workDir})
 	return func(ctx context.Context, req runtime.SubbotRequest) (map[string]any, error) {
 		depth, _ := ctx.Value(subbotDepthKey{}).(int)
 		if depth >= maxSubbotDepth {
@@ -68,7 +67,15 @@ func subbotRunnerForDispatch(parentPath, storeDir, workDir string, s store.RunSt
 			childWorkDir = req.WorkDir
 		}
 
-		resolvedSource, err := sourceResolver.Resolve(ctx, parentPath, req.Source)
+		// The parent's trust decides whether `bot://` may resolve at all:
+		// read it before the source, so the refusal precedes any read of the
+		// checkout's lockfile. The resolver is per-request: the trust is.
+		trust, err := runview.SubbotParentTrust(ctx, s, req.ParentRunID)
+		if err != nil {
+			return nil, fmt.Errorf("subbot %s: %w", req.Source, err)
+		}
+		resolver := subbotsource.NewResolver(subbotsource.ResolverOptions{WorkDir: workDir, Trust: trust})
+		resolvedSource, err := resolver.Resolve(ctx, parentPath, req.Source)
 		if err != nil {
 			return nil, fmt.Errorf("resolve child %q: %w", req.Source, err)
 		}
@@ -79,7 +86,7 @@ func subbotRunnerForDispatch(parentPath, storeDir, workDir string, s store.RunSt
 		// The child's {{workspace}} is the tree its engine roots at — the
 		// effective childWorkDir resolved above, never the child .bot's
 		// directory (#1800).
-		childWf, hash, childBundle, err := runview.CompileSubbotWorkflow(childPath, resolvedSource.Bundle, childWorkDir)
+		childWf, hash, childBundle, err := runview.CompileSubbotWorkflow(childPath, resolvedSource.Bundle, childWorkDir, trust)
 		if err != nil {
 			return nil, fmt.Errorf("compile child %q: %w", req.Source, err)
 		}
@@ -167,10 +174,10 @@ func subbotRunnerForDispatch(parentPath, storeDir, workDir string, s store.RunSt
 		// The child resolves its OWN `action:` nodes, through the run's
 		// workspace — the same catalog the parent reads, and the same one the
 		// CLI would have given it.
-		// The child's trust is its parent's, and the parent is this dispatched
-		// run: a workspace the daemon prepared from the tenant's own
-		// repository (engine_runner.go says it at the parent's own wiring).
-		childConnectors, childConnectorClient, cerr := runview.LocalConnectors(childWf, workDir, storeDir, sealer, connection.TrustOfRun(store.RunTrustDefault))
+		// The child's trust is its parent's, read off the parent's document
+		// above for its compile: one value for the child's catalog and its
+		// connectors.
+		childConnectors, childConnectorClient, cerr := runview.LocalConnectors(childWf, workDir, storeDir, sealer, connection.TrustOfRun(trust))
 		if cerr != nil {
 			releaseLock()
 			return nil, fmt.Errorf("engine runner: connector catalog for child %q: %w", req.Source, cerr)

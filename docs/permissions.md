@@ -352,10 +352,35 @@ Matching semantics (`pkg/backend/permission`):
   under a `path:` prefix: `Grep(path:/run/iterion/secrets/**)` names the
   dimension explicitly, and a `dir/**` rule covers the call rooted AT `dir`
   because such a call reads what is under it. **LS**'s `path` reads the
-  same way. A Glob pattern is a path under its root: one that climbs
-  (`../../etc/*`) leaves it, so only a bare `Glob` or an unbounded scope
-  opens it, an `allow once` binds its pattern and asks again, and a
-  `deny:` meets where the climb lands — the pattern joined onto the root.
+  same way. A `dir/**` **deny** also binds a search rooted ABOVE `dir` —
+  at its parent or any ancestor — because that search walks the denied
+  tree whole while none of the call's spellings is under `dir` (#3086):
+  the containment is judged with the deny rules, at their rank, so no
+  `allow:` or grant reopens it and a refusal costs the agent one search
+  it can re-aim at a sibling. A scoped **ask** naming a tree re-gates the
+  same parent-rooted search — Ask, not Deny: the pause the operator wrote,
+  judged at the scoped ask's rank, so a grant already given still reopens
+  it. A Glob pattern is a path under its root: one
+  that climbs (`../../etc/*`) leaves it, so only a bare `Glob` or an
+  unbounded scope opens it, an `allow once` binds its pattern and asks
+  again, and a `deny:` meets where the climb lands — the pattern joined
+  onto the root. An ABSOLUTE Glob pattern is carried as written, so one
+  that reaches into a denied tree from an unrelated root meets the tree's
+  rule on the pattern dimension. A search that spells no `path` is not
+  rootless: the backend runs it from the directory the agent runs in, and
+  the closing verdicts read THAT as its root (#3086) — a deny on a tree
+  under the agent's directory binds the default, pathless spelling of a
+  search, while an allow keeps naming the tree it opens. An MCP server's
+  tool (`mcp__<server>__<verb>`, or the single-underscore spelling) holds
+  no row of any name table, so the filesystem-shaped key vocabulary is
+  read by the closing side alone — `path`, a move's `source` and
+  `destination`, and every element of a multi-read's `paths` list: a
+  `deny:` naming a tree binds an MCP search or listing rooted inside or
+  above it, and the verbs that carry no `path` —
+  `deny: ["mcp__fs__*(/run/iterion/secrets/**)"]`
+  bounds a filesystem server whole — while the opening side keeps the k=v
+  reading below, the gate knowing no MCP tool's argument semantics well
+  enough to open by path.
 - **WebFetch** patterns match `domain:<host>`, `<host>`, or the full URL,
   the host read the way a WHATWG fetcher reads it — claude_code's WebFetch
   parses with Node, and claw's Go fetcher dials that same host whenever it
@@ -372,9 +397,11 @@ Matching semantics (`pkg/backend/permission`):
   fetches it, and its host without port or root-zone dot. A URL the gate
   cannot read that way — another scheme, a host or port no fetcher accepts
   — opens no pattern and meets every scoped `deny:` and `ask:` on WebFetch.
-- **Any other tool** (MCP, custom) is scoped by its sorted `k=v`
+- **Any other tool** (custom) is scoped by its sorted `k=v`
   arguments; a value carrying a `..` segment keeps the call from every
   pattern but an unbounded one, the gate not knowing which value is a path.
+  An MCP tool's `path` value is the one exception, read as a search root by
+  the closing verdicts alone (see **Glob / Grep** above).
 - **Tool-name globs**: `*` (any tool) and `mcp__<server>__*`.
 - **Tool classes**: `class:shell` matches by the registry's capability
   metadata — the member set, not a spelling ([tool classes](#tool-classes)).
@@ -415,6 +442,27 @@ climb — `Read(../shared/**)` — opens nothing any more: a relative spelling
 that climbs above the agent's directory is read by no pattern. Write the
 tree absolute; the absolute form of the call still meets it.
 
+**Behaviour break (#3086).** A search or listing rooted at the PARENT (or
+any ancestor) of a denied tree is now refused, where it used to walk the
+denied tree with the gate's blessing: with allow `[Grep, Glob]` beside
+`deny: ["Grep(/run/iterion/secrets/**)"]`, a `Grep` from `/run/iterion` or
+`/` — and a `Glob{pattern: "secrets/*", path: "/run/iterion"}` — is a Deny,
+quoting the tree rule. So is the DEFAULT spelling of a search: one that
+spells no `path` reads the agent's own directory as its root on the closing
+side, and is refused whenever that directory contains a denied tree. The
+containment only ever CLOSES: it reads the same
+deny rules, judges at their rank, and binds nothing outside a tree a rule
+names. A scoped `ask:` naming a tree gains the same reach: a search rooted
+above the asked tree pauses for the operator (Ask, at the scoped ask's
+rank) instead of walking the tree on a bare allow. The refusal is the
+verdict on both backends — the gate has no
+backend-enforced exclusion to narrow a live search with (claude_code's
+built-in Grep takes no extra ripgrep flags from the hook path), and claw's
+own read tools are already narrower than the gate: `workspace_grep`/`glob`
+resolve every path into the workspace plus its declared read roots
+(`resolveReadPath`) and refuse anything outside, so the containment is what
+keeps a read root declared over a denied tree's parent from reopening it.
+
 **The run's secret locations are denied by construction (#1710).** Every
 gated node's policy is armed by the engine with deny trees over the
 well-known secret locations — the mounted file secrets
@@ -422,8 +470,20 @@ well-known secret locations — the mounted file secrets
 (`/tmp/iterion-claude-config`, `/tmp/iterion-codex-config`) — for the whole
 read AND write families, the listing and both search tools. "The agent
 cannot read the secrets" is a guarantee of the gate, not a `deny:` rule
-every author has to remember, and the write half keeps an agent from
-replacing the credential a seeded CLI spends. These rules are engine-owned:
+every author has to remember: a search or listing rooted at or above one of
+these trees (`/run/iterion`, `/tmp`, `/`) — or spelling no root at all,
+which the closing verdicts read as the agent's own directory — is refused
+as surely as one rooted inside it (#3086), and the write half keeps an
+agent from
+replacing the credential a seeded CLI spends. The armed families are the
+NATIVE ones (Read/Write/Edit/NotebookEdit, LS, Grep, Glob,
+`workspace_grep`); an MCP server the run attaches is the author's to bound —
+`deny: ["mcp__fs__*(/run/iterion/secrets/**)"]` covers a filesystem server
+whole, the closing side reading the filesystem-shaped keys (`path`, a move's
+`source`/`destination`, a multi-read's `paths` list) and not the singular
+`path` alone — because a non-filesystem server's `path` is no host path (a repo-virtual
+one would trip the containment on every call), so the engine arms no MCP
+glob of its own. These rules are engine-owned:
 no `allow:` or operator grant reopens them (deny wins in every mode), and
 they travel with the serialised policy to a child-process gate. The shell
 is deliberately NOT bound — it is the legitimate sink channel a secret is

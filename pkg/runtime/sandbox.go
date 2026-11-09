@@ -154,13 +154,17 @@ func connectorEndpointFor(boardEndpoint, boardPath string) string {
 }
 
 // workflowHasBoardCapability reports whether the workflow (or any of its
-// agent/judge nodes) declares a `board.*` capability — the gate for
-// starting the per-run board MCP listener.
-func workflowHasBoardCapability(wf *ir.Workflow) bool {
+// agent/judge nodes) holds a `board.*` capability — the gate for starting
+// the per-run board MCP listener. Held, not declared: the lists are read
+// through the workspace-trust floor (store.RunTrust.HostCapabilities), the
+// same resolver the executor hands each node, so a run whose nodes hold no
+// capability opens no listener for them to reach.
+func workflowHasBoardCapability(wf *ir.Workflow, trust store.RunTrust) bool {
 	if wf == nil {
 		return false
 	}
-	has := func(caps []string) bool {
+	has := func(declared []string) bool {
+		caps, _ := trust.HostCapabilities(declared)
 		for _, c := range caps {
 			if strings.HasPrefix(c, "board.") {
 				return true
@@ -188,15 +192,17 @@ func workflowHasBoardCapability(wf *ir.Workflow) bool {
 
 // workflowHasHostCapability gates the shared token-authenticated MCP
 // listener. Board tools use /board; read-only run tools use /runs on the same
-// listener and host-gateway alias.
-func workflowHasHostCapability(wf *ir.Workflow) bool {
-	if workflowHasBoardCapability(wf) {
+// listener and host-gateway alias. Read through the trust floor, like
+// workflowHasBoardCapability.
+func workflowHasHostCapability(wf *ir.Workflow, trust store.RunTrust) bool {
+	if workflowHasBoardCapability(wf, trust) {
 		return true
 	}
 	if wf == nil {
 		return false
 	}
-	has := func(caps []string) bool {
+	has := func(declared []string) bool {
+		caps, _ := trust.HostCapabilities(declared)
 		for _, capability := range caps {
 			if capability == runops.CapRunsRead || capability == connection.CapConnectors {
 				return true
@@ -1000,7 +1006,7 @@ func resolveAndStartSandbox(ctx context.Context, p SandboxParams) (*activeSandbo
 	// at `docker run` time — so the driver must know now that an
 	// endpoint will be advertised, proxy or no proxy (the default
 	// network: open starts none).
-	wantsBoardListener := p.BoardMCPHandler != nil && workflowHasHostCapability(p.Workflow)
+	wantsBoardListener := p.BoardMCPHandler != nil && workflowHasHostCapability(p.Workflow, p.Trust)
 	wantsAskUserListener := workflowHasInteractiveNode(p.Workflow)
 
 	info := sandbox.RunInfo{
@@ -3377,7 +3383,7 @@ func (e *Engine) adoptSharedSandbox(ctx context.Context, runID string, emitForSa
 		// by beginRunResources and restored when this child's scope ends. This
 		// refills them from the child's host mirror.
 		var werr error
-		pushed, werr = writeThroughMirroredSkills(ctx, e.workDir, refresher, e.logger)
+		pushed, werr = writeThroughMirroredSkills(ctx, e.workDir, e.trust, refresher, e.logger)
 		if werr != nil {
 			return devboxCleanup, fmt.Errorf("runtime: the engine-owned skills copy did not land in the adopted sandbox, whose own copy was emptied for this child; a reader would report every name it cannot find as not covered: %w", werr)
 		}
@@ -3395,7 +3401,7 @@ func (e *Engine) adoptSharedSandbox(ctx context.Context, runID string, emitForSa
 	// (interaction semantics stay host-side, per run). A listener the parent
 	// never started is one the child does not get — the delegate falls back
 	// per node, loudly, and the event says so.
-	wantsBoard := workflowHasBoardCapability(e.workflow)
+	wantsBoard := workflowHasBoardCapability(e.workflow, e.trust)
 	wantsAskUser := workflowHasInteractiveNode(e.workflow)
 	if e.logger != nil {
 		if wantsBoard && shared.BoardEndpoint == "" {
@@ -3458,8 +3464,20 @@ func (e *Engine) adoptSharedSandbox(ctx context.Context, runID string, emitForSa
 // entry for a name reports it as not covered. That is a security verdict
 // quietly downgraded — the outcome the reset exists to prevent — so adoption
 // fails closed at both halves or neither.
-func writeThroughMirroredSkills(ctx context.Context, workDir string, refresher sandbox.WorkspaceFileRefresher, logger *iterlog.Logger) (int, error) {
+func writeThroughMirroredSkills(ctx context.Context, workDir string, trust store.RunTrust, refresher sandbox.WorkspaceFileRefresher, logger *iterlog.Logger) (int, error) {
 	const perFile = 30 * time.Second
+	// Every READ here crosses a boundary: what it reads is pushed into the
+	// container the agent runs in. So the reads go through the workspace
+	// handle too, not only the writes — the walk filter below guards which
+	// entries are visited and nothing else, and os.ReadFile/os.Stat follow a
+	// link wherever it points. On the cloud runner the host on the other end
+	// of such a link is the pod: its credentials file, its service-account
+	// token, its environ.
+	wr, oerr := openWorkspaceRoot(workDir, trust)
+	if oerr != nil {
+		return 0, fmt.Errorf("runtime: open the workspace handle for write-through: %w", oerr)
+	}
+	defer wr.Close()
 	n := 0
 	var ownedErr error
 	push := func(path string, owned bool) {
@@ -3470,7 +3488,7 @@ func writeThroughMirroredSkills(ctx context.Context, workDir string, refresher s
 			}
 			return
 		}
-		body, rerr := os.ReadFile(path)
+		body, rerr := wr.ReadFile(path)
 		if rerr != nil {
 			if owned && ownedErr == nil {
 				ownedErr = fmt.Errorf("runtime: read %s for write-through: %w", rel, rerr)
@@ -3503,8 +3521,31 @@ func writeThroughMirroredSkills(ctx context.Context, workDir string, refresher s
 				}
 				return nil
 			}
-			if !d.IsDir() {
+			// The walk filter differs by lane. On an UNTRUSTED checkout it is
+			// IsRegular, not !IsDir: WalkDir does not descend into a symlinked
+			// DIRECTORY, but it reports a symlinked FILE with IsDir() == false
+			// and the read would follow it — carrying an arbitrary host file
+			// into the container under a name the checkout chose. A link that
+			// stays inside the workspace loses nothing: its bytes are the
+			// checkout's own and already in the copy. On a TRUSTED workspace the
+			// filter stays the pre-handle !IsDir(): the operator's own
+			// arrangement (a skills entry symlinked into a shared dotfiles
+			// tree) rides today and keeps riding — ADR-162 leaves a trusted
+			// run's behavior unchanged outside the points it names, and this
+			// walk is not one of them.
+			if d.Type().IsRegular() || (trust.Trusted() && !d.IsDir()) {
 				push(path, owned)
+				return nil
+			}
+			// A skipped link is said, never silent: on the untrusted lane the
+			// reader of the child's copy would otherwise report the name not
+			// covered with no trace of why.
+			if !trust.Trusted() && d.Type()&os.ModeSymlink != 0 && logger != nil {
+				rel := path
+				if r, rerr := filepath.Rel(workDir, path); rerr == nil {
+					rel = filepath.ToSlash(r)
+				}
+				logger.Warn("runtime: write-through skips the symlinked %s — an untrusted workspace's links never cross into the child's sandbox", rel)
 			}
 			return nil
 		})

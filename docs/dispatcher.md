@@ -629,7 +629,7 @@ record that carries no column-entry time counts as an unfinished transition.
 With `completed_state: none` there is nothing to complete and the old
 behaviour stays. The cloud dispatcher keeps its own watchdog for finished
 runs; this guard is the native tracker's. Design record:
-[ADR-163](adr/163-finish-worker-retries-completed-state-move.md).
+[ADR-166](adr/166-finish-worker-retries-completed-state-move.md).
 
 #### `completed_state` and eligible columns
 

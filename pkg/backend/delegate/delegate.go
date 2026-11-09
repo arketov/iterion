@@ -576,8 +576,39 @@ type Task struct {
 	// Zero means "use the backend default" (typically 8192).
 	MaxTokens int
 
+	// ContextWindow is the catalog context window (tokens) of the model the
+	// task resolves to, when a table the runtime trusts knows it; zero when
+	// unknown. The claude_code CLI-harness backend stamps it into
+	// CLAUDE_CODE_MAX_CONTEXT_TOKENS at spawn so the harness compacts BEFORE
+	// the provider ceiling instead of dying on it; an explicit env setting
+	// always wins. (The claw backend name is registered in production to the
+	// model package's direct-API ClawBackend — runview's executor — which
+	// resolves the window per call and never reads this field.)
+	ContextWindow int
+
 	// WorkDir is the working directory for the CLI subprocess.
 	WorkDir string
+
+	// WorkspaceTrust says who wrote the code in WorkDir — the run's
+	// store.RunTrust, resolved once per run by the engine and stamped here by
+	// the executor beside WorkDir (model's stampWorkspace), never re-derived
+	// from the workspace. It crosses the sandbox wire with WorkDir (IOTask),
+	// and an untrusted task's processes carry it in their environment
+	// (envtrust.EnvRunTrust). The zero value is trusted: a floor reads it
+	// with Trusted(), so a value this binary does not recognise loses as an
+	// untrusted one does.
+	WorkspaceTrust store.RunTrust
+
+	// InjectedHooks are the plugin-contributed hook groups ITERION resolved
+	// for this run, handed down in memory by the engine (they are what
+	// runtime's mergePluginHooks computes). On a trusted workspace they ride
+	// the workspace's settings.json, where the runtime merged them, and this
+	// field is not consulted. On a workspace the tenant did not write they
+	// are the ONLY hooks that run — the file is the checkout's, so it is
+	// neither their authority nor allowed to veto them: claude_code gets them
+	// through the inline --settings layer, claw registers them from this
+	// record, and nothing the checkout writes reaches either path.
+	InjectedHooks map[string][]any
 
 	// HomeScope is the engine-owned identity of the runner's HOME: run-scoped
 	// on the trunk, branch-scoped inside fan-out. It deliberately stays

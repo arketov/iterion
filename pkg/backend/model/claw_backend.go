@@ -653,9 +653,23 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 	if task.WorkDir != "" || len(task.SettingsHooks) > 0 {
 		merged := NewDefaultLifecycleHooks(b.hooks)
 		wired := 0
-		if len(task.SettingsHooks) > 0 {
+		switch {
+		case !task.WorkspaceTrust.Trusted():
+			// The hooks document is READ FROM THE WORKSPACE — on a checkout
+			// the tenant did not write, wiring it hands the fork command
+			// execution under the operator's hooks runner, whatever form the
+			// document arrived in (the wire carries the same file's bytes).
+			// The checkout's own hooks are REFUSED, and iterion's own
+			// plugin-contributed groups wire from the in-memory record
+			// instead: the file is neither their authority nor allowed to
+			// veto them (registerInjectedHooks).
+			if b.logger != nil {
+				b.logger.Warn("[%s#%d/claw] the workspace is untrusted — its .claude/settings.json hooks are REFUSED; iterion's own hook groups wire from memory", task.NodeID, task.Iteration)
+			}
+			wired = registerInjectedHooks(merged, task.InjectedHooks, b.logger)
+		case len(task.SettingsHooks) > 0:
 			wired = registerSettingsHooksJSON(merged, task.SettingsHooks, b.logger)
-		} else {
+		default:
 			wired = registerSettingsHooks(merged, task.WorkDir, b.logger)
 		}
 		if wired > 0 {
@@ -703,7 +717,16 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 		}
 	}
 
-	if m := task.Memory; m != nil {
+	// The bot's `memory:` space is the tenant's, like auto-memory's: its index
+	// and autoload go into the system prompt, its tools read and write it. On
+	// a workspace the tenant did not write, the reading hands the fork's agent
+	// the tenant's notes and the writing plants the fork's text where later
+	// trusted runs read it. Withdrawn out loud; the node runs without it.
+	if m := task.Memory; m != nil && !task.WorkspaceTrust.Trusted() {
+		if b.logger != nil {
+			b.logger.Warn("[%s] memory: withdrawn — this run's workspace was not written by its tenant, and the memory space is the tenant's (neither its notes nor its tools are handed to this agent)", task.NodeID)
+		}
+	} else if m := task.Memory; m != nil {
 		// Resolve the memory base path: project_root re-roots the scope
 		// under the run's RepoRoot so dispatcher worktrees + Nexie share
 		// the same tree; falls back to WorkDir when RepoRoot is empty
@@ -901,14 +924,14 @@ func askUserResult(err error) (delegate.Result, bool) {
 // stamp would read as an output rather than as a bill, and the engine's own
 // guard already skips a spendless failure. A call whose usage went
 // unreported is no such zero: its bill is unknown, and the map says so.
-func meteredFailure(task delegate.Task, usage Usage) delegate.Result {
+func meteredFailure(ctx context.Context, task delegate.Task, usage Usage) delegate.Result {
 	if usage.InputTokens == 0 && usage.OutputTokens == 0 && usage.UnreportedCalls == 0 {
 		return delegate.Result{}
 	}
 	output := map[string]any{}
-	tokens := annotateUsage(output, task.Model, usage)
+	tokens := annotateUsage(ctx, output, task.Model, usage)
 	return delegate.Result{
-		CostUSD:         cost.EstimateUSD(task.Model, usage.InputTokens, usage.OutputTokens),
+		CostUSD:         estimateUsageCost(ctx, task.Model, usage),
 		UnreportedCalls: usage.UnreportedCalls,
 		EffectiveModel:  task.Model,
 		Output:          output,
@@ -922,13 +945,25 @@ func meteredFailure(task delegate.Task, usage Usage) delegate.Result {
 // annotateUsage stamps a generation's usage onto its output: the `_tokens` /
 // `_model` / `_cost_usd` keys, and the count of calls whose usage the
 // provider did not report, for which those figures are a lower bound.
-func annotateUsage(output map[string]any, model string, u Usage) int {
+func annotateUsage(ctx context.Context, output map[string]any, model string, u Usage) int {
 	cost.SetUnreportedCalls(output, u.UnreportedCalls)
-	return cost.Annotate(output, model, u.InputTokens, u.OutputTokens)
+	return cost.AnnotateWithCacheInEnv(ctx, output, model, u.InputTokens, u.OutputTokens, u.CacheReadTokens)
+}
+
+// estimateUsageCost prices one metered usage through the environment the
+// invocation carries — the feed-table channel (ADR-163): the CostUSD a
+// result reports and the `_cost_usd` annotateUsage stamps read the same
+// table the dispatch's `_gateway_spec` stamp resolved from.
+func estimateUsageCost(ctx context.Context, model string, u Usage) float64 {
+	return cost.EstimateUSDWithCacheInEnv(ctx, model, u.InputTokens, u.OutputTokens, u.CacheReadTokens)
 }
 
 // clawCostEstimate is the backend's own price lookup, named so a test can
-// read a call's cost from the same table the result is built from.
+// read a call's cost from the same table the result is built from. It is
+// deliberately pre-cache (no cache-share parameter): the tests using it
+// price witness calls that carry no cache read, and a cache-carrying usage
+// is priced by the EstimateUSDWithCache sites above, never cheaper than
+// this figure.
 func clawCostEstimate(modelSpec string, inputTokens, outputTokens int) float64 {
 	return cost.EstimateUSD(modelSpec, inputTokens, outputTokens)
 }
@@ -1006,7 +1041,7 @@ func (b *ClawBackend) generateStructured(ctx context.Context, client api.APIClie
 		logReaskCallFailure(b.logger, task.NodeID, err)
 		var structured *StructuredOutputError
 		if errors.As(err, &structured) {
-			fallback := meteredFailure(task, objectUsage(result))
+			fallback := meteredFailure(ctx, task, objectUsage(result))
 			fallback.ParseFallback = true
 			fallback.ParseError = structured.Error()
 			if fallback.Output == nil {
@@ -1018,7 +1053,7 @@ func (b *ClawBackend) generateStructured(ctx context.Context, client api.APIClie
 			}
 			return fallback, nil
 		}
-		return meteredFailure(task, objectUsage(result)), fmt.Errorf("claw backend: structured generation: %w", err)
+		return meteredFailure(ctx, task, objectUsage(result)), fmt.Errorf("claw backend: structured generation: %w", err)
 	}
 	captureSessionMessages(ctx, taskSessionKey(task), &TextResult{Messages: result.Messages})
 
@@ -1027,10 +1062,10 @@ func (b *ClawBackend) generateStructured(ctx context.Context, client api.APIClie
 		output = make(map[string]any)
 	}
 
-	tokens := annotateUsage(output, task.Model, result.TotalUsage)
+	tokens := annotateUsage(ctx, output, task.Model, result.TotalUsage)
 
 	return delegate.Result{
-		CostUSD:         cost.EstimateUSD(task.Model, result.TotalUsage.InputTokens, result.TotalUsage.OutputTokens),
+		CostUSD:         estimateUsageCost(ctx, task.Model, result.TotalUsage),
 		UnreportedCalls: result.TotalUsage.UnreportedCalls,
 		EffectiveModel:  task.Model,
 		Output:          output,
@@ -1055,14 +1090,14 @@ func (b *ClawBackend) generateText(ctx context.Context, client api.APIClient, ta
 		if r, ok := askUserResult(err); ok {
 			return r, nil
 		}
-		return meteredFailure(task, partialUsage(result)), fmt.Errorf("claw backend: text generation: %w", err)
+		return meteredFailure(ctx, task, partialUsage(result)), fmt.Errorf("claw backend: text generation: %w", err)
 	}
 
 	output := map[string]any{"text": result.Text}
-	tokens := annotateUsage(output, task.Model, result.TotalUsage)
+	tokens := annotateUsage(ctx, output, task.Model, result.TotalUsage)
 
 	return delegate.Result{
-		CostUSD:         cost.EstimateUSD(task.Model, result.TotalUsage.InputTokens, result.TotalUsage.OutputTokens),
+		CostUSD:         estimateUsageCost(ctx, task.Model, result.TotalUsage),
 		UnreportedCalls: result.TotalUsage.UnreportedCalls,
 		EffectiveModel:  task.Model,
 		Output:          output,
@@ -1155,7 +1190,7 @@ func (b *ClawBackend) generateTextWithToolsAndSchema(ctx context.Context, client
 		if r, ok := askUserResult(err); ok {
 			return r, nil
 		}
-		return meteredFailure(task, partialUsage(result)), fmt.Errorf("claw backend: text+tools generation: %w", err)
+		return meteredFailure(ctx, task, partialUsage(result)), fmt.Errorf("claw backend: text+tools generation: %w", err)
 	}
 
 	// A tool-equipped reviewer/judge that ended the loop WITHOUT calling a
@@ -1211,7 +1246,7 @@ func (b *ClawBackend) generateTextWithToolsAndSchema(ctx context.Context, client
 				// if that one fails too this is the figure the node reports.
 				abandoned := result.TotalUsage
 				accumulateUsage(&abandoned, partialUsage(reRun))
-				return meteredFailure(task, abandoned), fmt.Errorf("claw backend: nudge re-run: %w", reErr)
+				return meteredFailure(ctx, task, abandoned), fmt.Errorf("claw backend: nudge re-run: %w", reErr)
 			}
 			// Falling through to recovery: the nudge was billed too, so its
 			// partial usage rides the first pass's into every exit below.
@@ -1227,9 +1262,9 @@ func (b *ClawBackend) generateTextWithToolsAndSchema(ctx context.Context, client
 	if text != "" {
 		var output map[string]any
 		if err := json.Unmarshal([]byte(text), &output); err == nil {
-			tokens := annotateUsage(output, task.Model, result.TotalUsage)
+			tokens := annotateUsage(ctx, output, task.Model, result.TotalUsage)
 			return delegate.Result{
-				CostUSD:         cost.EstimateUSD(task.Model, result.TotalUsage.InputTokens, result.TotalUsage.OutputTokens),
+				CostUSD:         estimateUsageCost(ctx, task.Model, result.TotalUsage),
 				UnreportedCalls: result.TotalUsage.UnreportedCalls,
 				EffectiveModel:  task.Model,
 				Output:          output,
@@ -1256,9 +1291,9 @@ func (b *ClawBackend) generateTextWithToolsAndSchema(ctx context.Context, client
 		var output map[string]any
 		if raw != nil && json.Unmarshal(raw, &output) == nil {
 			b.logger.Warn("[%s] structured output read from the %s of the tool loop's final turn — its text held no JSON object to parse", task.NodeID, source)
-			tokens := annotateUsage(output, task.Model, result.TotalUsage)
+			tokens := annotateUsage(ctx, output, task.Model, result.TotalUsage)
 			return delegate.Result{
-				CostUSD:         cost.EstimateUSD(task.Model, result.TotalUsage.InputTokens, result.TotalUsage.OutputTokens),
+				CostUSD:         estimateUsageCost(ctx, task.Model, result.TotalUsage),
 				UnreportedCalls: result.TotalUsage.UnreportedCalls,
 				EffectiveModel:  task.Model,
 				Output:          output,
@@ -1325,9 +1360,9 @@ func (b *ClawBackend) generateTextWithToolsAndSchema(ctx context.Context, client
 		}
 		both := result.TotalUsage
 		accumulateUsage(&both, obj.TotalUsage)
-		tokens := annotateUsage(obj.Object, task.Model, both)
+		tokens := annotateUsage(ctx, obj.Object, task.Model, both)
 		return delegate.Result{
-			CostUSD:            cost.EstimateUSD(task.Model, both.InputTokens, both.OutputTokens),
+			CostUSD:            estimateUsageCost(ctx, task.Model, both),
 			UnreportedCalls:    both.UnreportedCalls,
 			EffectiveModel:     task.Model,
 			Output:             obj.Object,
@@ -1375,9 +1410,9 @@ func (b *ClawBackend) generateTextWithToolsAndSchema(ctx context.Context, client
 				prevThinkingMs = obj.TotalUsage.ThinkingMs
 			}
 			accumulateUsage(&both, obj2.TotalUsage)
-			tokens := annotateUsage(obj2.Object, task.Model, both)
+			tokens := annotateUsage(ctx, obj2.Object, task.Model, both)
 			return delegate.Result{
-				CostUSD:            cost.EstimateUSD(task.Model, both.InputTokens, both.OutputTokens),
+				CostUSD:            estimateUsageCost(ctx, task.Model, both),
 				UnreportedCalls:    both.UnreportedCalls,
 				EffectiveModel:     task.Model,
 				Output:             obj2.Object,
@@ -1425,13 +1460,13 @@ func (b *ClawBackend) generateTextWithToolsAndSchema(ctx context.Context, client
 		// top of it, and the node has nothing to show for either. The error
 		// says what every turn came back with, so the next run is fixed at
 		// its cause rather than re-run blind.
-		return meteredFailure(task, billed), fmt.Errorf("claw backend: text+tools generation produced empty response after tool loop and structured-output recovery failed — the tool loop's final turn: %s; the recovery pass: %v",
+		return meteredFailure(ctx, task, billed), fmt.Errorf("claw backend: text+tools generation produced empty response after tool loop and structured-output recovery failed — the tool loop's final turn: %s; the recovery pass: %v",
 			describeFinalTurn(final, stepMaxTokens(final, opts), recErr), recErr)
 	}
 	output := map[string]any{"text": text}
-	tokens := annotateUsage(output, task.Model, billed)
+	tokens := annotateUsage(ctx, output, task.Model, billed)
 	return delegate.Result{
-		CostUSD:         cost.EstimateUSD(task.Model, billed.InputTokens, billed.OutputTokens),
+		CostUSD:         estimateUsageCost(ctx, task.Model, billed),
 		UnreportedCalls: billed.UnreportedCalls,
 		EffectiveModel:  task.Model,
 		Output:          output,
@@ -1719,6 +1754,14 @@ func (b *ClawBackend) executeViaSandboxRunner(ctx context.Context, task delegate
 	// EnvEngineChild). Set here rather than forwarded: the engine spawning the
 	// runner is the fact it records.
 	runnerEnv[envtrust.EnvEngineChild] = "1"
+	// An untrusted task's trust rides the runner's environment too, so the
+	// runner's own main() never loads the workspace `.env` (the force hatch
+	// included) and every process it starts inherits the carrier. A trusted
+	// task's runner sees no such entry.
+	if entry, ok := RunTrustEnvEntry(task.WorkspaceTrust); ok {
+		k, v, _ := strings.Cut(entry, "=")
+		runnerEnv[k] = v
+	}
 	// A policy-isolated sandbox only lets egress through the run's network
 	// proxy — and the gateway client (openai_compatible/*) NEVER trusts an
 	// ambient HTTPS_PROXY by design: it dials direct unless the engine
@@ -1998,6 +2041,24 @@ func (b *ClawBackend) executeViaSandboxRunner(ctx context.Context, task delegate
 		}
 	}
 
+	// An untrusted task's trust, announced before the task: a runner binary
+	// that predates IOTask.WorkspaceTrust would rebuild the task as trusted,
+	// and the unknown pre-task envelope makes it refuse instead
+	// (delegate.EnvelopeWorkspaceTrust). A trusted task sends nothing.
+	if !task.WorkspaceTrust.Trusted() {
+		trustEnv, err := delegate.NewWorkspaceTrustEnvelope(task.WorkspaceTrust)
+		if err != nil {
+			_ = cmd.Process.Kill()
+			_ = wait()
+			return delegate.Result{}, fmt.Errorf("claw backend: build workspace_trust envelope: %w", err)
+		}
+		if err := mux.Send(trustEnv); err != nil {
+			_ = cmd.Process.Kill()
+			_ = wait()
+			return delegate.Result{}, fmt.Errorf("claw backend: send workspace_trust: %w", err)
+		}
+	}
+
 	// Send the task envelope — built and sized before the spawn. The runner
 	// blocks on its EnvelopeReader.Read() until this arrives.
 	if err := mux.Send(taskEnv); err != nil {
@@ -2237,7 +2298,7 @@ func (b *ClawBackend) runnerIOTask(task delegate.Task, funds map[string]credrout
 	// The crossing's record of the env it composed: the runner names what
 	// each of its calls spends through it (NewSandboxRunnerRegistry).
 	ioTask.CredentialFunds = funds
-	ioTask.SettingsHooks = settingsHooksForWire(task.WorkDir, task.NodeID, task.Iteration, b.logger)
+	ioTask.SettingsHooks = settingsHooksForWire(task.WorkDir, task.NodeID, task.Iteration, task.WorkspaceTrust, b.logger)
 	ioTask.Retry = b.retry.wire()
 	// The runner's read tools take the container's scratch as a read root
 	// (#2650): the bot's briefs live under ${PROJECT_SCRATCH_DIR}, outside
@@ -2288,7 +2349,20 @@ func (b *ClawBackend) runnerIOTask(task delegate.Task, funds map[string]credrout
 // there is nothing useful to ship (no document, or one claw cannot parse — a
 // document of the wrong JSON type is warned about here, never shipped in
 // silence).
-func settingsHooksForWire(workDir, nodeID string, iteration int, logger *iterlog.Logger) json.RawMessage {
+func settingsHooksForWire(workDir, nodeID string, iteration int, trust store.RunTrust, logger *iterlog.Logger) json.RawMessage {
+	if !trust.Trusted() {
+		// The document is the workspace's own: on a checkout the tenant did
+		// not write, shipping it into the sandbox crossing hands the fork the
+		// in-container hooks runner. Wire NOTHING from the file, and say so on
+		// the side that owns the refusal. Iterion's own plugin-contributed
+		// groups cross on their own field instead (IOTask.InjectedHooks) and
+		// the in-container Execute registers them from that record
+		// (registerInjectedHooks).
+		if logger != nil {
+			logger.Warn("[%s#%d/claw] the workspace is untrusted — its .claude/settings.json hooks are REFUSED, none cross", nodeID, iteration)
+		}
+		return nil
+	}
 	doc, err := readSettingsHooksDoc(workDir)
 	if err != nil {
 		if logger != nil {
@@ -2858,7 +2932,29 @@ func forwardableProviderEnv(ctx context.Context, model, providerHint string) (ma
 		env[compatgw.ReasoningEffortsEnv] = envtrust.Inherited(compatgw.ReasoningEffortsEnv)
 		env[compatgw.CatalogProviderEnv] = ""
 		env[compatgw.ResolvedEnvName] = ""
-		if resolved := compatgw.ResolveCatalog(modelroute.Parse(model).Wire, modelspecs.Default(), envtrust.Inherited); resolved.Known() {
+		// The run's price-feed table crosses beside them, the same
+		// explicit-empty contract: absent, the workspace .env would fill
+		// the name and the in-container catalog would read a table no
+		// server folded (catalogEnv refuses it — but the refusal must not
+		// depend on the mark alone). Present, it answers between the
+		// record and the operator table for every id the run's feeds
+		// carry, with the record still first for THIS node's id.
+		env[compatgw.FeedTableEnv] = ""
+		// Inherited, the same reader the record's own resolution two
+		// lines below uses: the overlay answers as itself, and a value
+		// the process read as PLANTED forwards as the explicit empty —
+		// the crossing's refill must not be the one planted-accepting
+		// reader in a branch whose every other read refuses the mark.
+		if feedTable := credroute.Inherited(ctx, compatgw.FeedTableEnv); feedTable != "" {
+			env[compatgw.FeedTableEnv] = feedTable
+		}
+		// Resolved through the environment THIS context carries — the
+		// run's feed table included, so a feed-priced node crosses a
+		// record whose numbers the container's own meter agrees with.
+		// Inherited's planted-name verdict is the point (#2813): a table
+		// a workspace .env planted still reads as unset here, whatever
+		// the ctx carries — the inline closure is the #2808 idiom.
+		if resolved := compatgw.ResolveCatalog(modelroute.Parse(model).Wire, modelspecs.Default(), func(name string) string { return credroute.Inherited(ctx, name) }); resolved.Known() {
 			if raw, merr := json.Marshal(compatgw.ForwardableRecord(modelroute.Parse(model).Wire, resolved)); merr == nil {
 				env[compatgw.ResolvedEnvName] = string(raw)
 			}

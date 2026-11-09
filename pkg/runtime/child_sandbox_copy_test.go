@@ -7,10 +7,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/arketov/iterion/pkg/backend/compatgw"
 	"github.com/arketov/iterion/pkg/dsl/ir"
+	iterlog "github.com/arketov/iterion/pkg/log"
 	"github.com/arketov/iterion/pkg/sandbox"
 	"github.com/arketov/iterion/pkg/secrets"
 	"github.com/arketov/iterion/pkg/store"
@@ -71,6 +73,109 @@ func writeClaudeFile(t *testing.T, root, rel, body string) string {
 	return p
 }
 
+// recordingRefresher captures what the write-through pushes, byte for byte.
+type writeThroughRecorder struct{ pushed map[string]string }
+
+func (r *writeThroughRecorder) RefreshWorkspaceFile(_ context.Context, relPath string, value []byte) error {
+	if r.pushed == nil {
+		r.pushed = map[string]string{}
+	}
+	r.pushed[relPath] = string(value)
+	return nil
+}
+
+// TestWriteThroughMirroredSkills_ASymlinkedFileNeverCrosses: on the
+// UNTRUSTED lane every read the write-through performs lands in the container
+// the agent runs in, under a name the CHECKOUT chose — a committed
+// `.claude/skills/evil.md` symlink never crosses, wherever it points, and the
+// skip is said on the log (a silent skip leaves the child's reader reporting
+// the name not covered with no trace of why). On the TRUSTED lane the walk
+// keeps the pre-handle !IsDir() behavior: the operator's own arrangement — a
+// skills entry symlinked into a shared dotfiles tree — still rides, because
+// ADR-162 leaves a trusted run unchanged outside the points it names and this
+// walk is not one of them.
+//
+// Mutations: applying IsRegular to BOTH lanes reddens the trusted arm (the
+// operator's link stops riding); restoring !IsDir() on the untrusted lane
+// reddens the untrusted arm (the in-workspace alias is pushed — the
+// outside-pointing link alone would not red it: the rooted handle refuses
+// that read itself, which is belt, not the filter's suspenders).
+func TestWriteThroughMirroredSkills_ASymlinkedFileNeverCrosses(t *testing.T) {
+	t.Run("untrusted", func(t *testing.T) {
+		host := t.TempDir()
+		writeClaudeFile(t, host, ".claude/skills/real.md", "the real skill")
+		secret := filepath.Join(t.TempDir(), "operator-secret")
+		if err := os.WriteFile(secret, []byte("HOST SECRET BYTES"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(secret, filepath.Join(host, ".claude", "skills", "evil.md")); err != nil {
+			t.Fatal(err)
+		}
+		// The in-workspace alias is what pins the FILTER: the rooted handle
+		// already refuses the outside-pointing link above, so only a link the
+		// handle would follow makes the filter's deletion observable.
+		if err := os.Symlink("real.md", filepath.Join(host, ".claude", "skills", "alias.md")); err != nil {
+			t.Fatal(err)
+		}
+		var buf bytes.Buffer
+		rec := &writeThroughRecorder{}
+		n, werr := writeThroughMirroredSkills(context.Background(), host, store.RunTrustFork, rec,
+			iterlog.New(iterlog.LevelWarn, &buf))
+		if werr != nil {
+			t.Fatalf("write-through: %v", werr)
+		}
+		if n != 1 || len(rec.pushed) != 1 {
+			t.Fatalf("pushed %v, want exactly the one real file", rec.pushed)
+		}
+		if rec.pushed[".claude/skills/real.md"] != "the real skill" {
+			t.Errorf("the real skill did not cross intact: %v", rec.pushed)
+		}
+		for rel, body := range rec.pushed {
+			if body == "HOST SECRET BYTES" {
+				t.Errorf("the host file crossed the boundary as %q", rel)
+			}
+			if rel == ".claude/skills/alias.md" {
+				t.Errorf("the checkout's symlink crossed under its own name: %v", rec.pushed)
+			}
+		}
+		for _, name := range []string{"evil.md", "alias.md"} {
+			if !strings.Contains(buf.String(), name) {
+				t.Errorf("the skipped link %s was not said on the log, got: %q", name, buf.String())
+			}
+		}
+	})
+
+	t.Run("trusted", func(t *testing.T) {
+		host := t.TempDir()
+		writeClaudeFile(t, host, ".claude/skills/real.md", "the real skill")
+		// The dotfiles arrangement: the skill's bytes live OUTSIDE the walked
+		// roots, the workspace carries a link to them.
+		dotfiles := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dotfiles, "shared-skill.md"), []byte("the dotfiles skill"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(filepath.Join(dotfiles, "shared-skill.md"), filepath.Join(host, ".claude", "skills", "shared.md")); err != nil {
+			t.Fatal(err)
+		}
+		var buf bytes.Buffer
+		rec := &writeThroughRecorder{}
+		n, werr := writeThroughMirroredSkills(context.Background(), host, store.RunTrustDefault, rec,
+			iterlog.New(iterlog.LevelWarn, &buf))
+		if werr != nil {
+			t.Fatalf("write-through: %v", werr)
+		}
+		if n != 2 || len(rec.pushed) != 2 {
+			t.Fatalf("pushed %v, want the real file and the operator's symlinked skill", rec.pushed)
+		}
+		if rec.pushed[".claude/skills/shared.md"] != "the dotfiles skill" {
+			t.Errorf("the operator's symlinked skill did not ride: %v", rec.pushed)
+		}
+		if strings.Contains(buf.String(), "skips the symlinked") {
+			t.Errorf("the trusted lane logged an untrusted-only skip: %q", buf.String())
+		}
+	})
+}
+
 // TestTheCopyAChildReadsMatchesTheHostAfterAdoption.
 //
 // adoptSharedSandbox runs TWO steps: clearBorrowedSandboxResources wipes the
@@ -107,7 +212,7 @@ func TestTheCopyAChildReadsMatchesTheHostAfterAdoption(t *testing.T) {
 	if err := e.clearBorrowedSandboxResources(context.Background()); err != nil {
 		t.Fatalf("clear: %v", err)
 	}
-	n, werr := writeThroughMirroredSkills(context.Background(), host, run, nil)
+	n, werr := writeThroughMirroredSkills(context.Background(), host, store.RunTrustDefault, run, nil)
 	if werr != nil {
 		t.Fatalf("write-through: %v", werr)
 	}
