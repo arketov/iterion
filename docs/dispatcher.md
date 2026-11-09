@@ -160,6 +160,7 @@ stateDiagram-v2
     claimed --> retained: PARKED on a pause, or HELD on an operator cancel - the claim stays, the heartbeat stops
     claimed --> unclaimed: ReleaseOwned after the finish transition - the disposition is on the card
     retained --> unclaimed: the boot sweep drops it once THIS daemon pid is gone, and dispatch re-parks
+    retained --> unclaimed: the settled-claim sweep - the lease ran out, this daemon holds it and the run is finished, hard-failed or gone from the card
     retained --> recovery: the lease ran out AND the run has left paused or cancelled - while the park reason stands the pre-transfer table conserves the claim instead
     claimed --> recovery: the lease ran out with nobody renewing - an owner that died mid-run, and only with the watchdog on
     superseded --> [*]: whoever holds the card now decides what happens next
@@ -201,6 +202,19 @@ lifecycle: run `finished` → `agent.completed_state`, hard `failed` →
 genuinely still awaits the operator. The cloud board coordinator runs
 the same sweep for cloud-launched cards.
 
+That sweep only sees cards still in `awaiting_input`. When the resumed run
+moves its own card out of the column (to `blocked`, say) — or an operator
+drags the card back to `ready` — the pause's claim would stay for good, and a
+claimed card is never offered by `ListCandidates`. A second per-tick sweep,
+`reconcileSettledClaims`, frees it: the claim is this daemon's, its lease
+(15 minutes after the last heartbeat) has run out, no worker or retry owns the
+card, and the last run is absent, `finished` or hard `failed`. The lease is
+what protects a live finish worker, which keeps renewing it until its last
+write. The column is not looked at and the card is not moved; a `paused_*`,
+`failed_resumable`, `cancelled` or in-flight run keeps the claim. The cloud
+board parks a card without a claim, so it needs no such sweep. Design:
+[ADR-166](adr/166-settled-claim-sweep.md).
+
 A reboot (new PID) drops the park-claim. `in_progress` stays eligible
 for crash-recovery, but a live `last_run` is **never** replaced by a
 sibling planner from the workflow entry:
@@ -231,7 +245,7 @@ again — see [terminal-state keys](#terminal-state-keys).) A `failed_resumable`
 so the board's **Retry** means *resume* on a dispatcher-owned board even
 though the studio's own admission loop would have minted a fresh run. Drop
 the pointer to make the restart deterministic: ⋯ → **Retry from zero** on the
-pipeline board, or `iterion issue update --clear-last-run`. Same for a
+pipeline board (it also releases a claim the card still holds), or `iterion issue update --clear-last-run`. Same for a
 `cancelled` `last_run`, which holds the ticket (no fresh sibling) but is
 never auto-resumed — resume it explicitly, or drop the pointer.
 
@@ -261,8 +275,8 @@ journalled in `<store>/dispatcher/source-holds.json` and survives a daemon
 restart, so a run that finishes later files the card to
 `agent.completed_state` instead of minting a fresh sibling (the adopted card
 sits in `in_progress`, an eligible column, with no claim). It is a journal and
-not a claim on purpose: the boot sweep releases a dead pid's claim on Unix,
-Windows never sweeps it, and the claim watchdog
+not a claim on purpose: the boot sweep releases a dead pid's claim (on Unix and
+on Windows), and the claim watchdog
 (`ITERION_BOARD_CLAIM_REAPER`) is opt-in. A tracker without a `last_run` pointer
 (github/forgejo) keeps the legacy park in `awaiting_input`, since nothing
 could lift a hold there.
@@ -333,9 +347,10 @@ Each tick (`polling.interval_ms`, default 30s):
    "done"), cancel the worker. The dispatch is yielded back to the
    tracker as the source of truth.
 3. **Sweep the parked cards.** `reconcileParked` finishes the
-   lifecycle of cards answered out of band; `reconcileStrandedPaused`
-   re-parks a paused `last_run`. Both run even while the dispatcher is
-   paused.
+   lifecycle of cards answered out of band; `reconcileSettledClaims`
+   releases the claim a settled run left on a card that moved out of
+   `awaiting_input`; `reconcileStrandedPaused` re-parks a paused
+   `last_run`. All run even while the dispatcher is paused.
 4. **The gates that end the tick here.** Paused, the daily spend cap
    reached (`limits.max_cost_per_day_usd`), or already at
    `agent.max_concurrent` — that last one returns without calling the

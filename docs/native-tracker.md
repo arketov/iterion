@@ -491,7 +491,11 @@ Two surfaces drop the pointer, and both keep the run *history*
   /api/v1/pipeline-board/tasks/{id}/reset` with `{"fresh": true}`) — the
   board answer, offered wherever Retry is once the run has settled. It
   cancels the tree, drops the pointer, then restages, so both launch
-  authorities can only mint a new run.
+  authorities can only mint a new run. It then releases a claim the card
+  still holds (a run that paused on a human node leaves one), which a
+  claimed card would otherwise hide from the dispatcher. Plain Retry leaves
+  it: the dispatcher's settled-claim sweep frees it once the lease has run
+  out, at most 15 minutes after the last heartbeat.
 - `iterion issue update <id> --clear-last-run` — the CLI equivalent, for a
   ticket you are already driving from a terminal.
 
@@ -602,7 +606,7 @@ perform an N+1 traversal over issues, checkpoints and child runs:
 | `/api/v1/pipeline-board/tasks/{id}/ready` | POST | `{ready}` stages Ready when hard deps are done, else parks in `waiting_deps` (or 409); unstage → backlog |
 | `/api/v1/pipeline-board/tasks/{id}` | PATCH | Edit a not-yet-run ticket (title, body, labels, priority, bot, bot_args, blockers) |
 | `/api/v1/pipeline-board/tasks/{id}` | DELETE | Delete a ticket (issue only, never a run); 409 while any run in its tree is active |
-| `/api/v1/pipeline-board/tasks/{id}/reset` | POST | Cancel every active run in the ticket's tree, then restage it to Ready. Optional body `{"fresh": true}` (⋯ → *Retry from zero*) also drops `last_run_id` before restaging, so no launch authority can resume the discarded run; refused with 409 — before the sweep, nothing touched — while any run in the tree is non-terminal |
+| `/api/v1/pipeline-board/tasks/{id}/reset` | POST | Cancel every active run in the ticket's tree, then restage it to Ready. Optional body `{"fresh": true}` (⋯ → *Retry from zero*) also drops `last_run_id` before restaging, so no launch authority can resume the discarded run, and releases a claim the card still holds so the dispatcher can take it; refused with 409 — before the sweep, nothing touched — while any run in the tree is non-terminal |
 | `/api/v1/pipeline-board/tasks/{id}/close` | POST | Cancel the ticket's tree and file it terminal (`blocked`, never `done`); also clears a dispatcher give-up stamp — Close is the acknowledgement |
 | `/api/v1/pipeline-board/tasks/{id}/dependency-graph` | GET | Limited-depth hard-dep graph (also `GET /api/v1/native/issues/{id}/dependency-graph`) |
 | `/api/v1/pipeline-board/bulk/ready` | POST | `{ids?\|family_id?\|pipeline_kind?}` stage many tickets Ready (skip open blockers by default) |
