@@ -90,6 +90,79 @@ func (c *Dispatcher) reconcileParked(ctx context.Context) {
 	}
 }
 
+// reconcileSettledClaims releases the claim a paused run left behind when the
+// card is no longer in awaiting_input. A pause retains the claim on purpose
+// (ADR-014); reconcileParked frees it only for cards still parked. When the run
+// resumes out-of-band and moves its OWN card elsewhere (blocked, done, or back
+// to ready after an operator drag), the claim stays for good and
+// ListCandidates never offers the card again.
+//
+// A claim is released only when this daemon holds it, its lease ran out (a
+// live finish worker keeps renewing it until its last write, so the lease is
+// what tells a dead hold from the window after finishRun dropped the running
+// entry), no worker or retry owns the card, and the last run is settled:
+// absent, finished or hard-failed. Paused, resumable, cancelled and in-flight
+// runs keep it. The card's column is never touched. Native-tracker only.
+func (c *Dispatcher) reconcileSettledClaims(ctx context.Context, now time.Time) {
+	lister, ok := c.tracker.(interface {
+		ListSettledClaimCandidates(marker string, cutoff time.Time) ([]tracker.Issue, error)
+	})
+	if !ok {
+		return
+	}
+	look, ok := c.tracker.(interface {
+		LastRunForIssue(id string) (string, error)
+	})
+	if !ok {
+		return
+	}
+	cands, err := lister.ListSettledClaimCandidates(c.hostMarker, now)
+	if err != nil {
+		c.logger.Warn("dispatcher: settled-claim sweep list: %v", err)
+		return
+	}
+	if len(cands) == 0 {
+		return
+	}
+	var rs *store.FilesystemRunStore
+	released := false
+	for _, iss := range cands {
+		if _, running := c.state.running[iss.ID]; running {
+			continue
+		}
+		if _, retrying := c.state.retries[iss.ID]; retrying {
+			continue
+		}
+		if _, draining := c.state.tombstones[iss.ID]; draining {
+			continue
+		}
+		runID, err := look.LastRunForIssue(iss.ID)
+		if err != nil {
+			continue
+		}
+		if runID != "" {
+			if rs == nil {
+				if rs, err = c.openRunStore(); err != nil {
+					c.logger.Debug("dispatcher: open store for settled-claim sweep: %v", err)
+					return
+				}
+			}
+			switch c.runStatusFrom(rs, runID) {
+			case store.RunStatusFinished, store.RunStatusFailed:
+			default:
+				continue // paused / resumable / cancelled / in flight / unreadable — still held
+			}
+		}
+		c.logger.Info("dispatcher: %s holds a settled claim (column=%s, run=%s) — released", iss.Identifier, iss.WorkflowState, runID)
+		c.dropJournalAfterRelease(iss.ID, iss.Identifier,
+			c.tracker.Release(ctx, iss.ID, c.hostMarker))
+		released = true
+	}
+	if released {
+		c.fireSnapshot()
+	}
+}
+
 // lastRunID is the tracker's persisted last_run pointer, or "" when
 // the adapter has no lookup (github/forgejo) or the card has never
 // been dispatched. Native-only today, same seam as stampLastRun.

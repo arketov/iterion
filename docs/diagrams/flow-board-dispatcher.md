@@ -13,7 +13,7 @@ flowchart TD
     tick["tick - polling.interval_ms, default 30s, on the actor"]
     tick --> stalled["reconcileStalled - interrupt a run whose last event is older than stall.timeout_ms, default 10 min; 0 disables"]
     stalled --> refresh["refreshRunningStates - interrupt a run whose card no longer reads the state we moved it to, another eligible column included, and force-reap one that vanished from the tracker"]
-    refresh --> sweeps["reconcileParked and reconcileStrandedPaused - the sweeps that run even while paused"]
+    refresh --> sweeps["reconcileParked, reconcileSettledClaims and reconcileStrandedPaused - the sweeps that run even while paused"]
     sweeps --> paused{"paused?"}
     paused -- "yes" --> stop1["return - paused means no NEW work"]
     paused -- "no" --> cap{"daily spend cap reached?"}
@@ -71,7 +71,7 @@ The three **filing** dispositions — COMPLETED, GAVE UP, REVERT — are execute
 | server | takes the exclusive lock on the workspace root, persists the config, starts | `store.AcquireFileLock`, `Manager.SaveConfig`, `Manager.Start` |
 | server | starts the actor, the boot claim sweeps and the gated watchdog | `Dispatcher.Start`, `sweepJournalledClaims`, `startClaimReaper` |
 | server | the four reconcilers, then the tick's own early returns | `tick`, `reconcileStalled`, `refreshRunningStates`, `refreshCostCap` |
-| server | closes the lifecycle of cards answered out of band, and re-parks a paused last_run after a reboot | `reconcileParked`, `reconcileStrandedPaused` |
+| server | closes the lifecycle of cards answered out of band, releases the claim a settled run left on a card that moved out of `awaiting_input`, and re-parks a paused last_run after a reboot | `reconcileParked`, `reconcileSettledClaims`, `reconcileStrandedPaused` |
 | forge | discovery, off the actor: unclaimed cards in eligible columns whose hard blockers are done, or open issues by label | `Adapter.ListCandidates`, `BlockersSatisfiedForIssue`, the github, forgejo and gitlab adapters |
 | server | sorts, prunes stale skips, walks against the global and per-state caps | `sortCandidates`, `cmdCandidates.apply`, `hasSlot` |
 | server | routes a fully unassigned card **first**, and steps aside when a pull request already links it | `routeUnassignedIssue`, `linkedPRProbe` |
@@ -99,7 +99,7 @@ The claim's own state machine lives with the feature: [dispatcher.md — State m
 | `unclaimed` | `claim` empty or absent — the Mongo CAS reads an absent field as unclaimed | `Store.Claim`, `Coordinator.Claim` |
 | `claimed` | the holder owns the card: `claim`, a bumped `claim_epoch`, `claimed_at`, `claim_lease_until` | `native.ClaimLeaseDuration` (15 min), `Store.ownedFilter` |
 | `superseded` | the fence refuses this holder's writes — every later move and the release included | `tracker.ErrClaimConflict`, `claimSession.Lost` |
-| `retained` | a deliberate long-term hold: the parking brake of a paused run, or an operator cancel | `finishRun`, `stopClaimSession`, ADR-014 |
+| `retained` | a deliberate long-term hold: the parking brake of a paused run, or an operator cancel; left by the settled-claim sweep once the lease ran out and the run is finished, hard-failed or gone | `finishRun`, `stopClaimSession`, `reconcileSettledClaims`, ADR-014 |
 | `recovery` | a watchdog holds the card under its own marker while it decides and files | `ReclaimExpired`, `ReaperMarkerPrefix`, `keepAfterTransfer` |
 
 The watchdog never clears a claim before deciding: it CAS-**transfers** it, then re-takes the decision on the state it observed *with* ownership. One pure table serves both twins — a read error, a live run, any pause, an operator cancel and an armed continuation all conserve; a gone-but-recorded run is filed with a give-up stamp rather than re-dispatched. It is off unless `ITERION_BOARD_CLAIM_REAPER` is on, and a tracker without both `ClaimLeaser` and `ClaimReaper` logs one warning and stays off.

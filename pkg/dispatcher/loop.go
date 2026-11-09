@@ -33,6 +33,7 @@ func (c *Dispatcher) tick(ctx context.Context) {
 	c.refreshRunningStates(ctx)
 	c.pruneRetriesOutOfLaunch(ctx)
 	c.reconcileParked(ctx)
+	c.reconcileSettledClaims(ctx, time.Now().UTC())
 	c.reconcileSourceHolds(ctx)
 	// Reclaim paused last_runs even while dispatch is suspended: a
 	// reboot with desired=paused must re-park, never mint a sibling.
