@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/arketov/iterion/pkg/dispatcher/native"
 	"github.com/arketov/iterion/pkg/dispatcher/tracker"
@@ -206,6 +207,56 @@ func TestListForRepark(t *testing.T) {
 	}
 	if ids[fresh.ID] {
 		t.Error("a card with no last_run cannot be re-parked")
+	}
+}
+
+func TestListSettledClaimCandidates(t *testing.T) {
+	a, s := newAdapter(t)
+	claim := func(state, marker string) string {
+		t.Helper()
+		iss, err := s.Create(native.Issue{Title: state + "/" + marker, State: state})
+		if err != nil {
+			t.Fatalf("Create: %v", err)
+		}
+		if _, err := s.Claim(iss.ID, marker); err != nil {
+			t.Fatalf("Claim: %v", err)
+		}
+		return iss.ID
+	}
+	readyMine := claim(native.StateReady, "me")
+	blockedMine := claim(native.StateBlocked, "me")
+	parkedMine := claim(native.StateAwaitingInput, "me")
+	readyTheirs := claim(native.StateReady, "other-host")
+	free, _ := s.Create(native.Issue{Title: "free", State: native.StateReady})
+
+	ids := func(cutoff time.Time) map[string]bool {
+		t.Helper()
+		got, err := a.ListSettledClaimCandidates("me", cutoff)
+		if err != nil {
+			t.Fatalf("ListSettledClaimCandidates: %v", err)
+		}
+		m := map[string]bool{}
+		for _, iss := range got {
+			m[iss.ID] = true
+		}
+		return m
+	}
+
+	if got := ids(time.Now().Add(-time.Minute)); len(got) != 0 {
+		t.Fatalf("a lease still running at the cutoff must not be listed, got %+v", got)
+	}
+	got := ids(time.Now().Add(native.ClaimLeaseDuration + time.Minute))
+	if !got[readyMine] || !got[blockedMine] {
+		t.Fatalf("want this marker's expired claims in every column, got %+v", got)
+	}
+	if got[parkedMine] {
+		t.Error("awaiting_input belongs to ListAwaitingInput, not the settled-claim list")
+	}
+	if got[readyTheirs] {
+		t.Error("another daemon's claim must be excluded")
+	}
+	if got[free.ID] {
+		t.Error("an unclaimed card cannot hold a settled claim")
 	}
 }
 

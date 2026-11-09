@@ -356,3 +356,75 @@ func TestPipelineBoardResetFreshRefusedWhileARunIsNonTerminal(t *testing.T) {
 		}
 	})
 }
+
+// A run paused on a human node leaves its card claimed (ADR-014). When that
+// run later finishes outside the dispatcher the card keeps the claim, and a
+// claimed card is invisible to ListCandidates — so "Retry from zero" must hand
+// the card back, while a plain reset keeps its historical behaviour.
+func TestPipelineBoardTaskResetFresh_ReleasesRetainedClaim(t *testing.T) {
+	seed := func(t *testing.T, env *pipelineBoardTestEnv, runID string) *native.Issue {
+		t.Helper()
+		issue, err := env.board.Create(native.Issue{
+			Title: "Claim outlived its pause", State: native.StateBlocked, Bot: "review",
+		})
+		if err != nil {
+			t.Fatalf("Create: %v", err)
+		}
+		if _, err := env.board.Claim(issue.ID, "host-1"); err != nil {
+			t.Fatalf("Claim: %v", err)
+		}
+		env.seedRun(t, runID, "review", store.RunStatusFinished, func(run *store.Run) {
+			run.FilePath = env.botPath
+		})
+		if err := env.board.SetLastRun(issue.ID, runID, ""); err != nil {
+			t.Fatalf("SetLastRun: %v", err)
+		}
+		return issue
+	}
+
+	t.Run("fresh releases it", func(t *testing.T) {
+		env := newPipelineBoardTestEnv(t)
+		issue := seed(t, env, "claim-fresh")
+
+		resp := resetTaskWith(t, env, issue.ID, `{"fresh":true}`)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("reset status = %d, want 200 (body: %s)", resp.StatusCode, respBody(t, resp))
+		}
+		var updated native.Issue
+		decodeJSONResp(t, resp, &updated)
+		if updated.State != native.StateReady {
+			t.Errorf("state = %q, want %q", updated.State, native.StateReady)
+		}
+		if updated.LastRunID != "" {
+			t.Errorf("response still carries last_run_id %q", updated.LastRunID)
+		}
+		if updated.Claim != "" {
+			t.Errorf("response still carries claim %q — the body contradicts its own write", updated.Claim)
+		}
+		after, err := env.board.Get(issue.ID)
+		if err != nil {
+			t.Fatalf("Get: %v", err)
+		}
+		if after.Claim != "" || !after.ClaimLeaseUntil.IsZero() {
+			t.Errorf("claim = %q lease = %v, want both cleared — the dispatcher would never pick the card up", after.Claim, after.ClaimLeaseUntil)
+		}
+	})
+
+	t.Run("without fresh the claim is kept", func(t *testing.T) {
+		env := newPipelineBoardTestEnv(t)
+		issue := seed(t, env, "claim-plain")
+
+		resp := resetTaskWith(t, env, issue.ID, `{}`)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("reset status = %d, want 200 (body: %s)", resp.StatusCode, respBody(t, resp))
+		}
+		resp.Body.Close()
+		after, err := env.board.Get(issue.ID)
+		if err != nil {
+			t.Fatalf("Get: %v", err)
+		}
+		if after.Claim != "host-1" {
+			t.Errorf("claim = %q, want %q — a plain reset must not change who holds the card", after.Claim, "host-1")
+		}
+	})
+}

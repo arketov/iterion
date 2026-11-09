@@ -826,3 +826,136 @@ func newLastRunFixture(t *testing.T, status store.RunStatus, cardState string) *
 	fx.disp = c
 	return fx
 }
+
+// TestReconcileSettledClaims guards the claim a paused run leaves behind
+// (ADR-014): the run resumes OUTSIDE the dispatcher and moves its own card out
+// of awaiting_input (e.g. to blocked), so reconcileParked never sees it again.
+// The retained claim then hides the card from ListCandidates for good, even
+// after an operator drags it back to ready. The sweep frees such a claim once
+// its lease ran out and the run is settled, in whatever column the card sits.
+func TestReconcileSettledClaims(t *testing.T) {
+	const me = "test-host-1"
+	pastLease := func() time.Time { return time.Now().Add(native.ClaimLeaseDuration + time.Minute) }
+	cases := []struct {
+		name      string
+		state     string
+		marker    string
+		runStatus store.RunStatus // "" = no last_run pointer
+		now       func() time.Time
+		running   bool
+		wantFreed bool
+	}{
+		{"blocked card of a finished run", native.StateBlocked, me, store.RunStatusFinished, pastLease, false, true},
+		{"ready card of a finished run", native.StateReady, me, store.RunStatusFinished, pastLease, false, true},
+		{"ready card of a hard-failed run", native.StateReady, me, store.RunStatusFailed, pastLease, false, true},
+		{"ready card with no last_run", native.StateReady, me, "", pastLease, false, true},
+		{"paused run keeps the claim", native.StateBlocked, me, store.RunStatusPausedWaitingHuman, pastLease, false, false},
+		{"cancelled run keeps the claim", native.StateBlocked, me, store.RunStatusCancelled, pastLease, false, false},
+		{"failed-resumable run keeps the claim", native.StateBlocked, me, store.RunStatusFailedResumable, pastLease, false, false},
+		{"running run keeps the claim", native.StateBlocked, me, store.RunStatusRunning, pastLease, false, false},
+		{"a live lease keeps the claim", native.StateBlocked, me, store.RunStatusFinished, time.Now, false, false},
+		{"another daemon's claim is untouched", native.StateReady, "other-host-9", store.RunStatusFinished, pastLease, false, false},
+		{"awaiting_input is reconcileParked's", native.StateAwaitingInput, me, store.RunStatusFinished, pastLease, false, false},
+		{"a card with a live worker keeps the claim", native.StateBlocked, me, store.RunStatusFinished, pastLease, true, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			runStore, err := store.New(dir)
+			if err != nil {
+				t.Fatalf("store.New: %v", err)
+			}
+			ns, err := native.NewStore(filepath.Join(dir, "dispatcher"))
+			if err != nil {
+				t.Fatalf("native.NewStore: %v", err)
+			}
+			iss, err := ns.Create(native.Issue{Title: "settled", State: tc.state})
+			if err != nil {
+				t.Fatalf("Create: %v", err)
+			}
+			if _, err := ns.Claim(iss.ID, tc.marker); err != nil {
+				t.Fatalf("Claim: %v", err)
+			}
+			if tc.runStatus != "" {
+				run, err := runStore.CreateRun(context.Background(), "run-settled-1", "wf", nil)
+				if err != nil {
+					t.Fatalf("CreateRun: %v", err)
+				}
+				run.Status = tc.runStatus
+				if err := runStore.SaveRun(context.Background(), run); err != nil {
+					t.Fatalf("SaveRun: %v", err)
+				}
+				if err := ns.SetLastRun(iss.ID, "run-settled-1", ""); err != nil {
+					t.Fatalf("SetLastRun: %v", err)
+				}
+			}
+
+			cfg := &Config{
+				Name:     "test",
+				Workflow: filepath.Join(t.TempDir(), "fake.bot"),
+				Tracker:  TrackerConfig{Kind: "native"},
+				Polling:  PollingConfig{IntervalMS: 50},
+				Agent: AgentConfig{
+					MaxConcurrent:  4,
+					RunningState:   "in_progress",
+					CompletedState: "review",
+					FailedState:    "blocked",
+				},
+				Workspace: WorkspaceConfig{Root: filepath.Join(dir, "ws")},
+			}
+			cfg.applyDefaults()
+			ws, err := NewWorkspaces(cfg.Workspace.Root)
+			if err != nil {
+				t.Fatalf("NewWorkspaces: %v", err)
+			}
+			c, err := New(Options{
+				Config:     cfg,
+				Tracker:    native.NewAdapter(ns),
+				Runner:     &StubRunner{},
+				Workspaces: ws,
+				Logger:     iterlog.New(iterlog.LevelError, &bytes.Buffer{}),
+				HostMarker: me,
+				StoreDir:   dir,
+			})
+			if err != nil {
+				t.Fatalf("New: %v", err)
+			}
+			if tc.running {
+				c.state.running[iss.ID] = &runningEntry{}
+			}
+
+			c.reconcileSettledClaims(context.Background(), tc.now())
+
+			got, err := ns.Get(iss.ID)
+			if err != nil {
+				t.Fatalf("Get: %v", err)
+			}
+			if got.State != tc.state {
+				t.Errorf("card state = %q, want %q — the sweep releases a claim, it never moves a card", got.State, tc.state)
+			}
+			if freed := got.Claim == ""; freed != tc.wantFreed {
+				t.Fatalf("claim = %q, freed = %v, want freed = %v", got.Claim, freed, tc.wantFreed)
+			}
+			if tc.wantFreed {
+				if !got.ClaimLeaseUntil.IsZero() {
+					t.Errorf("lease = %v, want zeroed with the claim", got.ClaimLeaseUntil)
+				}
+				if tc.state == native.StateReady {
+					// The symptom of the bug: a ready card the dispatcher never took.
+					cands, err := native.NewAdapter(ns).ListCandidates(context.Background())
+					if err != nil {
+						t.Fatalf("ListCandidates: %v", err)
+					}
+					found := false
+					for _, cand := range cands {
+						found = found || cand.ID == iss.ID
+					}
+					if !found {
+						t.Errorf("ready card is still hidden from ListCandidates after its claim was freed")
+					}
+				}
+			}
+		})
+	}
+}
