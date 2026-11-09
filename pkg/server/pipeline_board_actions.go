@@ -11,6 +11,7 @@ import (
 
 	"github.com/arketov/iterion/pkg/auth"
 	"github.com/arketov/iterion/pkg/dispatcher/native"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 	"github.com/arketov/iterion/pkg/runview"
 	"github.com/arketov/iterion/pkg/store"
 )
@@ -356,11 +357,51 @@ func (s *Server) handlePipelineBoardTaskReset(w http.ResponseWriter, r *http.Req
 		s.httpErrorFor(w, r, http.StatusInternalServerError, "pipeline board reset: restage: %v", err)
 		return
 	}
+	// "Retry from zero" also hands the card back to the dispatcher: a run that
+	// paused on a human node left its claim behind (ADR-014), and a claimed card
+	// is never offered by ListCandidates. Released LAST — until the pointer is
+	// gone and the card is restaged, an unclaimed in_progress card is already a
+	// candidate.
+	if req.Fresh {
+		updated = s.releaseRetainedClaim(boardStore, id, updated)
+	}
 	w.Header().Set("Content-Type", "application/json")
 	s.reflectAllowedOrigin(w, r)
 	// Masked like every card this surface hands out (writeJSONFor): this
 	// one streams its own body, so it says so itself.
 	_ = json.NewEncoder(w).Encode(native.IssueForRead(updated))
+}
+
+// releaseRetainedClaim frees the claim a paused dispatcher run left on a card,
+// whoever holds it, and returns the card as it now reads. Best-effort: the card
+// is already restaged, and an unreleased claim is picked up by the dispatcher's
+// settled-claim sweep once its lease runs out. fallback is returned when the
+// card cannot be re-read.
+func (s *Server) releaseRetainedClaim(boardStore native.BoardStore, id string, fallback *native.Issue) *native.Issue {
+	cur, err := boardStore.Get(id)
+	if err != nil {
+		return fallback
+	}
+	if cur.Claim == "" {
+		return cur
+	}
+	err = boardStore.ReleaseOwned(id, tracker.ClaimToken{Marker: cur.Claim, Epoch: cur.ClaimEpoch})
+	switch {
+	case errors.Is(err, tracker.ErrClaimConflict):
+		// The claim changed hands between the read and the release: a live
+		// owner took it, which is not ours to drop.
+		if s.logger != nil {
+			s.logger.Info("pipeline board: reset ticket %s: claim changed hands before release: %v", id, err)
+		}
+	case err != nil:
+		if s.logger != nil {
+			s.logger.Warn("pipeline board: reset ticket %s: release claim %q: %v — the dispatcher's settled-claim sweep frees it after the lease", id, cur.Claim, err)
+		}
+	}
+	if refreshed, getErr := boardStore.Get(id); getErr == nil {
+		return refreshed
+	}
+	return cur
 }
 
 // pipelineRunRetired reports that a run needs no cancel sweep. It is

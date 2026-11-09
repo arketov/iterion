@@ -328,6 +328,33 @@ func (a *Adapter) ListAwaitingInput(marker string) ([]tracker.Issue, error) {
 	return out, nil
 }
 
+// ListSettledClaimCandidates returns the cards held by the given marker whose
+// lease ran out before cutoff, in ANY column except awaiting_input (that one
+// stays with ListAwaitingInput). A run that paused on a human node leaves its
+// card claimed (ADR-014); once the run resumes out-of-band and moves the card
+// elsewhere, only this list still finds the claim. A zero lease is a legacy
+// claim and is skipped, like the reaper does. Consumed by the dispatcher's
+// settled-claim sweep (reconcileSettledClaims in pkg/dispatcher) via
+// optional-interface assertion, same seam as ListAwaitingInput.
+func (a *Adapter) ListSettledClaimCandidates(marker string, cutoff time.Time) ([]tracker.Issue, error) {
+	claimed := true
+	issues, err := a.store.List(ListFilter{Claimed: &claimed})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]tracker.Issue, 0, len(issues))
+	for _, iss := range issues {
+		if iss.Claim != marker || iss.State == StateAwaitingInput {
+			continue
+		}
+		if iss.ClaimLeaseUntil.IsZero() || !iss.ClaimLeaseUntil.Before(cutoff) {
+			continue
+		}
+		out = append(out, toTrackerIssue(iss))
+	}
+	return out, nil
+}
+
 // SetLastRun stamps the (runID, workdir) pair on the issue so the
 // dispatcher can pivot from a kanban card back to the run that
 // processed it (studio's IssueModal, the resume fallback in
