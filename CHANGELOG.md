@@ -3,6 +3,148 @@
 Generated from Conventional Commits at each release. Older majors are archived
 under [docs/changelog/](https://github.com/SocialGouv/iterion/tree/main/docs/changelog).
 
+## [5.15.1](https://github.com/SocialGouv/iterion/compare/v5.15.0...v5.15.1) (2026-11-09)
+
+### Bug Fixes
+
+* **review-pr:** the review's duration cap follows the workload the egress join admits ([#3121](https://github.com/SocialGouv/iterion/issues/3121)) ([d76a353](https://github.com/SocialGouv/iterion/commit/d76a35332932a9b5d86e9783b639289331586fcc)), references [#3119](https://github.com/SocialGouv/iterion/issues/3119)
+
+    <details><summary>why</summary>
+
+    120m killed a PIC review at the 108-minute wall one node short of converge (run 01a1c0a6, honorabilite MR !270): with the forge-native ticket lookup reachable (PR #3119), the reviewer explored its forge for 118 minutes. The money guard is unchanged — max_cost_usd 48 still bounds the spend; the duration cap only needs to clear the workload it admits.
+
+    </details>
+
+## [5.15.0](https://github.com/SocialGouv/iterion/compare/v5.14.0...v5.15.0) (2026-11-09)
+
+### Features
+
+* **credpool,server,studio:** configurable key pools — named, attachable per scope, forfait-first fallback (ADR-164) ([#3117](https://github.com/SocialGouv/iterion/issues/3117)) ([2b52237](https://github.com/SocialGouv/iterion/commit/2b5223722a7ecddf21c5455fdbd299bea6aafcec)), references [#2906-shaped](https://github.com/SocialGouv/iterion/issues/2906-shaped) [#2972](https://github.com/SocialGouv/iterion/issues/2972) [#2906](https://github.com/SocialGouv/iterion/issues/2906) [#2699](https://github.com/SocialGouv/iterion/issues/2699)
+
+    <details><summary>why</summary>
+
+    A pool now carries an owner (org / user / platform — the zero values keep every legacy row an org-owned audience pool) and a visibility: audience (the legacy draw surface) or private, which answers nothing on the legacy walk — no whole-bundle tier, no door probe — until an explicit pool attachment names it (ADR-164; the attachment is the consent). Validation keeps the owner trio honest: a user pool carries no OrgID (the audience org-implicit rule must never open a private pool) and private is…
+
+    </details>
+
+### Bug Fixes
+
+* **delegate,runtime:** an untrusted pi run refuses the ChatGPT forfait typed ([19a553b](https://github.com/SocialGouv/iterion/commit/19a553bef55ca2c303f2dd6363c1e57ccf2a2a91)), references [#1768](https://github.com/SocialGouv/iterion/issues/1768) [#3102](https://github.com/SocialGouv/iterion/issues/3102) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    The codex branch of PiSandboxCredential answered "found" for a delivered ChatGPT forfait on a fork: the OAuth file and its refresh flow are a channel the egress proxy cannot hold (decision 7), and the seed itself steps aside (piCodexSeed) — so the launch admitted and died credential-less mid-run (#1768). The probe now refuses typed under the channel name claw's landing floor uses for the same forfait, and the seed's gate widens from StateInCheckout-only to every untrusted run: a shared state…
+
+    </details>
+* **runtime:** an untrusted run binds no host home, identity, .git or repo toolchain ([a55cb59](https://github.com/SocialGouv/iterion/commit/a55cb59e569a0b9b3316ff0cacb9f47d81b097e6)), references [#1768](https://github.com/SocialGouv/iterion/issues/1768) [#3102](https://github.com/SocialGouv/iterion/issues/3102) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    ADR-162 U5's host-state floor, first of the unit's four: a run whose workspace an outsider wrote resolves host_state none through ONE decision (resolveHostState) that both sandboxCredentialHome (read before the #1768 credential admission) and applyHostStateMounts (the mount plan) call — so the admission never sees a mounted login the plan would withdraw. The same trust marker keeps the operator's git identity out of the container's env, the worktree .git tree unmounted, the target repo's…
+
+    </details>
+* **sandbox:** the kubernetes copy floors the git-private tree out for untrusted runs ([fc8b60c](https://github.com/SocialGouv/iterion/commit/fc8b60c11a7bfb580e5d307fc3d2010bd8cb183c)), references [#3102](https://github.com/SocialGouv/iterion/issues/3102) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    U5's .git floor was enforced only on the docker bind path; the kubernetes driver — the only one whose SupportsNetworkPolicy admits an untrusted run — tar-copied the clone root including .git (with the live forge token at .git/iterion-credentials) and re-pointed the container's credential.helper at the in-pod copy. The floor is now the copy itself: populateWorkspace skips the .git entry, fixupWorkspaceGit is skipped whole, the export extract drops every .git member host-side, and ExportWorkspace…
+
+    </details>
+* **security:** an untrusted run's credentials cross as Layer 2 placeholders ([08d6e65](https://github.com/SocialGouv/iterion/commit/08d6e652c84ec20075c5e52093d474682d164f3e)), references [#3102](https://github.com/SocialGouv/iterion/issues/3102) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    ADR-162 decision 7 (U5), the credential half of the sandbox floor: the fork lane's container holds no credential value. Every sealed key or gateway pair crosses as a placeholder token the egress proxy substitutes toward the credential's own host, and every channel that proxy cannot hold — a forfait's OAuth file and refresh flow, the operator's host login, the launcher's ambient env, a signing-chain key that names no host to substitute toward — is refused typed at the landing, never crossed raw…
+
+    </details>
+* **security:** an untrusted run's egress floor — the credential's host, on a driver that enforces it ([3affc3d](https://github.com/SocialGouv/iterion/commit/3affc3d082eb7d1cce5410637f53ca17c2596400)), references [#3102](https://github.com/SocialGouv/iterion/issues/3102) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    ADR-162 decision 7 (U5), the network half of the sandbox floor: the container holds no credential and has one route out. Three floors:
+
+    </details>
+* **security:** the start probe proves the untrusted run's network floor before the first spawn ([e47ebf1](https://github.com/SocialGouv/iterion/commit/e47ebf15cf9e12cc1e11517563e5816d1424ff6b)), references [#3102](https://github.com/SocialGouv/iterion/issues/3102) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    ADR-162 decision 7, probe half of U5: before the first spawn, a probe that ignores the proxy env dials the roads the per-run policy must have closed — the cluster API service, the credential's own hosts, the runner pod's metrics port — and every one of those direct dials must FAIL or the run is refused typed. A non-enforcing CNI (kind's kindnetd) applies the NetworkPolicy as a no-op, and only this probe sees it.
+
+    </details>
+
+## [5.14.0](https://github.com/SocialGouv/iterion/compare/v5.13.2...v5.14.0) (2026-11-09)
+
+### Features
+
+* **feed-watch:** post run provenance as a Mattermost collapsible block ([#3118](https://github.com/SocialGouv/iterion/issues/3118)) ([3f53e68](https://github.com/SocialGouv/iterion/commit/3f53e68b4cb721f2bcb6c0820ce7f17c2f4d9f2d))
+
+    <details><summary>why</summary>
+
+    The digest's last message now carries props.mm_blocks with one collapsible block (collapsed by default, subtle header, the provenance table + run tokens as content) — Mattermost Blocks render on the Fabrique instance (11.7); a <details> fold is not an option there (Mattermost sanitizes it). The block is layout-only: no mm_blocks_actions, so a deployment with Blocks disabled drops it at render time and the digest still lands whole; Slack sinks ignore props and carry no provenance. The run-link…
+
+    </details>
+
+## [5.13.2](https://github.com/SocialGouv/iterion/compare/v5.13.1...v5.13.2) (2026-11-09)
+
+### Bug Fixes
+
+* **cli,store,server:** a refused door records no run; the facade witness meets decision 6 ([880d309](https://github.com/SocialGouv/iterion/commit/880d309caf6586e1ab489c61434da2df7b685b63)), references [#3101](https://github.com/SocialGouv/iterion/issues/3101) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Round 2's two HIGH findings, each answered at its class.
+
+    </details>
+* **runner,docs:** the connector trust refusal is acked, never redelivered ([8aa9293](https://github.com/SocialGouv/iterion/commit/8aa9293a60fd0020eb8bb78ced37472c32883eb1)), references [#3101](https://github.com/SocialGouv/iterion/issues/3101) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Round 2's remaining MEDIUM: isTrustFloorRefusal named only three of the workspace-trust floor's typed refusals — connection.ErrUntrustedAction (and its ErrTrustUnstated sibling), the very refusal decision 6 tightened, was missing — so a fork run refused at the connector chokepoint was nak'd and redelivered instead of acked: JetStream re-pays a pod, a sandbox and a full clone of the outsider's tree per delivery, and the final one parks as DLQ_PARKED, overwriting the untrusted_workspace_refused…
+
+    </details>
+* **runtime:** a bound secret's AllowedHosts open the run's egress allowlist ([#3119](https://github.com/SocialGouv/iterion/issues/3119)) ([27b748c](https://github.com/SocialGouv/iterion/commit/27b748cf3aafb74f0838c2554b9c88fc977534e6))
+
+    <details><summary>why</summary>
+
+    The forge-native ticket lookup of a review on a self-hosted forge died at the run's own CONNECT proxy: the iterion-default preset lists the SaaS code hosts only, and a binding's AllowedHosts never reached the network policy — they governed secret materialization alone, while the review-pr manifest documents them as what "the egress guard pins to that instance". Measured live on honorabilite MR !270 (run 01a1bdf3): every review on a PIC repo reported "forge issue lookup unverifiable — proxy…
+
+    </details>
+* **security:** an untrusted run gets no MCP server from the checkout or the ambient config ([d94d818](https://github.com/SocialGouv/iterion/commit/d94d818749376e4994ac70f4fe6f63b4259d5ec0)), references [#3101](https://github.com/SocialGouv/iterion/issues/3101) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    The MCP catalog a run is handed is assembled from three ambient sources, and every one of them names a process the agent may then drive. On a workspace its tenant did not write, the checkout's `.mcp.json` IS the attacker's prose: a server entry there runs whatever binary it names with the run's own credentials. The plugin catalog is the operator's, but a fork run has no business reaching it either — its servers hold tenant state the fork lane exists to review, not to drive.
+
+    </details>
+* **security:** an untrusted run holds no host capability ([626bbb8](https://github.com/SocialGouv/iterion/commit/626bbb8109b0fd0529a0f6968af137166290f0a1)), references [#3101](https://github.com/SocialGouv/iterion/issues/3101) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    A host capability (board.*, runs.read, watch.*, connectors) reaches the tenant's state beyond the workspace: its board, its run store, its watch fan-out, its connector facade. On a workspace its tenant did not write, none of them is held, whatever a node declares — and what a node is OFFERED follows, so the model never reads a tool it cannot call.
+
+    </details>
+* **security:** an untrusted run resolves no bot:// source and holds no tenant memory ([a4e336b](https://github.com/SocialGouv/iterion/commit/a4e336b30cf758c51becdb960f421128adaa521b)), references [#3101](https://github.com/SocialGouv/iterion/issues/3101) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Two more checkout-sourced channels floored at their seams:
+
+    </details>
+* **security:** an untrusted run resolves no connector read; --run-id settles its trust before the compile ([0e05aef](https://github.com/SocialGouv/iterion/commit/0e05aef8555b0d7bffa5996cadfd78d337782e7c)), references [#3101](https://github.com/SocialGouv/iterion/issues/3101) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Two HIGH findings of ADR-162 U4's round-1 review, each fixed at its class.
+
+    </details>
+* **security:** the board door refuses the reserved bot_args to every tool caller ([f819518](https://github.com/SocialGouv/iterion/commit/f819518196da9ed3219bc1c54d92640def2c7933)), references [#3101](https://github.com/SocialGouv/iterion/issues/3101) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    The reserved `__iterion_*` bot args are the server's launch channel: what a carded run clones, which credential it resolves, which repository meters, bounds and debits it. boardops.CallWithEnv is the door every board transport crosses — claw's in-process registry, `iterion __mcp-board` for claude_code and pi, the HTTP MCP handler, the operator MCP — and every one of those callers is a client, so the refusal sits there, typed (ErrReservedBotArg), trust-independent: a TRUSTED run carrying the…
+
+    </details>
+
 ## [5.13.1](https://github.com/SocialGouv/iterion/compare/v5.13.0...v5.13.1) (2026-11-09)
 
 ### Bug Fixes
