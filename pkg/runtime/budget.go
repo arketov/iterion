@@ -1054,6 +1054,16 @@ func unbookedNodeSpend(rs *runState, nodeID string, output map[string]any) nodeS
 	spend := extractSpend(output)
 	if key, isTotal := retrySessionCost(output); isTotal && rs != nil {
 		baseline := rs.retrySessionCosts[nodeID][key]
+		// A node revisited by a loop with `session: persist` resumes its own
+		// session, so this pass's total already contains the previous pass's
+		// reading — which is booked and committed in rs.outputs, while the
+		// in-retry map above was dropped when that pass succeeded.
+		if prev := rs.outputs[nodeID]; prev != nil {
+			if prevKey, ok := retrySessionCost(prev); ok && prevKey == key {
+				_, prevUSD := extractUsage(prev)
+				baseline = max(baseline, prevUSD)
+			}
+		}
 		if parent, _ := output["_session_forked_from"].(string); parent != "" {
 			parentKey := retrySessionCostKey{backend: key.backend, session: parent}
 			parentTotal, found := bookedSessionReading(rs, parentKey)
