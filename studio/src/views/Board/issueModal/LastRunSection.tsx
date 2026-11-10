@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 
@@ -105,6 +105,16 @@ function useBoardRun(runID: string) {
 function AwaitingInput({ runID }: { runID: string }) {
   const { data, refetch } = useBoardRun(runID);
   const pending = data?.run ? rehydratePendingHumanInput(data) : null;
+  // The form resets its draft (and the wizard its step) whenever the
+  // `questions` identity changes. rehydratePendingHumanInput builds a fresh
+  // `{}` when the checkpoint carries no questions, and every re-render (the
+  // 5s poll included) would hand the form a new object. Rebuild the map only
+  // when its content changes, so a poll returning the same pause is a no-op.
+  const questionsKey = JSON.stringify(pending?.questions ?? {});
+  const questions = useMemo<Record<string, unknown>>(
+    () => JSON.parse(questionsKey),
+    [questionsKey],
+  );
   if (!pending || !pending.node_id) return null;
   return (
     <div className="rounded border border-warning/40 bg-warning-soft p-2 space-y-2">
@@ -114,7 +124,7 @@ function AwaitingInput({ runID }: { runID: string }) {
       <HumanPromptForm
         runId={runID}
         nodeId={pending.node_id}
-        questions={pending.questions ?? {}}
+        questions={questions}
         sourceOverride={null}
         onResumed={() => void refetch()}
       />

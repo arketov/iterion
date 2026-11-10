@@ -108,6 +108,56 @@ describe("LastRunSection answer-from-board affordance", () => {
     expect(context?.textContent).toContain("bump sdk");
   });
 
+  it("keeps the operator's selection when a poll returns the same paused node", async () => {
+    // A checkpoint with NO interaction_questions: the questions map is then a
+    // fresh `{}` on every render, which used to rebuild the form spec and wipe
+    // the draft every time the card re-rendered (the 5s poll).
+    const paused = () => ({
+      run: {
+        id: "r1",
+        status: "paused_waiting_human",
+        checkpoint: { node_id: "confirm", interaction_id: "r1_confirm" },
+      },
+      executions: [],
+      last_seq: 0,
+    });
+    getRun.mockImplementation(() => Promise.resolve(paused()));
+    getRunWorkflow.mockResolvedValue({
+      nodes: [
+        {
+          id: "confirm",
+          output_schema: [
+            { name: "environment", type: "string", enum_values: ["staging", "production"] },
+          ],
+        },
+      ],
+      stale_hash: false,
+    });
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // A fresh element per call: React skips re-rendering an identical one.
+    const tree = () => (
+      <QueryClientProvider client={qc}>
+        <LastRunSection runID="r1" />
+      </QueryClientProvider>
+    );
+    const { rerender } = render(tree());
+
+    const staging = await screen.findByRole("radio", { name: /staging/i });
+    fireEvent.click(staging);
+    await waitFor(() =>
+      expect((screen.getByRole("radio", { name: /staging/i }) as HTMLInputElement).checked).toBe(true),
+    );
+
+    // The poll: refetch (same pause, new payload object) and re-render.
+    const callsBefore = getRun.mock.calls.length;
+    await qc.refetchQueries({ queryKey: ["board-last-run", "r1"] });
+    expect(getRun.mock.calls.length).toBeGreaterThan(callsBefore);
+    rerender(tree());
+
+    expect((screen.getByRole("radio", { name: /staging/i }) as HTMLInputElement).checked).toBe(true);
+  });
+
   it("shows only the plain last-run panel when the run is not paused", async () => {
     getRun.mockResolvedValue({
       run: { id: "r1", status: "finished", checkpoint: {} },
