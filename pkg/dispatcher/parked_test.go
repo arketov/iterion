@@ -959,3 +959,110 @@ func TestReconcileSettledClaims(t *testing.T) {
 		})
 	}
 }
+
+// TestReconcileParked_OrphanedDispatcherRunReturnsCardToRunningState guards the
+// studio-restart case: a card parked in awaiting_input whose dispatcher-owned
+// run was resumed out-of-band and then killed with the process ends up
+// failed_resumable / PROCESS_ORPHANED. awaiting_input is not a launch column,
+// so without the sweep returning the card to running_state nothing ever
+// dispatches the resume and the run waits for a manual Resume.
+func TestReconcileParked_OrphanedDispatcherRunReturnsCardToRunningState(t *testing.T) {
+	cases := []struct {
+		name      string
+		code      store.FailureCode
+		source    *store.RunSource
+		wantState string
+		wantClaim bool
+	}{
+		{"orphaned dispatcher run returns to in_progress", store.FailureProcessOrphaned,
+			&store.RunSource{Kind: store.RunSourceKindDispatcher, IssueID: "native:parked"}, native.StateInProgress, false},
+		{"other resumable failure stays parked", store.FailureExecutionFailed,
+			&store.RunSource{Kind: store.RunSourceKindDispatcher, IssueID: "native:parked"}, native.StateAwaitingInput, true},
+		{"orphaned run of another owner stays parked", store.FailureProcessOrphaned,
+			nil, native.StateAwaitingInput, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			runStore, err := store.New(dir)
+			if err != nil {
+				t.Fatalf("store.New: %v", err)
+			}
+			run, err := runStore.CreateRun(context.Background(), "run-orphaned-1", "wf", nil)
+			if err != nil {
+				t.Fatalf("CreateRun: %v", err)
+			}
+			run.Status = store.RunStatusFailedResumable
+			run.FailureCode = tc.code
+			run.Source = tc.source
+			if err := runStore.SaveRun(context.Background(), run); err != nil {
+				t.Fatalf("SaveRun: %v", err)
+			}
+
+			ns, err := native.NewStore(filepath.Join(dir, "dispatcher"))
+			if err != nil {
+				t.Fatalf("native.NewStore: %v", err)
+			}
+			iss, err := ns.Create(native.Issue{Title: "parked", State: native.StateAwaitingInput})
+			if err != nil {
+				t.Fatalf("Create: %v", err)
+			}
+			if _, err := ns.Claim(iss.ID, "test-host-1"); err != nil {
+				t.Fatalf("Claim: %v", err)
+			}
+			if err := ns.SetLastRun(iss.ID, "run-orphaned-1", ""); err != nil {
+				t.Fatalf("SetLastRun: %v", err)
+			}
+			if err := ns.SetAwaitingInput(iss.ID, true); err != nil {
+				t.Fatalf("SetAwaitingInput: %v", err)
+			}
+
+			cfg := &Config{
+				Name:     "test",
+				Workflow: filepath.Join(t.TempDir(), "fake.bot"),
+				Tracker:  TrackerConfig{Kind: "native"},
+				Polling:  PollingConfig{IntervalMS: 50},
+				Agent: AgentConfig{
+					MaxConcurrent:  4,
+					RunningState:   "in_progress",
+					CompletedState: "review",
+					FailedState:    "blocked",
+				},
+				Workspace: WorkspaceConfig{Root: filepath.Join(dir, "ws")},
+			}
+			cfg.applyDefaults()
+			ws, err := NewWorkspaces(cfg.Workspace.Root)
+			if err != nil {
+				t.Fatalf("NewWorkspaces: %v", err)
+			}
+			c, err := New(Options{
+				Config:     cfg,
+				Tracker:    native.NewAdapter(ns),
+				Runner:     &StubRunner{},
+				Workspaces: ws,
+				Logger:     iterlog.New(iterlog.LevelError, &bytes.Buffer{}),
+				HostMarker: "test-host-1",
+				StoreDir:   dir,
+			})
+			if err != nil {
+				t.Fatalf("New: %v", err)
+			}
+
+			c.reconcileParked(context.Background())
+
+			got, err := ns.Get(iss.ID)
+			if err != nil {
+				t.Fatalf("Get: %v", err)
+			}
+			if got.State != tc.wantState {
+				t.Errorf("card state = %q, want %q", got.State, tc.wantState)
+			}
+			if claimed := got.Claim != ""; claimed != tc.wantClaim {
+				t.Errorf("card claimed = %v, want %v", claimed, tc.wantClaim)
+			}
+			if wantBadge := tc.wantState == native.StateAwaitingInput; got.AwaitingInput != wantBadge {
+				t.Errorf("awaiting-input badge = %v, want %v", got.AwaitingInput, wantBadge)
+			}
+		})
+	}
+}
