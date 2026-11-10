@@ -625,7 +625,7 @@ loop (or the explicit "Launch now"). A board launch requires a git worktree:
 in a non-git folder, or a repository with no commits, it fails at setup instead
 of running in place in the project folder, and its run is labelled with the
 source `pipeline_board`. See
-[ADR-164](adr/164-the-studio-board-loop-yields-to-a-configured-dispatcher.md).
+[ADR-167](adr/167-the-studio-board-loop-yields-to-a-configured-dispatcher.md).
 
 Task ingestion reuses native issues in this slice. A task appears before launch
 only when its `Issue.Bot` names a bot; once a run exists, manual/API/scheduled

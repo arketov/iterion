@@ -813,6 +813,8 @@ func runServer(cmd *cobra.Command, _ []string) error {
 		OrgDefaults:                 orgLimitDefaultsFromEnv(),
 		CredPoolBroker:              credBroker,
 		CredPoolPools:               stores.credPools,
+		CredPoolAttachments:         stores.credAttachments,
+		PoolUsageProbe:              cloudpublisher.AnthropicForfaitProbe(8 * time.Second),
 		CredPoolPledges:             stores.credPledges,
 		CredPoolLeases:              stores.credLeases,
 		CredPoolLedger:              stores.credLedger,
@@ -925,6 +927,7 @@ type cloudStores struct {
 	credUsage        *credusage.MongoCounter
 	credPools        *credpool.MongoPoolStore
 	credPledges      *credpool.MongoPledgeStore
+	credAttachments  *credpool.MongoAttachmentStore
 	credLeases       *credpool.MongoLeaseStore
 	credLedger       *credpool.MongoLedger
 	audit            *audit.MongoStore
@@ -989,6 +992,7 @@ func buildCloudStores(ctx context.Context, st *mongostore.Store, logger *iterlog
 		orgUsage:         orgusage.NewMongoCounter(st.DB()),
 		credUsage:        credusage.NewMongoCounter(st.DB()),
 		credPools:        credpool.NewMongoPoolStore(st.DB()),
+		credAttachments:  credpool.NewMongoAttachmentStore(st.DB()),
 		credPledges:      credpool.NewMongoPledgeStore(st.DB()),
 		credLeases:       credpool.NewMongoLeaseStore(st.DB()),
 		credLedger:       credpool.NewMongoLedger(st.DB()).WithLogger(logger),
