@@ -199,7 +199,12 @@ console, or `iterion resume`), so a per-tick **parked sweep**
 lifecycle: run `finished` → `agent.completed_state`, hard `failed` →
 `agent.failed_state` (claim released, badge cleared). Resumable statuses
 (`paused_*`, `failed_resumable`, `cancelled`) keep the card parked — it
-genuinely still awaits the operator. The cloud board coordinator runs
+genuinely still awaits the operator. One exception: a dispatcher-owned run
+that was resumed out-of-band and then killed by a studio restart reads
+`failed_resumable` / `PROCESS_ORPHANED`; nobody is left to resume it and
+`awaiting_input` is no launch column, so the sweep returns the card to
+`agent.running_state` (claim released, badge cleared) and the next dispatch
+resumes the same run (table below). The cloud board coordinator runs
 the same sweep for cloud-launched cards.
 
 That sweep only sees cards still in `awaiting_input`. When the resumed run
