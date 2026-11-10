@@ -158,6 +158,19 @@ func (s *Server) handlePipelineBoardTaskCreate(w http.ResponseWriter, r *http.Re
 	botArgs := native.DropServerMintedLaunchVars(cloneStringMap(req.BotArgs))
 	blockerPolicy := native.BlockerPolicy{RequireLabels: native.RequireBlockerLabels(botArgs)}
 
+	// The planner provenance, derived once for create AND upsert: parent_id,
+	// falling back to the spawned_from stamp, then stamped back onto botArgs.
+	parentID := strings.TrimSpace(req.ParentID)
+	if parentID == "" && botArgs != nil {
+		parentID = strings.TrimSpace(botArgs[native.BotArgSpawnedFrom])
+	}
+	if parentID != "" {
+		if botArgs == nil {
+			botArgs = map[string]string{}
+		}
+		botArgs[native.BotArgSpawnedFrom] = parentID
+	}
+
 	// Upsert: planners re-run without duplicating tickets for the same request file.
 	if req.Upsert {
 		if upsertBot, inputPath, ok := native.UpsertKey(bot.Name, botArgs); ok {
@@ -167,7 +180,7 @@ func (s *Server) handlePipelineBoardTaskCreate(w http.ResponseWriter, r *http.Re
 				return
 			}
 			if existing != nil {
-				issue, uerr := s.upsertPipelineTask(boardStore, board, existing, req, bot.Name, botArgs, blockers)
+				issue, uerr := s.upsertPipelineTask(boardStore, board, existing, req, bot.Name, botArgs, blockers, parentID)
 				if uerr != nil {
 					if strings.Contains(uerr.Error(), "cycle") {
 						s.httpErrorFor(w, r, http.StatusBadRequest, "pipeline board task: %v", uerr)
@@ -226,16 +239,6 @@ func (s *Server) handlePipelineBoardTaskCreate(w http.ResponseWriter, r *http.Re
 		if !ok && board.StateByName(native.StateWaitingDeps) != nil {
 			state = native.StateWaitingDeps
 		}
-	}
-	parentID := strings.TrimSpace(req.ParentID)
-	if parentID == "" && botArgs != nil {
-		parentID = strings.TrimSpace(botArgs[native.BotArgSpawnedFrom])
-	}
-	if parentID != "" {
-		if botArgs == nil {
-			botArgs = map[string]string{}
-		}
-		botArgs[native.BotArgSpawnedFrom] = parentID
 	}
 	newIssue := native.Issue{
 		Title: strings.TrimSpace(req.Title),

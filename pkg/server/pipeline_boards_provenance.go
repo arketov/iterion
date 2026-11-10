@@ -247,6 +247,7 @@ func (s *Server) upsertPipelineTask(
 	botName string,
 	botArgs map[string]string,
 	blockers []string,
+	parentID string,
 ) (*native.Issue, error) {
 	if err := native.ValidateBlockers(boardStore, existing.ID, blockers); err != nil {
 		return nil, err
@@ -268,6 +269,11 @@ func (s *Server) upsertPipelineTask(
 		Bot:      &botName,
 		BotArgs:  &botArgs,
 		Blockers: &blockers,
+	}
+	// An empty parentID is "the request named no parent": the stored one stays
+	// (a non-nil empty Patch.ParentID would clear it).
+	if parentID != "" {
+		patch.ParentID = &parentID
 	}
 	if req.Labels != nil {
 		labels := append([]string(nil), req.Labels...)
