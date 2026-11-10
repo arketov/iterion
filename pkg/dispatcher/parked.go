@@ -18,9 +18,11 @@ import (
 // with its claim retained forever.
 //
 // finished → CompletedState; hard-failed (non-resumable) → FailedState.
-// Operator-owned statuses (paused_*, failed_resumable, cancelled) and in-flight
-// ones (running, queued) stay parked — the card genuinely still awaits the
-// operator. Native-tracker only (optional-interface seam, same as
+// A dispatcher-owned run orphaned by a restart (failed_resumable /
+// PROCESS_ORPHANED) returns its card to RunningState so dispatch resumes it.
+// Operator-owned statuses (paused_*, other failed_resumable, cancelled) and
+// in-flight ones (running, queued) stay parked — the card genuinely still
+// awaits the operator. Native-tracker only (optional-interface seam, same as
 // stampLastRun/setAwaitingInput); every call is local disk I/O, safe on
 // the actor per the ADR-028 Step 3 boundary.
 func (c *Dispatcher) reconcileParked(ctx context.Context) {
@@ -60,7 +62,21 @@ func (c *Dispatcher) reconcileParked(ctx context.Context) {
 			continue
 		}
 		var target string
-		switch c.runStatusFrom(rs, runID) {
+		run, loadErr := c.loadRunForDecision(rs, runID, "parked sweep")
+		if loadErr != nil {
+			continue
+		}
+		switch run.Status {
+		case store.RunStatusFailedResumable:
+			// A restart killed the run after an out-of-band resume: nobody
+			// is left to resume it and awaiting_input is no launch column,
+			// so hand the card back to the running column for the
+			// dispatcher to resume the same run.
+			if !isDispatcherOrphanedRun(run) || cfg.Agent.RunningState == "" {
+				continue
+			}
+			target = cfg.Agent.RunningState
+			c.logger.Info("dispatcher: %s run %s was orphaned by a restart — returning the awaiting-input card to %q so it resumes", iss.Identifier, runID, target)
 		case store.RunStatusFinished:
 			target = cfg.Agent.CompletedState
 			c.logger.Info("dispatcher: %s resumed out-of-band and finished (run=%s) — moving awaiting-input card to %q", iss.Identifier, runID, target)
@@ -317,6 +333,16 @@ func (c *Dispatcher) reconcileStrandedPaused(ctx context.Context) {
 	if moved {
 		c.fireSnapshot()
 	}
+}
+
+// isDispatcherOrphanedRun reports whether the run is a dispatcher-owned
+// failed_resumable run whose process died (PROCESS_ORPHANED, written by the
+// boot/periodic reaper or the dispatcher's own probe) — the one resumable
+// failure the dispatcher resumes without an operator.
+func isDispatcherOrphanedRun(r *store.Run) bool {
+	return r != nil && r.Status == store.RunStatusFailedResumable &&
+		r.FailureCode == store.FailureProcessOrphaned &&
+		r.Source != nil && r.Source.Kind == store.RunSourceKindDispatcher
 }
 
 // isDispatcherPausedRun reports whether the run sits on a human/operator
