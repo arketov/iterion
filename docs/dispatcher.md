@@ -299,6 +299,7 @@ which tickets are being worked on right now. Behaviour:
 | Run cancelled by the operator (`ErrRunCancelled`) | No revert, no retry: the claim is retained and the ticket stays held until an explicit resume |
 | Operator moved the card out of `running_state` mid-run (`refreshRunningStates` interrupts the run) | Interrupt, release claim — **not** a failed attempt: no retry is scheduled, `max_attempts` is not spent, no give-up fires, and the card stays in the column the operator put it in. The run is left `failed_resumable`; moving the card back to an eligible state resumes it from its checkpoint |
 | Run failed (non-cancel)                | Revert state, release claim, schedule retry         |
+| Run stopped by the provider's usage window (`USAGE_LIMIT_BLOCKED`, including an `ITERION_USAGE_CAP_*` cap) | Revert state, release claim, park the card in the retry queue until the window reopens — **not** a failed attempt: `max_attempts` is not spent, no give-up fires, and no new card is picked up meanwhile ([Giving up](#giving-up-agentmax_attempts)) |
 | Run finished cleanly (`err == nil`)    | **No revert.** If the workflow moved the state itself (docs-refresh → `review`), that is honoured. If it left the card in `running_state`, the dispatcher moves it to `agent.completed_state` (default `review`) — see `maybeTransitionToCompleted`. A transient write failure is retried with backoff while the card stays claimed; after a restart, a finished card still in `running_state` is completed instead of re-run ([terminal-state keys](#terminal-state-keys)). The move is stamped `run_finished` on the card (`state_reason`) and on the `issue_state` event. |
 | Daemon shutdown (Ctrl+C, SIGTERM)      | Revert each in-flight ticket's transition           |
 
@@ -468,6 +469,7 @@ card stays visible after its first line.
 | Stall timeout                 | Same exponential backoff                               |
 | External state change         | Same                                                   |
 | Hook failure (`after_create` or `before_run`) | Same — see [Hook failure](#hook-failure) |
+| Provider usage window shut (`USAGE_LIMIT_BLOCKED`) | The window's reset + 1 min (15 min when unknown), charges no attempt — see [Giving up](#giving-up-agentmax_attempts) |
 | Sandbox setup failure (image pull, container start, `postCreate`, a broken CLI install inside the sandbox) | Fixed schedule instead: 60 s, 180 s, 300 s, then **parked** — the next retry is one hour out |
 
 The exponential row doubles from 10 s (10, 20, 40, … s) and stops growing
@@ -696,6 +698,21 @@ dragged the card out of `agent.running_state` is not an attempt: it schedules no
 retry, never gives up and never overwrites the column the operator chose (see
 [the in-progress transition](#in-progress-transition-agentrunning_state)). A stall
 reap, which carries the same interruption cause but no operator move, still counts.
+
+A run the **provider's usage window** stopped (`USAGE_LIMIT_BLOCKED` — the
+subscription's 5-hour or weekly wall, or an `ITERION_USAGE_CAP_*` cap firing
+below it, see [usage caps](usage-caps.md)) is not an attempt either: waiting is
+the only cure, and re-picking it would hit the same wall. The card goes back to
+its source state and waits in the retry queue, with `Attempt` unchanged, until
+the reset the provider named plus one minute (15 minutes when the answer names
+none; never later than `ITERION_RETRY_MAX_WAIT`, 8 days by default). Until
+then the dispatcher takes **no new card** — in-flight runs are untouched — and
+afterwards the run continues from its checkpoint like any retry.
+`ITERION_RETRY_USAGE_WINDOW=off` restores the ordinary attempt ladder above.
+The wait lives in memory: a restart forgets it, and the first refusal after the
+restart re-establishes it. *Retry now* on a parked row does not lift the wall —
+new and due cards wait for the reset either way. A plain, short-lived throttle
+(`RATE_LIMITED` without a usage window) keeps the ordinary ladder.
 
 A successful give-up also **stamps** the issue (`Issue.gave_up` — the run, the
 state written, the attempt count — plus an `issue_gave_up` event). The stamp

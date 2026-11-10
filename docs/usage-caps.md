@@ -312,7 +312,9 @@ re-measures.
   (week, hard), resets 2026-08-18T21:00:00Z`;
 - the run's own error, carrying the same sentence;
 - then the ordinary wait: `run_retry_scheduled` with `retry_after` at the
-  window's reopening, and `run_auto_resumed` when it fires.
+  window's reopening, and `run_auto_resumed` when it fires. The local board
+  dispatcher parks the card the same way — no attempt spent, no new card taken
+  until the reopening ([dispatcher.md](dispatcher.md#giving-up-agentmax_attempts)).
 
 ### Two shapes, three situations — and the number is what tells them apart
 
