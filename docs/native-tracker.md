@@ -578,8 +578,11 @@ generic inputs list.
 
 **Upsert.** Planners re-run without flooding the board: `POST …/tasks` with
 `upsert: true` and `bot_args.input_path` updates the existing card matching
-`(bot, input_path)` (title / blockers / bot_args). Does **not** reset state
-when the ticket is already `in_progress` / `done` / `awaiting_input`.
+`(bot, input_path)` (title / blockers / bot_args). A `parent_id` (or `spawned_from`) in the request
+is applied to the matched card like on create (`Issue.ParentID` plus the
+`spawned_from` stamp); a re-run that names no parent keeps the stored one.
+Does **not** reset state when the ticket is already `in_progress` / `done` /
+`awaiting_input`.
 
 **Multi-engine access.** Board mutations do not require Claude-specific MCP
 tools. The canonical fallbacks work across Claude Code, claw, pi, Kimi, Grok,
