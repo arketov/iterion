@@ -7,9 +7,88 @@ import (
 	"strings"
 	"time"
 
+	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/retrypolicy"
 	"github.com/arketov/iterion/pkg/runtime"
 	"github.com/arketov/iterion/pkg/store"
 )
+
+// usageWindowFallbackWait is how long a usage-window stop waits when the
+// provider's answer carries no reset instant (same scale as the `iterion run`
+// auto-resume fallback in pkg/cli/auto_resume.go).
+const usageWindowFallbackWait = 15 * time.Minute
+
+// usageWindowWake answers "when should a run stopped by the provider's quota
+// window be retried". ok is false when the error is not a usage-window stop,
+// or the shared retry policy turned the wait off (ITERION_RETRY_USAGE_WINDOW).
+//
+// Evidence order is structure → code → text, like the cloud runner's
+// usageWindowEvidence (pkg/runner/usage_retry.go). The wake instant is the
+// reset plus a minute of margin, never earlier than a minute from now and
+// never later than the policy's max wait.
+func usageWindowWake(err error, now time.Time, pol retrypolicy.Policy) (wake time.Time, ok bool) {
+	if err == nil || !pol.Enabled() {
+		return time.Time{}, false
+	}
+	var reset time.Time
+	var rl *delegate.ErrRateLimited
+	switch {
+	case errors.As(err, &rl) && rl.Kind == delegate.RateLimitKindUsageWindow:
+		reset = rl.ResetAt
+	case runtimeFailureCode(err) == store.FailureUsageLimitBlocked:
+	case delegate.UsageWindowInFlattenedError(err.Error()):
+	default:
+		return time.Time{}, false
+	}
+	if reset.IsZero() {
+		if at, parsed := delegate.ParseResetHint(err.Error(), now); parsed {
+			reset = at
+		} else {
+			reset = now.Add(usageWindowFallbackWait)
+		}
+	}
+	wake = reset.Add(time.Minute)
+	if floor := now.Add(time.Minute); wake.Before(floor) {
+		wake = floor
+	}
+	if ceil := now.Add(pol.MaxWaitDuration()); wake.After(ceil) {
+		wake = ceil
+	}
+	return wake, true
+}
+
+// scheduleUsageWait parks an issue whose run the provider's quota window
+// stopped: a retry entry due at wake, WITHOUT spending an attempt (the entry
+// keeps prev.Attempt; scheduleRetry would add one). The entry holds the claim
+// (isClaimed) until it fires, and carries the resume pointer so the next
+// dispatch continues from the checkpoint. Must be called from the actor.
+func (c *Dispatcher) scheduleUsageWait(issueID string, prev *runningEntry, runErr error, wake time.Time) {
+	attempt := prev.Attempt
+	if cur, ok := c.state.retries[issueID]; ok {
+		if cur.Attempt > attempt {
+			attempt = cur.Attempt
+		}
+		if cur.Timer != nil {
+			cur.Timer.Stop()
+		}
+	}
+	timer := time.AfterFunc(time.Until(wake), func() {
+		select {
+		case c.cmds <- cmdRetryDue{issueID: issueID}:
+		case <-c.stop:
+		}
+	})
+	c.state.retries[issueID] = &retryEntry{
+		IssueID:    issueID,
+		Identifier: prev.Identifier,
+		Attempt:    attempt,
+		DueAt:      wake,
+		LastError:  runErr.Error(),
+		Timer:      timer,
+		PrevRunID:  c.resumableRunID(prev.RunID),
+	}
+	c.logger.Info("dispatcher: %s parked on the provider usage window until %s (run=%s) — attempt not charged", prev.Identifier, wake.Format(time.RFC3339), prev.RunID)
+}
 
 // sandboxBackoffSchedule overrides the default exponential backoff
 // when the failure is a sandbox-setup error (devcontainer postCreate
