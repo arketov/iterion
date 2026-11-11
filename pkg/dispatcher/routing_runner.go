@@ -57,7 +57,7 @@ type RoutingRunner struct {
 	// walks; defaults to botregistry.List.
 	listBots func(botregistry.ListOptions) ([]botregistry.Entry, error)
 
-	mu     sync.Mutex
+	mu      sync.Mutex
 	dynamic map[string]Runner // normalized bot name → lazily-compiled runner
 }
 
