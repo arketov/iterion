@@ -438,10 +438,15 @@ func windowsPathEnd(s string, from int) int {
 }
 
 // unixPathEnd is where a Unix path ends: at whitespace or a quote/bracket the
-// sentence wrapped it in.
+// sentence wrapped it in. A space does not end it when the next token is
+// clearly the path going on (`/home/John Smith/p/run.json`).
 func unixPathEnd(s string, from int) int {
 	i := from
 	for i < len(s) {
+		if s[i] == ' ' && spaceContinuesPath(s, i) {
+			i++
+			continue
+		}
 		switch s[i] {
 		case ' ', '\t', '\n', '\r', '"', '\'', '<', '>', '|', '*', '?', ')', ']', '}':
 			return i
