@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/arketov/iterion/pkg/backend/cost"
 	"github.com/arketov/iterion/pkg/backend/credroute"
@@ -113,6 +115,23 @@ type metricsEmitter struct {
 	// dead, pledge still "active").
 	sawAuthFailure bool
 
+	// credVerdicts is what each credential the attempt's exhausted chains
+	// ran on met, keyed by its fingerprint (chainRouteVerdictLocked): the
+	// route verdicts of the node_recovery events, each placed on the
+	// credential its route spent — never on a credential another route of
+	// the same chain spent. unplacedVerdict says a credential verdict could
+	// not be placed (a route naming neither its keys nor a plan row), and
+	// unchainedVerdict that one was read outside any chain (the node's own
+	// code); either withholds the fine condition table
+	// (fineConditions), and the pool report keeps the coarse condition.
+	credVerdicts     map[string]credVerdict
+	unplacedVerdict  bool
+	unchainedVerdict bool
+
+	// probe answers the credential window's probe this attempt follows, when
+	// it follows one (watchProbeAnswer): nil otherwise.
+	probe *probeWatch
+
 	// missed accumulates the observations a STAMPED plan named nothing for,
 	// on the routes a plan is supposed to answer. Env-funded spend is
 	// excluded — the openai_compatible gateway and a claude_code session
@@ -209,6 +228,7 @@ func newMetricsEmitter(inner model.EventEmitter, reg *metrics.Registry, credPlan
 		declinedRoutes: make(map[routeKey]bool),
 		credPlan:       credPlan,
 		byFingerprint:  make(map[string]credpool.FingerprintSpend),
+		credVerdicts:   make(map[string]credVerdict),
 	}
 }
 
@@ -686,6 +706,8 @@ func (m *metricsEmitter) observe(evt store.Event) {
 		}
 		route := routeKey{backend: backend, model: modelName, credential: observedCredential(evt.Data)}
 		m.bookObservationLocked(evt.NodeID, route, provider, costDelta, int64(inputT), int64(outputT), 0)
+		// A claw step is a call the provider served.
+		m.noteProbeAnswerLocked(evt.NodeID, route, provider, costDelta, int64(inputT)+int64(outputT))
 		if unreported, _ := evt.Data["usage_unreported"].(bool); unreported {
 			k := route
 			t := m.byRoute[k]
@@ -707,12 +729,24 @@ func (m *metricsEmitter) observe(evt store.Event) {
 	case store.EventNodeRecovery:
 		// The engine already classified the failure here (typed, from
 		// recovery.Classify) — this is the only place the reason survives
-		// once recovery turns an auth rejection into a pause.
-		if code, _ := evt.Data["code"].(string); code == string(runtime.ErrCodeAuthFailed) {
-			m.mu.Lock()
+		// once recovery turns an auth rejection into a pause. A dead
+		// credential on ONE route of an exhausted chain is read too: the
+		// node's code is then the window another route met (the run waits
+		// for it, #3032), and the rejection lives in the route verdicts
+		// the same event carries (runtime.ChainRouteVerdicts).
+		code, _ := evt.Data["code"].(string)
+		routes, chained := evt.Data["chain_routes"].([]map[string]any)
+		m.mu.Lock()
+		if code == string(runtime.ErrCodeAuthFailed) || chainRouteRejectedCredential(routes) {
 			m.sawAuthFailure = true
-			m.mu.Unlock()
 		}
+		if !chained && credentialVerdictCode(code) {
+			m.unchainedVerdict = true
+		}
+		for _, route := range routes {
+			m.chainRouteVerdictLocked(evt.NodeID, route)
+		}
+		m.mu.Unlock()
 	case store.EventDelegateStall:
 		// The F8.1 class: a served model blocking on an orchestration wait
 		// it never armed. Counted per outcome so "recovered in place" and
@@ -822,6 +856,12 @@ func (m *metricsEmitter) observeDelegate(evt store.Event) {
 		if b, ok := m.bookDelegateSliceLocked(evt.NodeID, s); ok {
 			booked = append(booked, b)
 		}
+	}
+	// A FINISHED delegation's own route served it. The folded slices are
+	// the routes the chain abandoned, and a delegate_error's spend may end
+	// on the very refusal the probe is asking about: neither answers.
+	if evt.Type == store.EventDelegateFinished {
+		m.noteProbeAnswerLocked(evt.NodeID, delegateSliceRoute(own), own.provider, own.cost, int64(own.tokens))
 	}
 	// The re-ask's delegate event is booked: the enclosing attempt's
 	// steps verdict comes back for that attempt's own delegate event.
@@ -946,6 +986,20 @@ func (m *metricsEmitter) bookDelegateSliceLocked(nodeID string, s delegateSlice)
 			s.cost = s.tokens * rate.inputUSDPerToken
 		}
 	}
+	m.runAggregateTokens += int64(s.tokens)
+	m.runCostUSD += s.cost
+	// The delegate reports ONE token count and no split. It goes to the
+	// aggregate counter rather than to input: a sum stays exact either way,
+	// and only this way does a reader of the public per-credential endpoint
+	// see "not split" instead of a confident, wrong input figure (#992).
+	m.bookObservationLocked(nodeID, delegateSliceRoute(s), s.provider, s.cost, 0, 0, int64(s.tokens))
+	return s, true
+}
+
+// delegateSliceRoute is the route key a delegate slice books under: the
+// claude_code session label is its source, the structured-output recovery's
+// call is hostExtractionSource.
+func delegateSliceRoute(s delegateSlice) routeKey {
 	var source string
 	if s.backend == delegate.BackendClaudeCode {
 		source = s.fingerprint
@@ -953,14 +1007,7 @@ func (m *metricsEmitter) bookDelegateSliceLocked(nodeID string, s delegateSlice)
 	if s.unstepped {
 		source = hostExtractionSource
 	}
-	m.runAggregateTokens += int64(s.tokens)
-	m.runCostUSD += s.cost
-	// The delegate reports ONE token count and no split. It goes to the
-	// aggregate counter rather than to input: a sum stays exact either way,
-	// and only this way does a reader of the public per-credential endpoint
-	// see "not split" instead of a confident, wrong input figure (#992).
-	m.bookObservationLocked(nodeID, routeKey{backend: s.backend, model: s.model, source: source, credential: s.credential}, s.provider, s.cost, 0, 0, int64(s.tokens))
-	return s, true
+	return routeKey{backend: s.backend, model: s.model, source: source, credential: s.credential}
 }
 
 // RunTotals snapshots the run's accumulated LLM consumption — what
@@ -990,6 +1037,159 @@ func (m *metricsEmitter) spentOnTheProvider() bool {
 	}
 	costUSD, inputTokens, outputTokens, aggregateTokens := m.RunTotals()
 	return costUSD > 0 || inputTokens > 0 || outputTokens > 0 || aggregateTokens > 0
+}
+
+// chainRouteRejectedCredential reports a node_recovery event's route verdicts
+// (runtime.ChainRouteVerdicts, the engine's own slice: the observer sees the
+// event as the engine emitted it) naming a credential the provider rejected.
+func chainRouteRejectedCredential(routes []map[string]any) bool {
+	return slices.ContainsFunc(routes, func(route map[string]any) bool {
+		code, _ := route["code"].(string)
+		return code == string(runtime.ErrCodeAuthFailed)
+	})
+}
+
+// credentialVerdictCode reports a failure code that changes a credential's
+// availability in the pool: a dead credential, or a usage window.
+func credentialVerdictCode(code string) bool {
+	return code == string(runtime.ErrCodeAuthFailed) || code == string(runtime.ErrCodeUsageLimitBlocked)
+}
+
+// credVerdict is what one credential met across the attempt's exhausted
+// chains: a rejection, a usage window, and the earliest instant one of its
+// windows named (zero: none did).
+type credVerdict struct {
+	authFailed bool
+	window     bool
+	windowAt   time.Time
+}
+
+// chainRouteVerdictLocked places one route verdict of an exhausted chain on
+// the credential its route spent (routeCredentialLocked). Only a verdict
+// that changes a credential's availability is placed; a route the runner
+// cannot place marks the attempt's verdicts unplaced. Called under m.mu.
+func (m *metricsEmitter) chainRouteVerdictLocked(nodeID string, route map[string]any) {
+	code, _ := route["code"].(string)
+	if !credentialVerdictCode(code) {
+		return
+	}
+	backend, _ := route["backend"].(string)
+	modelSpec, _ := route["route_model"].(string)
+	provider, _ := route["provider"].(string)
+	var source string
+	if backend == delegate.BackendClaudeCode {
+		source, _ = route["fingerprint"].(string)
+	}
+	fp, placed := m.routeCredentialLocked(nodeID, routeKey{backend: backend, model: modelSpec, source: source, credential: observedCredential(route)}, provider)
+	if !placed {
+		m.unplacedVerdict = true
+		return
+	}
+	if fp == "" {
+		// The environment's credential (planRouteFundedByEnv): no lease
+		// lends it, so its verdict is no donor's.
+		return
+	}
+	v := m.credVerdicts[fp]
+	if code == string(runtime.ErrCodeAuthFailed) {
+		v.authFailed = true
+	} else {
+		v.window = true
+		if at := routeWindowReopensAt(route); !at.IsZero() && (v.windowAt.IsZero() || at.Before(v.windowAt)) {
+			v.windowAt = at
+		}
+	}
+	m.credVerdicts[fp] = v
+}
+
+// routeWindowReopensAt is the instant a route's usage-window refusal names:
+// its typed reset (reset_at), else one parsed from its words, zero when it
+// names none.
+func routeWindowReopensAt(route map[string]any) time.Time {
+	if raw, _ := route["reset_at"].(string); raw != "" {
+		if at, err := time.Parse(time.RFC3339Nano, raw); err == nil {
+			return at.UTC()
+		}
+	}
+	words, _ := route["error"].(string)
+	if at, ok := delegate.ParseResetHint(words, time.Now().UTC()); ok {
+		return at.UTC()
+	}
+	return time.Time{}
+}
+
+// routeCredentialLocked names the credential one route spent — for a chain
+// verdict (chainRouteVerdictLocked) and for a probe's answer
+// (noteProbeAnswerLocked) — in the order its spend joins the plan
+// (fingerprintFor), one step stricter, since a verdict moves a lease and an
+// answer releases a window where a spend only books:
+//
+//   - the route's own credential keys (ADR-161 decision 8) — the run slot
+//     they name, or nobody for a spend on no slot of the run's;
+//   - for a route without them, a label that says the call rode the
+//     environment (the structured-output recovery's call, a claude_code
+//     session on the pod's ambient anthropic env): nobody, whatever the plan
+//     predicted;
+//   - the credential plan's row for the node and the route's provider — a
+//     gateway route included: the walk records a row for one only when a
+//     sealed key funds it (ADR-131 §5);
+//   - a gateway route the plan names no row for: nobody — the environment
+//     funds it (planRouteFundedByEnv).
+//
+// placed is false when none of these names one: the route may have spent
+// any credential, the lease's included. Called under m.mu.
+func (m *metricsEmitter) routeCredentialLocked(nodeID string, route routeKey, provider string) (fp string, placed bool) {
+	if route.credential.Channel != "" {
+		return ownFingerprint(route.credential), true
+	}
+	if route.source == hostExtractionSource || (route.backend == delegate.BackendClaudeCode && route.source == "anthropic-env") {
+		return "", true
+	}
+	if len(m.credPlan) > 0 && nodeID != "" && route.backend != "" {
+		if provider == "" {
+			provider = planProviderFor(route)
+		}
+		if provider != "" {
+			if fp = m.credPlan[nodeID+model.PlanKeySep+provider]; fp != "" {
+				return fp, true
+			}
+		}
+	}
+	if planRouteFundedByEnv(route) {
+		return "", true
+	}
+	return "", false
+}
+
+// fineConditions is the attempt's fine condition table for the pool report
+// (credpool.Outcome.Conditions): what each credential its exhausted chains
+// met, one row per credential in a stable order. Nil — the coarse condition
+// stands for every lease — when the attempt met no chain verdict, when one
+// could not be placed, or when a credential verdict was read outside any
+// chain: a table missing a verdict would clear a lease whose credential met
+// it. A credential that met a rejection is AUTH_FAILED whatever else it met:
+// resting it on a window would hand it back still dead.
+func (m *metricsEmitter) fineConditions() []credpool.FingerprintCondition {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if len(m.credVerdicts) == 0 || m.unplacedVerdict || m.unchainedVerdict {
+		return nil
+	}
+	out := make([]credpool.FingerprintCondition, 0, len(m.credVerdicts))
+	for fp, v := range m.credVerdicts {
+		row := credpool.FingerprintCondition{Fingerprint: fp}
+		switch {
+		case v.authFailed:
+			row.Condition = credpool.ConditionAuthFailed
+		case v.window:
+			row.Condition, row.CooldownUntil = credpool.ConditionUsageWindow, v.windowAt
+		default:
+			continue
+		}
+		out = append(out, row)
+	}
+	slices.SortFunc(out, func(a, b credpool.FingerprintCondition) int { return strings.Compare(a.Fingerprint, b.Fingerprint) })
+	return out
 }
 
 // SawAuthFailure reports whether the provider rejected this run's

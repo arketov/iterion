@@ -171,10 +171,12 @@ One row per page under `docs/`, ADRs included. An ADR's **status** is the column
 | [`docs/adr/162-the-fork-review-lane-is-a-gesture-on-floors-that-land-first.md`](../adr/162-the-fork-review-lane-is-a-gesture-on-floors-that-land-first.md) | ADR-162 — The fork review lane: a maintainer's gesture admits one commit, on… | PR #1670 (squash `6898e6c78`) landed the lane's enforcement half. | Accepted — the operator decided it on 2026-11-05:… |
 | [`docs/adr/163-the-gateway-price-feed-syncs-into-the-database-and-rides-the-ipc.md`](../adr/163-the-gateway-price-feed-syncs-into-the-database-and-rides-the-ipc.md) | ADR-163 — The gateway price feed: operator pricing syncs into the database and rides… | The gateway cache-cost parity chain (#3099, #3103) proved metering, pricing and provenance end to end: the operator table… | Accepted — the operator decided it on 2026-11-07… |
 | [`docs/adr/164-configurable-key-pools-attach-per-scope-with-a-fallback-strategy.md`](../adr/164-configurable-key-pools-attach-per-scope-with-a-fallback-strategy.md) | ADR-164 — Configurable key pools: named pools attach at every cascade level over a… | iterion.cloud serves its products through gateway keys (the PLIAGE LiteLLM → Scaleway lane, deepseek today) — the durable, rational… | Accepted — the operator decided it on 2026-11-08 (three… |
+| [`docs/adr/165-codemode-runs-the-models-code-in-a-child-process-behind-the-tool-door.md`](../adr/165-codemode-runs-the-models-code-in-a-child-process-behind-the-tool-door.md) | ADR-165 — Codemode: the model's code runs in a credential-less child process whose only… | A tool call costs context twice: the declaration the model reads and the result it reads back. | Accepted — the operator decided the mandate on 2026-11-10… |
 | [`docs/adr/README.md`](../adr/README.md) | Architecture decision records | One decision per file, named `NNN-kebab-title.md`, where `NNN` is the next | — |
 | [`docs/agents/README.md`](../agents/README.md) | Agent instructions — the tree | Doctrine specific to this repository: what to know before touching iterion, | — |
 | [`docs/agents/backends/README.md`](../agents/backends/README.md) | Backends and execution — the domain | Who runs the prompt, with which tools, and what the node keeps of its | — |
 | [`docs/agents/backends/backend-selection.md`](../agents/backends/backend-selection.md) | Backend selection — the seven wired backends | Read it when a node runs on the wrong backend or you wire a new one. | — |
+| [`docs/agents/backends/codemode.md`](../agents/backends/codemode.md) | Codemode — the model writes code that calls the node's own tools | One tool whose argument is JavaScript. | — |
 | [`docs/agents/backends/facade-substitution.md`](../agents/backends/facade-substitution.md) | Facade substitution — the served model is not the label | Read it when a `zai`/`moonshot` route answers with GLM/Kimi under a | — |
 | [`docs/agents/backends/fallbacks-and-parity.md`](../agents/backends/fallbacks-and-parity.md) | Fallbacks, schema re-ask and system-prompt parity | Read it when you write `fallbacks:`, hit C173/C176, a node acts "dumber" | — |
 | [`docs/agents/backends/gateway.md`](../agents/backends/gateway.md) | The OpenAI-compatible gateway | Serving `openai_compatible/<gateway model id>` from the deployment's | — |
@@ -377,7 +379,7 @@ One row per page under `docs/`, ADRs included. An ADR's **status** is the column
 | [`docs/forge-integrations.md`](../forge-integrations.md) | Forge integrations (connect a repo, auto-provision) | bot (e.g. | — |
 | [`docs/forge-permissions.md`](../forge-permissions.md) | Forge permissions & identity — who a bot acts as | This is the model people most often get wrong: **the iterion user who launches | — |
 | [`docs/forge-security-read.md`](../forge-security-read.md) | Forge security-read — org-wide Dependabot alerts for bots | The security-read flow gives a bot read access to a GitHub org's | — |
-| [`docs/getting-started.md`](../getting-started.md) | Get started with Iterion Cloud in one prompt | Paste one prompt into your AI coding agent and it installs Iterion, connects it to iterion.cloud, and verifies readiness to deploy. | — |
+| [`docs/getting-started.md`](../getting-started.md) | Get started with Iterion Cloud in one prompt | Paste one prompt into your AI coding agent and it installs Iterion, connects it to iterion.cloud, checks the connection, then offers to… | — |
 | [`docs/github-board-sync.md`](../github-board-sync.md) | GitHub project board ↔ native board sync | Making a GitHub **Projects v2** board (the roadmap humans read) and iterion's | — |
 | [`docs/gitops-warden-rollout.md`](../gitops-warden-rollout.md) | gitops-warden — binding, calibrating, and flipping a repo to enforce | The runbook for [gitops-warden](https://github.com/SocialGouv/iterion/tree/main/bots/gitops-warden) | — |
 | [`docs/grammar/V1_SCOPE.md`](../grammar/V1_SCOPE.md) | Current scope of the V1 grammar and AST | The filename and grammar version remain `V1` for compatibility: Iterion has | — |
@@ -387,7 +389,7 @@ One row per page under `docs/`, ADRs included. An ADR's **status** is the column
 | [`docs/human-in-the-loop.md`](../human-in-the-loop.md) | Human in the loop | Most iterion nodes run unattended. | — |
 | [`docs/import.md`](../import.md) | `iterion import` — workflow scripts (.js) → draft .bot | `iterion import` converts a Claude-Code **workflow script** | — |
 | [`docs/improvement-ratchet.md`](../improvement-ratchet.md) | The ratchet | open. | — |
-| [`docs/index.md`](../index.md) | — | The cloud onboarding, ready to paste: give the whole block below to a fresh | — |
+| [`docs/index.md`](../index.md) | — | A `.bot` is a readable graph. | — |
 | [`docs/install.md`](../install.md) | 🖥️ Install | One Go core, delivered wherever you work — a scriptable CLI, a visual studio, a | — |
 | [`docs/layering.md`](../layering.md) | The layer map — package layers as an executable guard | The package layers are pinned by a test, not by prose: | — |
 | [`docs/legal-templates/README.md`](../legal-templates/README.md) | Legal page templates | The four markdown templates an operator fills in — with their DPO and | — |
@@ -427,6 +429,7 @@ One row per page under `docs/`, ADRs included. An ADR's **status** is the column
 | [`docs/references/dsl-grammar.md`](dsl-grammar.md) | Iterion `.bot` grammar reference | This is the readable inventory of the syntax accepted by the current parser. | — |
 | [`docs/references/dsl-properties.md`](dsl-properties.md) | Iterion `.bot` property reference | The same `iterion dsl spec --write` command generates Monaco's lexical | — |
 | [`docs/references/external-methodologies.md`](external-methodologies.md) | External Methodologies Cross-Check — IACDM & AI-DLC 2026 | Two independent 2026 methodology papers mapped onto iterion's mechanisms: | — |
+| [`docs/references/live-agents-openmausbot.md`](live-agents-openmausbot.md) | Live agents — OpenMausBot, mapped onto iterion | What an always-on agent product does that a parked iterion run does not. | — |
 | [`docs/references/map-bots.md`](map-bots.md) | Bot and skill map | Run `task map:gen` and commit; `task map:check` fails on drift. | — |
 | [`docs/references/map-docs.md`](map-docs.md) | Docs and ADR map | Run `task map:gen` and commit; `task map:check` fails on drift. | — |
 | [`docs/references/map-packages.md`](map-packages.md) | Package map | Run `task map:gen` and commit; `task map:check` fails on drift. | — |

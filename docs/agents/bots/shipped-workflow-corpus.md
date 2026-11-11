@@ -39,7 +39,7 @@ That table of globs is not the same thing as what the engine ROUTES:
 `filepath.WalkDir` at unbounded depth, pruning hidden directories,
 `node_modules`, `testdata`, nested git checkouts, a bot's `lib/` fragments and
 the inside of a bundle (the one rule the Project files list shares,
-[ADR-165](../../adr/165-one-walk-rule-for-the-bot-catalog-and-project-lists.md)).
+[ADR-168](../../adr/168-one-walk-rule-for-the-bot-catalog-and-project-lists.md)).
 So `examples/a/b/c.bot` is routable and matches no root, while the twelve
 parser fixtures under `bots/testdata/` are NOT routable: `routableNonWorkflows`
 holds only `examples/cursors/cursors.bot`.

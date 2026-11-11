@@ -210,6 +210,12 @@ func TestFallbackDoorPublish_doorServedRunIsNotGrantless(t *testing.T) {
 	if len(open) == 0 {
 		t.Fatal("the door lease did not survive publication — the grantless supersede closed it")
 	}
+	// The message names the attempt the door lease belongs to: the
+	// attempt's report settles exactly that lease (credpool
+	// ReportAttemptID), whatever the publication instant.
+	if msg.PoolAttemptID == "" || msg.PoolAttemptID != open[0].AttemptID {
+		t.Fatalf("PoolAttemptID = %q, want the door lease's attempt id %q", msg.PoolAttemptID, open[0].AttemptID)
+	}
 }
 
 // TestFallbackDoorPublish_resumeSwitchesDonorsAndSaysSo: launch served by
@@ -261,6 +267,11 @@ func TestFallbackDoorPublish_resumeSwitchesDonorsAndSaysSo(t *testing.T) {
 	open, _ := f.leases.ListOpenByRun(context.Background(), "run-sw")
 	if len(open) != 1 || open[0].DonorID != "donor" {
 		t.Fatalf("open leases after the resume = %+v, want donor A's alone (B's superseded at the acquisition, A's alive after publication)", open)
+	}
+	// The resume's message names ITS attempt — the new lease's id, never
+	// the launch's.
+	if msg.PoolAttemptID == "" || msg.PoolAttemptID != open[0].AttemptID || msg.PoolAttemptID == before[0].AttemptID {
+		t.Fatalf("resume PoolAttemptID = %q, want the resume lease's %q (the launch's was %q)", msg.PoolAttemptID, open[0].AttemptID, before[0].AttemptID)
 	}
 }
 
@@ -363,11 +374,13 @@ func TestFallbackDoorPreview_shutForAPoolMappedTeam(t *testing.T) {
 	}
 }
 
-// The door's refused-gateway path is unreachable at v25 (the door's wants
-// map slots through allKnownProviders, which excludes the provider until
-// #2005 PR-C'): the released-grant carry is witnessed at the unit level
+// The door's refused-gateway path is unreachable in production for good: the
+// door's wants map slots through the pool's vocabulary (wantForSlot over
+// model.KnownPoolProviders), which never names the gateway (ADR-131 §5). The
+// released-grant carry is witnessed at the unit level
 // (TestAcquireDoorGrant_AnUnsealedGrantIsReleased) and the pool lane's
-// release-reopen chain by TestFailedResumeWithARefusedGrantReopens (the
-// pool lane is drift-reachable by mutating poolWantOrder, whose contents
-// nothing pins — its gateway arm is exactly as unreachable in production
-// as the door's until PR-C'). PR-C' lifts this.
+// release-reopen chain by
+// TestFailedResumeWithARefusedGrantReopensTheSupersededLease, which reaches
+// the legacy pool's gateway arm only by mutating poolWantOrder — whose
+// gateway-free contents TestWantForSlot_totalOverTheVocabulary pins, so that
+// arm is exactly as unreachable in production as the door's.

@@ -53,7 +53,7 @@ three members of an aggregate proves nothing about the third.
 
 ### 2. Renovate opens the PRs
 
-Four gestures, in this order:
+Five gestures, in this order:
 
 **2a. Install the App on the repository.** The org's `socialgouv-renovate` App
 is `repository_selection: selected` — a repository not explicitly added never
@@ -117,6 +117,52 @@ agreement 4, and the preflight derives it rather than checking a fixed list:
 | `helpers:pinGitHubActionDigests` | `workflows: write` — it rewrites `.github/workflows/**`, and GitHub refuses an App push there without it |
 | `dependencyDashboard` | `issues: write` — the dashboard is an issue |
 | `vulnerabilityAlerts` | `vulnerability_alerts: read` |
+
+**2e. Give it a cadence GitHub keeps.** The workflow's own `schedule:` is a
+best-effort trigger, and on buildkit-operator it was a poor one: 41 of ~813
+expected hourly passes fired between 27/10 and 10/11/2026 (≈ 5 %, median gap
+6.2 h), so a security advisory waited 4 h 51 for the pass that opened its PR
+([#3130](https://github.com/SocialGouv/iterion/issues/3130)). The external
+trigger is an iterion schedule of the
+[`workflow-kick`](../bots/workflow-kick/README.md) bot, which dispatches the
+workflow (`workflow_dispatch`, which the recipe above already declares) every
+hour:
+
+1. **The App permission.** The GitHub App behind the repository's iterion
+   connection holds `Actions: Read and write` — an org owner approves the
+   pending permission request. The server checks the recorded grant before it
+   mints; when the record lacks it, it re-reads the installation's live grant
+   and records it, so an approval made after the install counts from the next
+   tick, with no refresh to run. It names this permission only when the
+   installation still lacks it (`workflow_dispatch_permission_missing`).
+2. **Enable `workflow-kick`** on the repository's integration (Studio →
+   Integrations). Provisioning creates its hourly schedule (`7 * * * *`) bound
+   to the integration.
+3. **Name the workflow** on that schedule: `PATCH
+   /api/teams/{id}/schedules/{sid}` with `{"vars": {"workflow":
+   "renovate.yml"}}`, or Studio → Automations → Schedules (team admin). Until
+   then the tick mints no grant and each run ends `NO_WORKFLOW`; once set, the
+   grant is bound to that file and dispatches nothing else. A manifest
+   declaring the `actions` scope cannot default this var: the bundle decode
+   refuses it, so the operator, not the bot's author, names the workflow.
+
+The bot declares `forge.token_scopes: { actions: write }`, which mints the
+dispatch capability into its schedule run's publish grant — a pull-request or
+API launch never gets it, nor does any other bot. That grant is bound to the
+named workflow, dispatches it once, and is bound to no pull request, so it
+dispatches and does nothing else: a
+review, a commit status — the required check included — or a pull-request read
+made with it is refused (`grant_bound_to_no_pull_request`) before any forge
+call. The
+dispatch itself is made by the server with a GitHub App token minted for that
+one call — `{actions: write, metadata: read}`, narrowed to the repository — so
+no run, and no other bot, ever holds the Actions permission, and the runtime
+token every run mounts is unchanged. A refusal (another workflow or
+repository, a file name that is not a plain `*.yml`, an untrusted or ended
+run, a second dispatch on the same grant, a connection that is not a GitHub
+App) is typed and comes before any forge call; the run ends
+`WORKFLOW_NOT_DISPATCHED` with the code, and the schedule's health surface
+shows it.
 
 ### 3. The ruleset requires the CI checks — and only those, for now
 
@@ -440,6 +486,43 @@ in `unprovenForgePushers`, pointed at epic
 [#1409](https://github.com/SocialGouv/iterion/issues/1409) — the preflight
 widened to a (repo, credential) pair — and the guard refuses a stale entry as
 firmly as a missing one: the day one of them answers, the list has to lose it.
+
+---
+
+## When the provider's quota runs out
+
+The lane's reviews run on a provider forfait, and a forfait has walls: a
+five-hour window, a weekly cap (z.ai `[1308]`, `[1310]`). A review that meets
+one is **parked**, not dead, and what an operator sees is the same on every
+surface ([scheduling.md](scheduling.md#retry--a-provider-quota-window-is-waited-out-not-re-attempted)):
+
+- the run sits at `failed_resumable` with `USAGE_LIMIT_BLOCKED`, and a
+  `run_retry_scheduled` event naming the instant it comes back — the earlier of
+  the wall and a skipped credential's reopening;
+- the pull request carries one pause notice, which names that same instant
+  and says the credential is probed hourly until then, at most
+  `ITERION_RETRY_PROBE_BUDGET` times: one parked run per credential — the one
+  pulled least recently, earliest-parked first — is relaunched once an hour to
+  ask the provider whether the wall fell early, and when it gets past the wall (a
+  forfait topped up by hand) every run parked on the same credentials resumes
+  in the same pass. Nothing else relaunches a parked review before its date —
+  not the due pass, not the gate reconciler, which counts a parked review as
+  alive (also in the gap before its retry is armed) and leaves the head's one
+  relaunch unspent;
+- the minutes an attempt spends only meeting the wall leave the run's
+  `max_duration` (`duration_refunded_ms` on `run_failed`), so a week-long wait
+  no longer kills the review on its duration budget;
+- a fallback chain that met the window on one route and a dead credential on
+  another still parks on the window; the dead route is named in the
+  `node_recovery` event's `chain_routes`, and repairing or retiring that route
+  is a separate, human task.
+
+What still needs a human: a spend ceiling (it reopens when an admin raises
+it), a chain whose every route is a dead credential (`AUTH_FAILED`), and a
+park whose attempt budget is spent — that one is dead, and the gate's usual
+repair (one relaunch per head, then the board) takes over. To look before the
+hourly probe on a forfait topped up by hand, `iterion remote runs resume
+--usage-blocked` resumes every parked run at once.
 
 ---
 

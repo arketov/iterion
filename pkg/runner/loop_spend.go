@@ -77,6 +77,20 @@ func (r *Runner) recordOrgSpend(ctx context.Context, msg *queue.RunMessage, usag
 			r.cfg.Logger.Warn("runner: org spend record for %s (run %s): %v", key, msg.RunID, err)
 		}
 		cancel()
+		// The fork review lane's SECOND charge (ADR-162 decision 5): the
+		// same spend on the pull request author's own subject, beside the
+		// org's — the dollars are charged where spend is measured, so the
+		// per-contributor bound's ceiling reads what the run actually
+		// spent, not a server-side guess. The subject rides the message
+		// exactly as the gate composed it (never re-derived here), and a
+		// message without one is a trusted run's — nothing to charge.
+		if msg.ForkAuthorSubject != "" {
+			bg, cancel := context.WithTimeout(context.Background(), spendWriteTimeout)
+			if err := r.cfg.OrgUsage.AddSpend(bg, orgusage.Subject(msg.ForkAuthorSubject), now, costUSD, in, out, aggregate); err != nil {
+				r.cfg.Logger.Warn("runner: fork-author spend record for %s (run %s): %v", msg.ForkAuthorSubject, msg.RunID, err)
+			}
+			cancel()
+		}
 	}
 }
 
@@ -183,15 +197,33 @@ func (r *Runner) recordPoolSpend(msg *queue.RunMessage, usage *metricsEmitter, e
 	// leaves execErr saying only "paused". Without this the donor's dead
 	// credential stays first in the rotation and pauses the next run too,
 	// costing them a unit of their daily quota every time.
-	if condition == credpool.ConditionOK && usage.SawAuthFailure() {
-		condition = credpool.ConditionAuthFailed
+	//
+	//
+	// It outranks a usage window too — as the COARSE answer, the one every
+	// lease takes when the attempt's verdicts cannot be told apart by
+	// credential. A chain whose one route met a window and another a dead
+	// credential stops on the window (the run waits for it, #3032), so
+	// execErr reads as a window; resting a dead donor on that window's
+	// cooldown would hand the credential back, still dead, the moment the
+	// window reopened.
+	//
+	// Which of the two the donor's credential met is a fact of the route it
+	// served, and the route verdicts carry it: the fine condition table
+	// (usage.fineConditions) places each verdict on the credential its route
+	// spent, and the broker gives each lease its own row — a healthy donor
+	// whose subscription met the window rests on it while the team key that
+	// was dead takes the blame, in whichever order the chain walked them.
+	if condition != credpool.ConditionAuthFailed && usage.SawAuthFailure() {
+		condition, cooldownUntil = credpool.ConditionAuthFailed, time.Time{}
 	}
 	bg, cancel := context.WithTimeout(context.Background(), spendWriteTimeout)
 	defer cancel()
-	// The report carries this delivery's attempt identity — its
-	// publication — so a superseding acquisition's lease is never closed or
-	// charged by a previous attempt's late teardown report. A publication
-	// that cannot be read falls back to the open lease inside the broker.
+	// The report carries this delivery's attempt identity — the attempt id
+	// its publication stamped on its pool leases, and its publication
+	// instant — so a superseding acquisition's lease is never closed or
+	// charged by a previous attempt's late teardown report. A message
+	// without the id pins by the instant; a publication that cannot be read
+	// falls back to the open lease inside the broker.
 	publishedAt, perr := time.Parse(time.RFC3339Nano, msg.PublishedAtRFC)
 	if perr != nil {
 		publishedAt = time.Time{}
@@ -231,13 +263,14 @@ func (r *Runner) recordPoolSpend(msg *queue.RunMessage, usage *metricsEmitter, e
 	if miss.observations > 0 {
 		r.cfg.Logger.Warn("runner: credential-pool report for run %s carries a stamped plan whose keys answered none of %d observation(s) totalling %.6f USD / %d tokens (a runtime node the walk cannot see — a subagent loop, a runtime model arg — or a route that drifted from its launch reading) — no fine table rides, the lease books the whole attempt", msg.RunID, miss.observations, miss.costUSD, miss.tokens)
 	}
-	if err := r.cfg.CredPool.ReportAttempt(bg, msg.RunID, publishedAt, credpool.Outcome{
+	if err := r.cfg.CredPool.ReportAttemptID(bg, msg.RunID, msg.PoolAttemptID, publishedAt, credpool.Outcome{
 		CostUSD:         costUSD,
 		InputTokens:     in,
 		OutputTokens:    out,
 		AggregateTokens: aggregate,
 		Condition:       condition,
 		CooldownUntil:   cooldownUntil,
+		Conditions:      usage.fineConditions(),
 		Interim:         interim,
 		ByFingerprint:   byFingerprint,
 	}); err != nil {
@@ -290,9 +323,10 @@ func classifyPoolCondition(execErr error, now time.Time) (credpool.Condition, ti
 	// text-parsed fallback — a runner with no dispatcher classifies
 	// nothing, and the pool must still rest the donor rather than send the
 	// next run into the same shut window.
-	if at, _, ok := usageWindowEvidence(execErr); ok {
+	if ev, ok := usageWindowEvidence(execErr, now); ok {
+		at := ev.resetAt
 		if at.IsZero() {
-			if parsed, pok := delegate.ParseResetHint(execErr.Error(), now); pok {
+			if parsed, pok := delegate.ParseResetHint(ev.words, now); pok {
 				at = parsed
 			}
 		}

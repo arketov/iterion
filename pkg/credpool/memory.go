@@ -285,6 +285,22 @@ func (s *MemoryLeaseStore) Reopen(_ context.Context, leaseID string, supersededA
 	return true, nil
 }
 
+// ClearHeld lifts the reset_hold mark from every lease of the entry — see
+// LeaseStore.ClearHeld.
+func (s *MemoryLeaseStore) ClearHeld(_ context.Context, pledgeID string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := 0
+	for id, l := range s.m {
+		if l.PledgeID == pledgeID && l.Held {
+			l.Held = false
+			s.m[id] = l
+			n++
+		}
+	}
+	return n, nil
+}
+
 // ListByRun returns every lease of a run, any state, newest acquired
 // first — see LeaseStore.ListByRun.
 func (s *MemoryLeaseStore) ListByRun(_ context.Context, runID string) ([]Lease, error) {
@@ -343,16 +359,19 @@ func (s *MemoryLeaseStore) SetSupersededByPublication(_ context.Context, leaseID
 	return nil
 }
 
-func (s *MemoryLeaseStore) AddCost(_ context.Context, leaseID string, costUSD float64) error {
+func (s *MemoryLeaseStore) AddCost(_ context.Context, leaseID string, costUSD float64) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	l, ok := s.m[leaseID]
 	if !ok {
-		return ErrNotFound
+		return false, ErrNotFound
+	}
+	if l.Closed && l.Outcome != OutcomeSuperseded && l.Outcome != OutcomeSupersededGrantless {
+		return false, nil
 	}
 	l.CostUSD += costUSD
 	s.m[leaseID] = l
-	return nil
+	return true, nil
 }
 
 func (s *MemoryLeaseStore) LiveCommitment(_ context.Context, pledgeID, excludeRunID string, now time.Time) (int, float64, error) {

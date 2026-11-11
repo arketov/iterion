@@ -438,6 +438,12 @@ type Server struct {
 	// lookback window by (test seam — a test cannot wait an hour to reach the
 	// last pass over a run). nil → time.Now().UTC().
 	gateClock func() time.Time
+	// retryClock overrides the wall clock the retry sweeper decides by — the
+	// instant of its passes and every decision inside them: the window hold,
+	// who pays for a resume, the re-arm's backoff (test seam — a test walks a
+	// usage-window wait across the days its wall stands). nil →
+	// time.Now().UTC().
+	retryClock func() time.Time
 	// gateSweepTick overrides the merge-gate sweep cadence (test seam — an
 	// election test cannot wait a minute per pass). Zero → the configured one.
 	gateSweepTick time.Duration
@@ -497,6 +503,12 @@ type Server struct {
 	// PR-surface command comment (the issue_comment payload carries no head
 	// branch — test seam). nil → realWebhookPRForgePRResolver.
 	webhookPRForgePRResolver func(ctx context.Context, cfg webhooks.Config, provider webhooks.Provider, p prforge.ParsedNote, route webhooks.CommandRoute) (forge.PullRef, error)
+	// webhookForkGestureAPI overrides the fork review gesture's forge
+	// client resolution (ADR-162 U6) — ONE client serving the commenter
+	// gate, the pull-request admission read and the Q1 note, so tests
+	// replay a REAL GitHub delivery against a fake forge at exactly the
+	// seam the production path crosses. nil → realWebhookForkGestureAPI.
+	webhookForkGestureAPI func(ctx context.Context, cfg webhooks.Config, provider webhooks.Provider, p prforge.ParsedNote, botID string) (prforgeReplierAPI, string)
 	// webhookPRForgeReviewReplyGate overrides the review-thread reply gate
 	// (forge token + thread fetch + bot-in-thread + replier authz — test
 	// seam). Returns (authorized, threadContext, reason, err). nil →
@@ -1254,6 +1266,11 @@ func New(cfg Config, logger *iterlog.Logger) *Server {
 		// Repo-targeted runs merge in a server-side clone; the service
 		// needs the forge credential lookup to clone and push.
 		opts = append(opts, runview.WithForgeTokenResolver(s.forgeTokenForRun))
+		// A fork drops a key pin whose key no longer exists — the credential
+		// sweep's rule, on the frame the fork copies (runview.Fork).
+		if s.apiKeys != nil {
+			opts = append(opts, runview.WithForkKeyPinCheck(s.keyPinRowExists))
+		}
 		// D12 pre-stamp cohort: the conflict resolver refuses an
 		// unstamped run whose tenant is NOW pool-mapped — the current
 		// mapping is the only signal left for runs that predate the

@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/arketov/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/pkg/store"
 	"github.com/arketov/iterion/pkg/webhooks"
 	"github.com/arketov/iterion/pkg/webhooks/generic"
 )
@@ -106,7 +107,7 @@ func (s *Server) handleGenericWebhook(w http.ResponseWriter, r *http.Request) {
 	for k, v := range req.Vars {
 		vars[k] = v
 	}
-	applyWebhookVarLayers(vars, cfg)
+	applyWebhookVarLayers(vars, cfg, store.RunTrustDefault)
 
 	// The generic JSON trigger names its own repo and has no fork lane:
 	// trusted, stated rather than defaulted.

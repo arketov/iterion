@@ -6,7 +6,7 @@ This index describes the current repository state. Guides and references below a
 
 | Page | Purpose |
 |---|---|
-| [getting-started.md](getting-started.md) | One copy-paste prompt that has your AI agent install the CLI and skill, connect to iterion.cloud, and verify readiness to deploy. |
+| [getting-started.md](getting-started.md) | One copy-paste prompt that has your AI agent install the CLI and skill, connect to iterion.cloud, check the connection, then propose a first bot on one of your repositories. |
 | [current-state.md](current-state.md) | Living as-built overview: shipped surfaces, runtime/backend status, security defaults, cloud control plane, and known limits. |
 | [why-iterion.md](why-iterion.md) | Product rationale, workflow patterns, and the asymptote lens. |
 | [install.md](install.md) | Install through the CLI, studio, desktop, Docker, cloud, dispatcher, scheduler, or TypeScript SDK. |
@@ -28,6 +28,7 @@ For the architectural trade-off against prompt-only orchestration, read [why-not
 - [Feature matrix](comparisons/feature-matrix.md) — 21 features across 10 products, with sources and conditions.
 - [Iterion feature inventory](comparisons/feature-inventory.md) — 140 criteria across 16 categories.
 - [Methodology and sources](comparisons/methodology.md) — capability scope and proposed integrations.
+- [Live agents — OpenMausBot, mapped onto iterion](references/live-agents-openmausbot.md) — what an always-on personal-agent product does that a parked run does not, the gap, and what is not pursued. Read it before proposing a long-lived agent or a crew.
 
 ## Author `.bot` workflows
 

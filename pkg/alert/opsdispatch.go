@@ -10,6 +10,7 @@ import (
 
 	"github.com/arketov/iterion/pkg/deeplink"
 	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/retrypolicy"
 	"github.com/arketov/iterion/pkg/store"
 	"github.com/arketov/iterion/pkg/trigger"
 	"github.com/arketov/iterion/pkg/usernotify"
@@ -284,9 +285,12 @@ func (d *OpsDispatcher) classify(ctx context.Context, ev trigger.Event) (Alert, 
 		rs := run.RetryState
 		switch {
 		case rs != nil && rs.RetryAfter != nil:
+			// The instant every announcement of the park says
+			// (retrypolicy.UsageParkResumesAt): the owner's notification
+			// and the pull-request notice name the same one.
 			a.Reason = fmt.Sprintf("waiting out %s — automatic retry armed for %s (attempt %d)",
 				firstNonEmpty(rs.Reason, rs.Code, "a provider window"),
-				rs.RetryAfter.UTC().Format(time.RFC3339), rs.Attempts)
+				retrypolicy.UsageParkResumesAt(run, d.now()).Format(time.RFC3339), rs.Attempts)
 		case rs != nil && rs.LastError != "":
 			a.Reason = "automatic retry stopped: " + rs.LastError
 		default:

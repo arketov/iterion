@@ -1,4 +1,4 @@
-# ADR-165 — One walk rule for the bot catalog and the project's lists
+# ADR-168 — One walk rule for the bot catalog and the project's lists
 
 - **Status**: Accepted — the gateway's design for the board card "the bot catalog and `/api/files` diverge at the edges" (2026-11-06); the owner's direction: the lists hold only the user's workflows, no `testdata`, no foreign clones.
 - **Date**: 2026-11-06
