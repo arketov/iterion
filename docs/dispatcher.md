@@ -210,8 +210,13 @@ entry marked `parked`): no fresh dispatch, and the run's end files the card to
 `agent.completed_state` / `agent.failed_state`. A run that pauses again is
 re-parked by `reconcileStrandedPaused`; one that stops `failed_resumable` or
 `cancelled` drops the hold and leaves the card in `in_progress`, where the
-table below takes over. The cloud board coordinator runs the same sweep for
-cloud-launched cards.
+table below takes over. One more exception: a dispatcher-owned run that was
+resumed out-of-band and then killed by a studio restart reads
+`failed_resumable` / `PROCESS_ORPHANED`; nobody is left to resume it and
+`awaiting_input` is no launch column, so the sweep returns the card to
+`agent.running_state` (claim released, badge cleared) and the next dispatch
+resumes the same run (table below). The cloud board coordinator runs the same
+sweep for cloud-launched cards.
 
 That sweep only sees cards still in `awaiting_input`. When the resumed run
 moves its own card out of the column (to `blocked`, say) — or an operator
