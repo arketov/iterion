@@ -21,6 +21,12 @@ successful attempt is booked; checkpoint budgets already carry failed spend.
 the real executor, and `failed_node_spend_test.go` contrasts cumulative costs
 with per-call costs and a changed session.
 
+A node a loop revisits with `session: persist` reports its session's running
+total on every pass. The previous pass's committed output is a booked reading
+for the same backend and session ID, so the next pass books only the increment
+over it; a different session ID books its whole total.
+`pkg/runtime/session_persist_spend_test.go` pins this.
+
 Interaction pauses use a separate deferred accounting path in
 `execLoopRunNode`. A backend reporting only the new invocation can lose the
 pre-pause call's spend there; recovery retry accounting does not cover that
