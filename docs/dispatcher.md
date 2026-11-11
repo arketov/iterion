@@ -199,8 +199,19 @@ console, or `iterion resume`), so a per-tick **parked sweep**
 lifecycle: run `finished` → `agent.completed_state`, hard `failed` →
 `agent.failed_state` (claim released, badge cleared). Resumable statuses
 (`paused_*`, `failed_resumable`, `cancelled`) keep the card parked — it
-genuinely still awaits the operator. The cloud board coordinator runs
-the same sweep for cloud-launched cards.
+genuinely still awaits the operator. A run that was **answered and is
+working again** (`running` / `queued`) no longer awaits anyone, so the card
+leaves the column at once: it moves to `agent.running_state`
+(`in_progress`), the ⏸ badge is cleared and the claim is released. The card
+then sits in an eligible column with a live run, so the sweep registers the
+same journalled adopted hold as a force-resumed card
+([source-changed hold](#source-changed-hold), `dispatcher/source-holds.json`,
+entry marked `parked`): no fresh dispatch, and the run's end files the card to
+`agent.completed_state` / `agent.failed_state`. A run that pauses again is
+re-parked by `reconcileStrandedPaused`; one that stops `failed_resumable` or
+`cancelled` drops the hold and leaves the card in `in_progress`, where the
+table below takes over. The cloud board coordinator runs the same sweep for
+cloud-launched cards.
 
 That sweep only sees cards still in `awaiting_input`. When the resumed run
 moves its own card out of the column (to `blocked`, say) — or an operator

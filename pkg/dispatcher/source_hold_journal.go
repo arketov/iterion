@@ -14,6 +14,7 @@ type sourceHoldEntry struct {
 	Identifier  string `json:"identifier"`
 	RunID       string `json:"run_id"`
 	SourceState string `json:"source_state"`
+	Parked      bool   `json:"parked,omitempty"`
 }
 
 // sourceHoldJournal persists the ADOPTED source holds to
@@ -71,6 +72,7 @@ func (j *sourceHoldJournal) Load() map[string]*sourceHold {
 			runID:       e.RunID,
 			sourceState: e.SourceState,
 			adopted:     true,
+			fromParked:  e.Parked,
 		}
 	}
 	return out
@@ -87,7 +89,7 @@ func (j *sourceHoldJournal) Save(holds map[string]*sourceHold) {
 	list := make([]sourceHoldEntry, 0, len(holds))
 	for id, h := range holds {
 		if h.adopted {
-			list = append(list, sourceHoldEntry{IssueID: id, Identifier: h.identifier, RunID: h.runID, SourceState: h.sourceState})
+			list = append(list, sourceHoldEntry{IssueID: id, Identifier: h.identifier, RunID: h.runID, SourceState: h.sourceState, Parked: h.fromParked})
 		}
 	}
 	raw, err := json.MarshalIndent(list, "", "  ")

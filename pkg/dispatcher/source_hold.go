@@ -32,6 +32,12 @@ type sourceHold struct {
 	// console) and the card was moved to RunningState to follow it. Adopted
 	// holds are the only ones persisted (see sourceHoldJournal).
 	adopted bool
+	// fromParked: the card was parked in awaiting_input, the operator answered
+	// and the run resumed (adoptResumedParkedRun). Persisted with the entry. A
+	// resumable stop or a cancel of such a run drops the hold and leaves the
+	// card in RunningState: the dispatcher's own failed_resumable/cancelled
+	// rules take over, nothing is left to say "bot source changed".
+	fromParked bool
 }
 
 // hasLastRunSeam reports whether the tracker persists the last_run pointer
@@ -181,6 +187,10 @@ func (c *Dispatcher) reconcileSourceHolds(ctx context.Context) {
 			if !h.adopted {
 				continue
 			}
+			if h.fromParked {
+				c.dropSourceHold(id)
+				continue
+			}
 			// The forced resume failed again: give the card back; the next
 			// dispatch pass restores the badge.
 			if c.moveHeldCard(ctx, id, h.identifier, cfg.Agent.RunningState, h.sourceState) {
@@ -189,7 +199,7 @@ func (c *Dispatcher) reconcileSourceHolds(ctx context.Context) {
 				moved = true
 			}
 		case store.RunStatusCancelled:
-			if h.adopted {
+			if h.adopted && !h.fromParked {
 				if c.moveHeldCard(ctx, id, h.identifier, cfg.Agent.RunningState, h.sourceState) {
 					moved = true
 				}

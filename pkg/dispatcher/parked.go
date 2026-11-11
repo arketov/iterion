@@ -61,6 +61,13 @@ func (c *Dispatcher) reconcileParked(ctx context.Context) {
 		}
 		var target string
 		switch c.runStatusFrom(rs, runID) {
+		case store.RunStatusRunning, store.RunStatusQueued:
+			// The operator answered and the run is working again: the card
+			// no longer awaits anyone. Follow it out of the column.
+			if c.adoptResumedParkedRun(ctx, iss, runID, cfg.Agent.RunningState) {
+				moved = true
+			}
+			continue
 		case store.RunStatusFinished:
 			target = cfg.Agent.CompletedState
 			c.logger.Info("dispatcher: %s resumed out-of-band and finished (run=%s) — moving awaiting-input card to %q", iss.Identifier, runID, target)
@@ -88,6 +95,40 @@ func (c *Dispatcher) reconcileParked(ctx context.Context) {
 	if moved {
 		c.fireSnapshot()
 	}
+}
+
+// adoptResumedParkedRun moves a parked card whose run was answered and resumed
+// out-of-band (still running or queued) from awaiting_input to the running
+// column, so the board stops saying "this needs me" while the bot works.
+//
+// The card then sits in an eligible column with a live run, so it is protected
+// the way reconcileSourceHolds protects a force-resumed card: an adopted hold,
+// journalled, stops a fresh dispatch and files the card when the run ends. The
+// claim is released LAST, once the hold is durable. A run that pauses again is
+// re-parked by reconcileStrandedPaused. Returns true when the card moved.
+func (c *Dispatcher) adoptResumedParkedRun(ctx context.Context, iss tracker.Issue, runID, runningState string) bool {
+	if runningState == "" || runningState == native.StateAwaitingInput {
+		return false
+	}
+	if !c.moveHeldCard(ctx, iss.ID, iss.Identifier, native.StateAwaitingInput, runningState) {
+		return false
+	}
+	c.setAwaitingInput(iss.ID, false, nil)
+	if c.state.sourceHolds == nil {
+		c.state.sourceHolds = map[string]*sourceHold{}
+	}
+	c.state.sourceHolds[iss.ID] = &sourceHold{
+		identifier:  iss.Identifier,
+		runID:       runID,
+		sourceState: native.StateAwaitingInput,
+		adopted:     true,
+		fromParked:  true,
+	}
+	c.persistSourceHolds()
+	c.dropJournalAfterRelease(iss.ID, iss.Identifier,
+		c.tracker.Release(ctx, iss.ID, c.hostMarker))
+	c.logger.Info("dispatcher: %s run %s was answered and resumed out-of-band — card moved from awaiting-input to %q and followed to its end", iss.Identifier, runID, runningState)
+	return true
 }
 
 // reconcileSettledClaims releases the claim a paused run left behind when the
