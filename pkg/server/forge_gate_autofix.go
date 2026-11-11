@@ -134,11 +134,11 @@ func (s *Server) autofixForRunID(ctx context.Context, runID, via string) error {
 	}
 	// A run that will resume is still expected to post its own verdict; acting
 	// on the interim state would fire on a gate that is about to change. Only
-	// an ARMED retry makes that true (same distinction as the reconciler): a
-	// failed_resumable with nothing coming back for it is final, and a red
-	// verdict it did post before dying deserves its fix pass.
-	if run.Status == store.RunStatusFailedResumable &&
-		run.RetryState != nil && run.RetryState.RetryAfter != nil {
+	// something coming back for it makes that true — the reconciler's own
+	// reading (runWillResume): a failed_resumable with nothing coming back for
+	// it is final, and a red verdict it did post before dying deserves its
+	// fix pass.
+	if runWillResume(run, false, time.Now().UTC()) {
 		return nil
 	}
 	// A DECLINED run is an ANSWER, not a failure to repair (#706): the bot
@@ -172,7 +172,14 @@ func (s *Server) autofixForRunID(ctx context.Context, runID, via string) error {
 	if token == "" || prURL == "" || gateCtx == "" || reviewed == "" || runGateDisabled(run) {
 		return nil
 	}
-	grant, ok := s.forgePublishTokens.lookup(token)
+	// The fixer is launched onto the pull request the run names: a grant bound
+	// to none (a scheduled run's, whatever pr_url its vars carry) bounds no
+	// launch onto one.
+	grant, ok, err := s.pullRequestGrant(token)
+	if err != nil {
+		s.logWarn("gate auto-fix: run %s: %v — refusing", runID, err)
+		return nil
+	}
 	if !ok {
 		return nil
 	}
@@ -365,7 +372,7 @@ func (s *Server) autofixForRunID(ctx context.Context, runID, via string) error {
 	vars := applyWebhookVarLayers(fixerPRVars(
 		pr.TargetBranch, pr.SourceBranch, prURL,
 		fmt.Sprintf("The merge gate %q is red on this pull request. Address the findings of the review that set it, then push.", gateCtx),
-		cfg.BranchImproveAsPR, nil), cfg)
+		cfg.BranchImproveAsPR, nil), cfg, store.RunTrustDefault)
 	vars["head_sha"] = pr.HeadSHA
 
 	// The shared launch tail, not a copy of it. It owns the claim (atomically,

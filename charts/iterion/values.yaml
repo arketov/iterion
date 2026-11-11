@@ -249,6 +249,8 @@ runner:
   # sibling pods via the kubernetes sandbox driver (Phase 5 V1).
   # Disabled by default for clusters that haven't opted into the
   # sandbox feature; turn on per-environment via values-prod.yaml.
+  # The release-wide flag: a runnerPools[] entry overrides it for that pool
+  # alone (runnerPools[].sandbox.enabled, below).
   sandbox:
     enabled: false
     # Scheduling policy the kubernetes sandbox driver stamps on every
@@ -347,6 +349,26 @@ runner:
 # pool here, in GitOps, not in the record. A block that spells
 # ITERION_BOT_VARS_ENV_PINS itself (an install whose chart predates the
 # rendering) gets the union of its spelling and its ITERION_ names.
+#
+# sandbox.enabled is runner.sandbox.enabled for ONE pool (ADR-162 Q3): unset,
+# the pool follows the release-wide flag; set, the pool resolves the
+# kubernetes sandbox (or opts out of it) on its own, with the release-wide
+# flag left as it is — so the fork review lane's pool can sandbox every run
+# without moving every trusted `sandbox:` bot of the deployment into sibling
+# pods. A boolean only, and `enabled` is the map's only key. Turning a
+# pool's sandbox ON where the release-wide flag is off FAILS the render until
+# the pool shape of ADR-154 (#2965) lands: that pool needs a sandbox Role
+# this chart renders only under runner.sandbox.enabled, and under
+# networkPolicy.enabled the release-wide policy closes its runner's egress
+# proxy to its siblings. The interim (serviceAccount.create=false with the
+# sandbox grants bound to the SHARED account, networkPolicy.enabled=false)
+# hands those grants to every pod of the release that mounts the account —
+# read docs/cloud-deployment.md § Sovereign runner pools before taking it.
+# An opted-out pool (false under a release-wide true) mounts no
+# ServiceAccount token. The pool's env block cannot also spell
+# ITERION_SANDBOX_OVERRIDE or ITERION_SANDBOX_HOST_STATE when its flag
+# differs from the release's, nor ITERION_SANDBOX_DEFAULT on an opted-in
+# pool (pinned to auto there).
 runnerPools: []
 #  - name: honorabilite
 #    replicas: 1
@@ -359,6 +381,8 @@ runnerPools: []
 #    env:
 #      ITERION_VIBE_MODEL_CLAUDE: "openai_compatible/<gateway model id>"
 #      ITERION_VIBE_PROVIDER_CLAUDE: "openai_compatible"
+#    # sandbox:
+#    #   enabled: true   # this pool alone resolves the kubernetes sandbox
 
 # --- HTTP exposure --------------------------------------------------
 service:
@@ -662,6 +686,13 @@ config:
     monthlyCostCapUsd: 0
     maxConcurrentRuns: 0
     launchRatePerMin: 0
+    # The fork review lane's per-contributor monthly bound (ADR-162,
+    # docs/quotas-and-limits.md) is the one pair where unset is NOT
+    # unlimited: left unset, the server ships 20 runs / $20 per outside
+    # contributor. Set a positive cap, or the literal "unbounded" to open
+    # it; 0 refuses the server boot (it is not a spelling of unbounded).
+    # forkAuthorRunQuota: 20
+    # forkAuthorCostCapUsd: 20
   # --- Legal pages (every mode) -------------------------------------
   # The operator's legal surface (docs/adr/160-legal-content-is-deployment-configuration.md):
   # the texts a public service owes its visitors are DEPLOYMENT

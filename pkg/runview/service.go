@@ -254,6 +254,30 @@ type LaunchSpec struct {
 	// RepoSHAExpected pins the commit this launch admitted, for a RepoRef an
 	// untrusted party can move. Empty disables the runner's comparison.
 	RepoSHAExpected string
+	// ForkAuthorSubject is the per-contributor metering subject the fork
+	// review lane's admission composed (orgusage.ForkAuthorSubject's exact
+	// spelling, built on the metering id the org budget used). Persisted on
+	// the run document and mirrored onto the queue message, so the runner's
+	// recordOrgSpend charges the author's dollars beside the org's and every
+	// resume/retry re-enters the SAME subject. Empty on every trusted
+	// launch.
+	ForkAuthorSubject string
+	// Admitted is what the launch gate judged for this launch, stamped by the
+	// surface that crossed it (the run launch API, the inbound webhook tail):
+	// the trust it admitted and the fork author subject it charged. Launch
+	// compares it with the trust the launch is published under — its own,
+	// lowered to that of the runs it is launched from — and refuses an
+	// untrusted launch on a nil or a different admission
+	// (CheckLaunchAdmitted). Nil on every surface that crossed no gate.
+	Admitted *GateAdmission
+	// ForkLanePool is the runner pool an UNTRUSTED launch executes on
+	// (ADR-162 Q3 and decision 10): the pool its fork-lane config names, or
+	// the pool the untrusted run it is launched from was stamped with
+	// (inheritSourceTrust). The cloud publisher stamps it as the run's
+	// RunnerPool — the document and the wire — so a fork run lands on that
+	// pool alone, and refuses an untrusted launch that names none. Empty on
+	// every trusted launch, whose pool is its team's mapping.
+	ForkLanePool string
 	// ProjectPath is the stable forge slug ("group/project") the run
 	// targets, persisted on the run so the studio can filter/group runs
 	// by repository and the runner's spend meter (repoForSpend) can charge
@@ -473,6 +497,13 @@ type ResumeSpec struct {
 	// ReceiptID correlates the durable mission action with run_resumed. It is
 	// host-issued and never accepted from an assistant artifact directly.
 	ReceiptID string
+	// Admitted is what the launch gate judged for this resume, stamped by the
+	// surfaces that cross it (the HTTP resume, the WS answer, the retry
+	// sweeper); nil on every surface that crosses none. Resume and the cloud
+	// publisher's SubmitResume compare it with the run document they resume
+	// (CheckResumeAdmitted): an untrusted run is never resumed on a nil or a
+	// mismatched admission.
+	Admitted *GateAdmission
 	// Source mirrors LaunchSpec.Source: cloud-mode callers can supply
 	// the .bot contents inline so the server pod does not need to
 	// resolve FilePath against a local filesystem.
@@ -915,6 +946,11 @@ type Service struct {
 	// in the user's own checkout.
 	forgeToken ForgeTokenResolver
 
+	// forkKeyPinCheck reports whether a key pin's row still exists, so a fork
+	// drops a pin the credential sweep would have cleared (Fork). Installed by
+	// the server via WithForkKeyPinCheck; nil keeps every pin the parent froze.
+	forkKeyPinCheck ForkKeyPinCheck
+
 	// completionNotifier POSTs a run-completion webhook when an
 	// in-process run carrying a callback URL reaches a terminal state.
 	// Default-constructed in NewService; never nil for in-process runs.
@@ -1153,6 +1189,17 @@ type ResumePolicyFiller func(ctx context.Context, run *store.Run, spec *ResumeSp
 
 func WithResumePolicyFiller(fn ResumePolicyFiller) ServiceOption {
 	return func(s *Service) { s.resumePolicyFiller = fn }
+}
+
+// ForkKeyPinCheck reports whether the API key row keyID still exists in the
+// tenant's key store: false with a nil error only when the row is gone. An
+// error is a store that could not answer.
+type ForkKeyPinCheck func(ctx context.Context, tenantID, keyID string) (exists bool, err error)
+
+// WithForkKeyPinCheck wires the key-row lookup a fork reads to drop a key pin
+// whose key no longer exists (Fork). See ForkKeyPinCheck.
+func WithForkKeyPinCheck(fn ForkKeyPinCheck) ServiceOption {
+	return func(s *Service) { s.forkKeyPinCheck = fn }
 }
 
 // WithForgeTokenResolver wires the forge-credential lookup used to merge

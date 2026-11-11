@@ -575,11 +575,8 @@ func (p Pledge) Cooling(now time.Time) bool {
 // token, surfaced to the donor and in the acquisition trace so "why did
 // nobody serve this run" is answerable.
 func (p Pledge) Available(now time.Time, botID string) (bool, Status) {
-	if !p.Enabled {
-		return false, StatusPaused
-	}
-	if p.Health != HealthOK && p.Health != "" {
-		return false, StatusUnhealthy
+	if parked := p.parked(); parked != "" {
+		return false, parked
 	}
 	if p.Cooling(now) {
 		return false, StatusCooling
@@ -606,10 +603,39 @@ func (p Pledge) AvailableForLaunch(now time.Time, botID string) (bool, Status) {
 	if ok, status := p.Available(now, botID); !ok {
 		return false, status
 	}
-	if len(p.Bots) > 0 && !p.servesBot(botID) {
-		return false, StatusBotFiltered
+	if refused := p.launchRefusal(botID); refused != "" {
+		return false, refused
 	}
 	return true, StatusActive
+}
+
+// parked is the pledge's own state that holds it out of every selection:
+// paused by its donor, or unhealthy. "" when neither.
+func (p Pledge) parked() Status {
+	if !p.Enabled {
+		return StatusPaused
+	}
+	if p.Health != HealthOK && p.Health != "" {
+		return StatusUnhealthy
+	}
+	return ""
+}
+
+// launchRefusal is the part of AvailableForLaunch no clock clears: the pledge
+// parked (paused, unhealthy), or its bot allow-list refusing the launch —
+// fail closed on an empty bot id, as AvailableForLaunch. "" when the pledge
+// serves the launch once its cooldown ends, its sharing hours open and its
+// ledger admits. Available reports the cooldown and the sharing hours before
+// the allow-list, so its status alone cannot tell an entry that will serve
+// this launch from one that never will.
+func (p Pledge) launchRefusal(botID string) Status {
+	if parked := p.parked(); parked != "" {
+		return parked
+	}
+	if len(p.Bots) > 0 && !p.servesBot(botID) {
+		return StatusBotFiltered
+	}
+	return ""
 }
 
 func (p Pledge) servesBot(botID string) bool {
@@ -700,6 +726,18 @@ type Lease struct {
 	// borrower's draw cap (the round-2 review's R95acf7 shape). Empty
 	// AttachmentID leaves it meaningless.
 	AttConsumedRunUnit bool `bson:"att_consumed_run_unit,omitempty" json:"att_consumed_run_unit,omitempty"`
+	// Held marks the entry the strategy SWITCHED to under reset_hold
+	// (ADR-164): a better-ranked entry of the same kind was skipped
+	// (margin, cooldown, exhaustion, health) or the run already held this
+	// entry. A resume prefers the run's newest held entry of the kind over
+	// re-ranking, until the entry reset route clears the mark.
+	Held bool `bson:"held,omitempty" json:"held,omitempty"`
+	// AttemptID names the credential resolution that opened the lease —
+	// the leases ONE attempt seals side by side (the attached tier's
+	// forfait and gateway slots) share it. The attempt's report settles
+	// exactly these siblings, whatever their state, and never a lease of
+	// another attempt of the same run. Empty on single-lease acquisitions.
+	AttemptID string `bson:"attempt_id,omitempty" json:"attempt_id,omitempty"`
 }
 
 // Lease outcomes. Free-form for display, but these three are load-bearing:
@@ -712,8 +750,9 @@ const (
 	// OutcomeSuperseded — a later attempt of the same run took over.
 	OutcomeSuperseded = "superseded"
 	// OutcomeSupersededReported — a superseded lease its own attempt later
-	// reported against: the supersede charged nothing, the stamp's CAS let
-	// exactly one report charge, and the lease no longer reads as a plain
+	// settled: the supersede charged nothing, the stamp's CAS let exactly
+	// one FINAL report charge (interim reports charged it as they came,
+	// without the stamp), and the lease no longer reads as a plain
 	// supersede (Reopen's CAS misses it). HasServedAttempt reads it as
 	// SERVED — the attempt did run and pay — so a later acquisition of the
 	// run RENEWS the donor's allowance instead of reserving a unit, which
@@ -724,7 +763,10 @@ const (
 	// over, and the takeover holds no lease of its own, so a report of the
 	// takeover must never charge this lease (ReportAttempt stays silent).
 	OutcomeSupersededGrantless = "superseded_grantless"
-	// OutcomeNotLaunched — the grant was returned; the run never started.
+	// OutcomeNotLaunched — the grant was returned: the run never started on
+	// it, or its attempt was parked before settling (a captured release —
+	// an earlier delivery's interim spend stays booked, its run unit is
+	// given back all the same, #3151).
 	OutcomeNotLaunched = "not_launched"
 )
 
@@ -736,9 +778,9 @@ const (
 //   - not_launched: Release already gave its run unit back, so treating it
 //     as an admission would let the next attempt renew against a unit that
 //     no longer exists — and slip past the donor's daily ceiling.
-//   - superseded: the attempt it belonged to was still open when the next
-//     one asked, i.e. it died without reporting. Same reasoning as
-//     abandoned, minus the wait for the sweeper.
+//   - superseded: the attempt it belonged to had not settled (no final
+//     report) when the next one asked — at most interim reports charged
+//     it. Same reasoning as abandoned, minus the wait for the sweeper.
 var nonAdmissionOutcomes = []string{OutcomeAbandoned, OutcomeNotLaunched, OutcomeSuperseded}
 
 func isNonAdmission(outcome string) bool {

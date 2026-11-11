@@ -2868,6 +2868,10 @@ func (r *Runner) executeRun(ctx context.Context, msg *queue.RunMessage, usageOut
 		r.cfg.Logger.Warn("runner: load run for finalization replay %s: %v — falling back to engine defaults", msg.RunID, ferr)
 	}
 	finalCancel()
+	// The attempt that follows a pull answers its credential window's probe
+	// (probe_answer.go), from the record read before the engine runs.
+	r.armProbeAnswer(msg, usage, finalizationRun, runLogger)
+	defer usage.waitProbeAnswer()
 
 	engineOpts := []runtime.EngineOption{
 		runtime.WithLogger(runLogger),
@@ -3622,6 +3626,11 @@ func (r *Runner) executorSpec(ctx context.Context, msg *queue.RunMessage, wf *ir
 		LLMRouteTriggers:     llmRouteTriggers(msg),
 		LLMRouteClasses:      llmRouteClasses(msg),
 		LLMRouteCrossHarness: llmRouteCrossHarness(msg),
+		// The frozen content boundary rides into the ladder's screen: under
+		// team_gateway no stage lands on a node routed to the team's
+		// gateway (ADR-131 §4) — the publisher's screen is advisory, this one
+		// decides.
+		ContentBoundary: msg.ContentBoundary,
 		// The run's frozen provider allowlist (ADR-129 §5): the dispatch
 		// drops every chain element resolving outside it, so a rescue route
 		// the tenant forbids burns no retry budget. Nil = no allowlist.

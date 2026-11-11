@@ -698,6 +698,24 @@ const (
 	ForgeScopeReviewers = "reviewers" // add reviewers (PullReviewerSetter)
 )
 
+// ForgeScopeActions is the scope a bot declares to dispatch one of the
+// repository's own CI workflows (forge.WorkflowDispatcher) — the external
+// trigger a forge cron that does not fire reliably needs. Write-or-nothing,
+// like the merge-gate scopes: declaring it at write mints the dispatch
+// capability into the run's publish grant, and the dispatch itself crosses
+// the deterministic publish surface with a token minted server-side for that
+// one call. It never widens the run's own forge token: a bot that does not
+// declare it never holds the capability, and no run token carries the
+// forge's Actions permission.
+const ForgeScopeActions = "actions"
+
+// DispatchWorkflowVar is the launch var naming the workflow file a bot
+// declaring ForgeScopeActions dispatches. The server binds the dispatch grant
+// to its value on the schedule row, which only an operator writes (the
+// schedule create and PATCH routes, team admin): a manifest that declares the
+// scope never supplies it (validateDispatchWorkflowDefault).
+const DispatchWorkflowVar = "workflow"
+
 var (
 	knownForgeScopeKeys = map[string]bool{
 		"pull_requests":     true,
@@ -708,6 +726,7 @@ var (
 		ForgeScopeApprovals: true, // MR approvals (the merge gate's approve)
 		ForgeScopeMerge:     true, // auto-merge arming (the merge gate's arm)
 		ForgeScopeReviewers: true, // reviewer requests (escalation)
+		ForgeScopeActions:   true, // dispatch a repository workflow
 	}
 	knownForgeScopeLevels = map[string]bool{
 		"read":  true,
@@ -715,6 +734,18 @@ var (
 		"admin": true,
 	}
 )
+
+// knownForgeScopeNames lists the accepted scope keys, sorted for a stable
+// message — derived from knownForgeScopeKeys like knownForgeEventNames, so the
+// refusal names every scope validation accepts.
+func knownForgeScopeNames() []string {
+	names := make([]string, 0, len(knownForgeScopeKeys))
+	for name := range knownForgeScopeKeys {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
 
 // ForgeRequirements is the `forge:` block of a bundle manifest. All
 // fields are optional; a bundle with no forge: block has Forge == nil.
@@ -725,12 +756,12 @@ type ForgeRequirements struct {
 
 	// TokenScopes is a normalized permission map (key -> "read" |
 	// "write" | "admin"); keys ∈ {pull_requests, repository, issues,
-	// webhooks, statuses, approvals, merge, reviewers}. The provisioner
-	// always needs webhook-admin regardless of this map — declaring it is
-	// informational, except the merge-gate scopes (statuses, approvals,
-	// merge, reviewers), which mint the matching capabilities into the
-	// bots' publish grants. Unioned across co-enabled bots to size the
-	// requested OAuth scope.
+	// webhooks, statuses, approvals, merge, reviewers, actions}. The
+	// provisioner always needs webhook-admin regardless of this map —
+	// declaring it is informational, except the merge-gate scopes
+	// (statuses, approvals, merge, reviewers) and actions, which mint the
+	// matching capabilities into the bots' publish grants. Unioned across
+	// co-enabled bots to size the requested OAuth scope.
 	TokenScopes map[string]string `yaml:"token_scopes,omitempty"`
 
 	// Secret is the workflow-secret name the bundle's main.bot
@@ -1235,6 +1266,9 @@ func decodeManifest(body []byte, srcLabel string) (*Manifest, error) {
 	if err := validateInvocations(m.Invocations); err != nil {
 		return nil, fmt.Errorf("bundle: manifest %s: %w", srcLabel, err)
 	}
+	if err := validateDispatchWorkflowDefault(&m); err != nil {
+		return nil, fmt.Errorf("bundle: manifest %s: %w", srcLabel, err)
+	}
 	if err := validateChatSurface(m.Chat); err != nil {
 		return nil, fmt.Errorf("bundle: manifest %s: %w", srcLabel, err)
 	}
@@ -1523,7 +1557,7 @@ func validateForgeRequirements(f *ForgeRequirements) error {
 	}
 	for key, level := range f.TokenScopes {
 		if !knownForgeScopeKeys[key] {
-			return fmt.Errorf("forge.token_scopes: unknown scope %q (known: pull_requests, repository, issues, webhooks, statuses)", key)
+			return fmt.Errorf("forge.token_scopes: unknown scope %q (known: %s)", key, strings.Join(knownForgeScopeNames(), ", "))
 		}
 		if !knownForgeScopeLevels[level] {
 			return fmt.Errorf("forge.token_scopes[%s]: invalid level %q (want read, write, or admin)", key, level)
@@ -1534,6 +1568,36 @@ func validateForgeRequirements(f *ForgeRequirements) error {
 		case "", AuthorScopeShared, AuthorScopeExclusive:
 		default:
 			return fmt.Errorf("forge.webhook.author_scope: unknown value %q (known: %s, %s)", scope, AuthorScopeShared, AuthorScopeExclusive)
+		}
+	}
+	return nil
+}
+
+// validateDispatchWorkflowDefault refuses an invocation default_vars naming
+// DispatchWorkflowVar in a manifest that declares the actions scope.
+// Provisioning stamps a schedule invocation's default_vars onto the schedule
+// row, and a bot row is written by roles below the team admin who owns the
+// schedule — so a default there would let the bot's author, not the
+// operator, choose the workflow every tick dispatches. A keepalive's
+// default_vars are refused alike: the same author, the same row.
+func validateDispatchWorkflowDefault(m *Manifest) error {
+	if m.Forge == nil {
+		return nil
+	}
+	if _, declared := m.Forge.TokenScopes[ForgeScopeActions]; !declared {
+		return nil
+	}
+	for idx, inv := range m.Invocations {
+		var defaults map[string]string
+		switch {
+		case inv.Schedule != nil:
+			defaults = inv.Schedule.DefaultVars
+		case inv.Keepalive != nil:
+			defaults = inv.Keepalive.DefaultVars
+		}
+		if _, ok := defaults[DispatchWorkflowVar]; ok {
+			return fmt.Errorf("invocations[%d]: default_vars names %q, the workflow the %s scope dispatches — an operator names it on the schedule row; a manifest never supplies it",
+				idx, DispatchWorkflowVar, ForgeScopeActions)
 		}
 	}
 	return nil

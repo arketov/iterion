@@ -3,6 +3,462 @@
 Generated from Conventional Commits at each release. Older majors are archived
 under [docs/changelog/](https://github.com/SocialGouv/iterion/tree/main/docs/changelog).
 
+## [5.21.1](https://github.com/SocialGouv/iterion/compare/v5.21.0...v5.21.1) (2026-11-11)
+
+### Bug Fixes
+
+* **model:** a third-party MCP wildcard splices its tools in a stable order ([#3171](https://github.com/SocialGouv/iterion/issues/3171)) ([45004a4](https://github.com/SocialGouv/iterion/commit/45004a44f36e3127422c828ba7a2671e019bf3ed)), closes [#3132](https://github.com/SocialGouv/iterion/issues/3132), references [docs/merge-policy.md#a-parked-gate-decided-2026-11-10](https://github.com/docs/merge-policy.md/issues/a-parked-gate-decided-2026-11-10)
+
+    <details><summary>why</summary>
+
+    A node holding an `mcp.<server>.*` wildcard had a tools prefix whose order changed **between calls on an unchanged tree**. That silently gave back part of the prompt-cache win measured in #3132.
+
+    </details>
+
+## [5.21.0](https://github.com/SocialGouv/iterion/compare/v5.20.0...v5.21.0) (2026-11-11)
+
+### Features
+
+* **retrypolicy:** one usage window every automatic re-launcher reads ([0486575](https://github.com/SocialGouv/iterion/commit/04865752e48ff27e5c4c333e90f0e00b60ebd8ff)), references [bko#82](https://github.com/bko/issues/82) [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    bko#82 parked at 03:58Z on z.ai's weekly [1310] wall: the pull-request notice promised a resume at 17:25Z on 14/11, and the sweeper's pull-forward probe relaunched the run at 04:14, 04:58 and 05:59Z, each attempt USAGE_LIMIT_BLOCKED, each a pod and ten of the run's active minutes.
+
+    </details>
+* **server:** probe a usage window once per credential, release its runs on the answer ([4b001f6](https://github.com/SocialGouv/iterion/commit/4b001f635a75f334a2212295a306506809b2464f)), references [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    The operator's decision on the pull-forward probe before a dated wall (2026-11-10): keep the hourly probe, paid once per credential window instead of once per parked run. Off-by-default probing before the window is replaced.
+
+    </details>
+
+### Bug Fixes
+
+* **runner,credpool,model,runtime:** a chain verdict is the credential's its route spent ([886f8df](https://github.com/SocialGouv/iterion/commit/886f8dfa7f0f47da1a08f27620c9a71e9632aa65)), references [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    Since the chain's route verdicts reached pool health, a dead credential on ANY route of an exhausted chain counted against every lease of the attempt: the runner never recorded whose credential a verdict was about, so it guessed. A chain [the donor's lent subscription -> a five-hour window, the team's z.ai key -> dead] parked on the window, and the healthy donor was counted an auth failure instead of rested on its window — evicted after two runs, and granted straight into its wall in between.…
+
+    </details>
+* **runner,model:** a skipped route's verdict is the credential its refusal met ([4251b15](https://github.com/SocialGouv/iterion/commit/4251b1588fe819161d3bdf673621c14bd2d9022a)), references [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    A route skipped on a remembered cooldown made no call, so its chain route named no credential keys, and the runner placed its verdict on the plan's prediction or on nobody. Worse, the environment rule ran before the plan: a keyless gateway route was placed on nobody even where the plan names the lent gateway key that funds it (ADR-131 §5). With any other verdict of the attempt placed, that lease took ConditionOK and its auth-failure count was cleared: a dead lent key stayed in rotation, and a…
+
+    </details>
+* **runner:** a chain parks on its first-reopening route, a dead donor stays dead ([169792c](https://github.com/SocialGouv/iterion/commit/169792c4eaa00d8bc46c7dd6e32dbf88ea890848)), references [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    Review round 1 on the runner's reading of a usage park (#3127, #3032):
+
+    </details>
+* **runtime:** a subbot's work stays on the parent's max_duration ([afa1cee](https://github.com/SocialGouv/iterion/commit/afa1cee111b501401e25c5059c6b2e1271b62de5)), references [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    The refund on a usage-window stop handed back the whole span since the last booking (review round 1). Executor-less nodes never book, and a failed subbot returns no output, so a subbot whose child worked fifty minutes and then met the wall — or succeeded before the next node met it — left those minutes off the parent's duration cap, cycle after cycle (4h10m of child work under a 120m cap carried as 10m).
+
+    </details>
+* **runtime:** a usage window on any route decides an exhausted chain ([fe44228](https://github.com/SocialGouv/iterion/commit/fe44228686aaaf6ea61b6c46d98b741839dc5935)), references [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    An exhausted fallback chain that met a provider usage window on one route and a dead credential on another was classified AUTH_FAILED: errors.As over ErrChainExhausted.Unwrap() []error found the first ErrAuthFailed of the set wherever it sat, so the run paused for a human on what was a five-hour wait (ten Vetty runs on 2026-11-03, about fifteen hours each).
+
+    </details>
+* **runtime:** a usage window parks the run whichever backend refused it ([9ed58fb](https://github.com/SocialGouv/iterion/commit/9ed58fb1f4d075176aacd2bf56e798850c5a7c29)), references [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    Backend parity on the usage window (#3032, review round 1). The chain reading and the single-route classification keyed on a typed *delegate.ErrRateLimited{Kind: usage_window}, which only claude_code, pi and the operator's cap raised:
+
+    </details>
+* **runtime:** minutes that only met a usage window leave max_duration ([5efa7de](https://github.com/SocialGouv/iterion/commit/5efa7deecb31fcb26f0601091015a69af37a31d1)), references [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    The wait between attempts was never counted, but every resume of a parked run re-met the wall at zero tokens and still spent ~10 active minutes: Revi Egapro 01a1c307 died on "budget hard limit reached: duration at 90%" after twelve such attempts, days before its window reopened.
+
+    </details>
+* **server,runner,store:** a window's canary got through when its runner says so ([8193d67](https://github.com/SocialGouv/iterion/commit/8193d672821406b9eb2d7aa8801371b8b3c4ff11)), references [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    The credential window released every wait parked on it once its canary "got through", and read that off the canary's status and the age of its pull: running more than an hour after the pull, finished, or at a human gate. A canary queued an hour before its pod started, served on another credential, or held behind a credential's cap runs past the marker's TTL without having asked the wall anything; read as got-through, it sent every wait of the window into a wall nothing showed fell, the #3127…
+
+    </details>
+* **server,store:** a run released on its window's answer is no probe's guess ([711c384](https://github.com/SocialGouv/iterion/commit/711c384ecc91a0527855d42eb746e90681208069)), references [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    A release was a probe pull, so every reader of the probe marker read it as a speculative probe. A transient refusal of a released run's resume (a mass release is what trips the tenant's concurrency cap or launch rate) went down the probe's stand-down and was put back on the provider's announced instant, days away, although its window's canary had just got past the wall; the answer that released it could not release it again. A released resume deferred past the marker's TTL (the shared circuit)…
+
+    </details>
+* **server,store:** the credential window is the wall's, the window never outlives its arming ([a915c1f](https://github.com/SocialGouv/iterion/commit/a915c1fc907d658b43a685b186c451d72c0faeac)), references [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    Review round 1 on the usage window every re-launcher reads and on the credential probe (#3127):
+
+    </details>
+* **server:** a released resume that failed for good stands down to its date ([ed767c4](https://github.com/SocialGouv/iterion/commit/ed767c44e9212441a26c2f708b42b709b2a4b18a)), references [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032)
+
+    <details><summary>why</summary>
+
+    A run released on its credential window's answer whose resume failed was re-armed on the ordinary 15-minute backoff whatever the cause (backOffReleasedRetry). For a refusal that clears on its own — the admission gate's deferral, a stored bot that did not resolve for a store blip — that is the point: a mass release trips the tenant's cap, which frees in minutes. For any other cause it is a loop until the provider's announced instant: a bot redeployed under the run fails its resume identically…
+
+    </details>
+* **server:** a review parked on a usage window is not dead to the gate ([6b28930](https://github.com/SocialGouv/iterion/commit/6b28930d12cc9fbfdff9cabf2aa304ff338ccdbc)), references [#49](https://github.com/SocialGouv/iterion/issues/49) [#68](https://github.com/SocialGouv/iterion/issues/68) [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    At 15:14Z on 2026-11-10 the gate reconciler relaunched buildkit-operator #49 and #68 ("review_died") while their runs were parked on z.ai's [1310] wall: the engine writes failed_resumable / USAGE_LIMIT_BLOCKED before the runner's post-engine steps arm the retry, and a sweep tick in that gap saw no armed retry. Two runs per head then cycled into the same wall, and the head's one relaunch was spent on a quota.
+
+    </details>
+* **server:** one reading of a review that will resume, bounded in time ([0cf4b5e](https://github.com/SocialGouv/iterion/commit/0cf4b5e9a6445b22bb48de073b89ddc257b702de)), references [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3127](https://github.com/SocialGouv/iterion/issues/3127) [#3032](https://github.com/SocialGouv/iterion/issues/3032) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    Review round 1 on the gate's "is this run dead" question (#3127):
+
+    </details>
+
+## [5.20.0](https://github.com/SocialGouv/iterion/compare/v5.19.0...v5.20.0) (2026-11-10)
+
+### Features
+
+* **cloudpublisher,model,llmroute:** the walk spends a team's own gateway key — PR-C' of [#2005](https://github.com/SocialGouv/iterion/issues/2005) (ADR-131) ([#3165](https://github.com/SocialGouv/iterion/issues/3165)) ([b545c96](https://github.com/SocialGouv/iterion/commit/b545c96e2cf5fb5207cf8a7f474b9c2e90c123bb))
+
+    <details><summary>why</summary>
+
+    A team that registered its own openai_compatible gateway key (e.g. a PLIAGE LiteLLM key per product) now has it SPENT by its runs: the credential walk seals the key with its canonical base URL for a run that may ride a gateway route (an attributed decided route on any runner; an undecided ${DIAL} route only on a dedicated runner pool), stamps the run's ContentBoundary (team_gateway / own_keys) with AmbientLLMRefused on the same fact, refuses vendor crossings on gateway nodes under team_gateway,…
+
+    </details>
+
+## [5.19.0](https://github.com/SocialGouv/iterion/compare/v5.18.0...v5.19.0) (2026-11-10)
+
+### Features
+
+* **chart:** a runner pool resolves the kubernetes sandbox on its own flag ([669d09a](https://github.com/SocialGouv/iterion/commit/669d09a8df1fc81562dd93f07c11f6a3eb52f535)), closes [#2965](https://github.com/SocialGouv/iterion/issues/2965), references [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    ADR-162 Q3 runs fork runs on a dedicated pool that resolves a kubernetes sandbox for every run, and rejects option B — runner.sandbox.enabled for the whole release, which would move every trusted `sandbox:` bot into sibling pods. runnerPools[].sandbox.enabled is that flag for one pool: unset, the pool follows runner.sandbox.enabled (iterion.poolSandbox, a boolean only); set, the pool renders the sandbox's downward-API env and, where it differs from the release-wide flag, its own literals over…
+
+    </details>
+* **server,cloudpublisher:** a fork run its team's own keys cannot fund is refused before metering ([7e27f81](https://github.com/SocialGouv/iterion/commit/7e27f81587a226fad946e5916a9993b2a24c58be)), references [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#3126](https://github.com/SocialGouv/iterion/issues/3126) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    The operator's decision on the fork-run funding question (#3125): keep ADR-154 D13 for the fork lane's pool — a pool-stamped fork run is sealed no shared tier (no org key, no contributor pool, no platform key) and spends only its team's own BYOK API key or gateway key — and refuse, typed and BEFORE the org's counter or the outside author's bound moves, a fork run those keys cannot fund, judged by the one producer the credential preview and the publisher's walk already read.
+
+    </details>
+* **webhooks,cloudpublisher:** a fork run executes on the pool its fork-lane config names ([6a6df25](https://github.com/SocialGouv/iterion/commit/6a6df254433900fc2de022268a89a31dabea6c74)), references [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    ADR-162 Q3 and decision 10: a fork run executes only through the publisher, on a runner whose sandbox resolves active — in the cloud, the dedicated pool the fork-lane config names, behind ADR-154's pool boundary.
+
+    </details>
+
+### Bug Fixes
+
+* **chart:** an opted-out pool mounts no token, an opted-in pool owns the sandbox default, and a misspelled pool sandbox flag is refused ([024b704](https://github.com/SocialGouv/iterion/commit/024b7047e6c590bfb995109f67c1996250ac519a)), references [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Review round 1 of ADR-162 U7 part 1 (#3125).
+
+    </details>
+* **chart:** the pool sandbox interim binds its grants to a named ServiceAccount, never the namespace's default ([a4d4310](https://github.com/SocialGouv/iterion/commit/a4d43103ff7a6399f36c1e5e988a498d88e4f31c)), references [#2965](https://github.com/SocialGouv/iterion/issues/2965) [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    The refusal and docs/cloud-deployment.md said the interim (serviceAccount.create=false, then bind the sandbox driver's grants by hand) hands those grants to every pod of the release that mounts the account. With serviceAccount.name left empty, iterion.serviceAccountName resolves to the namespace's `default` ServiceAccount, so the grants (secrets get/list/create/delete, pods/exec, networkpolicies delete) would reach every pod of the namespace that names no account of its own, not just the…
+
+    </details>
+* **cloudpublisher:** a fork run's routing policy lands no forfait rung ([9746b93](https://github.com/SocialGouv/iterion/commit/9746b93d4a263e6e11c9070fd693faab97bd13a2)), references [draft#run-fallback](https://github.com/draft/issues/run-fallback) [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    The resolved default routing policy, which every production launch carries, heads its pair order with claude_code:claude_forfait and codex:chatgpt_forfait and arms every trigger. A team with a connected forfait therefore had a forfait rung composed onto every eligible node of its fork runs. The rung carries no provider hint (a forfait slot has none) and, on claude_code, a bare model, so the walk could not attribute it: the untrusted arm refused the run fork_run_unfunded on…
+
+    </details>
+* **cloudpublisher:** a fork-lane pool provisioning or draining stays transient ([d4b3851](https://github.com/SocialGouv/iterion/commit/d4b3851593ecc36e4f62b8c6cfc162b1c0e4027d)), references [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    routesForTrust read every decided registry refusal of an untrusted run's pool as the permanent ErrForkLanePool, the registry's lifecycle states included. A fork run parked on a usage window while the operator briefly drained or re-provisioned the lane's pool was therefore abandoned by the retry sweeper (denyForkLanePoolRefused is not transient), and the webhook's durable retry exhausted on the 422, while a trusted run on the same pool was re-armed. The refusal's own remedy (activate the pool)…
+
+    </details>
+* **cloudpublisher:** a fork-lane pool the registry does not route is refused as permanent ([817e668](https://github.com/SocialGouv/iterion/commit/817e66880c8bbdd4aa7d18ed964f98b8d1844826)), references [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    A fork-lane pool the registry did not know, or that was not active, made the funding judge return an untyped error, which the gate mapped to fork_funding_unreadable — a 503 classed as transient. The pool name is checked only for grammar at creation and is immutable afterwards, so a misspelled or never-registered fork_lane_pool was answered as a retryable store blip on every gesture, durable retry and resume, and the retry kept re-arming.
+
+    </details>
+* **cloudpublisher:** the fork refusal's remedy says how far a routing override reaches ([e28246e](https://github.com/SocialGouv/iterion/commit/e28246e5eff00eaceef567fe6a1704182a8f5dc7)), references [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    The deferred and unattributed remedies told every site that "the integration's routing overrides pin a node's provider, model and backend". An override reaches a node's own route alone (ForNode). It does not reach a sub-bot node, a supervisor, an authored `fallbacks:` route, an interaction or direct generation, or a run-level fallback stage, so for those sites the refusal named a lever that cannot lift it: the operator adds the override and the next gesture is refused the same way.
+
+    </details>
+* **model,cloudpublisher,server:** a fork run whose route the pool's runner decides, or that rides the gateway, is refused before metering ([ee7f702](https://github.com/SocialGouv/iterion/commit/ee7f70215721fa7f0a030d6c0886ac6def6fcea3)), references [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#2005](https://github.com/SocialGouv/iterion/issues/2005) [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Review round 1 of ADR-162 U7 part 1 (#3125).
+
+    </details>
+* **model,cloudpublisher:** a fork run whose route names no provider, or reads a wire default its team holds no slot of, is refused before metering ([abc4397](https://github.com/SocialGouv/iterion/commit/abc4397f7a4a4bf0f462067be795195b12272004)), references [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Under the untrusted posture a route the walk could not attribute to a provider was never judged once the team held any vendor key: a claude_code node with no model or a bare one, `provider: auto`, an unknown hint, a subbot (its child bot is never read), a supervisor with no model. The unattributable fallback fired only when the team held nothing at all. The gate's funding judge then admitted and metered the gesture, the publisher sealed a bundle, and the runner refused the route ambient: a fork…
+
+    </details>
+* **model,cloudpublisher:** a wire-default route an allowlist leaves slotless refuses the fork run ([2b9d20d](https://github.com/SocialGouv/iterion/commit/2b9d20d8d761fc04557abc2e80630a3e1a6b61b1)), references [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Under a providers allowlist that admits no anthropic-wire provider, endRoute dropped every slot of a surviving route's wire-default read, so the route never appeared in WireDefaultSites and the per-site judge never saw it. A claude_code route hinted off the wire (or a backend-less route the runner may put on claude_code) still walks the wire's default on the runner, finds no slot it may spend, and is refused ambient: the fork gesture was metered first and refused for funding after.
+
+    </details>
+* **runner,cloudpublisher:** an untrusted run is ambient-refused even when no bundle is sealed ([bc1dfbe](https://github.com/SocialGouv/iterion/commit/bc1dfbe3b3f0a9722566e4ec83a7a2377775a63d)), references [#1670](https://github.com/SocialGouv/iterion/issues/1670) [#3126](https://github.com/SocialGouv/iterion/issues/3126) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    ADR-162 decision 7: an untrusted run spends only the credentials sealed for it; every fallback to the pod's environment — the deployment's vendor keys, a pool's gateway — answers a typed refusal. The refusal rode only the sealed bundle (RunBundle.AmbientLLMRefused), and resolveAndSealCredentials returns BEFORE sealing when the walk holds no LLM credential and no generic secret. An untrusted run is never handed a generic secret (#1670), so every untrusted run no tier funds shipped no bundle, no…
+
+    </details>
+* **server:** the team pool mapping refuses a pool another team's fork lane runs on ([55cf1bb](https://github.com/SocialGouv/iterion/commit/55cf1bbb29c764153f8a3fdc641c2f50276763d1)), references [#3125](https://github.com/SocialGouv/iterion/issues/3125) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    The fork lane's pool rule (forkLanePoolRefusal) runs at the launch and at every resume, but the only writer of the team→pool mapping never looked at fork-lane configs. A pool an unmapped team's fork lane names could be mapped as another team's sovereign pool, and that lane's queued, running or redelivered untrusted runs then executed on the new holder's pods: the runner admits a stamped run on its pool alone. ADR-154's one-team-per-pool boundary, which this handler's D13 check exists to hold,…
+
+    </details>
+
+## [5.18.0](https://github.com/SocialGouv/iterion/compare/v5.17.2...v5.18.0) (2026-11-10)
+
+### Features
+
+* **studio,docs,cli:** a compact cloud setup prompt, featured on iterion.cloud only ([#3157](https://github.com/SocialGouv/iterion/issues/3157)) ([f438b96](https://github.com/SocialGouv/iterion/commit/f438b96d5892e6cd005cc2be3e68ab7c4813fae0)), references [#3149](https://github.com/SocialGouv/iterion/issues/3149) [#1429](https://github.com/SocialGouv/iterion/issues/1429)
+
+    <details><summary>why</summary>
+
+    feat(studio,docs,cli): a compact cloud setup prompt, featured on iterion.cloud only
+
+    </details>
+
+## [5.17.2](https://github.com/SocialGouv/iterion/compare/v5.17.1...v5.17.2) (2026-11-10)
+
+### Bug Fixes
+
+* **claw:** close the system prefix with a cache breakpoint ([#3132](https://github.com/SocialGouv/iterion/issues/3132)) ([7ecff9d](https://github.com/SocialGouv/iterion/commit/7ecff9d0b24a5f0332308ad21ff08f73df088b92)), references [docs/merge-policy.md#a-parked-gate-decided-2026-11-10](https://github.com/docs/merge-policy.md/issues/a-parked-gate-decided-2026-11-10)
+
+    <details><summary>why</summary>
+
+    The prompt cache covers a prefix up to and including a marked block, so a system block appended after the last `cache_control` marker is re-billed at full input price on every tool turn. The claw backend marks block [0] (posture + the node's task) and then appends the ambient-context corpus with no marker; the memory blocks re-mark the tail, but only where a node declares `memory:`. On a claw node without it that corpus was never cached — and `ambient.Workspace` is both the zero value and the…
+
+    </details>
+
+## [5.17.1](https://github.com/SocialGouv/iterion/compare/v5.17.0...v5.17.1) (2026-11-10)
+
+### Bug Fixes
+
+* **credpool,server,studio:** key pools follow-ups (2) — settle on the lease found, the attempt id in the run message, the studio attaches a pool (ADR-164) ([#3152](https://github.com/SocialGouv/iterion/issues/3152)) ([2d173a5](https://github.com/SocialGouv/iterion/commit/2d173a555a153039983169b344c5b1c09d154e78)), closes [#3147](https://github.com/SocialGouv/iterion/issues/3147) [3122/#3123](https://github.com/SocialGouv/iterion/issues/3123), references [#3151](https://github.com/SocialGouv/iterion/issues/3151)
+
+    <details><summary>why</summary>
+
+    Local adversarial loop (Revi paused on quota until 14/11): 2 reviewers, then 1, then the closing H-10 — no high or critical; every guard mutation-checked; CI all green (mongo-conformance, race, test, studio). Admin lane, operator's decision.
+
+    </details>
+
+## [5.17.0](https://github.com/SocialGouv/iterion/compare/v5.16.0...v5.17.0) (2026-11-10)
+
+### Features
+
+* **bots:** workflow-kick — dispatch one workflow of the repository on a schedule ([a72be5d](https://github.com/SocialGouv/iterion/commit/a72be5d260d78b66fc8a9bb5846a2133d60160ad)), references [#3130](https://github.com/SocialGouv/iterion/issues/3130) [#3130](https://github.com/SocialGouv/iterion/issues/3130) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    Kicky is one deterministic tool node, no LLM: it POSTs {run_id, repo, workflow} to the dispatch endpoint its grant names, reports what the server answered with its run link, and ends WORKFLOW_NOT_DISPATCHED with the server's typed code otherwise (NO_DISPATCH_GRANT when no grant was bound, NO_WORKFLOW when the schedule names none). The bearer reaches the program through its environment, never its command line; redirects are refused. repo defaults to the checkout's origin.
+
+    </details>
+* **forge:** a workflow-dispatch capability and its GitHub client ([7cc005e](https://github.com/SocialGouv/iterion/commit/7cc005e03b2019e8a738b79f64115b4a1c6de8e6)), references [#3130](https://github.com/SocialGouv/iterion/issues/3130) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    forge.WorkflowDispatcher dispatches one workflow file of a repository (workflow_dispatch) — the external trigger for a forge cron that does not fire reliably. The GitHub AdminClient implements it: an empty ref is the repository's default branch, read from the forge; no inputs are sent. A refusal the forge answered (404 unknown workflow, 422 unknown ref or no workflow_dispatch trigger, a withheld grant) wraps forge.ErrWorkflowNotDispatched; a transport failure does not, since the forge may have…
+
+    </details>
+* **server,bundle,store:** the actions scope mints a dispatch capability the publish surface serves ([8588745](https://github.com/SocialGouv/iterion/commit/8588745af610e3c68c88140b0f0f6723ca9317b7)), references [#3130](https://github.com/SocialGouv/iterion/issues/3130) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    A bot opts in per manifest: forge.token_scopes actions: write mints dispatch_workflow into its run's publish grant, like approvals/merge/ reviewers mint the merge-gate gestures; a bot that does not declare it never holds the capability, and the connection's managed token (RuntimePermissionsFor) is unchanged — no run, fork lanes included, ever carries the Actions permission (operator decision, 10/11).
+
+    </details>
+
+### Bug Fixes
+
+* **bots:** workflow-kick ends NO_WORKFLOW when its schedule names none ([b47555a](https://github.com/SocialGouv/iterion/commit/b47555aa7ec448fefb26198a45eb8480a22766ce)), references [#3130](https://github.com/SocialGouv/iterion/issues/3130) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    `workflow: string` had no default, so an unset var reached the command as the literal {{vars.workflow}}, passed the NO_WORKFLOW guard and was POSTed. It defaults to "" now, and the guard runs before the grant check: the server mints no grant for a schedule naming no workflow, so the actionable code comes first. A 5xx answer (reduced to its error_code at the server's boundary) reports its code and says the reason is in the server log.
+
+    </details>
+* **bots:** workflow-kick floors on the uncut release ([4e7d471](https://github.com/SocialGouv/iterion/commit/4e7d4712c4535b5393516cd54d25e783ae109258)), references [#3130](https://github.com/SocialGouv/iterion/issues/3130) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    The manifest floored on ">= 5.16.0", a release already cut without the dispatch capability: a v5.16.0 server would refuse the bundle on its strict decode ("unknown scope actions") instead of the version refusal the floor exists to give. The floor is now ">= next", which the cut's release-floors hook rewrites to the release that ships the lane.
+
+    </details>
+* **server,forge,bundle:** close the dispatch lane's round-2 findings ([27491aa](https://github.com/SocialGouv/iterion/commit/27491aa4f969105c113bada1c329e546649f1e92)), references [#3130](https://github.com/SocialGouv/iterion/issues/3130) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    Mutations, each red on its own assertion, then restored byte-identical: installationGrants answering from the stored grant alone; the security minter reading conn.GrantedPermissions alone; the dispatch pre-mint check removed; runOwnsGrant narrowed to !run.Trust.Trusted(); revokeUnlaunchedGrant(minted) muted; dispatchUnconfirmed respelled and swapped for dispatchRefusedCredential at its use; dispatchUnavailable respelled; the GitHub 5xx branch removed (client and server witnesses); the default…
+
+    </details>
+* **server:** a schedule grant is bound to no pull request ([7fb81dd](https://github.com/SocialGouv/iterion/commit/7fb81dd0da50d53c188394107a5e3f6724146157)), references [#3130](https://github.com/SocialGouv/iterion/issues/3130) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    The grant a repo-bound schedule mints for the workflow dispatch carried, like every publish grant, the implicit power to post a review and the merge-gate commit status on any pull request of its repository: a schedule run could have painted revi/review green on any head.
+
+    </details>
+* **server:** bind the dispatch grant to its schedule's workflow, its launched bundle and one claim ([a8159eb](https://github.com/SocialGouv/iterion/commit/a8159eb4b7c85aefbcd9092cea60d9516777b74b)), references [#3130](https://github.com/SocialGouv/iterion/issues/3130) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    Review round 1 of the workflow-dispatch lane. The schedule grant now:
+
+    </details>
+
+## [5.16.0](https://github.com/SocialGouv/iterion/compare/v5.15.1...v5.16.0) (2026-11-10)
+
+### Features
+
+* **credpool,forge,server:** key pools follow-ups — the forge-integration pool: block, reset_hold's runtime half, the sovereign preview reason (ADR-164) ([#3123](https://github.com/SocialGouv/iterion/issues/3123)) ([9e98941](https://github.com/SocialGouv/iterion/commit/9e98941090d702e53fbe36b8577db7334554e1bd)), closes [#3122](https://github.com/SocialGouv/iterion/issues/3122) [#2000](https://github.com/SocialGouv/iterion/issues/2000) [#3117](https://github.com/SocialGouv/iterion/issues/3117)
+
+    <details><summary>why</summary>
+
+    Landed through the admin lane (Revi unavailable: its z.ai key's weekly quota is exhausted): a six-round local adversarial loop (opus, effort max) — rounds 4-6 without a high on the product, round 4 by randomized guarantee tests on the real broker (~29,600 grants, 0 data race), every fix proven by a mutant red on its own assertion; `task check` green; every CI check green on 3f4770b7a. The closing round's remaining medium/lows are filed as follow-ups.
+
+    </details>
+* **forge:** PullRef carries the fork review lane's admission fields ([d9f95e2](https://github.com/SocialGouv/iterion/commit/d9f95e2bf98e506909ef6d41ab72c56e27c615c1)), references [#3120](https://github.com/SocialGouv/iterion/issues/3120) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    ADR-162 U6, decision 3: the admission reads three fields off the pull request the forge API answers — the author's NUMERIC user id (the per-contributor bound's key, never the login, which is renameable), the BASE repository's clone URL (the one repository a fork launch names: the base's own refs/pull/<n>/head resolves the fork's commit inside the base's object database), and the base's visibility (a private base is refused before the bound is metered — an untrusted clone holds no forge token,…
+
+    </details>
+* **server,queue:** the fork review lane's per-contributor bound — metered twice, failing closed ([1e375d5](https://github.com/SocialGouv/iterion/commit/1e375d54ce0ffdd0deb0d7aa19c2614d0507af08)), references [#3120](https://github.com/SocialGouv/iterion/issues/3120) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    ADR-162 U6, decision 5 (amending ADR-033) + Q4: an untrusted launch is metered on the org's budget AND on orgusage.ForkAuthorSubject — the pull request author's numeric forge id — with runs and dollars per month held on the org beside its quota, a platform default of 20 runs / $20 in the settings ladder, and an explicit `unbounded` escape hatch (a negative org field, or the literal on the env var).
+
+    </details>
+* **server:** the fork review gesture — the lane admits one commit of a public fork ([a9d3e2a](https://github.com/SocialGouv/iterion/commit/a9d3e2a1ef21ca75ba4ae163e4a139726e952751)), references [#3120](https://github.com/SocialGouv/iterion/issues/3120) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    ADR-162 U6, decisions 1-5 + Q1/Q2: the fork review lane's whole comment lane. ForkLane becomes settable at creation (POST /api/teams/{id}/webhooks), github-only with a typed per-provider refusal naming the witness each provider lacks, and IMMUTABLE on PATCH — flipping the kind would re-read parked debounce targets as the other kind and re-interpret the per-author budget's rows. The gesture routes BEFORE the ordinary command machinery (including the /revi approve intercept) on the lane's own…
+
+    </details>
+
+### Bug Fixes
+
+* **chart:** the fork-author bound's knobs reach the server through orgDefaults ([4e29c8d](https://github.com/SocialGouv/iterion/commit/4e29c8db55e4fbdfebd4e70ba5bd931bec90fc2b)), references [#3120](https://github.com/SocialGouv/iterion/issues/3120) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Round-3 review (low): the chart README maps config.orgDefaults.* to ITERION_ORG_DEFAULT_*, but the configmap templated only the four older knobs, so an operator's orgDefaults.forkAuthorCostCapUsd (or `unbounded`) was dropped in silence and the server shipped 20 runs / $20 — an explicit choice replaced without a word (philosophy rule 1).
+
+    </details>
+* **cmd:** the fork-author bound's env knobs take a positive cap or `unbounded`, nothing else ([fc4e5a9](https://github.com/SocialGouv/iterion/commit/fc4e5a99b9128375caf227ec169542b70fb3065c)), references [#3120](https://github.com/SocialGouv/iterion/issues/3120) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Round-2 review, findings 3 (the env half) and 4. boundEnvInt and boundEnvFloat read "0" as a valid value, and 0 is no cap: a second, implicit spelling of `unbounded` — the very reading the neighbouring ITERION_ORG_DEFAULT_* knobs give 0, so an operator setting it by analogy shipped every outside contributor unbounded. A negative or unparseable value was silently replaced by the default.
+
+    </details>
+* **forge,webhooks:** an unidentified GitHub author stays unidentified; GitLab ids refute an equal path ([7d5bed7](https://github.com/SocialGouv/iterion/commit/7d5bed7fbe1f4324d6aed7d7d382247c0a0beff6)), references [#3120](https://github.com/SocialGouv/iterion/issues/3120) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Round-2 review, findings 11 and 6.
+
+    </details>
+* **orgusage,cmd,server:** a fork-author dollar cap the counter cannot enforce is refused ([ace00f9](https://github.com/SocialGouv/iterion/commit/ace00f9c5a5f875110f7038c804b9f84f7f310d9)), references [#3120](https://github.com/SocialGouv/iterion/issues/3120) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Round-3 review (two lows, one class): AllowRun applies a cost cap only when maxCostMillis > 0, and CostToMillis turns some POSITIVE dollar caps into "no cap": a value below half a millidollar rounds to 0, and +Inf or a value past int64 millidollars (1e300) converts to an implementation-defined int64, negative on amd64. ITERION_ORG_DEFAULT_FORK_AUTHOR_COST_CAP_USD accepted 0.0004 and 1e-9 (and only its IsInf arm, unwitnessed, kept inf out), and PATCH /api/admin/orgs accepted 0.0004 and 1e300 —…
+
+    </details>
+* **queue:** an untrusted message older than the fork author subject parks ([3df6985](https://github.com/SocialGouv/iterion/commit/3df69858530cf4acd4e3a06dd7c70a5c836cd891)), references [#3120](https://github.com/SocialGouv/iterion/issues/3120) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Round-3 review (low): the v29 note justified MinSchemaVersion=27 by "no v28 message is a fork run", which holds for launches only. Mid server rollout a v28 replica republishes a fork run a v29 replica created — its resume, the retry sweeper's, a launch naming it as parent — replaying trust=fork with no fork_author_subject (v28 has no field for it). A v29 runner accepts v27–v29, so it ran the message with the author's dollar bound unenforced and recordOrgSpend's second charge skipped.
+
+    </details>
+* **runview,server:** a launch built from a fork run is judged and published as the fork run ([bc80e58](https://github.com/SocialGouv/iterion/commit/bc80e585e9e2597cc0bcdb37b99e1920d85eb35c)), references [#3120](https://github.com/SocialGouv/iterion/issues/3120) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Round-3 review, two MEDIUM findings of one class — the trust the gate judged differed from the trust of the run it admitted, the launch-side twin of round 1's resume HIGH. POST /api/runs gated a request naming a fork run (parent_run_id, or a delegation's source_run_id) with launchSubject{BotID: …}, whose zero Trust reads as trusted; only then did Service.Launch's inheritSourceTrust lower the spec to trust=fork and copy the parent's ForkAuthorSubject. The run was published untrusted past every…
+
+    </details>
+* **runview,server:** every resume of an untrusted run crosses one admission choke point ([82a0cb2](https://github.com/SocialGouv/iterion/commit/82a0cb2888b7e043425062ad27d478c7f0c2a82e))
+
+    <details><summary>why</summary>
+
+    Round-2 review, three HIGH findings of one class: a fork run re-entering the engine past ADR-162 decision 5's bound.
+
+    </details>
+* **server:** a fork run's manual resume re-enters the bound it launched under ([63d233b](https://github.com/SocialGouv/iterion/commit/63d233bc6397b15166c8dbc23c42f82805e520a6)), references [#3120](https://github.com/SocialGouv/iterion/issues/3120) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    handleResumeRun (runs API) and its WS answer twin rebuilt their admission subject as {ExistingRun, BotID, Repo}, dropping the run document's Trust and ForkAuthorSubject: a fork run's resume was admitted as a trusted subject, so no ADR-033 fail-closed arm applied and gateMonthlyCaps metered the org counter while the per-contributor twin of ADR-162 decision 5 never moved. The retry sweeper carried both fields -- the surfaces disagreed.
+
+    </details>
+* **server:** every launch from a webhook config crosses one provenance precondition ([3a555da](https://github.com/SocialGouv/iterion/commit/3a555dacdc8758c81c0e30f48464740910e62b85)), references [#3120](https://github.com/SocialGouv/iterion/issues/3120) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Round-2 review, finding 17: a fork-lane config kept a TRUSTED launch entry that never met the lane-disjointness gate. An `issues: labeled` delivery (or a zero-touch open) composes a same-repo target and hands it to dispatchInvocation; on a board-mode route with a cloud coordinator the board branch wrote a Ready card the dispatcher later launches, returning before the launch tail, and that branch only checked the untrusted direction. Without a coordinator it wrote a tracking card before the tail…
+
+    </details>
+* **server:** the ordinary GitLab MR lane fails closed on a head neither project names ([cc6c01d](https://github.com/SocialGouv/iterion/commit/cc6c01df15e3be5e958fc9637c01ab1be1d4aea2)), references [#3120](https://github.com/SocialGouv/iterion/issues/3120) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    ADR-162 decision 1's GitLab row: the MR auto lane used to stamp "trusted" on whatever the payload failed to prove — a fork was filtered only when the payload PROVED it, and a payload naming neither the source nor the target project rode through as a trusted launch on the forge's silence, weaker than the GitHub site next door (forkGuardRefusal fails closed on a withheld or unnamed head).
+
+    </details>
+* **store,runview:** one carrier for a fork run's trust and author subject; Mongo holds it write-once ([30306b4](https://github.com/SocialGouv/iterion/commit/30306b493015f31bfb06be42c55ea351366d78f6)), references [#3120](https://github.com/SocialGouv/iterion/issues/3120) [#874](https://github.com/SocialGouv/iterion/issues/874)
+
+    <details><summary>why</summary>
+
+    Round-2 review, findings 2/15 and 5/16.
+
+    </details>
+
 ## [5.15.1](https://github.com/SocialGouv/iterion/compare/v5.15.0...v5.15.1) (2026-11-09)
 
 ### Bug Fixes

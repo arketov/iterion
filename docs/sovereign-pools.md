@@ -21,7 +21,9 @@ The isolation chain, in the order a run meets it:
    state — never routed onto the shared pool. The mapping enforces the
    one-team-per-pool invariant (D13): a second team onto a held pool is
    refused with the holder named — two teams on one pool would let each
-   team's runs carry the other's credentials to the same pods.
+   team's runs carry the other's credentials to the same pods. A pool
+   another team's fork-lane config names is refused the same way (409,
+   naming the configs): that lane's untrusted runs execute there.
    A pool team's launch also consults no shared credential tier — org,
    contributor pool and platform credentials never enter its bundle, so
    the pod holds no stranger's key; a route nothing of the team's own
@@ -29,7 +31,23 @@ The isolation chain, in the order a run meets it:
 3. **The frozen stamp**: the run document and the wire message carry the
    pool from launch. Resume follows the frozen stamp and refuses a
    re-mapping (`ErrPoolRemapped` — a pool move is a new launch). Forks and
-   subbot children inherit the stamp.
+   subbot children inherit the stamp. An untrusted run's stamp is the
+   pool its fork-lane config names, not its team's mapping (ADR-162 Q3,
+   [webhooks.md](webhooks.md#fork-lane-pool)): a mapped team's lane must
+   name the team's own pool, an unmapped team's a pool no team holds, and
+   a resume re-judges both (`ErrForkLanePool`). The shared-tier rule above
+   holds for a fork run in full, so **a fork run is funded by its team's own
+   API keys alone** — its vendor keys, and its `openai_compatible` gateway
+   key on the literal `openai_compatible/…` routes that key serves, sealed
+   with its canonical base URL (no forfait: it cannot cross the run's
+   sandbox; never the pool pod's gateway: it is the refused environment).
+   The launch gate refuses one those keys cannot fund, typed
+   (`fork_run_unfunded`), before
+   the org or the outside author is metered — and refuses every route the
+   pool's runner decides itself, since the pool's env block pins the
+   routing dials ([below](#routing-dials-the-pools-env-block-is-pinned))
+   where the server cannot read them, and every route the server cannot
+   attribute to a provider ([webhooks.md](webhooks.md#fork-lane-funding)).
 4. **Per-pool topology**: one run stream + one DLQ stream + one durable
    consumer per pool (`ITERION_RUNS_POOL_<p>` / `iterion-runners-pool-<p>`),
    created and reconciled by the server (immediate pass + a 30 s tick,
@@ -54,13 +72,19 @@ The isolation chain, in the order a run meets it:
    declared supervisors and the session board send content derived from a
    run to a model resolved outside the run's own execution. All three take
    their model registry from one credential channel
-   (`pkg/backend/auxllm.Registry` — the server process env today). The
-   resolver and the session board resolve through plain `Resolve`, so the
-   run's own gateway credential, once #2005 PR-C' reopens the sealed bundle
-   server-side, funds them from that one place (#2645); declared
-   supervisors resolve through `ResolveWithContext` on the run's ctx, whose
-   sealed credentials already fund them where the ctx carries them — the
-   PR-C' change must touch that call site too (`pkg/supervise/bot.go`). On a run
+   (`pkg/backend/auxllm.Registry` — the server process env today). No
+   server-side path reopens a run's sealed bundle: the run document names
+   the key that filled its gateway slot (`ContentBoundary.KeyID`, written at
+   launch since #2005 PR-C'), but opening it here is a ticket of its own
+   (ADR-131's known limit, the server-helper credential channel), and until
+   it lands a run stamped `team_gateway` is refused by all three surfaces
+   whatever their model (`ErrPoolContentRefused`, the content boundary
+   outranking the pool stamp). When it lands, the resolver and the session
+   board — which resolve through plain `Resolve` — are funded from that one
+   place (#2645); declared supervisors resolve through `ResolveWithContext` on the run's
+   ctx, whose sealed credentials already fund them where the ctx carries
+   them, so that change must touch their call site too
+   (`pkg/supervise/bot.go`). On a run
    stamped to a pool they consult the run document's frozen stamp and
    refuse with `ErrPoolContentRefused` (HTTP 403 on the resolver route),
    naming the remedy — unless the surface's model is itself
@@ -236,7 +260,8 @@ Operator notes:
   replace, validated: pool name grammar, duplicate names, lifecycle
   states; audited with the previous state).
 - `PUT /api/admin/teams/{id}/runner-pool` — the mapping (super-admin;
-  refuses pools the registry does not know).
+  refuses pools the registry does not know, a pool another team holds, and
+  a pool another team's fork-lane config names).
 - `GET /api/admin/dlq?pool=<p>` and the peek/replay/discard routes take the
   same `?pool=` parameter — each pool parks on its own DLQ stream, and the
   depth gauge sums the shared DLQ with every registry-known pool's.

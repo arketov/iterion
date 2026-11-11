@@ -228,6 +228,16 @@ const (
 // only safe answer to "I do not know who wrote this code".
 func (t RunTrust) Trusted() bool { return t == RunTrustDefault }
 
+// AmbientLLMRefused reports whether a run of this trust refuses the
+// launcher's ambient LLM credentials — the pod environment's vendor keys and
+// gateway, which are the deployment's money (ADR-162 decision 7): every
+// untrusted run, an unrecognised trust included, spends only the credentials
+// sealed for it. It is the ONE predicate both carriers of the refusal read:
+// the publisher's stamp on the sealed bundle (RunBundle.AmbientLLMRefused)
+// and the runner's derivation from the queue message's trust, which holds
+// when the publisher sealed no bundle at all.
+func (t RunTrust) AmbientLLMRefused() bool { return !t.Trusted() }
+
 // HostCapabilities is the one answer to "which of the host capabilities a
 // workflow declares (`capabilities:`) does a run of this trust hold".
 //
@@ -282,8 +292,29 @@ func ChildTrustFromParent(child, parent *Run) {
 	if child == nil || parent == nil {
 		return
 	}
-	child.Trust = parent.Trust
+	InheritTrustAndAuthor(child, parent)
 	child.RepoSHAExpected = parent.RepoSHAExpected
+}
+
+// InheritTrustAndAuthor gives a run built from another the two facts it
+// inherits whatever workspace it lands in: who wrote the code it executes
+// (Trust) and whose per-contributor bound pays for it (ForkAuthorSubject,
+// ADR-162 decision 5). It is the ONE carrier of both, so neither travels
+// without the other: a child reading untrusted with no subject is refused on
+// every gated resume (no author to meter) and skips the runner's second
+// charge on every ungated one. Every constructor of a run from a parent run
+// calls it — CreateChildRun through ChildTrustFromParent, and runview's Fork,
+// which places the commit pin itself (only the arm that re-clones has a fetch
+// for the pin to certify).
+func InheritTrustAndAuthor(child, parent *Run) {
+	if child == nil || parent == nil {
+		return
+	}
+	child.Trust = parent.Trust
+	// The child's spend is its author's spend: a sub-bot or a fork of a fork
+	// run charges the SAME per-contributor bound (decision 5's subject rides
+	// the document), not a fresh one the child would meter on nothing.
+	child.ForkAuthorSubject = parent.ForkAuthorSubject
 }
 
 // IsFork names the one untrusted class this binary knows, for the sites that
@@ -832,6 +863,77 @@ type RunRetryState struct {
 	// predates this field, so a spent budget is reachable) belongs to the
 	// wait it is already on.
 	Wall *time.Time `json:"wall,omitempty" bson:"wall,omitempty"`
+	// WallCredentials are the credentials the attempt that met this wait's
+	// wall sealed (Run.CredFingerprints as the PAID arming read it): the
+	// credential window the wait belongs to (CredentialWindow), which the
+	// sweeper probes once for every run parked on it.
+	//
+	// Copied by the paid arming, in the arming's own update, and written by
+	// nothing else: a pull, a free re-arm, a delay and a clear all keep it.
+	// Run.CredFingerprints itself cannot be the key — every resume re-stamps
+	// it, so a probe's canary whose re-resolution sealed another set (the
+	// next pool slot, an empty resolution) left its own window, which then
+	// lost its pace, its outstanding probe and its probe budget and pulled a
+	// second canary within the hour. Absent on a row armed before this
+	// field: such a wait names no credential window, and waits for its own.
+	WallCredentials []string `json:"wall_credentials,omitempty" bson:"wall_credentials,omitempty"`
+	// ReleasedBy names the run whose probe of this wait's credential window
+	// got past the wall, when THAT answer is what pulled this row forward
+	// (RunRetryStore.ReleaseRunRetry) — empty on a probe's own pull. It
+	// qualifies the marker: written beside ProbeFrom by the release and
+	// consumed with it by every write that consumes the marker, so it says
+	// nothing once ProbeFrom is gone. Read it through Released.
+	//
+	// A release is not a probe. A probe is a guess the preflight is expected
+	// to refuse, so a resume that never reached the provider stands down to
+	// the announced instant and its admission is handed back; a release
+	// follows an answer that the wall fell, so it is expected to succeed — a
+	// transient refusal of its resume comes back on the ordinary backoff,
+	// free, and the window no longer holds it. Only the runner's
+	// meets-the-wall-again path treats both alike: either re-arms free on the
+	// announced instant (ProbeInFlight).
+	ReleasedBy string `json:"released_by,omitempty" bson:"released_by,omitempty"`
+	// ProbeAnsweredAt is the instant the runner saw the wall this row's
+	// marker sets aside fall: in an attempt that followed the pull, a model
+	// call booked on one of the wall's credentials (WallCredentials) was
+	// served — it spent tokens or money on that credential
+	// (RunProbeAnswerStore.AnswerRunProbe). It is the answer a probe of the
+	// credential window gives — the canary's, or a released run's — and the
+	// one the sweeper releases the window's other waits on: a fact the
+	// runner records, never one inferred from the run's status or from how
+	// long ago it was pulled. A run that started late, ran on another
+	// credential or was held behind a cap answers nothing.
+	//
+	// It qualifies the marker like ReleasedBy: written only while ProbeFrom
+	// is held, consumed with it by every write that consumes it.
+	ProbeAnsweredAt *time.Time `json:"probe_answered_at,omitempty" bson:"probe_answered_at,omitempty"`
+}
+
+// Released reports a row pulled forward on its credential window's answer
+// (ReleasedBy) whose set-aside wall is still ahead — the wait the window no
+// longer holds (retrypolicy.UsageWindowNotBefore), whose transient refusal
+// comes back on the ordinary backoff instead of the announced instant, and
+// whose resume is metered like any launch. Nil-safe.
+func (s *RunRetryState) Released(now time.Time) bool {
+	return s.AnnouncedProbeFrom(now) != nil && s.ReleasedBy != ""
+}
+
+// SpeculativeProbeInFlight is ProbeInFlight for a probe's OWN pull: the
+// resume the preflight is expected to refuse, which nobody meters. A
+// release's resume is in flight too (its re-park is free), but it is expected
+// to succeed and is metered like any launch. Nil-safe.
+func (s *RunRetryState) SpeculativeProbeInFlight(now time.Time) bool {
+	return s.ProbeInFlight(now) && s.ReleasedBy == ""
+}
+
+// CredentialWindow is the credential-window key of the wait this row is on
+// (UsageWindowCredential of WallCredentials), empty when the row names none.
+// Nil-safe.
+func (s *RunRetryState) CredentialWindow() string {
+	if s == nil {
+		return ""
+	}
+	return UsageWindowCredential(s.WallCredentials)
 }
 
 // UsageWall is the instant the wait this row is on ends, or the zero time when
@@ -1028,12 +1130,20 @@ type RunCredStamp struct {
 type RunContentBoundary struct {
 	// Kind names the credential class that funds the run.
 	Kind string `json:"kind" bson:"kind"`
-	// KeyID is the id of the key that answered. Optional: a kind whose
-	// funding needs no key row leaves it empty.
+	// KeyID is the id of the gateway key row the launch sealed: under
+	// team_gateway the key that answered, under own_keys a key sealed for a
+	// route the launch could not decide. Empty when the launch sealed no
+	// gateway key — a replay then seals none.
 	KeyID string `json:"key_id,omitempty" bson:"key_id,omitempty"`
 	// GatewayHost is the canonical host of the tenant gateway serving
-	// the key. Optional for the same reason.
+	// the key, recorded beside KeyID.
 	GatewayHost string `json:"gateway_host,omitempty" bson:"gateway_host,omitempty"`
+}
+
+// TeamGateway reports whether the boundary holds the run to its team's
+// gateway (ContentBoundaryTeamGateway). Nil-safe: an unstamped run is not.
+func (b *RunContentBoundary) TeamGateway() bool {
+	return b != nil && b.Kind == ContentBoundaryTeamGateway
 }
 
 // The content boundary kinds.
@@ -1605,6 +1715,15 @@ type Run struct {
 	// this one. Empty disables the comparison — every lane whose ref no
 	// untrusted party can move.
 	RepoSHAExpected string `json:"repo_sha_expected,omitempty" bson:"repo_sha_expected,omitempty"`
+	// ForkAuthorSubject is the per-contributor metering subject the fork
+	// review lane's launch composed and metered (ADR-162 decision 5):
+	// orgusage.ForkAuthorSubject's exact spelling, built on the same id the
+	// org budget metered on. Empty on every trusted run and every run that
+	// predates the fork lane. Read by the resume/retry surfaces — which
+	// re-meter the bound on the SAME subject rather than re-deriving it —
+	// and mirrored onto the queue message so the runner's recordOrgSpend
+	// charges the author's dollars beside the org's.
+	ForkAuthorSubject string `json:"fork_author_subject,omitempty" bson:"fork_author_subject,omitempty"`
 	// ProjectPath is the stable forge slug ("group/project" on GitLab,
 	// "owner/repo" on GitHub/Forgejo) the run targets. Distinct from the
 	// raw RepoURL clone URL: it is the normalized, human-meaningful
@@ -1676,9 +1795,12 @@ type Run struct {
 	// credential fact under the PinnedProviders doctrine: it travels with
 	// the run, is replayed by every resume/fork lane exactly as frozen,
 	// and is never re-derived — a lane that re-derived it would silently
-	// move a running run onto whichever key answers today. Nil on runs
-	// launched before the stamp existed (a pre-existing document decodes
-	// nil, and the producer lands with a later change).
+	// move a running run onto whichever key answers today. The cloud
+	// publisher writes it at launch from its credential walk: team_gateway
+	// when the walk attributes a gateway route to the team's key and seals
+	// it, own_keys otherwise. Nil on a run launched before that producer,
+	// on a launch whose resolution never walked (a deployment that seals
+	// nothing), and on every local run.
 	ContentBoundary *RunContentBoundary `json:"content_boundary,omitempty" bson:"content_boundary,omitempty"`
 
 	// Attachments holds the metadata for binary inputs declared in

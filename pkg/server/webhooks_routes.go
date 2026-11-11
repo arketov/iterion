@@ -13,6 +13,7 @@ import (
 
 	"github.com/arketov/iterion/pkg/auth"
 	"github.com/arketov/iterion/pkg/internal/storekit"
+	"github.com/arketov/iterion/pkg/queue"
 	"github.com/arketov/iterion/pkg/schedgate"
 	"github.com/arketov/iterion/pkg/secrets"
 	"github.com/arketov/iterion/pkg/webhooks"
@@ -87,6 +88,52 @@ type webhookConfigReq struct {
 	// set, the inbound handler is the connector lane (#2761). An explicit
 	// empty string clears the binding.
 	ConnectorConnectionID *string `json:"connector_connection_id,omitempty"`
+	// ForkLane opts the config into the fork review lane at CREATION
+	// (ADR-162 decision 1). Github-only, checked at creation with a typed
+	// refusal per other provider; IMMUTABLE afterwards — the PATCH arm
+	// below refuses any change, so a value present on the request is
+	// honoured only when it restates the stored one.
+	ForkLane *bool `json:"fork_lane,omitempty"`
+	// ForkLanePool names the runner pool every run of the fork lane executes
+	// on (ADR-162 Q3, decision 10). Required at creation with fork_lane,
+	// refused without it, IMMUTABLE afterwards on the same terms as
+	// fork_lane: the PATCH arm honours it only as a restatement.
+	ForkLanePool *string `json:"fork_lane_pool,omitempty"`
+}
+
+// forkLanePoolCreationRefusal is the creation's word on fork_lane_pool: a
+// fork-lane config names the pool its runs execute on, an ordinary config
+// names none, and the name is a pool name. "" admits. The pool's registry
+// state, and whether a team other than this one holds it, are judged where
+// the run is published (cloudpublisher's fork-lane pool rule), because both
+// can move after the config is created.
+func forkLanePoolCreationRefusal(forkLane bool, pool string) string {
+	switch {
+	case forkLane && pool == "":
+		return "fork_lane requires fork_lane_pool: the runner pool every run of the lane executes on — a pool whose runners resolve the kubernetes sandbox for every run (ADR-162 decision 10). It is set at creation only and immutable afterwards"
+	case !forkLane && pool != "":
+		return "fork_lane_pool names the runner pool of a fork-lane config, and this config is not one (fork_lane is not set): an ordinary config's runs execute on their team's own mapping"
+	case pool != "" && !queue.ValidPoolName(pool):
+		return fmt.Sprintf("fork_lane_pool %q is not a runner pool name (1–31 chars [a-z0-9-], alphanumeric at both ends — the registry's grammar)", pool)
+	}
+	return ""
+}
+
+// forkLaneProviderRefusal is the typed creation refusal for a fork-lane
+// config on a provider whose lane does not exist, one arm per provider
+// because each names the witness it lacks — the row an operator can act
+// on rather than a generic "not supported".
+func forkLaneProviderRefusal(provider webhooks.Provider) error {
+	switch provider {
+	case webhooks.ProviderGitLab:
+		return errors.New("fork_lane is github-only: GitLab's merge-request head ref (refs/merge-requests/<iid>/head) is unwired — the seam is named in docs/webhooks.md, nothing launches on it")
+	case webhooks.ProviderForgejo:
+		return errors.New("fork_lane is github-only: Forgejo's head-repository proof, author id and pull-request ref have no witness — the admission would take the payload's word for all three")
+	case webhooks.ProviderGeneric:
+		return errors.New("fork_lane is github-only: the generic webhook has no pull request to admit")
+	default:
+		return fmt.Errorf("fork_lane is github-only (provider %q)", provider)
+	}
 }
 
 // overlapOrEmpty resolves an optional overlap policy. Empty is meaningful
@@ -276,6 +323,27 @@ func (s *Server) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadRequest, "%s", err.Error())
 		return
 	}
+	// The fork review lane is github-only (ADR-162 decision 1), checked
+	// HERE at creation rather than at delivery: a config that could be
+	// created on another provider would sit enabled with no lane behind
+	// it, silently swallowing deliveries. Typed per provider — the refusal
+	// names the witness the provider lacks, which is the fact an operator
+	// needs before asking for that lane.
+	if req.ForkLane != nil && *req.ForkLane && provider != webhooks.ProviderGitHub {
+		httpError(w, http.StatusBadRequest, "%s", forkLaneProviderRefusal(provider).Error())
+		return
+	}
+	// The lane's pool is set HERE or never (ADR-162 Q3): a fork-lane config
+	// created without one could never launch — the field is immutable — and
+	// would sit enabled swallowing every gesture as a filtered row.
+	forkLanePool := ""
+	if req.ForkLanePool != nil {
+		forkLanePool = strings.TrimSpace(*req.ForkLanePool)
+	}
+	if reason := forkLanePoolCreationRefusal(req.ForkLane != nil && *req.ForkLane, forkLanePool); reason != "" {
+		httpError(w, http.StatusBadRequest, "%s", reason)
+		return
+	}
 	wildcard := req.WildcardBots != nil && *req.WildcardBots
 	botIDs, wildcard, err := normalizeBotScope(req.BotIDs, wildcard)
 	if err != nil {
@@ -352,6 +420,10 @@ func (s *Server) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 		cfg.ConnectorConnectionID = *req.ConnectorConnectionID
 	}
+	if req.ForkLane != nil {
+		cfg.ForkLane = *req.ForkLane
+	}
+	cfg.ForkLanePool = forkLanePool
 	// HMAC-mode webhooks need the minted plaintext sealed at rest so a
 	// later request can recompute HMAC(body) — the operator pastes the
 	// same iwh_ value into the forge's "secret" field.
@@ -488,24 +560,20 @@ func (s *Server) validateKeyOverrides(ctx context.Context, tenantID, actor strin
 		if string(k.Provider) != prov {
 			return fmt.Errorf("key_overrides[%s]: api key %q is for provider %q", prov, keyID, k.Provider)
 		}
-		// A gateway key is storable but no run spends it until the walk
-		// learns the provider (#2005 PR-C', which lifts this refusal and
-		// makes such a pin exclusive, ADR-131 §6). Until then a pin on one
-		// would be dropped at launch without a word — refused at write
-		// instead, so the operator's explicit choice is never replaced in
-		// silence.
-		if k.Provider == secrets.ProviderOpenAICompatible {
-			return fmt.Errorf("key_overrides[%s]: api key %q is an openai_compatible gateway key, which no run spends yet (#2005) — a pin on it would be dropped at launch", prov, keyID)
-		}
-		// The same reason as the gateway arm above, for the other key a
-		// launch cannot spend: this lane fires under a synthetic actor no
-		// key is scoped to, so secrets.Resolve never even lists a
-		// user-scoped key as a candidate — the pin is dropped and the run
-		// seals the team's default instead. Resolve cannot report it (an
-		// invisible key never reaches onWithheld, which answers for the bot
-		// and repository audiences only), so the write refuses it, and the
-		// operator's explicit choice is never replaced in silence. The
-		// secret twin below has always refused the same shape.
+		// A gateway key pins like any key of the team: the walk spends it,
+		// and the launch keeps such a pin exclusive (ADR-131 §6 — a pinned
+		// gateway key the run cannot seal refuses the launch by name,
+		// cloudpublisher's gatewayPinRefusal), so nothing here judges the
+		// provider.
+		//
+		// The one key a launch cannot spend is refused here: this lane fires
+		// under a synthetic actor no key is scoped to, so secrets.Resolve
+		// never even lists a user-scoped key as a candidate — a vendor pin is
+		// dropped and the run seals the team's default instead. Resolve
+		// cannot report it (an invisible key never reaches onWithheld, which
+		// answers for the bot and repository audiences only), so the write
+		// refuses it, and the operator's explicit choice is never replaced in
+		// silence. The secret twin below has always refused the same shape.
 		if !secrets.SpendableBy(k, tenantID, actor) {
 			return fmt.Errorf("key_overrides[%s]: api key %q is not spendable by this lane — it launches as %q, which sees only this team's org-scoped keys, so the pin would be dropped at launch; pin an org-scoped key of this team or clear the pin", prov, keyID, actor)
 		}
@@ -551,6 +619,27 @@ func (s *Server) handleUpdateWebhook(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
+	// The lane KIND is immutable on an existing config (ADR-162 decision
+	// 1). A flip would re-read every parked debounce target of the other
+	// kind through the disjointness gate — silently terminally, since the
+	// stored provenance cannot change with the config — and the
+	// per-author budget's rows were written under the kind the config
+	// carried. A restatement of the stored value is a no-op, so the field
+	// stays round-trippable for a client that echoes the row back.
+	if req.ForkLane != nil && *req.ForkLane != cfg.ForkLane {
+		httpError(w, http.StatusConflict,
+			"fork_lane is immutable on an existing webhook: flipping the lane kind would re-read its parked debounce targets as the other kind and re-interpret the per-author budget's rows — delete and recreate the webhook instead")
+		return
+	}
+	// The lane's pool is immutable on the same terms: moving it would split
+	// one lane's runs across two pools, the in-flight ones resuming on the
+	// pool their documents froze and the next ones launching on the other.
+	// A restatement is a no-op, as for fork_lane.
+	if req.ForkLanePool != nil && strings.TrimSpace(*req.ForkLanePool) != cfg.ForkLanePool {
+		httpError(w, http.StatusConflict,
+			"fork_lane_pool is immutable on an existing webhook: the lane's runs are stamped with the pool at launch and every resume follows that stamp, so a new pool would split the lane across two — delete and recreate the webhook instead")
+		return
+	}
 	// An explicit overlap clear IS a deliberate gesture, and it must be a
 	// READABLE one before anything downstream decides on the raw request.
 	// The normalization — "" → "allow", enforcement-identical
@@ -580,7 +669,11 @@ func (s *Server) handleUpdateWebhook(w http.ResponseWriter, r *http.Request) {
 	// whose approval flow is the governed path. Tightenings and neutral
 	// fields (launch vars, rate limits, names) stay direct.
 	if strings.HasPrefix(cfg.ProvisionedBy, "forge:") {
-		gateOrg, gerr := s.provisionOrgRequiringApproval(r.Context(), id, teamID)
+		// The CRUD writes no pool block, but a managed config CARRIES the
+		// integration's: an expanding patch (more bots, a wildcard) widens
+		// who draws that pool, so a live block disarms the self-funded
+		// exemption exactly as on the repo-bots API.
+		gateOrg, gerr := s.provisionOrgRequiringApproval(r.Context(), id, teamID, cfg.Pool != nil && cfg.Pool.Enabled)
 		if gerr != nil {
 			httpError(w, http.StatusServiceUnavailable, "provision-approval gate unavailable: %v", gerr)
 			return

@@ -71,6 +71,13 @@ type SharedBudget struct {
 	// report in full. Their tokens and cost reached the counters above as a
 	// lower bound at most, so neither ceiling sees all of them.
 	unreportedCalls int
+
+	// bookedElapsed is the elapsed reading at the last instant the run's work
+	// was accounted for — a booking (a node's spend, a noted call), the end of
+	// an executor-less node's body (markWorked), or the start of this attempt
+	// (Restore). What follows it is what a stop on a provider usage window
+	// may hand back (refundSpanSinceBooking).
+	bookedElapsed time.Duration
 }
 
 const (
@@ -303,6 +310,60 @@ func (b *SharedBudget) Restore(tokens int, cost float64, iterations int, elapsed
 	if elapsed > 0 {
 		b.startedAt = b.clockNow().Add(-elapsed)
 	}
+	b.markBookedLocked()
+}
+
+// markBookedLocked records that the run's work is accounted for up to now:
+// the attempt's start, a booking that just landed.
+func (b *SharedBudget) markBookedLocked() {
+	b.bookedElapsed = b.elapsed()
+}
+
+// markWorked records that the span up to now did work no counter prices: the
+// body of an executor-less node — a subbot's child run (its nodes book in
+// the CHILD's budget), a compute, a wait. Such a span is the run's active
+// minutes whatever ends it, so a stop on a usage window that follows hands
+// back nothing of it — the node's own failure included, which is how a
+// subbot whose child worked fifty minutes before meeting the wall reaches
+// the parent's max_duration. Nil-safe.
+func (b *SharedBudget) markWorked() {
+	if b == nil {
+		return
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.markBookedLocked()
+}
+
+// refundSpanSinceBooking hands back to the duration budget the span since the
+// run's work was last accounted for (bookedElapsed) — the time the run spent
+// meeting a provider usage window and nothing else — and reports it.
+//
+// Every writer of a counter (recordUsage, noteUnreported, Restore) and every
+// executor-less node body (markWorked) moves that reading, so the span is
+// the walled node's own approach to the wall: a node that spent tokens before
+// it met the wall booked them first (recordFailedNodeSpend), and its span
+// then starts at that booking.
+//
+// Called on a stop on a usage window only. Such a run parks and is resumed
+// once the window reopens; a resume that re-hits the wall spends no token and
+// finishes no node, so without the refund every one of those attempts burnt
+// the run's active minutes — twelve zero-token attempts took a review to
+// "budget hard limit reached: duration at 90%" days before its window
+// reopened (#3127). The wait between attempts was never counted; this is the
+// part of each attempt that only re-met the wall.
+func (b *SharedBudget) refundSpanSinceBooking() time.Duration {
+	if b == nil {
+		return 0
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	span := b.elapsed() - b.bookedElapsed
+	if span <= 0 {
+		return 0
+	}
+	b.startedAt = b.startedAt.Add(span)
+	return span
 }
 
 // budgetCheckResult holds the outcome of a single dimension check.
@@ -382,6 +443,7 @@ func (b *SharedBudget) recordUsage(spend nodeSpend, countIteration bool) []budge
 		b.unpricedTokens += tokens
 		b.unpricedNodes++
 	}
+	b.markBookedLocked()
 
 	checks := b.checkLocked()
 	if w, ok := b.unpricedWarningLocked(); ok {
@@ -417,6 +479,7 @@ func (b *SharedBudget) noteUnreported(n int) []budgetCheckResult {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.unreportedCalls += n
+	b.markBookedLocked()
 	if w, ok := b.unreportedWarningLocked(); ok {
 		return []budgetCheckResult{w}
 	}

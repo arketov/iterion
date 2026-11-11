@@ -58,12 +58,26 @@ const runNotResumableErrorCode = "run_not_resumable"
 const scratchNotPortableErrorCode = "scratch_not_portable"
 
 // credentialAtCapacityErrorCode tells a client that the resume was refused
-// because a key the run sealed is full of other runs
-// (cloudpublisher.ErrCredentialAtCapacity): nothing was published, the run
-// was put back as it was, and the same request succeeds once a slot frees.
-// Every operator surface that resumes a run answers it
-// (writeCredentialAtCapacityError, and the WS answer's error code).
+// because a key the run sealed is full of other runs, or a pool entry the run
+// needs exists but is busy now (cloudpublisher.ErrCredentialAtCapacity):
+// nothing was published, the run was put back as it was, and the same request
+// succeeds once a slot frees. Every operator surface that resumes a run
+// answers it (writeCredentialAtCapacityError, and the WS answer's error code),
+// and so does a launch refused on a busy pool entry.
 const credentialAtCapacityErrorCode = "credential_at_capacity"
+
+// resumeNotAdmittedErrorCode tells a client that the run service refused a
+// resume whose admission does not match the run (runview.ErrResumeNotAdmitted):
+// an untrusted run resumed by a surface that crossed no admission gate, or a
+// run document that moved under the gate. Nothing was claimed or published;
+// the remedy is the gated resume (POST /api/runs/{id}/resume, the WS answer).
+const resumeNotAdmittedErrorCode = "resume_not_admitted"
+
+// launchNotAdmittedErrorCode is its launch twin (runview.ErrLaunchNotAdmitted):
+// a run the launch names as its parent or delegation source changed trust
+// between the gate's read and the run service's. Nothing was published; the
+// remedy is to retry the launch, which the gate judges afresh.
+const launchNotAdmittedErrorCode = "launch_not_admitted"
 
 // --- Request / response shapes ---
 
@@ -435,7 +449,35 @@ func (s *Server) handleLaunchRun(w http.ResponseWriter, r *http.Request) {
 			inferredAdmission = true
 		}
 	}
-	adm, d := s.gateLaunch(r.Context(), launchSubject{BotID: launchBotLabel})
+	// A launch built FROM other runs — a REST child or a cloud shard naming
+	// parent_run_id, a delegation naming source_run_id — runs under the lowest
+	// of their trusts and meters their fork author (Service.Launch's
+	// inheritSourceTrust). The gate judges THAT subject, read off the same
+	// documents through the same rule, so the run it admits is the run Launch
+	// publishes: a launch naming a fork run is the author's spend, refused on
+	// the super-admin and local-mode arms and metered on the author's bound
+	// like the gesture that created the fork run (ADR-162 decision 5). The run
+	// service compares the two (runview.CheckLaunchAdmitted) and refuses a
+	// launch whose admission names another trust or author.
+	//
+	// These are the only store reads ahead of the suspend check, and only a
+	// request naming a source pays them — the order a resume takes, whose
+	// subject comes from a run document too. A source that cannot be read
+	// refuses the launch here with the answer the run service gave it before.
+	var sourceAdm runview.GateAdmission
+	if s.runs != nil {
+		var serr error
+		if sourceAdm, serr = s.runs.LaunchSourceAdmission(r.Context(), req.ParentRunID, strings.TrimSpace(req.SourceRunID)); serr != nil {
+			s.httpErrorFor(w, r, http.StatusBadRequest, "launch: %v", serr)
+			span.SetStatus(codes.Error, "launch source unreadable")
+			return
+		}
+	}
+	subjectFor := func(bot string) launchSubject {
+		return launchSubject{BotID: bot}.withStoredTrust(sourceAdm.Trust, sourceAdm.ForkAuthorSubject)
+	}
+	gateSubj := subjectFor(launchBotLabel)
+	adm, d := s.gateLaunch(r.Context(), gateSubj)
 	if d != nil {
 		s.writeLaunchDenial(w, r, d)
 		span.SetStatus(codes.Error, "launch denied")
@@ -539,7 +581,8 @@ func (s *Server) handleLaunchRun(w http.ResponseWriter, r *http.Request) {
 	if inferredAdmission && launchLB != nil && botID != launchBotLabel {
 		adm.rollback(s.logger)
 		adm = nil
-		adm, d = s.gateLaunch(r.Context(), launchSubject{BotID: botID})
+		gateSubj = subjectFor(botID)
+		adm, d = s.gateLaunch(r.Context(), gateSubj)
 		if d != nil {
 			s.writeLaunchDenial(w, r, d)
 			span.SetStatus(codes.Error, "launch denied")
@@ -859,6 +902,10 @@ func (s *Server) handleLaunchRun(w http.ResponseWriter, r *http.Request) {
 		WorkDir:            delegationTarget.WorkDir,
 		WorktreeBaseCommit: delegationTarget.WorktreeBaseCommit,
 		Delegation:         delegation,
+		// What the gate above judged — the trust the source runs hand this
+		// launch, and the author subject it charged — for the run service to
+		// hold against the trust it publishes under (CheckLaunchAdmitted).
+		Admitted: gateAdmitted(gateSubj, adm),
 	}
 	if origin, originErr := inferRunBotOrigin(&store.Run{FilePath: absPath}); originErr == nil {
 		spec.BotOrigin = origin
@@ -924,6 +971,14 @@ func (s *Server) handleLaunchRun(w http.ResponseWriter, r *http.Request) {
 			span.SetStatus(codes.Error, "run id taken")
 			return
 		}
+		if errors.Is(err, runview.ErrLaunchNotAdmitted) {
+			// A source run's trust moved between the gate's read and the run
+			// service's: nothing was published, and the same launch is judged
+			// afresh on retry.
+			s.httpErrorCode(w, r, http.StatusConflict, launchNotAdmittedErrorCode, "%s", err.Error())
+			span.SetStatus(codes.Error, "launch not admitted")
+			return
+		}
 		if errors.Is(err, bundle.ErrAuthorDocument) {
 			s.httpErrorCode(w, r, http.StatusBadRequest, "author_document", "%v", err)
 			span.SetStatus(codes.Error, "author document")
@@ -932,6 +987,10 @@ func (s *Server) handleLaunchRun(w http.ResponseWriter, r *http.Request) {
 		if s.writeQueueOutageError(w, r, "launch", err) {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "queue unavailable")
+			return
+		}
+		if s.writeCredentialAtCapacityError(w, r, "launch", err) {
+			span.SetStatus(codes.Error, "credential at capacity")
 			return
 		}
 		if s.writeNoLLMCredentialError(w, r, "launch", err) {
@@ -1001,10 +1060,14 @@ func (s *Server) handleResumeRun(w http.ResponseWriter, r *http.Request) {
 	)
 	// Nil in a degraded/local wiring — and the gate must still answer there,
 	// so an unreadable run costs the subject, never the admission.
+	// resumeLaunchSubject is the seam that carries the run's TRUST and, on
+	// a fork run, the author subject the launch metered (decision 5): an
+	// untrusted resume is metered on both counters again, and every arm of
+	// the gate that would admit it unmetered refuses instead.
 	if s.runs != nil {
 		gateMeta, gateMetaErr = s.runs.LoadRunCtx(r.Context(), id)
 		if gateMetaErr == nil && gateMeta != nil {
-			subj = launchSubject{ExistingRun: true, BotID: gateMeta.BotID, Repo: gateMeta.ProjectPath}
+			subj = s.resumeLaunchSubject(gateMeta)
 		}
 	}
 	adm, d := s.gateLaunch(r.Context(), subj)
@@ -1124,6 +1187,7 @@ func (s *Server) handleResumeRun(w http.ResponseWriter, r *http.Request) {
 			Answers:           answers,
 			Force:             req.Force,
 			AcceptScratchLoss: req.AcceptScratchLoss,
+			Admitted:          gateAdmitted(subj, adm),
 		}
 		if resumeLB != nil {
 			resumeLB.stampResumeBundle(&pfSpec)
@@ -1157,6 +1221,10 @@ func (s *Server) handleResumeRun(w http.ResponseWriter, r *http.Request) {
 		AcceptScratchLoss: req.AcceptScratchLoss,
 		Timeout:           timeout,
 		Budget:            budget,
+		// What the gate above judged on the run it read: the run service
+		// refuses the resume when the document it re-enters names another
+		// trust or another fork author subject.
+		Admitted: gateAdmitted(subj, adm),
 	}
 	hostInputs, historyErr := s.assistantChatHostInputs(ctx, runMeta)
 	if historyErr != nil {
@@ -1216,7 +1284,7 @@ func (s *Server) writeResumeError(w http.ResponseWriter, r *http.Request, err er
 	if s.writeNoLLMCredentialError(w, r, "resume", err) {
 		return
 	}
-	if s.writeCredentialAtCapacityError(w, r, err) {
+	if s.writeCredentialAtCapacityError(w, r, "resume", err) {
 		return
 	}
 	status, code := http.StatusBadRequest, ""
@@ -1232,6 +1300,8 @@ func (s *Server) writeResumeError(w http.ResponseWriter, r *http.Request, err er
 		code = artifactContractIncompatibleErrorCode
 	case errors.Is(err, runview.ErrRunNotResumable):
 		status, code = http.StatusConflict, runNotResumableErrorCode
+	case errors.Is(err, runview.ErrResumeNotAdmitted):
+		status, code = http.StatusConflict, resumeNotAdmittedErrorCode
 	}
 	body := map[string]any{"error": fmt.Sprintf("resume: %v", err)}
 	if code != "" {
@@ -1242,21 +1312,23 @@ func (s *Server) writeResumeError(w http.ResponseWriter, r *http.Request, err er
 }
 
 // writeCredentialAtCapacityError answers a resume the cloud publisher
-// refused because a key the run sealed is full of other runs
-// (cloudpublisher.ErrCredentialAtCapacity): 429 with
-// credentialAtCapacityErrorCode — the resume was refused before publishing
-// and the run put back as it was, a parked run keeping its armed retry,
-// which the sweeper asks again; any other is the caller's to resume once a
-// slot frees. The answer the launch gate gives a concurrency cap, with the
-// same remedy (wait, or free a slot). Shared by every HTTP surface that
+// refused because a key the run sealed is full of other runs, or a pool entry
+// it needs exists but is busy now (cloudpublisher.ErrCredentialAtCapacity):
+// 429 with credentialAtCapacityErrorCode — the resume was refused before
+// publishing and the run put back as it was, a parked run keeping its armed
+// retry, which the sweeper asks again; any other is the caller's to resume
+// once a slot frees. The answer the launch gate gives a concurrency cap, with
+// the same remedy (wait, or free a slot). Shared by every HTTP surface that
 // resumes a run — resume, answer-human, an async answer's auto-resume, a
-// host event — so none answers the refusal as a server failure.
-func (s *Server) writeCredentialAtCapacityError(w http.ResponseWriter, r *http.Request, err error) bool {
+// host event — so none answers the refusal as a server failure, and by the
+// launch, which a busy pool entry refuses the same way. operation prefixes
+// the error ("resume", "launch").
+func (s *Server) writeCredentialAtCapacityError(w http.ResponseWriter, r *http.Request, operation string, err error) bool {
 	if !errors.Is(err, cloudpublisher.ErrCredentialAtCapacity) {
 		return false
 	}
 	s.writeJSONError(w, r, http.StatusTooManyRequests, map[string]any{
-		"error":      fmt.Sprintf("resume: %v", err),
+		"error":      fmt.Sprintf("%s: %v", operation, err),
 		"error_code": credentialAtCapacityErrorCode,
 	})
 	return true

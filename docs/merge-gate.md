@@ -267,11 +267,35 @@ block for an admin.
 
 A review that hits the provider's quota does not die: the runner arms a
 durable retry and the reconciler leaves the check alone, because that armed
-retry is the promise. But the check then sits on its in-flight claim, which
+retry is the promise. It leaves it alone from the moment the run fails on the
+window, too: the engine writes `failed_resumable` / `USAGE_LIMIT_BLOCKED`
+before the runner's post-engine steps arm the retry, and a sweep tick in that
+gap used to count the run dead, relaunch a second review into the same wall
+and spend the head's one relaunch on a quota (#3127). A usage failure whose
+continuation is not settled final is parked (`store.Run.UsageWindowPark`): a
+continuation the runner stated (`retry_armed`, `redelivery_pending`) on every
+offer, and an unknown one on the sweep while the record is younger than the
+settle window (`ITERION_USAGE_PARK_SETTLE_WINDOW`, default `15m`) — the
+outcome event that follows the arming offers the run again. Past it nothing
+is going to arm the run (a lane with no runner, a runner lost before arming,
+an abandon write that failed), and the sweep — the only net under a missed
+event — repairs it as dead. The runner states the continuation before it
+fires that event, so an unknown one on the event is a lane that never states
+it, and the run is repaired as before; so is a park settled final (the
+attempt budget spent, the retry abandoned). Every other reader of "is this
+run dead" takes the same reading (`runWillResume`): the relaunch escalation,
+the autofix sweep, the stop on a closed pull request, the assistant's watch
+and the grant's expiry. But the check then sits on its in-flight claim, which
 reads exactly like a review that died — and nothing said how long to wait.
 So the park **comments on the pull request**, once per park (fired from the
 run-outcome event, never the every-minute sweep): what happened, the instant
-the retry fires, the attempt number, and the provider's own sentence. When
+the retry fires — the one every announcement of the park says
+(`retrypolicy.UsageParkResumesAt`: the owner's notification and the
+operator's alert name it too), never earlier than the usage window the
+sweeper itself waits for, so the notice and the resumer cannot disagree — how
+often, and at most how many times, the credential is probed before it (the
+probe stops at its budget, and the notice is posted once), the attempt
+number, and the provider's own sentence. When
 that sentence is an account **spend ceiling** rather than a time window, the
 notice says so explicitly — a ceiling reopens when an admin raises it (or
 the month rolls), so the armed retries can otherwise exhaust themselves
@@ -989,6 +1013,15 @@ that from doing harm of its own:
   re-checked against the grant exactly as the publish endpoint checks them. A
   red status is not a merge, but posting one on any repo a team connection
   reaches is precisely the blast radius the grant exists to bound.
+- **A grant bound to no pull request speaks for no head.** The grant a
+  repo-bound schedule mints for the workflow dispatch
+  ([`workflow-kick`](../bots/workflow-kick/README.md)) carries
+  `dispatch_workflow` alone and names no pull request, so every surface that
+  acts on one refuses it before any forge call
+  (`grant_bound_to_no_pull_request`): the publish endpoint — review, gate
+  status, verdict gestures — the pull-request read, the delivery preflight,
+  this repair, the auto-fix lane and the PR notices, whatever `pr_url` the
+  run's vars carry. A pull-request launch pinning such a grant is refused.
 - **`failure`, not `success`.** A review that did not happen has approved
   nothing.
 - **The remedy has to be one that can work.** The generic wording — *"review
