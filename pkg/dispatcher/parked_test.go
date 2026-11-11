@@ -31,7 +31,8 @@ func TestReconcileParked(t *testing.T) {
 		{"still-paused run stays parked", store.RunStatusPausedWaitingHuman, "", true},
 		{"failed-resumable run stays parked (operator can resume)", store.RunStatusFailedResumable, "", true},
 		{"cancelled run stays parked (checkpoint resumable)", store.RunStatusCancelled, "", true},
-		{"running resume-in-flight stays parked", store.RunStatusRunning, "", true},
+		{"running answered run leaves the column for in_progress", store.RunStatusRunning, "in_progress", false},
+		{"queued answered run leaves the column for in_progress", store.RunStatusQueued, "in_progress", false},
 	}
 
 	for _, tc := range cases {
@@ -124,6 +125,126 @@ func TestReconcileParked(t *testing.T) {
 			}
 			if tc.wantState == "" && !got.AwaitingInput {
 				t.Errorf("awaiting-input badge must survive while the card stays parked")
+			}
+		})
+	}
+}
+
+// TestReconcileParked_FollowsAnsweredRunToItsEnd: a parked card whose run was
+// answered and resumed leaves awaiting_input at once, is held against a fresh
+// dispatch (journalled), and is filed when the run ends or left in place when
+// the run stops resumable.
+func TestReconcileParked_FollowsAnsweredRunToItsEnd(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		end       store.RunStatus
+		wantState string
+	}{
+		{"finished files the card", store.RunStatusFinished, "review"},
+		{"hard failure files the card", store.RunStatusFailed, "blocked"},
+		{"resumable stop leaves the card in progress", store.RunStatusFailedResumable, "in_progress"},
+		{"cancel leaves the card in progress", store.RunStatusCancelled, "in_progress"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			dir := t.TempDir()
+			runStore, err := store.New(dir)
+			if err != nil {
+				t.Fatalf("store.New: %v", err)
+			}
+			run, err := runStore.CreateRun(ctx, "run-parked-2", "wf", nil)
+			if err != nil {
+				t.Fatalf("CreateRun: %v", err)
+			}
+			setStatus := func(st store.RunStatus) {
+				run.Status = st
+				if err := runStore.SaveRun(ctx, run); err != nil {
+					t.Fatalf("SaveRun: %v", err)
+				}
+			}
+			setStatus(store.RunStatusRunning)
+
+			ns, err := native.NewStore(filepath.Join(dir, "dispatcher"))
+			if err != nil {
+				t.Fatalf("native.NewStore: %v", err)
+			}
+			iss, err := ns.Create(native.Issue{Title: "parked", State: native.StateAwaitingInput})
+			if err != nil {
+				t.Fatalf("Create: %v", err)
+			}
+			if _, err := ns.Claim(iss.ID, "test-host-1"); err != nil {
+				t.Fatalf("Claim: %v", err)
+			}
+			if err := ns.SetLastRun(iss.ID, "run-parked-2", ""); err != nil {
+				t.Fatalf("SetLastRun: %v", err)
+			}
+			if err := ns.SetAwaitingInput(iss.ID, true); err != nil {
+				t.Fatalf("SetAwaitingInput: %v", err)
+			}
+			cfg := &Config{
+				Name:     "test",
+				Workflow: filepath.Join(t.TempDir(), "fake.bot"),
+				Tracker:  TrackerConfig{Kind: "native"},
+				Polling:  PollingConfig{IntervalMS: 50},
+				Agent: AgentConfig{
+					MaxConcurrent:  4,
+					RunningState:   "in_progress",
+					CompletedState: "review",
+					FailedState:    "blocked",
+				},
+				Workspace: WorkspaceConfig{Root: filepath.Join(dir, "ws")},
+			}
+			cfg.applyDefaults()
+			ws, err := NewWorkspaces(cfg.Workspace.Root)
+			if err != nil {
+				t.Fatalf("NewWorkspaces: %v", err)
+			}
+			newDispatcher := func() *Dispatcher {
+				c, err := New(Options{
+					Config:     cfg,
+					Tracker:    native.NewAdapter(ns),
+					Runner:     &StubRunner{},
+					Workspaces: ws,
+					Logger:     iterlog.New(iterlog.LevelError, &bytes.Buffer{}),
+					HostMarker: "test-host-1",
+					StoreDir:   dir,
+				})
+				if err != nil {
+					t.Fatalf("New: %v", err)
+				}
+				return c
+			}
+
+			c := newDispatcher()
+			c.reconcileParked(ctx)
+			got, err := ns.Get(iss.ID)
+			if err != nil {
+				t.Fatalf("Get: %v", err)
+			}
+			if got.State != "in_progress" || got.AwaitingInput || got.Claim != "" {
+				t.Fatalf("after adoption: state=%q badge=%v claim=%q, want in_progress / cleared / released", got.State, got.AwaitingInput, got.Claim)
+			}
+			if h := c.state.sourceHolds[iss.ID]; h == nil || !h.adopted || !h.fromParked {
+				t.Fatalf("an adopted parked hold must protect the card, got %+v", h)
+			}
+
+			// A daemon restart reloads the hold from the journal.
+			c = newDispatcher()
+			if h := c.state.sourceHolds[iss.ID]; h == nil || !h.fromParked {
+				t.Fatalf("journal must restore the parked hold, got %+v", h)
+			}
+
+			setStatus(tc.end)
+			c.reconcileSourceHolds(ctx)
+			got, err = ns.Get(iss.ID)
+			if err != nil {
+				t.Fatalf("Get: %v", err)
+			}
+			if got.State != tc.wantState {
+				t.Errorf("card state = %q, want %q", got.State, tc.wantState)
+			}
+			if _, held := c.state.sourceHolds[iss.ID]; held {
+				t.Errorf("the hold must be dropped once the run ended or stopped")
 			}
 		})
 	}

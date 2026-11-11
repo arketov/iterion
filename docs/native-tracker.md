@@ -151,7 +151,8 @@ else's blockers).
 `awaiting_input` holds a dispatched card whose run paused for input
 (a `human` node, or an operator soft-pause): the dispatcher parks the
 card there — non-eligible, claim retained — and a per-tick sweep moves
-it on once the run reaches a terminal status (see the "Paused runs"
+it on as soon as the run is answered and working again (back to
+`in_progress`) and files it once the run reaches a terminal status (see the "Paused runs"
 section in [docs/dispatcher.md](dispatcher.md)). Boards persisted by an
 older iterion are **schema-upgraded automatically** on store open
 (filesystem) or on read (Mongo): missing `inbox` is prepended, missing
