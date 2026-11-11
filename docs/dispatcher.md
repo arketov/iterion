@@ -57,8 +57,10 @@ the board card and as a row of the Dispatcher page's *Won't dispatch* table
 
 Assign one of the project's bots in the issue editor and the next poll picks
 the card up. A project with no bots yet still starts: every card waits as *no
-bot* until a bot is added — the folders are read at each dispatch, so a bot
-created later needs no change to the settings. Hand-written YAML keeps the old
+bot* until a bot is added — the folders are read at each dispatch (once per
+refused card per poll: the *no bot* / *disabled* verdict and its reason come
+from the same read), so a bot created later needs no change to the settings.
+Hand-written YAML keeps the old
 meaning unless you add `require_assignee: true` (the `workflow:` fallback
 still runs unassigned cards, and cards whose assignee matches no bot,
 otherwise).

@@ -53,6 +53,10 @@ type RoutingRunner struct {
 	// tests can avoid real IR compilation; defaults to NewEngineRunner.
 	compile func(path string) (Runner, error)
 
+	// listBots reads the bot catalogue. Injectable so tests can observe the
+	// walks; defaults to botregistry.List.
+	listBots func(botregistry.ListOptions) ([]botregistry.Entry, error)
+
 	mu      sync.Mutex
 	dynamic map[string]Runner // normalized bot name → lazily-compiled runner
 }
@@ -150,10 +154,26 @@ func (r *RoutingRunner) BotDispatchVars(key string) (map[string]string, bool) {
 // ENABLED discovered bot key names (tolerantly: botregistry.NormalizeName),
 // or false when dynamic routing is off, the bot is unknown or disabled.
 func (r *RoutingRunner) resolveDynamicEntry(key string) (botregistry.Entry, bool) {
+	e, found := r.lookupDynamicEntry(key)
+	if !found || !e.Enabled {
+		return botregistry.Entry{}, false // unknown, or disabled in the catalog → not auto-routed
+	}
+	return e, true
+}
+
+// lookupDynamicEntry reads the catalogue ONCE and returns the discovered bot
+// key names, enabled or not; found is false when dynamic routing is off, the
+// catalogue is unreadable or no bot has that name. The route decision and the
+// reason a card is refused are both taken from this one walk.
+func (r *RoutingRunner) lookupDynamicEntry(key string) (botregistry.Entry, bool) {
 	if r == nil || len(r.BotsPaths) == 0 || key == "" {
 		return botregistry.Entry{}, false
 	}
-	entries, err := botregistry.List(botregistry.ListOptions{
+	list := r.listBots
+	if list == nil {
+		list = botregistry.List
+	}
+	entries, err := list(botregistry.ListOptions{
 		Paths:   r.BotsPaths,
 		Workdir: botregistry.WorkdirFromPaths(r.BotsPaths),
 	})
@@ -169,13 +189,9 @@ func (r *RoutingRunner) resolveDynamicEntry(key string) (botregistry.Entry, bool
 	}
 	nk := botregistry.NormalizeName(key)
 	for _, e := range entries {
-		if botregistry.NormalizeName(e.Name) != nk {
-			continue
+		if botregistry.NormalizeName(e.Name) == nk {
+			return e, true
 		}
-		if !e.Enabled {
-			return botregistry.Entry{}, false // disabled in the catalog → not auto-routed
-		}
-		return e, true
 	}
 	return botregistry.Entry{}, false
 }
@@ -219,6 +235,21 @@ func (r *RoutingRunner) HasRoute(key string) bool {
 	}
 	_, ok := r.resolveDynamicPath(key)
 	return ok
+}
+
+// RouteState is HasRoute plus, for a key that does not route, whether the
+// catalogue names a bot of that spelling that is switched off (disabled): one
+// catalogue read for both answers, so refusing a card with no bot does not walk
+// the bot folders a second time to pick its reason. Compile-free like HasRoute.
+func (r *RoutingRunner) RouteState(key string) (routed, disabled bool) {
+	if _, ok := r.staticRoute(key); ok {
+		return true, false
+	}
+	e, found := r.lookupDynamicEntry(key)
+	if !found {
+		return false, false
+	}
+	return e.Enabled, !e.Enabled
 }
 
 // DeclaredVars returns the declared var-name set of the workflow `key`

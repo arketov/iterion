@@ -3,10 +3,12 @@ package dispatcher
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/arketov/iterion/pkg/botregistry"
 	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 )
 
@@ -66,6 +68,46 @@ func TestDispatchRequireAssigneeRefusesDisabledBot(t *testing.T) {
 	sk, ok := c.state.dispatchSkips["i2"]
 	if !ok || sk.Kind != DispatchSkipNoBot || !strings.Contains(sk.Reason, "disabled") {
 		t.Fatalf("want a no_bot skip that says the bot is disabled, got %+v ok=%v", sk, ok)
+	}
+}
+
+// Refusing a card with no bot reads the bot catalogue once: the route decision
+// and the reason text come from the same walk. The catalogue is removed after
+// that read, so a second walk (taken to tell "disabled" from "not a bot") would
+// turn the disabled reason into the not-a-bot one.
+func TestRefuseWithoutBotReadsTheCatalogueOnce(t *testing.T) {
+	cases := []struct {
+		assignee, wantReason string
+	}{
+		{"offy", "disabled"},
+		{"artem", "not a bot"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.assignee, func(t *testing.T) {
+			c, rr := requireBotDispatcher(t)
+			botsDir := rr.BotsPaths[0]
+			walks := 0
+			rr.listBots = func(opts botregistry.ListOptions) ([]botregistry.Entry, error) {
+				walks++
+				entries, err := botregistry.List(opts)
+				if rmErr := os.RemoveAll(botsDir); rmErr != nil {
+					t.Fatalf("remove bots dir: %v", rmErr)
+				}
+				return entries, err
+			}
+
+			iss := tracker.Issue{ID: "once-" + tc.assignee, Identifier: "T-1", Assignee: tc.assignee}
+			if !c.refuseWithoutBot(c.cfg.Load(), iss) {
+				t.Fatalf("assignee %q must be refused", tc.assignee)
+			}
+			if walks != 1 {
+				t.Errorf("catalogue read %d times for one refusal, want 1", walks)
+			}
+			sk, ok := c.state.dispatchSkips[iss.ID]
+			if !ok || sk.Kind != DispatchSkipNoBot || !strings.Contains(sk.Reason, tc.wantReason) {
+				t.Errorf("want a no_bot skip whose reason contains %q, got %+v ok=%v", tc.wantReason, sk, ok)
+			}
+		})
 	}
 }
 
