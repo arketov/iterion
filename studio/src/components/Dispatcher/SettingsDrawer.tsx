@@ -285,6 +285,7 @@ function Form({ cfg, setCfg }: FormProps) {
             <option value="native">native (local kanban)</option>
             <option value="github">github</option>
             <option value="forgejo">forgejo / gitea</option>
+            <option value="gitlab">gitlab</option>
           </Select>
         </Field>
         {cfg.tracker.kind === "github" && (
@@ -297,6 +298,12 @@ function Form({ cfg, setCfg }: FormProps) {
           <ForgejoTrackerFields
             cfg={cfg.tracker.forgejo ?? { host: "", repo: "" }}
             set={(f) => update("tracker", { ...cfg.tracker, forgejo: f })}
+          />
+        )}
+        {cfg.tracker.kind === "gitlab" && (
+          <GitLabTrackerFields
+            cfg={cfg.tracker.gitlab ?? { host: "", repo: "" }}
+            set={(g) => update("tracker", { ...cfg.tracker, gitlab: g })}
           />
         )}
       </Section>
@@ -751,6 +758,34 @@ function ForgejoTrackerFields({
         <Input size="sm" value={cfg.token ?? ""} onChange={(e) => set({ ...cfg, token: e.target.value })} placeholder="$FORGEJO_TOKEN" />
       </Field>
       <Field label="Claimed label">
+        <Input size="sm" value={cfg.claimed_label ?? ""} onChange={(e) => set({ ...cfg, claimed_label: e.target.value })} placeholder="iterion-claimed" />
+      </Field>
+      <LabelListField label="Include labels" value={cfg.include_labels ?? []} onChange={(v) => set({ ...cfg, include_labels: v })} />
+      <LabelListField label="Exclude labels" value={cfg.exclude_labels ?? []} onChange={(v) => set({ ...cfg, exclude_labels: v })} />
+      <StateMappingField value={cfg.state_mapping ?? {}} onChange={(v) => set({ ...cfg, state_mapping: v })} />
+    </>
+  );
+}
+
+function GitLabTrackerFields({
+  cfg,
+  set,
+}: {
+  cfg: dispatcher.GitLabTrackerConfig;
+  set: (c: dispatcher.GitLabTrackerConfig) => void;
+}) {
+  return (
+    <>
+      <Field label="Host" hint="Base URL, e.g. https://gitlab.com">
+        <Input size="sm" value={cfg.host} onChange={(e) => set({ ...cfg, host: e.target.value })} placeholder="https://gitlab.com" />
+      </Field>
+      <Field label="Repo" hint="group/project">
+        <Input size="sm" value={cfg.repo} onChange={(e) => set({ ...cfg, repo: e.target.value })} placeholder="gitlab-org/gitlab" />
+      </Field>
+      <Field label="Token">
+        <Input size="sm" value={cfg.token ?? ""} onChange={(e) => set({ ...cfg, token: e.target.value })} placeholder="$GITLAB_TOKEN" />
+      </Field>
+      <Field label="Claimed label" hint="Label added to claimed issues. Default 'iterion-claimed'.">
         <Input size="sm" value={cfg.claimed_label ?? ""} onChange={(e) => set({ ...cfg, claimed_label: e.target.value })} placeholder="iterion-claimed" />
       </Field>
       <LabelListField label="Include labels" value={cfg.include_labels ?? []} onChange={(v) => set({ ...cfg, include_labels: v })} />
