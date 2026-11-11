@@ -101,7 +101,10 @@ export function Column({
   const fadeForPause = dimmed && eligible;
   return (
     <div
-      className={`w-72 shrink-0 rounded border-2 transition-colors ${
+      // `relative` is load-bearing: the sr-only spans in the header are
+      // position:absolute, and without a positioned ancestor they escape every
+      // overflow clip above and stretch the document (double scrollbars).
+      className={`relative w-72 shrink-0 rounded border-2 transition-colors ${
         dragOver
           ? "border-accent bg-accent-soft/30 ring-2 ring-accent/40"
           : "border-border-default bg-surface-1"
