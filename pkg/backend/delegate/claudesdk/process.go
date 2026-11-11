@@ -33,9 +33,6 @@ type processConfig struct {
 	SystemPrompt       string
 	AppendSystemPrompt string
 	Cwd                string
-	// Verbose is kept for source compatibility. buildArgs emits --verbose
-	// regardless: the stream-json output format the SDK always uses requires it.
-	Verbose bool
 
 	AllowedTools    []string
 	DisallowedTools []string
@@ -96,7 +93,7 @@ func buildArgs(cfg processConfig, streaming bool) []string {
 	// using --print, --output-format=stream-json requires --verbose", exit
 	// 1). The flag is therefore part of the output-format contract, not an
 	// option: it is emitted here, unconditionally and right beside the
-	// format, so no caller composition (or a missing WithVerbose) can drop it.
+	// format, so no caller composition can drop it.
 	args = append(args, "--output-format", "stream-json", "--verbose")
 	if streaming {
 		args = append(args, "--input-format", "stream-json")

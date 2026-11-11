@@ -1,6 +1,7 @@
 package delegate
 
 import (
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -59,5 +60,22 @@ func TestTheArgvPreviewLeavesOtherArgumentsAlone(t *testing.T) {
 		if got[i+1] != arg {
 			t.Errorf("argument %d rewritten: %q → %q", i, arg, got[i+1])
 		}
+	}
+}
+
+// AdaptHostCmd may swap cmd.Path for the native claude.exe the npm shim wraps
+// while cmd.Args[0] keeps the name the builder was handed. The host-exec log
+// line is there to tell which binary was spawned, so it must name cmd.Path.
+func TestHostExecPreviewNamesTheAdaptedBinary(t *testing.T) {
+	cmd := &exec.Cmd{
+		Path: `C:\tools\claude\claude.exe`,
+		Args: []string{"claude", "--print", "--model", "opus"},
+	}
+	got := hostExecPreview(cmd)
+	if len(got) == 0 || got[0] != cmd.Path {
+		t.Fatalf("preview starts with %q, want the adapted cmd.Path %q: %v", got[0], cmd.Path, got)
+	}
+	if want := "--print --model opus"; strings.Join(got[1:], " ") != want {
+		t.Fatalf("preview flags = %q, want %q", strings.Join(got[1:], " "), want)
 	}
 }
