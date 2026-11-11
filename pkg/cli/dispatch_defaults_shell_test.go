@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -301,6 +302,54 @@ func TestMigrateLegacySeedHook(t *testing.T) {
 	t.Setenv(hostshell.EnvVar, "sh")
 	if MigrateLegacySeedHook(mk(legacy, "")) {
 		t.Fatal("on a POSIX host the old preset is right as it is")
+	}
+}
+
+// The shortened sh variant of the old preset (set -e, PROJECT_DIR, the worktree
+// add, no guard or copy fallback) is migrated like the preset itself, so a
+// Windows host without sh is not left with a hook it cannot run; anything beyond
+// those three lines, or another worktree add, is the operator's and stays.
+func TestMigrateLegacySeedHook_ShortenedVariant(t *testing.T) {
+	dir := `C:\Users\Shket\SELF Repository\bars-project`
+	short := func(add string) string {
+		return fmt.Sprintf("set -e\nPROJECT_DIR=%q\n%s\n", dir, add)
+	}
+	const add = `git -C "$PROJECT_DIR" -c core.hooksPath=/dev/null worktree add --detach "$ITERION_WORKSPACE" HEAD`
+	mk := func(script string) *dispatcher.Config {
+		return &dispatcher.Config{Hooks: dispatcher.Hooks{AfterCreate: &dispatcher.Hook{Script: script}}}
+	}
+
+	t.Setenv(hostshell.EnvVar, "pwsh")
+	for name, script := range map[string]string{
+		"hooks off":     short(add),
+		"crlf":          strings.ReplaceAll(short(add), "\n", "\r\n"),
+		"plain":         short(`git -C "$PROJECT_DIR" worktree add --detach "$ITERION_WORKSPACE" HEAD`),
+		"two settings":  short(`git -C "$PROJECT_DIR" -c core.hooksPath=/dev/null -c core.fsmonitor=false worktree add --detach "$ITERION_WORKSPACE" HEAD`),
+		"with comments": "# seed\n" + short(add),
+	} {
+		cfg := mk(script)
+		if !MigrateLegacySeedHook(cfg) {
+			t.Errorf("%s: the shortened sh preset must be migrated on a PowerShell host", name)
+			continue
+		}
+		h := cfg.Hooks.AfterCreate
+		if h.Shell != "pwsh" || !strings.Contains(h.Script, `$projectDir = 'C:\Users\Shket\SELF Repository\bars-project'`) {
+			t.Errorf("%s: migrated hook = %+v", name, h)
+		}
+	}
+
+	for name, script := range map[string]string{
+		"extra command":     short(add) + "echo extra\n",
+		"other argument":    short(`git -C "$PROJECT_DIR" worktree add --detach "$ITERION_WORKSPACE" main`),
+		"force flag":        short(`git -C "$PROJECT_DIR" worktree add --force --detach "$ITERION_WORKSPACE" HEAD`),
+		"substitution":      short(`git -C "$PROJECT_DIR" -c core.x=$(id) worktree add --detach "$ITERION_WORKSPACE" HEAD`),
+		"another directory": short(`git -C /elsewhere worktree add --detach "$ITERION_WORKSPACE" HEAD`),
+		"no set -e":         "PROJECT_DIR=" + fmt.Sprintf("%q", dir) + "\n" + add + "\n",
+		"raw backslashes":   "set -e\nPROJECT_DIR=\"" + dir + "\"\n" + add + "\n",
+	} {
+		if MigrateLegacySeedHook(mk(script)) {
+			t.Errorf("%s: an edited hook is the operator's: leave it", name)
+		}
 	}
 }
 

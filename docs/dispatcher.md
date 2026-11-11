@@ -935,7 +935,11 @@ a `sh` and a PowerShell variant and picks the one that matches the shell; on
 Windows the saved config carries `shell: pwsh` (or `powershell`) with it.
 A config saved by an older version holds the `sh` variant with no `shell:`:
 when the studio loads it on a PowerShell host, that exact old preset is
-rewritten into the PowerShell variant (and saved). The saved preset also holds
+rewritten into the PowerShell variant (and saved). So is its shortened form: only
+`set -e`, `PROJECT_DIR="…"` and a single
+`git -C "$PROJECT_DIR" [-c key=value …] worktree add --detach "$ITERION_WORKSPACE" HEAD`
+(blank and `#` lines aside); any other command or argument makes the hook
+yours, and it is left alone. The saved preset also holds
 the project path of the host that built it, so a config opened from another OS
 (WSL or Linux over a shared project `.iterion`, a shared `ITERION_HOME` or
 `--store-dir`) cannot run it as it is. When `after_create` is exactly the

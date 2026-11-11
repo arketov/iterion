@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -143,9 +144,42 @@ func seedHookForHost(projectDir string) (script, shell string) {
 	return workspaceSeedPowerShell(projectDir), shell
 }
 
+// shortSeedWorktreeAdd is the one command line the shortened sh seed variant
+// may carry: the preset's worktree add, with any number of plain `-c key=value`
+// settings (hooks off, fsmonitor off) and no other argument.
+var shortSeedWorktreeAdd = regexp.MustCompile(`^git -C "\$PROJECT_DIR"(?: -c [A-Za-z0-9_.]+=[A-Za-z0-9_./-]+)* worktree add --detach "\$ITERION_WORKSPACE" HEAD$`)
+
+// shortSeedProjectDir recognises the shortened variant of the old sh seed
+// preset, `set -e`, `PROJECT_DIR="…"` and the worktree add, and nothing else
+// (blank and comment lines aside): the preset minus its non-empty-workspace
+// guard and its copy fallback. It returns the project directory.
+func shortSeedProjectDir(script string) (string, bool) {
+	var lines []string
+	for _, l := range strings.Split(script, "\n") {
+		l = strings.TrimSpace(l)
+		if l == "" || strings.HasPrefix(l, "#") {
+			continue
+		}
+		lines = append(lines, l)
+	}
+	if len(lines) != 3 || lines[0] != "set -e" || !shortSeedWorktreeAdd.MatchString(lines[2]) {
+		return "", false
+	}
+	quoted, ok := strings.CutPrefix(lines[1], "PROJECT_DIR=")
+	if !ok {
+		return "", false
+	}
+	dir, err := strconv.Unquote(quoted)
+	if err != nil || dir == "" {
+		return "", false
+	}
+	return dir, true
+}
+
 // legacySeedProjectDir reports whether script is the sh seed preset
 // (workspaceSeedScript) a config saved before the host shell followed the OS
-// carries, and for which project directory it was written.
+// carries, or its shortened variant (shortSeedProjectDir), and for which
+// project directory it was written.
 func legacySeedProjectDir(script string) (string, bool) {
 	script = strings.ReplaceAll(script, "\r\n", "\n")
 	pre, post, ok := strings.Cut(workspaceSeedScript(""), `PROJECT_DIR=""`)
@@ -153,7 +187,7 @@ func legacySeedProjectDir(script string) (string, bool) {
 		return "", false
 	}
 	if !strings.HasPrefix(script, pre+"PROJECT_DIR=") || !strings.HasSuffix(script, post) {
-		return "", false
+		return shortSeedProjectDir(script)
 	}
 	quoted := strings.TrimSuffix(strings.TrimPrefix(script, pre+"PROJECT_DIR="), post)
 	dir, err := strconv.Unquote(quoted)
