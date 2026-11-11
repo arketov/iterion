@@ -288,6 +288,8 @@ export interface DispatchSkipView {
   // failed; the dispatcher keeps retrying and will not run the card again.
   // "source_changed": the last run cannot resume because the bot source
   // changed; the card stays in its column (force-resume or start over).
+  // "queued": a routable card waiting for a concurrency slot — not a
+  // refusal; reason carries "queued — waiting for a slot (ready N/M)".
   // Absent for the bot-misconfiguration family.
   kind?: string;
 }

@@ -293,7 +293,11 @@ export default function DispatcherView() {
   // already badges the affected cards) — otherwise an operator watching
   // this view sees an eligible issue that simply never runs, with no
   // reason given.
-  const skips = snap.dispatch_skips ?? [];
+  // "queued" entries are not refusals (a routable card waiting for a slot):
+  // they get their own neutral block instead of the red "Won't dispatch" one.
+  const allSkips = snap.dispatch_skips ?? [];
+  const skips = allSkips.filter((s) => s.kind !== "queued");
+  const queued = allSkips.filter((s) => s.kind === "queued");
   // With no dispatcher attached (never started / no config), GET /state
   // returns the manager's idle stub — a Snapshot with only generated_at
   // set. The manager serves the stub exactly when its lifecycle state is
@@ -397,6 +401,12 @@ export default function DispatcherView() {
           <SummaryCard snap={snap} status={status} />
           <DispatchSkipsTable
             rows={skips}
+            onFocusIssue={(id) =>
+              setLocation(`/board?focus=${encodeURIComponent(id)}`)
+            }
+          />
+          <QueuedTable
+            rows={queued}
             onFocusIssue={(id) =>
               setLocation(`/board?focus=${encodeURIComponent(id)}`)
             }
@@ -540,6 +550,59 @@ function DispatchSkipsTable({
                 )}
               </Td>
               <Td className="text-danger-fg">{s.reason}</Td>
+            </Tr>
+          ))}
+        </TBody>
+      </Table>
+    </section>
+  );
+}
+
+// QueuedTable lists the cards that have a bot and wait for a free slot (global
+// or per-state cap). Not a problem, so it is neutral and absent when empty.
+function QueuedTable({
+  rows,
+  onFocusIssue,
+}: {
+  rows: DispatchSkipView[];
+  onFocusIssue: (issueID: string) => void;
+}) {
+  if (rows.length === 0) return null;
+  return (
+    <section
+      className="rounded border border-border-default bg-surface-1"
+      data-testid="queued-table"
+    >
+      <header className="px-4 py-2 border-b border-border-default text-sm font-semibold">
+        Queued ({rows.length}){" "}
+        <span className="text-micro font-normal text-fg-muted">
+          waiting for a slot
+        </span>
+      </header>
+      <Table
+        caption="Cards waiting for a free slot"
+        density="sm"
+        className="min-w-full"
+      >
+        <THead>
+          <Th className="whitespace-nowrap">Issue</Th>
+          <Th>Bot</Th>
+          <Th>Reason</Th>
+        </THead>
+        <TBody>
+          {rows.map((s) => (
+            <Tr
+              key={s.issue_id}
+              className="cursor-pointer focus-visible:bg-surface-2/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+              {...clickableRowProps(() => onFocusIssue(s.issue_id))}
+            >
+              <Td className="font-mono whitespace-nowrap">
+                {s.identifier || s.issue_id}
+              </Td>
+              <Td className="font-mono">
+                {s.bot || s.assignee || <span className="text-fg-muted">—</span>}
+              </Td>
+              <Td className="text-fg-muted">{s.reason}</Td>
             </Tr>
           ))}
         </TBody>

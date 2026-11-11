@@ -121,6 +121,20 @@ func (c *Dispatcher) dropSourceHold(issueID string) {
 // last_run drops the hold. An adopted hold is journalled so the follow-up
 // survives a daemon restart. Local disk I/O only, safe on the actor.
 func (c *Dispatcher) reconcileSourceHolds(ctx context.Context) {
+	// A source_changed skip belongs to a hold: holdSourceChanged registers both on
+	// a tracker with the last_run seam. A skip left without its hold (the hold was
+	// forgotten, or the entry outlived it) is stale and nothing else clears it
+	// while every slot is busy. Trackers without the seam use the legacy park
+	// path, which records the skip with an empty Kind and is untouched here.
+	if c.hasLastRunSeam() {
+		for id, s := range c.state.dispatchSkips {
+			if s.Kind == DispatchSkipSourceChanged {
+				if _, held := c.state.sourceHolds[id]; !held {
+					delete(c.state.dispatchSkips, id)
+				}
+			}
+		}
+	}
 	if len(c.state.sourceHolds) == 0 {
 		return
 	}
