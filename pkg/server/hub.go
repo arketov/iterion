@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/arketov/iterion/internal/httpx"
 	"github.com/arketov/iterion/pkg/errtrack"
 	iterlog "github.com/arketov/iterion/pkg/log"
 )
@@ -56,6 +57,7 @@ func writeWSClose(conn *websocket.Conn, code int, token, cause string) error {
 	if cause != "" {
 		reason = token + ": " + cause
 	}
+	reason = httpx.RedactError(reason)
 	if len(reason) > wsCloseReasonMax {
 		reason = strings.ToValidUTF8(reason[:wsCloseReasonMax], "")
 	}

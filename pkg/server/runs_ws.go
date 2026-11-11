@@ -1095,7 +1095,7 @@ func (c *runConn) sendEnvelope(t string, payload any, ackID string) bool {
 }
 
 func (c *runConn) sendError(code, msg, ackID string) {
-	c.sendEnvelope(wsTypeError, wsErrorPayload{Code: code, Message: msg}, ackID)
+	c.sendEnvelope(wsTypeError, wsErrorPayload{Code: code, Message: httpx.RedactError(msg)}, ackID)
 }
 
 func (c *runConn) sendAck(ackID string) {
