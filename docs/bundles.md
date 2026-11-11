@@ -280,7 +280,7 @@ my-bot/
 | Entry             | Purpose |
 | ----------------- | ------- |
 | `main.bot`        | The workflow source. Must live at the bundle root. |
-| `manifest.yaml`   | Bundle metadata (name, version, schema_version, optional `attachments:` map). Optional. |
+| `manifest.yaml`   | Bundle metadata (name, version, schema_version, optional `attachments:` map and `dispatch_vars:` map). Optional. |
 | `skills/`         | Claude Code skills. Mirrored into `<workDir>/.claude/skills/` at run time. Workspace files always win on collision (warn-logged). |
 | `prompts/`        | Reusable `.md` prompts. Each file is auto-registered with name equal to the filename stem — `prompts/helper.md` makes `system: helper` resolvable from `main.bot`. Workflow-declared prompts always win on collision. An `{{include "x.md"}}` inside one resolves next to that file, inside `prompts/`. |
 | `lib/`            | Fragments of a bot in several files: `.bot` files `main.bot` imports (`import "lib/x.bot"`, [dsl.md](dsl.md#import--a-bot-in-several-files)), merged with it into one program. Never a bot of their own; a bundle that imports declares `requires.iterion` at or above v3.145.0 (C252, 409). |
@@ -331,6 +331,13 @@ attachments:
   logo: branding/logo.png
   spec: docs/spec.pdf
 
+# Optional: fill workflow vars from a board card (see below)
+dispatch_vars:
+  task: |-
+    {{issue.title}}
+
+    {{issue.body}}
+
 # Reserved for future minor extensions (additive). Unknown keys are
 # tolerated under `compat:` so newer bundles don't break older iterion.
 compat:
@@ -340,6 +347,28 @@ compat:
 The current schema version is **1**. Bundles that omit `schema_version`
 are treated as v1. iterion refuses any other value with an explicit
 upgrade hint.
+
+### `dispatch_vars:` — carry a card into the bot
+
+`dispatch_vars` is an optional map from workflow var names to templates. When
+the [dispatcher](dispatcher.md) runs the bot for a card, it renders each value
+once per card and passes the result as that var, so the bot receives the card
+(`task: "{{issue.title}}\n\n{{issue.body}}"`) without any dispatcher-code edit.
+The dispatcher reads it from the discovered bot's manifest.
+
+- **Keys are var names** declared in the `vars:` block of `main.bot`. A key
+  that names no var is silently dropped at dispatch time; `iterion validate`
+  warns `C200` for it ([diagnostics](references/diagnostics.md)).
+- **Values are templates**: `{{issue.title}}`, `{{issue.body}}` and the other
+  [dispatch templates](dispatcher.md#dispatch-templates).
+- **They replace the dispatcher's global `dispatch.vars` for this bot**; they
+  do not add to them. A matching `assignee_dispatch` entry wins over them. A card's per-ticket `bot_args` are merged on top, key by key, and win.
+- Absent or empty: the bot receives only the global dispatch vars.
+
+The step-by-step setup is in
+[your own bot on the board](howto-board-bot.md#2-declare-the-input-dispatch_vars);
+the precedence against `assignee_dispatch`, `dispatch.vars` and `bot_args` is in
+[dispatcher.md](dispatcher.md#per-ticket-bot--args-fields).
 
 ### `requires:` — the engine contract
 
