@@ -16,6 +16,7 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -1195,6 +1196,96 @@ func PerformDeferredMerge(req DeferredMergeRequest, logger *iterlog.Logger) (Def
 	default:
 		return DeferredMergeResult{}, fmt.Errorf("unknown merge strategy %q", strategy)
 	}
+}
+
+// runBranchPrefix is the namespace finalize gives a run's storage branch.
+// Discarding is only ever allowed inside it: an operator's own branch_name
+// override (or main) is never the engine's to delete.
+const runBranchPrefix = "iterion/run/"
+
+// ErrBranchUnmerged marks a discard refused because the branch holds
+// commits that exist nowhere else — deleting it would hand them to GC.
+var ErrBranchUnmerged = errors.New("run branch holds unmerged commits")
+
+// DiscardBranchRequest names the storage branch to delete.
+type DiscardBranchRequest struct {
+	RepoRoot string
+	Branch   string
+	// ExpectSHA is the run's final_commit: the branch must still point at
+	// it, so only the branch this run made (unmoved) is ever deleted.
+	ExpectSHA string
+	// Merged is the caller's word that the work landed (merge_status =
+	// merged). A squash merge never makes the branch tip an ancestor of the
+	// target, so ancestry alone cannot recognise it.
+	Merged bool
+	// Force deletes a branch whose commits are not merged.
+	Force bool
+}
+
+// DiscardBranchResult reports what discarding did. Unmerged is the number
+// of commits on the branch that HEAD does not contain, set when the discard
+// was refused with ErrBranchUnmerged.
+type DiscardBranchResult struct {
+	Deleted  bool
+	Unmerged int
+}
+
+// DiscardRunBranch deletes a finalized run's storage branch. The branch is
+// the only GC guard of the run's commits (see finalizeWorktree), so it is
+// deleted only when it is inside iterion/run/, still at ExpectSHA, and its
+// work is merged — or Force says the operator accepts losing it. A branch
+// that is already gone is a success with Deleted=false. git itself refuses
+// a branch checked out in a worktree.
+func DiscardRunBranch(req DiscardBranchRequest, logger *iterlog.Logger) (DiscardBranchResult, error) {
+	if req.RepoRoot == "" {
+		return DiscardBranchResult{}, fmt.Errorf("repo root required")
+	}
+	if !strings.HasPrefix(req.Branch, runBranchPrefix) {
+		return DiscardBranchResult{}, fmt.Errorf("branch %q is not a run storage branch (%s*) — delete it with git yourself", req.Branch, runBranchPrefix)
+	}
+	if err := gitlib.ValidateBranchName(req.Branch); err != nil {
+		return DiscardBranchResult{}, fmt.Errorf("invalid branch name %q: %w", req.Branch, err)
+	}
+
+	revCmd, revCancel := gitCmd("-C", req.RepoRoot, "rev-parse", "--verify", "--quiet", "refs/heads/"+req.Branch)
+	out, revErr := revCmd.Output()
+	revCancel()
+	if revErr != nil {
+		// --quiet exits 1 with no output for a missing ref; the branch is
+		// already gone, which is what the caller wanted.
+		return DiscardBranchResult{}, nil
+	}
+	tip := strings.TrimSpace(string(out))
+	if req.ExpectSHA == "" || tip != req.ExpectSHA {
+		return DiscardBranchResult{}, fmt.Errorf("branch %s moved: it is at %s, the run finalized at %s — not deleting commits the run did not make", req.Branch, shortSHA(tip), shortSHA(req.ExpectSHA))
+	}
+
+	if !req.Merged && !req.Force {
+		anc, ancCancel := gitCmd("-C", req.RepoRoot, "merge-base", "--is-ancestor", req.Branch, "HEAD")
+		ancErr := anc.Run()
+		ancCancel()
+		if ancErr != nil {
+			cnt, cntCancel := gitCmd("-C", req.RepoRoot, "rev-list", "--count", "HEAD.."+req.Branch)
+			cntOut, cntErr := cnt.Output()
+			cntCancel()
+			n := 0
+			if cntErr == nil {
+				fmt.Sscanf(strings.TrimSpace(string(cntOut)), "%d", &n)
+			}
+			return DiscardBranchResult{Unmerged: n}, fmt.Errorf("%w: %d commit(s) on %s are not in HEAD", ErrBranchUnmerged, n, req.Branch)
+		}
+	}
+
+	delCmd, delCancel := gitCmd("-C", req.RepoRoot, "branch", "-D", "--", req.Branch)
+	delOut, delErr := delCmd.CombinedOutput()
+	delCancel()
+	if delErr != nil {
+		return DiscardBranchResult{}, fmt.Errorf("git branch -D %s: %v: %s", req.Branch, delErr, strings.TrimSpace(string(delOut)))
+	}
+	if logger != nil {
+		logger.Info("runtime: discarded run branch %s (was %s)", req.Branch, shortSHA(tip))
+	}
+	return DiscardBranchResult{Deleted: true}, nil
 }
 
 // readHEAD returns the SHA of HEAD in the given worktree, or "" on error.

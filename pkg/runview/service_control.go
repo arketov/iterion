@@ -955,6 +955,67 @@ func (s *Service) AbortMergeConflict(ctx context.Context, runID string) error {
 	return nil
 }
 
+// ErrBranchUnmerged is runtime.ErrBranchUnmerged, re-exported for the HTTP
+// layer's coded 409: the run branch holds commits that exist nowhere else.
+var ErrBranchUnmerged = runtime.ErrBranchUnmerged
+
+// DiscardBranchCtx deletes a finished run's storage branch (iterion/run/…)
+// from the local repository and clears run.FinalBranch, so the board stops
+// offering a branch that is gone. The branch is the only GC guard of the
+// run's commits: the run must be terminal, the branch must still sit at
+// final_commit, and its work must be merged (merge_status=merged, or an
+// ancestor of HEAD) unless force accepts the loss. final_commit stays on the
+// record as the trace of what the run produced.
+func (s *Service) DiscardBranchCtx(ctx context.Context, runID string, force bool) error {
+	if runID == "" {
+		return errors.New("runview: run_id is required")
+	}
+	r, err := s.store.LoadRun(ctx, runID)
+	if err != nil {
+		return err
+	}
+	if err := store.RunDeletable(r); err != nil {
+		return err
+	}
+	if r.FinalBranch == "" {
+		return fmt.Errorf("run %q has no storage branch — nothing to discard", runID)
+	}
+	repoRoot := mergeRepoRoot(r)
+	if s.publisher != nil || repoRoot == "" {
+		return fmt.Errorf("run %q has no local repository — its branch cannot be discarded here", runID)
+	}
+	branch := r.FinalBranch
+	err = s.underRepository(ctx, repoRoot, func() error {
+		_, derr := runtime.DiscardRunBranch(runtime.DiscardBranchRequest{
+			RepoRoot:  repoRoot,
+			Branch:    branch,
+			ExpectSHA: r.FinalCommit,
+			Merged:    r.MergeStatus == store.MergeStatusMerged,
+			Force:     force,
+		}, s.logger)
+		return derr
+	})
+	if err != nil {
+		return err
+	}
+
+	// The branch is gone: record it. A concurrent save (a merge status
+	// write, a rename) only means reload and retry.
+	wctx := context.WithoutCancel(ctx)
+	for attempt := 0; ; attempt++ {
+		if r.FinalBranch == branch {
+			r.FinalBranch = ""
+			err = s.store.SaveRun(wctx, r)
+		}
+		if err == nil || !errors.Is(err, store.ErrRunConflict) || attempt >= 2 {
+			return err
+		}
+		if r, err = s.store.LoadRun(wctx, runID); err != nil {
+			return err
+		}
+	}
+}
+
 // mergeRepoRoot picks the right repo root for merge operations: the
 // persisted RepoRoot when set, otherwise the legacy resolution chain
 // the /commits handler uses. Centralised so future moves to a
