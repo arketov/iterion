@@ -3,7 +3,6 @@ package dispatcher
 import (
 	"fmt"
 
-	"github.com/arketov/iterion/pkg/botregistry"
 	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 )
 
@@ -59,12 +58,19 @@ func (c *Dispatcher) refuseUnroutable(cfg *Config, iss tracker.Issue) bool {
 			"no assignee: assign a bot to this card to run it (the dispatcher does not fall back to the default bot)")
 		return true
 	}
-	rc, ok := rn.(interface{ HasRoute(string) bool })
-	if !ok || rc.HasRoute(iss.Assignee) {
+	// One catalogue read answers both "does it route" and "is it disabled": the
+	// refusal repeats on every poll, so a second walk of the bot folders per
+	// refused card per tick is disk load (heavy on OneDrive).
+	rc, ok := rn.(interface{ RouteState(string) (bool, bool) })
+	if !ok {
+		return false
+	}
+	routed, disabled := rc.RouteState(iss.Assignee)
+	if routed {
 		return false
 	}
 	reason := fmt.Sprintf("assignee %q is not a bot of this project: assign one of the project's bots (bots/<name>/) — the dispatcher does not fall back to a default bot", iss.Assignee)
-	if _, err := botregistry.ResolveBotEntry(iss.Assignee, cfg.Bots.Paths); err == nil {
+	if disabled {
 		reason = fmt.Sprintf("bot %q is disabled in the catalogue: enable it on the Bots page to run this card", iss.Assignee)
 	}
 	// Said once per reason: the same card is refused again on every poll.
