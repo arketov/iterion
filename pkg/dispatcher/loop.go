@@ -55,6 +55,11 @@ func (c *Dispatcher) tick(ctx context.Context) {
 		c.fireSnapshot()
 		return
 	}
+	// Provider usage window shut: a new pick would hit the same wall.
+	if c.state.usageWallActive(time.Now()) {
+		c.fireSnapshot()
+		return
+	}
 
 	// Skip the tracker call when we're already at the global cap —
 	// any candidate we'd see is unactionable. Keeping the actor

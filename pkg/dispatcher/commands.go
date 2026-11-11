@@ -163,6 +163,10 @@ func (m cmdCandidates) apply(c *Dispatcher, ctx context.Context) {
 		c.fireSnapshot()
 		return
 	}
+	if c.state.usageWallActive(time.Now()) {
+		c.fireSnapshot()
+		return
+	}
 
 	candidates := m.issues
 	sortCandidates(candidates)
@@ -567,6 +571,7 @@ func (c *Dispatcher) finishRun(ctx context.Context, issueID string, err error) {
 	// not the blocking tracker HTTP that ADR-028 Step 3 offloads.
 	c.stampLastRun(issueID, r)
 	c.recordLaunchFailure(issueID, r, err)
+	usageWake, usageWindow := usageWindowWake(err, time.Now(), retrypolicy.FromEnv())
 
 	// Decide the outcome on the actor — all c.state mutation (retry
 	// scheduling, retries-clear) happens here, synchronously, and we capture
@@ -674,6 +679,19 @@ func (c *Dispatcher) finishRun(ctx context.Context, issueID string, err error) {
 		// operator cancel arrives as ErrRunCancelled (above), an internal
 		// stop as ErrRunInterrupted (default arm → retry).
 		c.logger.Info("dispatcher: %s cancelled (run=%s)", r.Identifier, r.RunID)
+		plan.kind = finishRevert
+	case usageWindow:
+		// The provider's quota window (or the operator's ITERION_USAGE_CAP_*
+		// below it) is shut: waiting is the only cure. Not a failed attempt —
+		// no exhausted() give-up to failed_state, the attempt counter is kept —
+		// and a re-pick before the window reopens would only hit the same wall,
+		// so the whole dispatcher stops taking cards until then.
+		c.logger.Warn("dispatcher: %s stopped by the provider usage window (run=%s): %v — NOT a failed attempt; parked until %s, no new cards are taken before then",
+			r.Identifier, r.RunID, err, usageWake.Format(time.RFC3339))
+		if usageWake.After(c.state.usageWallUntil) {
+			c.state.usageWallUntil = usageWake
+		}
+		c.scheduleUsageWait(issueID, r, err, usageWake)
 		plan.kind = finishRevert
 	case cfg.Agent.FailedState != "" && retrypolicy.IsDeterministic(runtimeFailureCode(err)):
 		// A failure the shared classification says a resume cannot cure:

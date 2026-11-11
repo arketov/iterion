@@ -43,6 +43,11 @@ type state struct {
 	// Snapshot so the studio dispatcher view can render the cap banner.
 	// Actor-goroutine-owned; no mutex needed.
 	costCap *CostCapView
+	// usageWallUntil is the instant the provider's quota window reopens,
+	// set when a run is stopped by it (finishRun's usage-window arm). While
+	// it is in the future no new card is picked up. Actor-owned, in-memory:
+	// a restart loses it and the next refusal sets it again.
+	usageWallUntil time.Time
 	// discoveryInFlight is true while a candidate-discovery goroutine
 	// (launchDiscovery → tracker.ListCandidates) is running off the actor
 	// and has not yet posted its cmdCandidates result back. tick() sets it
@@ -96,6 +101,12 @@ func newState() *state {
 		degradedWarned:    map[string]bool{},
 		sourceHolds:       map[string]*sourceHold{},
 	}
+}
+
+// usageWallActive reports whether the provider's quota window is still shut,
+// so new pickups must wait.
+func (s *state) usageWallActive(now time.Time) bool {
+	return s.usageWallUntil.After(now)
 }
 
 // isClaimed reports whether the actor is currently treating issueID
