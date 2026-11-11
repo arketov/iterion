@@ -171,6 +171,56 @@ describe("removing a connection from the + menu", () => {
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   });
 
+  it("shows one alert when a refused removal follows a failed open: the latest error wins", async () => {
+    await bootWith([alpha, beta, cloud]);
+    desktop.openConnection.mockRejectedValue("project folder is gone");
+    desktop.removeConnection.mockRejectedValue("cloud sign-out was not confirmed");
+
+    fireEvent.click(await screen.findByRole("button", { name: "beta" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Could not open the connection: project folder is gone×",
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Remove connection acme" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Remove" }));
+
+    await waitFor(() => expect(screen.getByTestId("workspace-remove-error")).toBeTruthy());
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.queryByTestId("workspace-open-error")).toBeNull();
+  });
+
+  it("shows one alert when a failed open follows a refused removal: the latest error wins", async () => {
+    await bootWith([alpha, beta, cloud]);
+    desktop.openConnection.mockRejectedValue("project folder is gone");
+    desktop.removeConnection.mockRejectedValue("cloud sign-out was not confirmed");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Remove connection acme" }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Remove" }));
+    await screen.findByTestId("workspace-remove-error");
+
+    fireEvent.click(await screen.findByRole("button", { name: "beta" }));
+
+    await waitFor(() => expect(screen.getByTestId("workspace-open-error")).toBeTruthy());
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.queryByTestId("workspace-remove-error")).toBeNull();
+  });
+
+  it("moves focus to the + button once the removed row's × is gone", async () => {
+    await bootWith([alpha, beta]);
+    desktop.removeConnection.mockResolvedValue(undefined);
+
+    const remove = await screen.findByRole("button", { name: "Remove connection beta" });
+    remove.focus();
+    fireEvent.click(remove);
+    const dialog = await screen.findByRole("dialog");
+
+    desktop.listConnections.mockResolvedValue([alpha]);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Remove" }));
+
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Remove connection beta" })).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Open a connection")));
+  });
+
   it("has no axe violations in the open menu (nested-interactive among them)", async () => {
     await bootWith([alpha, beta, cloud]);
     await screen.findByRole("button", { name: "Remove connection beta" });
