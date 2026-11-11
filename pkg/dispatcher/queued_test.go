@@ -100,7 +100,15 @@ func TestCandidates_OtherRefusalsSurviveQueueing(t *testing.T) {
 // waiting cards.
 func TestTick_DiscoversWhileSlotsFull(t *testing.T) {
 	c := fullSlotsDispatcher(t)
+	// The running card must exist on the tracker, or refreshRunningStates reaps
+	// it as "disappeared" and frees the slot before the cap check.
+	c.tracker.(*fakeTracker).add(tracker.Issue{ID: "busy", Identifier: "T-0", WorkflowState: "in_progress"})
+	c.state.running["busy"] = &runningEntry{IssueID: "busy", Identifier: "T-0", WorkflowState: "in_progress"}
+
 	c.tick(context.Background())
+	if got, want := len(c.state.running), c.cfg.Load().Agent.MaxConcurrent; got != want {
+		t.Fatalf("running = %d, want %d: the cap must still be full when tick checks it", got, want)
+	}
 	if !c.state.discoveryInFlight {
 		t.Fatal("tick must start discovery while every slot is busy")
 	}
