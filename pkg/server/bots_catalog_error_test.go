@@ -75,7 +75,7 @@ func TestBotInstallRoute_ReportsTheCatalogRegenFailure(t *testing.T) {
 	writeBotFile(t, filepath.Join(source, "main.bot"), "workflow w:\n")
 	srv := newBotServer(t, workdir)
 
-	rec := doJSON(t, srv, http.MethodPost, "/api/v1/bots/install", `{"url":"`+source+`"}`)
+	rec := doJSON(t, srv, http.MethodPost, "/api/v1/bots/install", string(mustJSON(t, map[string]string{"url": source})))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("install = %d; %s", rec.Code, rec.Body.String())
 	}
@@ -134,7 +134,7 @@ func TestMarketplaceInstallRoute_ReportsTheCatalogRegenFailure(t *testing.T) {
 	workdir := t.TempDir()
 	owner := unreadableCatalogOwner(t, workdir)
 	srv := newMarketplaceServer(t, workdir)
-	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+repo+`"}`); rec.Code != http.StatusOK {
+	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": repo}))); rec.Code != http.StatusOK {
 		t.Fatalf("submit = %d; %s", rec.Code, rec.Body.String())
 	}
 
@@ -166,7 +166,7 @@ func TestMarketplaceUninstallRoute_ReportsTheCatalogRegenFailure(t *testing.T) {
 	writeFixtureBundle(t, repo, "mybot")
 	workdir := t.TempDir()
 	srv := newMarketplaceServer(t, workdir)
-	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+repo+`"}`); rec.Code != http.StatusOK {
+	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": repo}))); rec.Code != http.StatusOK {
 		t.Fatalf("submit = %d; %s", rec.Code, rec.Body.String())
 	}
 	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/bots/mybot/install", ""); rec.Code != http.StatusOK {
@@ -354,7 +354,7 @@ func TestBotInstallRoute_SilentWhenTheCatalogRefreshSucceeds(t *testing.T) {
 	writeBotFile(t, filepath.Join(source, "main.bot"), "workflow w:\n")
 	srv := newBotServer(t, workdir)
 
-	rec := doJSON(t, srv, http.MethodPost, "/api/v1/bots/install", `{"url":"`+source+`"}`)
+	rec := doJSON(t, srv, http.MethodPost, "/api/v1/bots/install", string(mustJSON(t, map[string]string{"url": source})))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("install = %d; %s", rec.Code, rec.Body.String())
 	}
