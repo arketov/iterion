@@ -160,8 +160,6 @@ func TestWithNoSettingSourcesIsDistinctFromNoOption(t *testing.T) {
 func TestBuildArgs_StreamJSONAlwaysCarriesVerbose(t *testing.T) {
 	configs := map[string]processConfig{
 		"zero":            {},
-		"verbose-false":   {Verbose: false},
-		"verbose-true":    {Verbose: true},
 		"claude_code-set": {Model: "claude-sonnet-5-5", AppendSystemPrompt: "a\nb", PermissionMode: "bypassPermissions", SettingSources: []SettingSource{"project"}},
 	}
 	for name, cfg := range configs {

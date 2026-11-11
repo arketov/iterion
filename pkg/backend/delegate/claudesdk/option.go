@@ -77,7 +77,6 @@ type config struct {
 	cwd                string
 	cliPath            string
 	env                map[string]string
-	verbose            bool
 
 	// Tool & permission control
 	allowedTools    []string
@@ -192,11 +191,6 @@ func WithEnv(key, value string) Option {
 // honouring those values.
 func WithCommandBuilder(b CommandBuilder) Option {
 	return func(c *config) { c.commandBuilder = b }
-}
-
-// WithVerbose enables verbose CLI output (turn-by-turn).
-func WithVerbose(v bool) Option {
-	return func(c *config) { c.verbose = v }
 }
 
 // WithAllowedTools sets tools that auto-approve (supports glob patterns).

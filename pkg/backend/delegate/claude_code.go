@@ -802,10 +802,6 @@ func (b *ClaudeCodeBackend) buildSpawnOptions(task Task) ([]claudesdk.Option, fu
 	// does not need its own permission gate.
 	opts = append(opts, claudesdk.WithPermissionMode("bypassPermissions"))
 
-	// The CLI requires --verbose when using --output-format=stream-json in
-	// --print mode. The SDK always uses stream-json, so we must enable verbose.
-	opts = append(opts, claudesdk.WithVerbose(true))
-
 	// Stderr forwarding is registered once, further down (the
 	// stderrBuf-capturing callback): WithStderrCallback assigns (not
 	// appends) the SDK's single callback slot, so a logger-only
@@ -907,7 +903,7 @@ func (b *ClaudeCodeBackend) buildSpawnOptions(task Task) ([]claudesdk.Option, fu
 			proc.SetWorkDir(cmd, cwd)
 			files.pinHost(cmd, flagSettings)
 			b.Logger.Info("claude-code: host exec %v (cwd=%s, stdin=%v, task_env_keys=%v)",
-				redactedArgvPreview(path, cmd.Args[1:]), cwd, openStdin, keys)
+				hostExecPreview(cmd), cwd, openStdin, keys)
 			se.started()
 			return cmd
 		}))
@@ -2226,7 +2222,6 @@ func (b *ClaudeCodeBackend) formatOutput(ctx context.Context, task Task, session
 		claudesdk.WithResume(sessionID),
 		claudesdk.WithOutputFormat(schema),
 		claudesdk.WithPermissionMode("bypassPermissions"),
-		claudesdk.WithVerbose(true),
 		claudesdk.WithStderrCallback(func(line string) {
 			if line != "" {
 				b.Logger.Info("[%s#%d/fmt] %s", task.NodeID, task.Iteration, line)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"os/exec"
 	"slices"
 	"sort"
 	"strings"
@@ -94,4 +95,11 @@ func describeRedactedArgvValue(flag, value string) string {
 	}
 	sort.Strings(names)
 	return fmt.Sprintf("<redacted mcp config: %d server(s) %v>", len(names), names)
+}
+
+// hostExecPreview renders a host-spawned command for the log. It takes the
+// binary from cmd.Path, not Args[0]: the path the process really runs, which
+// AdaptHostCmd may have swapped for the native claude.exe.
+func hostExecPreview(cmd *exec.Cmd) []string {
+	return redactedArgvPreview(cmd.Path, cmd.Args[1:])
 }

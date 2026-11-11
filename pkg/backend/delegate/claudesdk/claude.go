@@ -263,7 +263,6 @@ func configToProcess(cfg *config) processConfig {
 		Model:                  cfg.model,
 		SystemPrompt:           cfg.systemPrompt,
 		AppendSystemPrompt:     cfg.appendSystemPrompt,
-		Verbose:                cfg.verbose,
 		AllowedTools:           cfg.allowedTools,
 		DisallowedTools:        cfg.disallowedTools,
 		PermissionMode:         cfg.permissionMode,
