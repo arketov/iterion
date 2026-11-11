@@ -269,6 +269,55 @@ func TestPipelineBoardTaskUpsertKeepsTheStoredLaunchContext(t *testing.T) {
 	}
 }
 
+// The create route's UPSERT branch derives the parent exactly like a create:
+// parent_id from the request lands on the matched card's typed ParentID and is
+// stamped as bot_args.spawned_from; a re-run that names no parent keeps the
+// stored one instead of clearing it.
+func TestPipelineBoardTaskUpsertAppliesParentID(t *testing.T) {
+	env := newPipelineTierEnv(t)
+	env.seedRow(t, "t1", "probe", tierForkBot)
+	parent, err := env.board.Create(native.Issue{Title: "planner", State: native.StateBacklog, Bot: "probe"})
+	if err != nil {
+		t.Fatalf("board.Create parent: %v", err)
+	}
+	stored, err := env.board.Create(native.Issue{
+		Title: "child", State: native.StateBacklog, Bot: "probe",
+		BotArgs: map[string]string{"input_path": "requests/ep8.md"},
+	})
+	if err != nil {
+		t.Fatalf("board.Create: %v", err)
+	}
+	post := func(body string) {
+		t.Helper()
+		w := httptest.NewRecorder()
+		env.srv.handlePipelineBoardTaskCreate(w, env.req(http.MethodPost, "/api/v1/pipeline-board/tasks", body))
+		if w.Code != http.StatusOK {
+			t.Fatalf("upsert card = %d %s, want 200", w.Code, w.Body.String())
+		}
+	}
+	post(`{"bot":"probe","title":"child","upsert":true,"parent_id":` + quoteJSON(parent.ID) +
+		`,"bot_args":{"input_path":"requests/ep8.md"}}`)
+	after, err := env.board.Get(stored.ID)
+	if err != nil {
+		t.Fatalf("board.Get: %v", err)
+	}
+	if after.ParentID != parent.ID {
+		t.Errorf("ParentID = %q, want %q — the upsert dropped the request's parent_id", after.ParentID, parent.ID)
+	}
+	if got := after.BotArgs[native.BotArgSpawnedFrom]; got != parent.ID {
+		t.Errorf("bot_args.spawned_from = %q, want %q", got, parent.ID)
+	}
+
+	post(`{"bot":"probe","title":"child","upsert":true,"bot_args":{"input_path":"requests/ep8.md"}}`)
+	again, err := env.board.Get(stored.ID)
+	if err != nil {
+		t.Fatalf("board.Get: %v", err)
+	}
+	if again.ParentID != parent.ID {
+		t.Errorf("ParentID = %q after a parentless re-run, want the stored %q", again.ParentID, parent.ID)
+	}
+}
+
 // native.ReservedLaunchArgs and the server's board keys are ONE list: a key
 // the dispatcher lifts but the write routes do not strip (or the reverse)
 // would leave the class a member-writable identity again.
