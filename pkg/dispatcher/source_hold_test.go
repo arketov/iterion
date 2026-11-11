@@ -290,3 +290,40 @@ func TestSourceHold_AdoptedForceResumeFailsAgainAfterRestart(t *testing.T) {
 		t.Error("a given-back hold is no longer adopted: the journal must be empty")
 	}
 }
+
+// A source_changed skip without its hold is stale: nothing else clears it while
+// every slot is busy, so reconcileSourceHolds sweeps it every tick.
+func TestReconcileSourceHolds_OrphanSkipIsDropped(t *testing.T) {
+	fx := sourceChangedFixture(t)
+	c := fx.disp
+	if _, ok := c.state.dispatchSkips[fx.issue.ID]; !ok {
+		t.Fatal("fixture must record a source_changed skip")
+	}
+	delete(c.state.sourceHolds, fx.issue.ID)
+	c.reconcileSourceHolds(context.Background())
+	if sk, ok := c.state.dispatchSkips[fx.issue.ID]; ok {
+		t.Fatalf("orphan source_changed skip survived: %+v", sk)
+	}
+}
+
+// A reset of last_run drops the hold and its badge on the next tick whatever
+// the slot count: reconcileSourceHolds runs before the concurrency gates.
+func TestReconcileSourceHolds_ResetDropsHoldAndSkipWithFullSlots(t *testing.T) {
+	fx := sourceChangedFixture(t)
+	c := fx.disp
+	if err := fx.board.SetLastRun(fx.issue.ID, "", ""); err != nil {
+		t.Fatalf("SetLastRun: %v", err)
+	}
+	cfg := *c.cfg.Load()
+	cfg.Agent.MaxConcurrent = 1
+	c.cfg.Store(&cfg)
+	c.state.running["busy"] = &runningEntry{IssueID: "busy"}
+
+	c.reconcileSourceHolds(context.Background())
+	if _, ok := c.state.sourceHolds[fx.issue.ID]; ok {
+		t.Error("a cleared last_run must drop the hold while every slot is busy")
+	}
+	if sk, ok := c.state.dispatchSkips[fx.issue.ID]; ok {
+		t.Errorf("a cleared last_run must drop the badge while every slot is busy: %+v", sk)
+	}
+}
