@@ -1466,7 +1466,7 @@ tracker:
     token: $GITLAB_TOKEN
     include_labels: [ready]
     exclude_labels: [blocked]
-    claimed_label: iterion-claimed   # required
+    claimed_label: iterion-claimed   # optional, defaults to iterion-claimed
     state_mapping:
       ready:       { labels_include: [ready] }
       in_progress: { labels_include: [claimed] }
