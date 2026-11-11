@@ -134,6 +134,21 @@ describe("SettingsDrawer saves what it shows and what it does not show", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  it("shows a saved gitlab tracker with its kind selected and its fields, and saves edits into tracker.gitlab", async () => {
+    api.getConfig.mockResolvedValue(structuredClone(saved));
+    render(<SettingsDrawer open onClose={() => {}} onSaved={() => {}} />);
+    const kind = (await screen.findByDisplayValue("gitlab")) as HTMLSelectElement;
+    expect(kind.value).toBe("gitlab");
+    const host = screen.getByDisplayValue("https://gitlab.example");
+    expect((screen.getByDisplayValue("o/r") as HTMLInputElement).value).toBe("o/r");
+    fireEvent.change(host, { target: { value: "https://gitlab.internal" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(api.saveConfig).toHaveBeenCalledTimes(1));
+    const tracker = (api.saveConfig.mock.calls[0]![0] as DispatcherConfig).tracker;
+    expect(tracker.kind).toBe("gitlab");
+    expect(tracker.gitlab).toEqual({ host: "https://gitlab.internal", repo: "o/r", token: "***" });
+  });
+
   it("starts a new dispatcher with require_assignee on", async () => {
     api.getConfig.mockResolvedValue(null);
     const sent = await openAndSave();
