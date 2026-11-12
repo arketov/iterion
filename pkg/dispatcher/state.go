@@ -364,6 +364,10 @@ const DispatchSkipCompletionPending = "completion_pending"
 // last_run.
 const DispatchSkipSourceChanged = "source_changed"
 
+// DispatchSkipQueued is DispatchSkipView.Kind for a routable card that waits for
+// a free slot (global or per-state cap). It is not a refusal.
+const DispatchSkipQueued = "queued"
+
 // DispatchSkipView is one entry of the "won't dispatch" surface: an
 // eligible issue the dispatcher refused to claim because its explicit
 // bot can't be resolved to a workflow file, or resolves but has no
@@ -383,7 +387,8 @@ type DispatchSkipView struct {
 	// is on), "no_bot" (the assignee is not a routable bot, same policy),
 	// "completion_pending" (the run finished but the move to completed_state
 	// failed and is being retried), "source_changed" (the last run cannot
-	// resume: the bot source changed), or empty for the bot-misconfiguration
+	// resume: the bot source changed), "queued" (a routable card waiting for a
+	// concurrency slot — not a refusal), or empty for the bot-misconfiguration
 	// family.
 	Kind string `json:"kind,omitempty"`
 }

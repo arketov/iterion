@@ -200,16 +200,14 @@ func (m cmdCandidates) apply(c *Dispatcher, ctx context.Context) {
 	}
 
 	for _, iss := range candidates {
-		// Global cap full → no further candidate can run; stop scanning.
-		if len(c.state.running) >= cfg.Agent.MaxConcurrent {
-			break
-		}
-		// Per-state cap full → skip this candidate but keep scanning;
-		// other candidates may be in states that still have room.
-		if !c.hasSlot(iss.WorkflowState, cfg) {
+		if c.state.isClaimed(iss.ID) {
 			continue
 		}
-		if c.state.isClaimed(iss.ID) {
+		// No free slot (global cap or this state's cap): the card cannot start
+		// now, but its refusal/queue state must still be current. Keep scanning;
+		// other candidates may be in states that still have room.
+		if !c.hasSlot(iss.WorkflowState, cfg) {
+			c.noteQueued(cfg, iss)
 			continue
 		}
 		c.dispatch(ctx, iss)

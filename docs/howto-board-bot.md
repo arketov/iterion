@@ -175,7 +175,8 @@ Where the finished work is, how to look at it and how to merge or throw it away:
 | Symptom | Cause | Fix |
 |---|---|---|
 | Card is `ready`, nothing happens, Dispatcher page says *No dispatcher running* | No dispatcher started (`idle`) | Step 3 |
-| Card badge **no assignee — won't start** | `require_assignee` and the card names no bot | Set *Bot* (or *Assignee*) on the card |
+| Card badge **no assignee — won't start** | `require_assignee` and the card names no bot | Set *Bot* (or *Assignee*) on the card. The badge goes away on the next poll after the bot is set, even while every slot is busy; the card then shows *queued* |
+| Card badge **queued — waiting for a slot (ready N/M)** | Not a problem: the card has a bot and every slot (`max_concurrent`, or `max_concurrent_by_state` for its column) is busy | It starts when a slot frees; raise `max_concurrent` / `max_concurrent_by_state` to run more at once |
 | Card badge **no bot — won't start** (Dispatcher page: *no bot (artem)*) | `require_assignee` and the *Assignee* is not a bot of the project (a person's name, a typo), or the bot is disabled on the Bots page | Pick the bot in the *Bot* tab, fix the assignee's spelling, or enable the bot |
 | **won't dispatch — bot "x" can't be resolved / has no active dispatch route** | Name typo, bot not in a discovered folder, or the bot is disabled in the catalogue | Check the name against the Bots page; enable the bot; keep the bundle in `bots/` |
 | The bot runs but acts as if given no task | `dispatch_vars` missing in the bot's manifest, or keyed to an undeclared var (`C200`) | `iterion validate bots/my-helper`; fill *Arguments* by hand; see step 3 |

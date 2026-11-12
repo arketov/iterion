@@ -54,9 +54,18 @@ the board card and as a row of the Dispatcher page's *Won't dispatch* table
 |---|---|---|
 | names neither an assignee nor a bot | `no_assignee` | **no assignee** |
 | its assignee is not a bot of the project — a person's name (`artem`), a typo, or a bot disabled on the Bots page | `no_bot` | **no bot (artem)** |
+| has a bot but every slot is busy — the global `max_concurrent` or the state's `max_concurrent_by_state` | `queued` | **queued — waiting for a slot (ready N/M)** |
+
+`queued` is not a refusal: the card is routable and starts when a slot frees
+(the Dispatcher page lists it in a neutral *Queued* block, not in *Won't
+dispatch*). Treat `dispatch_skips` as "cards that are not running and why",
+not only as refusals.
 
 Assign one of the project's bots in the issue editor and the next poll picks
-the card up. A project with no bots yet still starts: every card waits as *no
+the card up. The `no_assignee` / `no_bot` refusal is re-judged on every poll,
+also while every slot is busy (discovery runs at the global cap too): once the
+card has a bot the refusal is replaced by `queued` and then cleared when the
+card starts. A project with no bots yet still starts: every card waits as *no
 bot* until a bot is added — the folders are read at each dispatch (once per
 refused card per poll: the *no bot* / *disabled* verdict and its reason come
 from the same read), so a bot created later needs no change to the settings.
@@ -285,7 +294,9 @@ a `source_changed` badge on the card with two buttons:
   forced resume fails again the card returns to its column with the badge.
 - **Start over (reset last run)** — drops the pointer (same as
   `iterion issue update --clear-last-run`); the next tick dispatches a fresh
-  run.
+  run. The sweep drops the hold and its badge on the next tick whatever the
+  slot count, and a `source_changed` badge left without its hold is swept
+  every tick too.
 
 The refusal hold itself is memory only: a daemon restart costs one extra
 claim → refusal → hold cycle. Once a force-resume is adopted the hold is

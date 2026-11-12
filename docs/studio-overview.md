@@ -44,7 +44,7 @@ the pages *your* server answers.
 | — | **Bots** | The catalog: every bot you can launch, with its origin and *enabled* flag; **New bot** opens the guided builder. |
 | Operate | **Board** | The project's kanban of cards. Cards become runs when a bot is assigned and the card is in a ready column. **Refresh** re-reads every card from disk. |
 | Operate | **Pipelines** | A control-center view of *root* runs across all bots in four lanes (Opened, In progress, Needs attention, Closed); pending human reviews can be answered from a card there. Shares the Board's store. |
-| Operate | **Dispatcher** | The loop that turns ready cards into runs: its settings, running issues, retry queue (each row has *Retry now* and *Remove from queue*) and the *Won't dispatch* table. Start, pause and stop it here. A *Did not start* panel lists cards whose launch failed before a run existed (for example a failing `after_create` hook). |
+| Operate | **Dispatcher** | The loop that turns ready cards into runs: its settings, running issues, retry queue (each row has *Retry now* and *Remove from queue*), the *Won't dispatch* table and a neutral *Queued* block (cards that have a bot and wait for a free slot — not a refusal). Start, pause and stop it here. A *Did not start* panel lists cards whose launch failed before a run existed (for example a failing `after_create` hook). |
 | Operate | **Automations** | Schedules, webhooks and triggers that launch runs without you. |
 | Extend | **Marketplace** | Browse, install and publish `.botz` bundles and plugins. |
 | Extend | **Plugins** | Installed plugins (rewriters, MCP servers, skills), enable/disable, and load failures ([plugins](plugins.md)). |

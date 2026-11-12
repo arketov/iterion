@@ -61,15 +61,10 @@ func (c *Dispatcher) tick(ctx context.Context) {
 		return
 	}
 
-	// Skip the tracker call when we're already at the global cap —
-	// any candidate we'd see is unactionable. Keeping the actor
-	// responsive for cmdRunFinished / cmdEvent matters more than
-	// discovering candidates we can't dispatch. Once an in-flight run
-	// finishes the next tick will pick up the work.
-	if len(c.state.running) >= cfg.Agent.MaxConcurrent {
-		c.fireSnapshot()
-		return
-	}
+	// Discovery runs even at the global cap: nothing is dispatched then
+	// (hasSlot is false for every candidate), but cmdCandidates.apply still
+	// re-judges the cards that wait — a refusal recorded before a bot was
+	// assigned must not outlive the assignment while every slot is busy.
 
 	// Discovery (tracker.ListCandidates) is the slowest step a poll makes
 	// — external HTTP for github/forgejo. Run it OFF the actor goroutine

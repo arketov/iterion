@@ -18,14 +18,13 @@ flowchart TD
     paused -- "yes" --> stop1["return - paused means no NEW work"]
     paused -- "no" --> cap{"daily spend cap reached?"}
     cap -- "yes" --> stop1
-    cap -- "no" --> gcap{"running at agent.max_concurrent?"}
-    gcap -- "yes" --> stop2["return WITHOUT calling the tracker"]
-    gcap -- "no" --> infl{"a discovery already in flight?"}
-    infl -- "yes" --> stop2
+    cap -- "no" --> infl{"a discovery already in flight?"}
+    infl -- "yes" --> stop2["return"]
     infl -- "no" --> disc["launchDiscovery OFF the actor - tracker.ListCandidates"]
     disc --> sorted["cmdCandidates back on the actor - re-check pause and cap, sort by priority desc, created_at asc, identifier asc"]
     sorted --> walk{"this candidate - a free slot, and not already claimed or retry-queued locally?"}
-    walk -- "no" --> skipnext["break on the global cap, continue on a per-state cap or a local claim"]
+    walk -- "no, a local claim" --> skipnext["continue"]
+    walk -- "no, a cap is full" --> queued["noteQueued - re-judge require_bot (no_assignee or no_bot), else record the queued skip, then continue"]
     walk -- "yes" --> router{"the ticket router, on a card with no bot and no assignee - does a pull request already link it?"}
     router -- "yes" --> aside["recordDispatchSkip and a bot:billy label - the PR webhook owns the work, no claim"]
     router -- "no, or the router is off" --> bot{"resolveExplicitBot - the named bot resolves AND has an active route?"}
@@ -121,7 +120,7 @@ The watchdog never clears a claim before deciding: it CAS-**transfers** it, then
 
 - **`paused`** — the manager's desired state: the sweeps still run, retries and stall detection still fire, nothing new is dispatched.
 - **the daily spend cap** (`limits.max_cost_per_day_usd`) — the tick returns, and the gate is re-checked when the off-actor discovery lands.
-- **`agent.max_concurrent`** — breaks the walk, and short-circuits the tick *before* the tracker call; **`agent.max_concurrent_by_state`** only skips that candidate, because another column may have room.
+- **`agent.max_concurrent`** and **`agent.max_concurrent_by_state`** — a full cap does not stop the tick or the walk: discovery still runs and every candidate without a slot goes through `noteQueued`, which re-judges `require_bot` (a stale `no_assignee` / `no_bot` is refreshed or replaced) and records a `queued` skip (`queued — waiting for a slot (ready N/M)`) for a routable card. Nothing is dispatched; `dispatch()` clears the skip once a slot frees.
 - **a linked pull request** — the ticket router runs *before* the bot guard, on a card with neither bot nor assignee: a linked PR means the inbound PR webhook already owns the work, so the dispatcher steps aside with a visible skip and a `bot:billy` label rather than starting a second, branch-less run. A tracker that cannot answer the probe routes to the implement bot instead.
 - **`bot … can't be resolved`** / **`no active dispatch route`** — an operator-visible skip, no claim: running the default workflow would report a misleading success.
 - **the last_run holds** — `refusing a fresh sibling` for a running, queued or foreign-paused run; `cancelled by the operator`, which names `--clear-last-run` as the way out; an unreadable run or an unopenable store holds too, fail-closed.

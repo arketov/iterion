@@ -279,6 +279,15 @@ describe("IssueCard no-bot badge", () => {
     const badge = screen.getByRole("button", { name: /finishing/i });
     expect(badge.getAttribute("title") ?? "").toContain("will not run again");
   });
+
+  it("renders a neutral queued banner, not a refusal, for a queued skip", () => {
+    renderWithSkip({ kind: "queued", reason: "queued — waiting for a slot (ready 4/4)" });
+    const banner = screen.getByTestId("queued-banner");
+    expect(banner.textContent).toContain("queued — waiting for a slot (ready 4/4)");
+    expect(banner.className).not.toMatch(/danger/);
+    expect(screen.queryByText(/won't/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /won't|no assignee|no bot/i })).toBeNull();
+  });
 });
 
 // A refused resume (the bot source changed since the last run started) keeps

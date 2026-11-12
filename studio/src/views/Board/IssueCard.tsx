@@ -410,7 +410,16 @@ export function IssueCard({
           </div>
         </div>
       )}
-      {!running && skip && skip.kind !== "source_changed" && (
+      {!running && skip && skip.kind === "queued" && (
+        <div
+          className="mt-1 rounded bg-fg-muted/10 px-1.5 py-1 text-caption text-fg-subtle"
+          data-testid="queued-banner"
+          title="The card has a bot and will start as soon as a slot frees up."
+        >
+          ⏳ {skip.reason}
+        </div>
+      )}
+      {!running && skip && skip.kind !== "source_changed" && skip.kind !== "queued" && (
         <button
           type="button"
           className="mt-1 w-full text-left rounded bg-danger-soft px-1.5 py-1 text-caption text-danger-fg cursor-pointer hover:bg-danger-soft"
