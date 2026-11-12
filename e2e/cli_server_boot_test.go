@@ -222,9 +222,7 @@ func TestServerCommandBootsLocalModeAndShutsDownOnSignal(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping binary-spawning e2e in short mode")
 	}
-	if runtime.GOOS == "windows" {
-		t.Skip("SIGTERM handling differs on windows")
-	}
+	requireUnixSignals(t)
 	bin := iterionBinary(t)
 
 	homeDir := t.TempDir()
@@ -245,7 +243,7 @@ func TestServerCommandBootsLocalModeAndShutsDownOnSignal(t *testing.T) {
 	)
 	// Detach into its own process group so a SIGINT to the parent test
 	// process (Ctrl-C) doesn't cascade and eat our own SIGTERM assertion.
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	detachProcessGroup(cmd)
 	// Cancellation kills the whole GROUP, mirroring proc.TerminateGroupOnCancel
 	// (which e2e, outside pkg/, cannot import). cmd.Stdout/cmd.Stderr are not
 	// *os.File, so os/exec wires pipes plus copy goroutines that cmd.Wait
@@ -259,13 +257,7 @@ func TestServerCommandBootsLocalModeAndShutsDownOnSignal(t *testing.T) {
 		if cmd.Process == nil {
 			return nil
 		}
-		if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil {
-			if errors.Is(err, syscall.ESRCH) {
-				return os.ErrProcessDone // already gone: nothing to interrupt
-			}
-			return err
-		}
-		return nil
+		return killProcessGroup(cmd) // os.ErrProcessDone when already gone
 	}
 	// Residual bound for a descendant that escapes the group with its own
 	// setsid, where no signal can reach it: the join then fails loudly with
