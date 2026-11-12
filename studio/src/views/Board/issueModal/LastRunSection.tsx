@@ -64,20 +64,8 @@ function ChildrenDisclosure({ runID }: { runID: string }) {
   );
 }
 
-// AwaitingInput reads the stamped last run and, when it is paused on a
-// human node, renders the answer affordance inline on the card — so an
-// operator can respond to a paused pipeline directly from the board
-// instead of detouring through the run console (issue #125, point 4).
-//
-// It reuses HumanPromptForm — the SAME schema-driven form the run console
-// renders — so a paused human node's real answer fields (its output
-// schema: enums, checkboxes, text) show, not the checkpoint's context
-// vars. rehydratePendingHumanInput (shared, runtime-narrows the opaque
-// checkpoint, gates on paused_waiting_human) yields the paused node id +
-// questions map the form needs. sourceOverride={null} sends NO source so
-// the server resumes against the run's persisted FilePath (the operator
-// isn't editing this run's workflow); onResumed refetches the board view
-// instead of the run-console WS machinery.
+// useBoardRun fetches the stamped last run and polls it while it is
+// running, queued or paused, stopping once it is terminal.
 function useBoardRun(runID: string) {
   return useQuery({
     queryKey: ["board-last-run", runID],
@@ -102,6 +90,20 @@ function useBoardRun(runID: string) {
   });
 }
 
+// AwaitingInput reads the stamped last run and, when it is paused on a
+// human node, renders the answer affordance inline on the card — so an
+// operator can respond to a paused pipeline directly from the board
+// instead of detouring through the run console (issue #125, point 4).
+//
+// It reuses HumanPromptForm — the SAME schema-driven form the run console
+// renders — so a paused human node's real answer fields (its output
+// schema: enums, checkboxes, text) show, not the checkpoint's context
+// vars. rehydratePendingHumanInput (shared, runtime-narrows the opaque
+// checkpoint, gates on paused_waiting_human) yields the paused node id +
+// questions map the form needs. sourceOverride={null} sends NO source so
+// the server resumes against the run's persisted FilePath (the operator
+// isn't editing this run's workflow); onResumed refetches the board view
+// instead of the run-console WS machinery.
 function AwaitingInput({ runID }: { runID: string }) {
   const { data, refetch } = useBoardRun(runID);
   const pending = data?.run ? rehydratePendingHumanInput(data) : null;
