@@ -98,6 +98,15 @@ export default function WorkspaceShell() {
   const [removingIds, setRemovingIds] = useState<string[]>([]);
   const [removeError, setRemoveError] = useState<{ id: string; message: string } | null>(null);
   const removingRef = useRef(new Set<string>());
+  // The + button is always mounted: after a removal the row's × is gone, and
+  // focus lands here instead of falling to <body>.
+  const plusButtonRef = useRef<HTMLButtonElement>(null);
+  const [focusPlusTick, setFocusPlusTick] = useState(0);
+  useEffect(() => {
+    if (focusPlusTick === 0) return;
+    const active = document.activeElement;
+    if (!active || active === document.body) plusButtonRef.current?.focus();
+  }, [focusPlusTick]);
   const openIdsRef = useRef<string[]>([]);
   const { confirm, dialog: confirmDialog } = useConfirm();
   const bootstrapped = useRef(false);
@@ -163,6 +172,8 @@ export default function WorkspaceShell() {
         await desktop.openConnection(id);
       } catch (err) {
         console.error("[workspace] openConnection failed", err);
+        // One banner at a time: the latest failure replaces a removal's.
+        setRemoveError(null);
         setOpenError({ id, message: errorMessage(err) });
         return false;
       } finally {
@@ -199,6 +210,7 @@ export default function WorkspaceShell() {
       await openPane(project.id);
     } catch (err) {
       console.error("[workspace] add local project failed", err);
+      setRemoveError(null);
       setOpenError({ id: "", message: errorMessage(err) });
     }
   }, [loadConnections, openPane]);
@@ -229,13 +241,17 @@ export default function WorkspaceShell() {
       removingRef.current.add(id);
       setRemovingIds((prev) => [...prev, id]);
       setRemoveError((prev) => (prev?.id === id ? null : prev));
+      let removed = false;
       try {
         await desktop.removeConnection(id);
+        removed = true;
         setOpenError((prev) => (prev?.id === id ? null : prev));
         clearPaneLocation(id);
         delete paneStartRef.current[id];
       } catch (err) {
         console.error("[workspace] removeConnection failed", err);
+        // One banner at a time: the latest failure replaces an open's.
+        setOpenError(null);
         setRemoveError({ id, message: errorMessage(err) });
       } finally {
         removingRef.current.delete(id);
@@ -244,6 +260,8 @@ export default function WorkspaceShell() {
       // Success or not, re-read the list: the desktop may have removed the
       // entry before it failed (a daemon that would not stop).
       await loadConnections();
+      // The removed row's × is unmounted by now: keep keyboard focus in the bar.
+      if (removed) setFocusPlusTick((t) => t + 1);
     },
     [confirm, loadConnections],
   );
@@ -661,6 +679,7 @@ export default function WorkspaceShell() {
         {/* + open connection menu */}
         <div className="relative">
           <button
+            ref={plusButtonRef}
             type="button"
             className="h-7 px-2 rounded text-fg-subtle hover:bg-surface-2 hover:text-fg-default text-sm"
             onClick={() => setMenuOpen((o) => !o)}
