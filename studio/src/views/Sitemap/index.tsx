@@ -8,7 +8,8 @@ import { ADMIN_BASE, ADMIN_SECTIONS } from "@/views/admin/adminRoutes";
 import { LegalSitemapGroup } from "@/views/Legal/LegalSidebarLinks";
 
 // The sitemap page (RGAA 12.1): a second navigation system generated from the
-// SAME link registry the sidebar renders — plus the admin console sections.
+// SAME page list the sidebar renders, filtered by the same availability rule —
+// plus the admin console sections.
 // It lists only what this server answers: pages gated by a server_info flag
 // are dropped when the flag is off, and the admin console (a cloud-only API)
 // appears in cloud mode for a super-admin only. Coverage is pinned by
@@ -16,9 +17,14 @@ import { LegalSitemapGroup } from "@/views/Legal/LegalSidebarLinks";
 export default function Sitemap() {
   const info = useServerInfoStore((s) => s.info);
   const auth = useMaybeAuth();
+  const access = {
+    hasActiveTeam: !!auth?.activeTeam,
+    role: auth?.activeRole ?? null,
+    isSuperAdmin: !!auth?.user?.is_super_admin,
+  };
   const studioGroups = NAV_REGISTRY.map((g) => ({
     ...g,
-    hrefs: g.hrefs.filter((h) => isNavHrefAvailable(h.href, info)),
+    hrefs: g.hrefs.filter((h) => isNavHrefAvailable(h.href, info, access)),
   })).filter((g) => g.hrefs.length > 0);
   const showAdmin =
     info?.mode === "cloud" && !!auth?.user?.is_super_admin;
