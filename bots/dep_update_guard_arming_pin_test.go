@@ -54,6 +54,9 @@ type armingPinForge struct {
 	served   map[string]any
 	tip      string
 	hasQueue bool
+	// optionalRed: the served head is UNSTABLE because a NON-required
+	// check failed; the rollup read answers so.
+	optionalRed bool
 
 	armedOn  string // the head the forge ended up armed on, "" when it refused
 	mergedOn string
@@ -151,6 +154,23 @@ func (forge *armingPinForge) handler(t *testing.T) http.HandlerFunc {
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"data": map[string]any{"repository": map[string]any{"mergeQueue": mq}},
 			})
+		case strings.Contains(body.Query, "statusCheckRollup"):
+			forge.mu.Lock()
+			oid, _ := forge.served["headRefOid"].(string)
+			var sc any
+			if forge.optionalRed {
+				// The required gate context passes; only a check the base
+				// does not require is red.
+				sc = map[string]any{"contexts": map[string]any{"pageInfo": map[string]any{"hasNextPage": false},
+					"nodes": []any{map[string]any{"__typename": "CheckRun", "name": "cloud-e2e", "status": "COMPLETED",
+						"conclusion": "FAILURE", "isRequired": false},
+						map[string]any{"__typename": "StatusContext", "context": "vetty/deps", "state": "SUCCESS",
+							"isRequired": true}}}}
+			}
+			forge.mu.Unlock()
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"repository": map[string]any{
+				"pullRequest": map[string]any{"commits": map[string]any{"nodes": []any{
+					map[string]any{"commit": map[string]any{"oid": oid, "statusCheckRollup": sc}}}}}}}})
 		case strings.Contains(body.Query, "mutation"):
 			// An unhandled mutation answered with a pull request read would
 			// pass for success here while production refused it.
@@ -171,7 +191,7 @@ func (forge *armingPinForge) handler(t *testing.T) http.HandlerFunc {
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"data": map[string]any{
 					"viewer":     map[string]any{"login": "acme-vetty[bot]"},
-					"repository": map[string]any{"pullRequest": served},
+					"repository": map[string]any{"autoMergeAllowed": true, "pullRequest": served},
 				},
 			})
 		}
@@ -190,17 +210,20 @@ func (forge *armingPinForge) run(t *testing.T, script string) map[string]any {
 		// The new-launch default: another actor's arming is respected. No
 		// arming stands on the pull request in these scenarios, so the var
 		// only has to be the one a fresh launch carries.
-		"{{vars.respect_human_arming}}": "True",
-		"{{vars.automerge_method}}":     `"squash"`,
-		"{{input.pr_url}}":              `"https://github.com/acme/widgets/pull/7"`,
-		"{{input.verdict}}":             `"committed"`,
-		"{{input.gate_posted}}":         "True",
-		"{{input.gate_state}}":          `"success"`,
-		"{{input.gate_sha}}":            `"` + pinAuditedHead + `"`,
-		"{{input.audited_sha}}":         `"` + pinAuditedHead + `"`,
-		"{{input.committed_sha}}":       `""`,
-		"{{vars.gate_enabled}}":         "True",
-		"{{secrets.forge_token.path}}":  `"ghs_test"`,
+		"{{vars.respect_human_arming}}":  "True",
+		"{{vars.automerge_method}}":      `"squash"`,
+		"{{input.pr_url}}":               `"https://github.com/acme/widgets/pull/7"`,
+		"{{input.verdict}}":              `"committed"`,
+		"{{input.gate_posted}}":          "True",
+		"{{input.gate_state}}":           `"success"`,
+		"{{input.gate_sha}}":             `"` + pinAuditedHead + `"`,
+		"{{input.audited_sha}}":          `"` + pinAuditedHead + `"`,
+		"{{input.committed_sha}}":        `""`,
+		"{{vars.gate_enabled}}":          "True",
+		"{{secrets.forge_token.path}}":   `"ghs_test"`,
+		"{{vars.automerge_on_unstable}}": `"merge"`,
+		"{{vars.automerge_settle_s}}":    "600",
+		"{{vars.gate_context}}":          `"vetty/deps"`,
 	} {
 		body = strings.ReplaceAll(body, ref, val)
 	}
@@ -344,6 +367,28 @@ func TestDepUpdateGuardArmingPinIsEnforcedByTheForge(t *testing.T) {
 		// assertion above while the enqueue door went untested.
 		if !forge.knocked("enqueuePullRequest") {
 			t.Error("the enqueue fallback never reached the forge — the queue door this subtest exists for was not exercised")
+		}
+	})
+
+	// UNSTABLE takes the direct-merge door with only non-required checks
+	// red: a push landing between the read and the merge must find that door
+	// pinned too. Mutation: drop `expectedHeadOid: @oid` from merge_mut (and
+	// `@oid: GitObjectID!` from its declaration) -> the forge merges the tip.
+	t.Run("UNSTABLE, a push lands before the merge: nothing is merged", func(t *testing.T) {
+		pr := pinScenarioPR(pinAuditedHead)
+		pr["mergeStateStatus"] = "UNSTABLE"
+		forge := &armingPinForge{served: pr, tip: pinPushedHead, optionalRed: true}
+		res := forge.run(t, script)
+		armed, merged, queued := forge.gestures()
+		if armed != "" || merged != "" || queued != "" {
+			t.Errorf("an UNSTABLE pull request whose head moved was armed (%q), merged (%q) or enqueued (%q) — it audited %s",
+				armed, merged, queued, pinAuditedHead)
+		}
+		if res["armed"] != false {
+			t.Errorf("node reports %v, want armed=false: the forge refused the pinned merge", res)
+		}
+		if !forge.knocked("mergePullRequest") {
+			t.Error("the UNSTABLE merge door never reached the forge — the pin this subtest exists for was not exercised")
 		}
 	})
 }

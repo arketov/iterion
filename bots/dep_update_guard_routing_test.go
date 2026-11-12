@@ -1,6 +1,7 @@
 package bots
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -175,6 +176,74 @@ func TestDepUpdateGuardVerdictRouting(t *testing.T) {
 	}
 	if !sawLost {
 		t.Error("no edge routes a vanished alignment to hold_lost_alignment — it would be reported as a clean bump and merged")
+	}
+
+	// continuity decides before any LLM node, and its branches stamp what
+	// they observed: the carry edge publishes `carried`, pinned to the head
+	// prepare read, with the original audit travelling alongside; the else
+	// edge is the full audit.
+	var sawCarry, sawAudit bool
+	for _, e := range cr.Workflow.Edges {
+		if e.From == "prepare" && e.To == "security_audit" {
+			t.Errorf("prepare reaches security_audit directly: continuity is skipped and every rebase buys a full audit")
+		}
+		if e.From != "continuity" {
+			continue
+		}
+		mapped := map[string]string{}
+		for _, m := range e.With {
+			mapped[m.Key] = strings.Trim(m.Raw, `"`)
+		}
+		switch {
+		case e.Condition == "carry" && !e.Negated:
+			sawCarry = true
+			for key, want := range map[string]string{
+				"verdict":     "carried",
+				"audited_sha": "{{outputs.prepare.head_sha}}",
+				"origin_sha":  "{{outputs.continuity.origin_sha}}",
+				"origin_at":   "{{outputs.continuity.origin_at}}",
+			} {
+				if e.To != "post_feedback" || mapped[key] != want {
+					t.Errorf("continuity -> %s when carry maps %s = %q, want post_feedback with %q", e.To, key, mapped[key], want)
+				}
+			}
+		case e.IsElse:
+			sawAudit = e.To == "security_audit"
+		}
+	}
+	if !sawCarry || !sawAudit {
+		t.Errorf("continuity must carry to post_feedback (%v) and fall through to security_audit (%v)", sawCarry, sawAudit)
+	}
+	// Exactly three ways out: carry, already_gated, and the full audit.
+	// A fourth — ending the run on a head that moved since prepare — leaves
+	// that head with no check and no diagnosis wherever nothing else
+	// launches on it (review_on_sync off). Mutation: route `continuity ->
+	// done when stale`.
+	var outs []string
+	for _, e := range cr.Workflow.Edges {
+		if e.From == "continuity" {
+			outs = append(outs, edgeGuard(e)+" -> "+e.To)
+		}
+	}
+	slices.Sort(outs)
+	if want := []string{"else -> security_audit", "when already_gated -> continuity_standby", "when carry -> post_feedback"}; !slices.Equal(outs, want) {
+		t.Errorf("continuity's edges are %q, want exactly %q", outs, want)
+	}
+	// The standby hands arm_automerge the verdict on record for the head — a
+	// full audit's clean or committed stays what it is. Mutation: map the
+	// constant 'carried' again.
+	standby, ok := cr.Workflow.Nodes["continuity_standby"].(*ir.ComputeNode)
+	if !ok {
+		t.Fatalf("continuity_standby is %T, want a compute node", cr.Workflow.Nodes["continuity_standby"])
+	}
+	standbyVerdict := ""
+	for _, e := range standby.Exprs {
+		if e.Key == "verdict" {
+			standbyVerdict = e.Raw
+		}
+	}
+	if standbyVerdict != "outputs.continuity.gated_verdict" {
+		t.Errorf("continuity_standby's verdict is %q, want the head's recorded verdict outputs.continuity.gated_verdict", standbyVerdict)
 	}
 
 	// The commit agent's nothing-to-commit summary is published on the clean
