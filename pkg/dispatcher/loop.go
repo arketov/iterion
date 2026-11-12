@@ -441,6 +441,9 @@ func (c *Dispatcher) dispatch(ctx context.Context, iss tracker.Issue) {
 	// aside to avoid a second, branch-less (empty-diff) run (the ticket<->PR
 	// dedup); no linked PR routes to the implement bot (Featurly). An explicit
 	// bot/assignee always wins — the router only touches fully-unassigned issues.
+	// The router therefore OUTRANKS require_assignee: it names a bot before
+	// refuseWithoutBot runs, so with the router on an unassigned card is never
+	// refused for want of an assignee (docs/adr/169-ticket-router-outranks-require-assignee-on-trackers-without-pr-probe.md).
 	if cfg.TicketRouter.Enabled && iss.Bot == "" && iss.Assignee == "" {
 		bot, ok := c.routeUnassignedIssue(ctx, cfg, iss)
 		if !ok {
@@ -905,7 +908,11 @@ func (c *Dispatcher) routeUnassignedIssue(ctx context.Context, cfg *Config, iss 
 	implementBot := cfg.TicketRouter.ImplementBotOrDefault()
 	probe, ok := c.tracker.(linkedPRProbe)
 	if !ok {
-		return implementBot, true // can't check PRs → implement (safe default)
+		if !c.state.routerNoProbeWarned {
+			c.state.routerNoProbeWarned = true
+			c.logger.Warn("dispatcher: ticket_router is enabled but this tracker cannot check for a linked PR — every unassigned card is routed to %s (a paid run), and the router outranks require_assignee. Keep ticket_router off so unassigned cards wait for an assignee (docs/dispatcher.md)", implementBot)
+		}
+		return implementBot, true // can't check PRs → implement (documented degrade)
 	}
 	hasPR, err := probe.HasLinkedPR(ctx, iss.ID)
 	if err != nil {

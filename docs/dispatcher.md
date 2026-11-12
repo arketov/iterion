@@ -1288,7 +1288,19 @@ it never blocks an issue and never dedups against a PR-webhook it can't
 observe. An explicit per-ticket `Bot`/assignee always wins; the router
 only touches fully-unassigned issues. With the router off and
 `require_assignee: true`, an unassigned card is not dispatched at all
-(see [Quick start](#quick-start-zero-config)). Implemented in
+(see [Quick start](#quick-start-zero-config)).
+
+**The router outranks `require_assignee`.** It names the implement bot
+before the `require_assignee` guard runs, so with `ticket_router.enabled`
+an unassigned card is never held for want of an assignee. On a tracker
+without the PR probe (native, forgejo) that means **every** unassigned card
+in a dispatchable column starts a paid run of the implement bot; the
+dispatcher logs one WARN per process the first time it routes this way. To
+make unassigned cards wait for an assignee, keep `ticket_router` off. The
+decision and its rejected alternative are in
+[ADR-169](adr/169-ticket-router-outranks-require-assignee-on-trackers-without-pr-probe.md).
+
+Implemented in
 [pkg/dispatcher/loop.go](../pkg/dispatcher/loop.go) (`routeUnassignedIssue`).
 
 ## Hot-reload

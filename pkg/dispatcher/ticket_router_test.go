@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"bytes"
 	"context"
+	"strings"
 	"sync"
 	"testing"
 
@@ -116,5 +117,52 @@ func TestRouteUnassignedIssue_NoProbe(t *testing.T) {
 	bot, ok := c.routeUnassignedIssue(context.Background(), c.cfg.Load(), iss)
 	if !ok || bot != "feature-dev" {
 		t.Fatalf("no-probe tracker must degrade to feature-dev: bot=%q ok=%v", bot, ok)
+	}
+}
+
+// TestRouteUnassignedIssue_NoProbeWarnsOnce: an enabled router on a tracker
+// that cannot probe linked PRs (native, forgejo) sends every unassigned card to
+// the implement bot, outranking require_assignee. The operator is told exactly
+// once per process — not silently, not on every card.
+func TestRouteUnassignedIssue_NoProbeWarnsOnce(t *testing.T) {
+	c := routerTestDispatcher(t, newFakeTracker()) // plain fake: no HasLinkedPR
+	var buf bytes.Buffer
+	c.logger = iterlog.New(iterlog.LevelWarn, &buf)
+
+	for _, id := range []string{"x#1", "x#2", "x#3"} {
+		iss := tracker.Issue{ID: id, Identifier: id}
+		if bot, ok := c.routeUnassignedIssue(context.Background(), c.cfg.Load(), iss); !ok || bot != "feature-dev" {
+			t.Fatalf("no-probe tracker must route to feature-dev: bot=%q ok=%v", bot, ok)
+		}
+	}
+	if n := strings.Count(buf.String(), "cannot check for a linked PR"); n != 1 {
+		t.Fatalf("expected exactly one no-probe WARN, got %d in %q", n, buf.String())
+	}
+}
+
+// TestDispatchRouterOutranksRequireAssignee pins the owner's decision (docs/adr/169-ticket-router-outranks-require-assignee-on-trackers-without-pr-probe.md):
+// with ticket_router on, an unassigned card is NOT refused by require_assignee —
+// the router names the implement bot first, so dispatch proceeds to bot
+// resolution (and honest-fails there on an unresolvable bot) instead of
+// recording a "no_assignee" skip.
+func TestDispatchRouterOutranksRequireAssignee(t *testing.T) {
+	c := routerTestDispatcher(t, newFakeTracker())
+	cfg := *c.cfg.Load()
+	cfg.RequireAssignee = true
+	cfg.Bots.Paths = []string{t.TempDir()} // empty catalogue: feature-dev cannot resolve
+	c.cfg.Store(&cfg)
+	iss := tracker.Issue{ID: "x#9", Identifier: "x#9"}
+
+	c.dispatch(context.Background(), iss)
+
+	skip, ok := c.state.dispatchSkips[iss.ID]
+	if !ok {
+		t.Fatal("expected a dispatch skip from bot resolution")
+	}
+	if skip.Kind == DispatchSkipNoAssignee {
+		t.Fatalf("router must outrank require_assignee, got a no_assignee skip: %+v", skip)
+	}
+	if skip.Bot != "feature-dev" {
+		t.Fatalf("router must name the implement bot before the guards, got bot=%q", skip.Bot)
 	}
 }
