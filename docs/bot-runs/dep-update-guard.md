@@ -4,8 +4,84 @@ Reactive security + alignment guard for automated dependency-update PRs
 (Dependabot / Renovate): audit the bump (supply-chain + CVE), align the
 consuming code, prove the tree with the deterministic verify gate,
 commit onto the PR branch, post the verdict comment. Never merges past a
-check — and only ever the commit it audited. See
+required check — and only ever the commit it audited. See
 [bots/dep-update-guard/](../../bots/dep-update-guard/).
+
+## 2026-11-11 — 2.12.0: the gate follows a pure rebase, and re-arms on UNSTABLE (#3128) — no live run yet
+
+- Status: **structurally validated, live pending.** Deterministic witnesses
+  only; no run on a real pull request. On buildkit-operator `review_on_sync`
+  stays off until the operator ships the 2.12.0 bundle — until then nothing
+  launches Vetty on a push, so `continuity` never runs there.
+- What changed, and why. Every rebase of a gated Renovate PR bought a full LLM
+  audit, and an audit in flight when the rebase landed was refused at publish
+  for the moved head (the reconciler then painted "review refused to certify …
+  comment the bot's command" red, and a human posted `/vetty`). The identical
+  change carried no machine-readable verdict a later run could find.
+  - `continuity` (tool, first decision after `prepare`): change identity
+    contract v1 (`patch-id --verbatim` of merge-base..head, diff knobs and path
+    order pinned, folded with the modes, status and path of every changed
+    entry and with `base_ref`), then the gate history read from the forge —
+    the reviews over GraphQL with their edit record, the last-line
+    `vetty-gate/v1` marker each carries, and the status for the gate context
+    on every sha they name and on the head, with its creator. Unanimity veto,
+    whoever wrote the marker (a red on the head included); a review of this
+    App edited after it was created, or a stamped status another identity
+    wrote, vetoes too (this App is told by user id alone); a fresh eligible
+    green on the head → `already_gated` → `continuity_standby` →
+    `arm_automerge`; a fresh eligible green elsewhere, on a head the base
+    requires a check other than the gate on → the new verdict `carried`;
+    anything else, a moved head or a gate-only base included → the full
+    audit.
+  - `post_feedback` stamps ` · pid1:<id>` on the note and writes the marker as
+    the review's last line; it repins a green verdict onto a head that moved by
+    a pure rebase (never a hold), the new head's identity read from the forge
+    in a scratch repository and its gate history vetoing, then arms it; the
+    `continuity` and `carry_max_age_h` switches govern it as they govern the
+    carry. A carry `continuity` decided is read again at publish time and
+    withdrawn (nothing published) on a hold since, an edit, a foreign stamp,
+    an origin past `carry_max_age_h` or a gate-only base.
+  - `commit_probe` reads the candidate from git and the push evidence from
+    `git ls-remote` of the repository `pr_url` names (system and global config
+    cut off): one commit on the audited head, its parents read with replace
+    refs, grafts and the commit-graph file off, a report with no commit id
+    set aside (a pushed alignment the agent left unreported no longer pins the
+    verdict to the head it moved away from).
+  - `arm_automerge` re-reads a refused arming: CLEAN as before, UNSTABLE by
+    the check rollup's `isRequired` and `automerge_on_unstable` (merge, the
+    default, for every green verdict alike; nothing on a base that requires
+    no check); an arming GitHub accepts merges once the required checks pass;
+    a repository that does not allow auto-merge gets no merge in its place. A
+    `carried` head is armed or merged only where the base requires a check
+    other than the gate on it.
+- Measured, on git 2.43 and 2.55 in scratch repositories (the witnesses in
+  `bots/dep_update_guard_continuity_test.go`): a base move in another file or
+  15 lines away keeps the id; a base edit on a context line changes it; a YAML
+  re-indent changes it (it does not under `--stable`); other binary bytes
+  change it; a repository `diff.orderFile` does not; another `base_ref` does.
+  patch-id alone gave two different changes the same id whenever the entry
+  after a binary had no `---`/`+++` lines (a mode change, an empty file, a
+  second binary) — Renovate's gradle-wrapper bump, a jar plus `gradlew`'s mode,
+  is that shape — so the raw listing of paths and modes is folded in.
+- What the carry does NOT certify: a build of the new tree. The note says the
+  base is built by the repo's CI, and that is made true: a carry, a repin and
+  an arming of a carried head each need a check the base requires other than
+  the gate on that head.
+- Guarantee test: `TestDepUpdateGuardContinuityGuarantee_AdversarialForge`
+  drives the real deterministic nodes through the compiled graph against a
+  stateful forge (reviews with edits, statuses with creators, the rollup,
+  auto-merge, the publish endpoint, git over TLS) across sequences of heads:
+  pure-rebase carry with no model node; a hold on any head vetoing later
+  carries and repins in both finish orders, and withdrawing a carry decided
+  before it; edited App reviews; foreign status creators; differing
+  identities; a gate-only base at the CLEAN and UNSTABLE doors; the age from
+  the original audit across a chain and a resumed run; the token off argv and
+  out of every recorded output.
+- Lessons for next run: measure, per merge, full (LLM) runs against carry runs,
+  the publish `gate_error` "head moved" refusals, and `/vetty` deliveries; read
+  the bko delivery log for synchronize deliveries once `review_on_sync` is on.
+  The sandbox image's git must stay ≥ 2.39 (`--verbatim`); an older one carries
+  nothing and says why in the reason.
 
 ## 2026-09-17 — profile 2: a manifest-only bump judged safe, nothing to align, nothing to commit (run 01a0af9e-9697)
 
