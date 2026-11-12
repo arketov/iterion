@@ -617,14 +617,6 @@ function AuthedApp() {
         setCloudReloginConnId(connId),
       ),
     ];
-    // Listen for the SPA-emitted open-switcher event from ProjectLabel
-    // (clicking the project chip in the toolbar / run header). Cloud has no
-    // project concept and never mounts ProjectSwitcher — no listener there so
-    // stray dispatches don't try to open an unmounted dialog.
-    const onOpenSwitcher = () => setSwitcherOpen(true);
-    if (serverInfo?.mode !== "cloud") {
-      window.addEventListener("iterion:open-project-switcher", onOpenSwitcher);
-    }
     // Sidebar Settings button (and any other SPA caller) dispatches this
     // to surface the dialog. The optional `tab` detail lets callers
     // land on a specific section (Appearance, Backends, …).
@@ -657,11 +649,10 @@ function AuthedApp() {
     window.addEventListener("message", onShellMenu);
     return () => {
       offs.forEach((off) => off());
-      window.removeEventListener("iterion:open-project-switcher", onOpenSwitcher);
       window.removeEventListener("iterion:open-settings", onOpenSettings as EventListener);
       window.removeEventListener("message", onShellMenu);
     };
-  }, [pickAndAddProject, isDesktop, serverInfo?.mode]);
+  }, [pickAndAddProject, isDesktop]);
 
   useEffect(() => {
     // Ctrl/Cmd+P opens the ProjectSwitcher — desktop only. There a switch

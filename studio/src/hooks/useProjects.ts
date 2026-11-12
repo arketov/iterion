@@ -175,7 +175,7 @@ function useDesktopProjects(): ProjectsAPI {
  * - browser → HTTP /api/projects backed by pkg/server/projects.go
  *
  * The two implementations expose the same shape so consumers
- * (ProjectSwitcher, ProjectLabel, AddProjectDialog) don't need to
+ * (ProjectSwitcher, AddProjectDialog) don't need to
  * know which mode they're in.
  */
 export function useProjects(): ProjectsAPI {

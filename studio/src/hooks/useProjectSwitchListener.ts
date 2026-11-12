@@ -14,8 +14,8 @@ import { useUIStore } from "@/store/ui";
 //
 //   1. Clears the run-store (running/finished runs of the old project
 //      would otherwise still be visible on the new project's home).
-//   2. Refetches /api/server/info so ProjectLabel + run-list scope
-//      pick up the new work_dir.
+//   2. Refetches /api/server/info so the run-list scope
+//      picks up the new work_dir.
 //   3. Refetches the bot catalog (workspace-scoped on the server) so
 //      the board pickers offer the new project's bots.
 //   4. Refreshes the projects MRU so the highlighted "current" row
