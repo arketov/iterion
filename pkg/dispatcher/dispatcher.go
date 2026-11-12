@@ -476,9 +476,14 @@ func (c *Dispatcher) ReloadWithRunner(cfg *Config, r Runner) {
 	}
 }
 
-// currentRunner is the runner new dispatches go to.
+// currentRunner is the runner new dispatches go to. nil before setRunner has
+// run (a Dispatcher built without New, e.g. a test double); callers
+// type-assert on it, which is safe on a nil interface.
 func (c *Dispatcher) currentRunner() Runner {
-	return c.runner.Load().r
+	if box := c.runner.Load(); box != nil {
+		return box.r
+	}
+	return nil
 }
 
 func (c *Dispatcher) setRunner(r Runner) {

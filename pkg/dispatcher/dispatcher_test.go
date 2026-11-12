@@ -783,6 +783,20 @@ func TestBackoffMath(t *testing.T) {
 	}
 }
 
+// A Dispatcher built without New has no runner until setRunner runs;
+// currentRunner reports that as a nil Runner instead of dereferencing nil.
+func TestCurrentRunner_NilBeforeSetRunner(t *testing.T) {
+	d := &Dispatcher{}
+	if got := d.currentRunner(); got != nil {
+		t.Fatalf("currentRunner before setRunner = %v, want nil", got)
+	}
+	first := &StubRunner{}
+	d.setRunner(first)
+	if d.currentRunner() != Runner(first) {
+		t.Fatal("currentRunner after setRunner is not the stored runner")
+	}
+}
+
 // cmdReload carrying a runner swaps the runner the workers and the actor read;
 // one without a runner (Reload) leaves it alone.
 func TestReloadWithRunnerSwapsRunner(t *testing.T) {
