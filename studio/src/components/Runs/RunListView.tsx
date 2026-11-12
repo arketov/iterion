@@ -507,7 +507,7 @@ export default function RunListView() {
             onClick={() => setLocation("/insights")}
             title="Cross-run cost, fail rate, and duration over a configurable window"
           >
-            Analytics
+            Insights
           </Button>
         </div>
       </div>
