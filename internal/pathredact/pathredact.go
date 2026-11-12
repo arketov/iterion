@@ -117,10 +117,19 @@ func strictToken(tok string) string {
 	inner := strings.TrimLeft(tok, openers)
 	open := tok[:len(tok)-len(inner)]
 	body := strings.TrimRight(inner, closers)
-	if !IsAbs(body) {
+	if !isAbsToken(body) {
 		return tok
 	}
 	return open + Base(body) + inner[len(body):]
+}
+
+// isAbsToken is IsAbs for a token of a message, where a path may also be
+// spelled as a `file://` URL.
+func isAbsToken(tok string) bool { return IsAbs(tok) || hasFileScheme(tok) }
+
+// hasFileScheme reports whether s begins with `file://` (any case).
+func hasFileScheme(s string) bool {
+	return len(s) >= 7 && strings.EqualFold(s[:7], "file://")
 }
 
 // hostPrefixes are the top-level directories that only a host filesystem has:
@@ -370,6 +379,23 @@ func redactPrefixes(s string) string {
 	for i := 0; i < len(s); {
 		end := -1
 		switch {
+		case isRootStart(s, i) && (strings.HasPrefix(s[i:], `\\?\`) || strings.HasPrefix(s[i:], `\\.\`)):
+			// A verbatim / device path: skip the `\\?\` and the drive's colon, which
+			// would otherwise end the path at once.
+			from := i + 4
+			if hasDrivePrefix(s[from:]) {
+				from += 2
+			}
+			end = windowsPathEnd(s, from)
+		case isRootStart(s, i) && hasFileScheme(s[i:]):
+			// A file URL: `file:///C:/x`, `file:///home/x`, `file://host/x`. The
+			// scheme goes with the path.
+			p := i + 7
+			if p < len(s) && s[p] == '/' && hasDrivePrefix(s[p+1:]) {
+				end = windowsPathEnd(s, p+3)
+			} else {
+				end = unixPathEnd(s, p)
+			}
 		case isRootStart(s, i) && hasDrivePrefix(s[i:]):
 			end = windowsPathEnd(s, i+2)
 		case isRootStart(s, i) && strings.HasPrefix(s[i:], `\\`) && i+2 < len(s) && s[i+2] != '\\':
@@ -412,10 +438,15 @@ func windowsPathEnd(s string, from int) int {
 }
 
 // unixPathEnd is where a Unix path ends: at whitespace or a quote/bracket the
-// sentence wrapped it in.
+// sentence wrapped it in. A space does not end it when the next token is
+// clearly the path going on (`/home/John Smith/p/run.json`).
 func unixPathEnd(s string, from int) int {
 	i := from
 	for i < len(s) {
+		if s[i] == ' ' && spaceContinuesPath(s, i) {
+			i++
+			continue
+		}
 		switch s[i] {
 		case ' ', '\t', '\n', '\r', '"', '\'', '<', '>', '|', '*', '?', ')', ']', '}':
 			return i
@@ -424,6 +455,30 @@ func unixPathEnd(s string, from int) int {
 	}
 	return i
 }
+
+// spaceContinuesPath reports whether the space at s[i] sits inside a path: the
+// token after it does not start a new path, a quote or a bracket, and holds a
+// separator before any such character (`Smith/p/run.json`, not `failed (see`).
+// It errs towards redacting: prose such as `/tmp/a and/or b` loses its tail.
+func spaceContinuesPath(s string, i int) bool {
+	j := i + 1
+	if j >= len(s) || strings.IndexByte(pathStop, s[j]) >= 0 || s[j] == '/' {
+		return false
+	}
+	for ; j < len(s); j++ {
+		if s[j] == '/' {
+			return true
+		}
+		if strings.IndexByte(pathStop, s[j]) >= 0 {
+			return false
+		}
+	}
+	return false
+}
+
+// pathStop are the bytes that end the look-ahead of spaceContinuesPath:
+// whitespace, a backslash, quotes, brackets and the characters no file name holds.
+const pathStop = " \t\n\r\\\"'()[]{}<>|*?"
 
 // trimPathTail gives the sentence's punctuation back: a path that ends a
 // clause is followed by a period, comma or colon that is not part of it.

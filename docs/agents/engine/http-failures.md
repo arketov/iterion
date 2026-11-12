@@ -9,7 +9,8 @@ goes through `pkg/log`, whose existing `pkg/errtrack` hook reports it. Stable
 their operational states are intentional public data, not driver errors.
 
 A 4xx message never names the host's directories either. `WriteErrorJSON` runs
-the "error" text of every 4xx through the redactor the server installs
+the "error", "detail" and "hint" text of every 4xx map payload through the
+redactor the server installs
 (`httpx.SetErrorRedactor`, wired by `pkg/server/redact_paths.go`;
 `internal/pathredact.Host`): a path under a registered root — the workspace and
 store the server and a project switch register, plus the home, temp and working
@@ -23,6 +24,24 @@ raw map bypasses that boundary and calls `httpx.RedactError` on the text
 itself. The bot catalog's discovery diagnostics use the stricter
 `pathredact.Strict` — every absolute path, in either spelling on every OS, goes
 — because their paths are all the server's.
+
+`pathredact.Host` also reduces a Windows verbatim path (`\\?\C:\…`), a
+`file://` URL (`file:///C:/…`, `file:///home/…`; the scheme goes with the path)
+and a Unix path whose directory name has a space, when the token after the
+space looks like the path going on (`/home/John Smith/p/run.json`); `Strict`
+knows `file://` too. Prose such as `/tmp/a and/or b` is over-redacted on
+purpose. Limit: a bare `/home/John Smith` with no further separator keeps
+`Smith`; the host's own home is a registered root and is reduced in full.
+
+Three exits do not go through `WriteErrorJSON` and redact at their own writer:
+the launch-denial envelope (`renderLaunchDenial`: its 4xx arm uses `WriteJSON`,
+so `detail` is redacted there; the denial itself keeps the full text for logs
+and durable consumers), the run WebSocket's error envelope (`sendError`
+redacts `message`) and every close frame (`writeWSClose` redacts the reason,
+before the byte cut). Error codes, close codes and tokens are unchanged. The
+`confirmed_disk_path` of a 200 file response is deliberately absolute: the
+local studio compares it with its absolute work dir (`launchSource.ts`), so it
+is outside the filter.
 
 The redactor is a safety net, not the fix at the source. A run route that
 cannot load its run answers 404 with the fixed text `run not found`
@@ -63,7 +82,9 @@ enforced counter fails. The org row may already be saved; retrying the same
 request propagates its desired quota again. A 200 means propagation completed.
 
 Witnesses: `pkg/server/error_chokepoint_test.go`,
-`pkg/server/error_path_redaction_test.go`, `pkg/server/run_not_found_message_test.go`,
+`pkg/server/error_path_redaction_test.go` (also launch-denial `detail`, the
+resume `hint`, the run WebSocket error and close frame),
+`pkg/server/run_not_found_message_test.go`,
 `internal/pathredact/pathredact_test.go`,
 `internal/httpx/redact_test.go`,
 `pkg/identity/bulk_decode_test.go` and the real-Mongo bulk suite,

@@ -117,13 +117,38 @@ func TestHost_RegisteredRootBecomesRelativeAndSpacesSurvive(t *testing.T) {
 		{`workspace "D:\Work Space\my proj": gone`, `workspace ".": gone`},
 		{"open /opt/studio data/ws/bots/a.bot: nope", "open bots/a.bot: nope"},
 		// A sibling that merely shares the root's prefix is not under it: it
-		// is cut as an unregistered host path (to its first segment's end),
-		// never read as the root's remainder.
-		{"open /opt/studio data/ws2/x: nope", "open studio data/ws2/x: nope"},
+		// is cut as an unregistered host path to its last element, never read
+		// as the root's remainder.
+		{"open /opt/studio data/ws2/x: nope", "open x: nope"},
 	} {
 		if got := Host(tc.in); got != tc.want {
 			t.Errorf("Host(%q) = %q, want %q", tc.in, got, tc.want)
 		}
+	}
+}
+
+// A directory name with a space, a Windows verbatim path and a file URL are
+// all spellings of a host path: none may leave a directory behind.
+func TestHost_SpacesVerbatimAndFileURL(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"open /home/John Smith/proj/.iterion/runs/r1/run.json: no such file", "open run.json: no such file"},
+		{`open \\?\C:\Users\zz-nobody\store\runs\r1\run.json: denied`, "open run.json: denied"},
+		{"read file:///C:/Users/zz-nobody/proj/main.bot failed", "read main.bot failed"},
+		{"read file:///home/zz-nobody/proj/main.bot: nope", "read main.bot: nope"},
+		// What follows a path is not swallowed unless it looks like the path going on.
+		{"copy /tmp/a /tmp/b done", "copy a b done"},
+		{"stat /var/lib/x denied (see logs/y)", "stat x denied (see logs/y)"},
+		{"see https://example.com/home/docs", "see https://example.com/home/docs"},
+	} {
+		if got := Host(tc.in); got != tc.want {
+			t.Errorf("Host(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestStrict_FileURLAndVerbatim(t *testing.T) {
+	if got, want := Strict("bad file:///C:/x/y.bot here"), "bad y.bot here"; got != want {
+		t.Errorf("Strict = %q, want %q", got, want)
 	}
 }
 
