@@ -459,10 +459,11 @@ func (r *EngineRunner) Dispatch(ctx context.Context, spec DispatchSpec) error {
 	// launches leave these empty and the Source field stays nil.
 	if spec.Issue != nil && spec.Issue.ID != "" {
 		opts = append(opts, runtime.WithSource(&store.RunSource{
-			Kind:            store.RunSourceKindDispatcher,
-			IssueID:         spec.Issue.ID,
-			IssueIdentifier: spec.Issue.Identifier,
-			IssueTitle:      spec.Issue.Title,
+			Kind:             store.RunSourceKindDispatcher,
+			IssueID:          spec.Issue.ID,
+			IssueIdentifier:  spec.Issue.Identifier,
+			IssueTitle:       spec.Issue.Title,
+			ClaimedFromState: spec.Issue.ClaimedFromState,
 		}))
 	}
 	opts = append(opts,
@@ -580,10 +581,11 @@ func (r *EngineRunner) dispatchViaService(ctx context.Context, spec DispatchSpec
 	}
 	if spec.Issue != nil && spec.Issue.ID != "" {
 		ls.SourceRef = &store.RunSource{
-			Kind:            store.RunSourceKindDispatcher,
-			IssueID:         spec.Issue.ID,
-			IssueIdentifier: spec.Issue.Identifier,
-			IssueTitle:      spec.Issue.Title,
+			Kind:             store.RunSourceKindDispatcher,
+			IssueID:          spec.Issue.ID,
+			IssueIdentifier:  spec.Issue.Identifier,
+			IssueTitle:       spec.Issue.Title,
+			ClaimedFromState: spec.Issue.ClaimedFromState,
 		}
 	}
 	if spec.OnEvent != nil {

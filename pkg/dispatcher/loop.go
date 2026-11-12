@@ -541,6 +541,14 @@ func (c *Dispatcher) dispatch(ctx context.Context, iss tracker.Issue) {
 	// fall back to the stale persisted last_run pointer.
 	delete(c.state.retries, iss.ID)
 
+	// A resumed run holds the slot of the column its card was first claimed
+	// from, not the running column it sits in after a restart.
+	slotState := iss.WorkflowState
+	if iss.WorkflowState == cfg.Agent.RunningState {
+		if col := c.claimedFromState(resumeFromRunID); col != "" {
+			slotState = col
+		}
+	}
 	runCtx, cancel := context.WithCancelCause(ctx)
 	entry := c.buildRunningEntry(
 		iss,
@@ -548,6 +556,7 @@ func (c *Dispatcher) dispatch(ctx context.Context, iss tracker.Issue) {
 		workspaceGeneration,
 		cleanupWorkspaceOnSuccess,
 		attempt,
+		slotState,
 		cancel,
 	)
 	if c.leaser != nil {
@@ -1102,6 +1111,7 @@ func (c *Dispatcher) buildRunningEntry(
 	runID, workspaceGeneration string,
 	cleanupWorkspaceOnSuccess bool,
 	attempt int,
+	slotState string,
 	cancel context.CancelCauseFunc,
 ) *runningEntry {
 	// The path is deterministic from the issue + logical generation
@@ -1117,6 +1127,7 @@ func (c *Dispatcher) buildRunningEntry(
 		WorkspaceGeneration:       workspaceGeneration,
 		CleanupWorkspaceOnSuccess: cleanupWorkspaceOnSuccess,
 		WorkflowState:             iss.WorkflowState,
+		slotState:                 slotState,
 		WorkspacePath:             wsPath,
 		StartedAt:                 now,
 		LastEventAt:               now,
@@ -1127,7 +1138,7 @@ func (c *Dispatcher) buildRunningEntry(
 	}
 	entry.touchEvent(time.Now())
 	c.state.running[iss.ID] = entry
-	c.state.slotsByState[iss.WorkflowState]++
+	c.state.slotsByState[entry.slotColumn()]++
 
 	// last_run is stamped by runWorker right before the runner takes the run
 	// (see there), NOT here: the run id is minted at claim time but the
@@ -1361,6 +1372,10 @@ func (c *Dispatcher) buildSpec(cfg *Config, iss tracker.Issue, runID, wsPath str
 			vars["feature_prompt"] = strings.TrimSpace(iss.Title + "\n\n" + iss.Body)
 		}
 	}
+	claimedFrom := iss.WorkflowState
+	if entry != nil {
+		claimedFrom = entry.slotColumn()
+	}
 	return DispatchSpec{
 		RunID:         runID,
 		WorkspacePath: wsPath,
@@ -1371,9 +1386,10 @@ func (c *Dispatcher) buildSpec(cfg *Config, iss tracker.Issue, runID, wsPath str
 		// gate reads. nil when the cap is disabled.
 		DailyCap: c.newDailyCapGuard(cfg),
 		Issue: &IssueRef{
-			ID:         iss.ID,
-			Identifier: iss.Identifier,
-			Title:      iss.Title,
+			ID:               iss.ID,
+			Identifier:       iss.Identifier,
+			Title:            iss.Title,
+			ClaimedFromState: claimedFrom,
 		},
 		Assignee: routeAssignee,
 		OnEvent: func(name string) {

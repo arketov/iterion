@@ -231,6 +231,20 @@ type runningEntry struct {
 	// dispatch.vars. Kept so the dispatcher can render a fresh prompt
 	// on retry without re-fetching from the tracker.
 	issueSnapshot tracker.Issue
+
+	// slotState is the column whose per-state slot (slotsByState) this run
+	// holds: the column its card was first claimed from, which differs from
+	// WorkflowState when a run is resumed from the running column after a
+	// restart. Empty = WorkflowState. Never read by refreshRunningStates.
+	slotState string
+}
+
+// slotColumn is the column whose slotsByState counter this run holds.
+func (r *runningEntry) slotColumn() string {
+	if r.slotState != "" {
+		return r.slotState
+	}
+	return r.WorkflowState
 }
 
 // touchEvent records that an event was observed for this entry. Safe
