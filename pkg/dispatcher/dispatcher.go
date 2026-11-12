@@ -476,9 +476,13 @@ func (c *Dispatcher) ReloadWithRunner(cfg *Config, r Runner) {
 	}
 }
 
-// currentRunner is the runner new dispatches go to.
+// currentRunner is the runner new dispatches go to; nil until setRunner has
+// run (callers type-assert it and fail open on nil).
 func (c *Dispatcher) currentRunner() Runner {
-	return c.runner.Load().r
+	if b := c.runner.Load(); b != nil {
+		return b.r
+	}
+	return nil
 }
 
 func (c *Dispatcher) setRunner(r Runner) {
