@@ -96,7 +96,7 @@ func TestMarketplace_SubmitListGetInstall(t *testing.T) {
 	srv := newMarketplaceServer(t, workdir)
 
 	// Submit the local fixture as a marketplace entry.
-	body := `{"repo_url":"` + repo + `","tags":["review", "demo", "review", ""]}`
+	body := string(mustJSON(t, map[string]any{"repo_url": repo, "tags": []string{"review", "demo", "review", ""}}))
 	rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", body)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("submit status = %d; body=%s", rec.Code, rec.Body.String())
@@ -177,7 +177,7 @@ func TestMarketplace_InstallThenUninstall(t *testing.T) {
 	workdir := t.TempDir()
 	srv := newMarketplaceServer(t, workdir)
 
-	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+repo+`"}`); rec.Code != http.StatusOK {
+	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": repo}))); rec.Code != http.StatusOK {
 		t.Fatalf("submit = %d; %s", rec.Code, rec.Body.String())
 	}
 	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/bots/mybot/install", ""); rec.Code != http.StatusOK {
@@ -275,7 +275,7 @@ func TestMarketplace_SubmitRequiresRepoURL(t *testing.T) {
 func TestMarketplace_SubmitMalformedBundleRejected(t *testing.T) {
 	// Empty directory — botinstall.Inspect will fail to find a bundle.
 	srv := newMarketplaceServer(t, t.TempDir())
-	rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+t.TempDir()+`"}`)
+	rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": t.TempDir()})))
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
 	}
@@ -340,7 +340,7 @@ func TestMarketplace_SubmitPluginKind(t *testing.T) {
 	}
 	srv := newMarketplaceServer(t, t.TempDir())
 
-	rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+repo+`","icon":"🔌"}`)
+	rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": repo, "icon": "🔌"})))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("submit = %d; %s", rec.Code, rec.Body.String())
 	}
@@ -370,7 +370,7 @@ func TestMarketplace_SubmitIconRoundTripAndCap(t *testing.T) {
 	writeFixtureBundle(t, repo, "mybot")
 	srv := newMarketplaceServer(t, t.TempDir())
 
-	rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+repo+`","icon":" 🤖 "}`)
+	rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": repo, "icon": " 🤖 "})))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("submit = %d; %s", rec.Code, rec.Body.String())
 	}
@@ -395,7 +395,7 @@ func TestMarketplace_SubmitIconRoundTripAndCap(t *testing.T) {
 	}
 	// Over the 32-byte cap → 400.
 	long := strings.Repeat("x", marketplaceIconMaxBytes+1)
-	rec = doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+repo+`","icon":"`+long+`"}`)
+	rec = doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": repo, "icon": long})))
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("oversized icon = %d, want 400; %s", rec.Code, rec.Body.String())
 	}
@@ -408,10 +408,10 @@ func TestMarketplace_SlugKindConflict409(t *testing.T) {
 	writePluginFixtureDir(t, pluginRepo, "mybot") // same slug, other kind
 	srv := newMarketplaceServer(t, t.TempDir())
 
-	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+botRepo+`"}`); rec.Code != http.StatusOK {
+	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": botRepo}))); rec.Code != http.StatusOK {
 		t.Fatalf("bot submit = %d; %s", rec.Code, rec.Body.String())
 	}
-	rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+pluginRepo+`"}`)
+	rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": pluginRepo})))
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("plugin submit over bot slug = %d, want 409; %s", rec.Code, rec.Body.String())
 	}
@@ -419,7 +419,7 @@ func TestMarketplace_SlugKindConflict409(t *testing.T) {
 		t.Errorf("conflict message = %s", rec.Body.String())
 	}
 	// Re-submitting the same kind stays fine (registry refresh).
-	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+botRepo+`"}`); rec.Code != http.StatusOK {
+	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": botRepo}))); rec.Code != http.StatusOK {
 		t.Errorf("bot re-submit = %d; %s", rec.Code, rec.Body.String())
 	}
 }
@@ -432,7 +432,7 @@ func TestMarketplace_ListKindAndSortParams(t *testing.T) {
 	srv := newMarketplaceServer(t, t.TempDir())
 
 	for _, repo := range []string{botRepo, pluginRepo} {
-		if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+repo+`"}`); rec.Code != http.StatusOK {
+		if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": repo}))); rec.Code != http.StatusOK {
 			t.Fatalf("submit %s = %d; %s", repo, rec.Code, rec.Body.String())
 		}
 	}
@@ -479,7 +479,7 @@ func TestMarketplace_PluginInstallUninstall(t *testing.T) {
 	workdir := t.TempDir()
 	srv := newMarketplaceServer(t, workdir)
 
-	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+repo+`"}`); rec.Code != http.StatusOK {
+	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": repo}))); rec.Code != http.StatusOK {
 		t.Fatalf("submit = %d; %s", rec.Code, rec.Body.String())
 	}
 	rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/bots/my-plugin/install", "")
@@ -526,7 +526,7 @@ func TestMarketplace_PluginInstallNeedsNoWorkdir(t *testing.T) {
 	writePluginFixtureDir(t, repo, "my-plugin")
 	srv := newMarketplaceServer(t, "") // no workspace configured
 
-	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+repo+`"}`); rec.Code != http.StatusOK {
+	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": repo}))); rec.Code != http.StatusOK {
 		t.Fatalf("submit = %d; %s", rec.Code, rec.Body.String())
 	}
 	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/bots/my-plugin/install", ""); rec.Code != http.StatusOK {
@@ -539,7 +539,7 @@ func TestMarketplace_DownloadPluginServesSourceZip(t *testing.T) {
 	writePluginFixtureDir(t, repo, "my-plugin")
 	srv := newMarketplaceServer(t, t.TempDir())
 
-	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+repo+`"}`); rec.Code != http.StatusOK {
+	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": repo}))); rec.Code != http.StatusOK {
 		t.Fatalf("submit = %d; %s", rec.Code, rec.Body.String())
 	}
 	rec := doJSON(t, srv, http.MethodGet, "/api/v1/marketplace/bots/my-plugin/download", "")

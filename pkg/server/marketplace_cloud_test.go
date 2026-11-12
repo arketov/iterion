@@ -66,12 +66,12 @@ func TestMarketplace_CloudModerationFlow(t *testing.T) {
 	}
 
 	// Anonymous submit is rejected (auth required in cloud).
-	if rec := doAs(t, srv, nil, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+repo+`","scope":"public"}`); rec.Code != http.StatusUnauthorized {
+	if rec := doAs(t, srv, nil, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": repo, "scope": "public"}))); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("anon submit = %d, want 401", rec.Code)
 	}
 
 	// A user submits a public-scope bot → lands pending.
-	rec = doAs(t, srv, user, http.MethodPost, "/api/v1/marketplace/submit", `{"repo_url":"`+repo+`","scope":"public"}`)
+	rec = doAs(t, srv, user, http.MethodPost, "/api/v1/marketplace/submit", string(mustJSON(t, map[string]string{"repo_url": repo, "scope": "public"})))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("submit = %d; %s", rec.Code, rec.Body.String())
 	}
