@@ -125,7 +125,7 @@ erDiagram
         map subbot_children FK "subbot execution key to child run id, held on the PARENT"
         string forked_from FK "runs._id"
         object delegation "{source_run_id, kind, episode_fingerprint, attempt}"
-        object source "{kind, issue_id, issue_identifier, issue_title, schedule_id, schedule_name, client_id, conversation_id}"
+        object source "{kind, issue_id, issue_identifier, issue_title, claimed_from_state, schedule_id, schedule_name, client_id, conversation_id}"
         string[] watched_issue_ids FK "board_issues._id"
         string project_path
     }
