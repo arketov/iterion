@@ -156,7 +156,7 @@ func TestMarketplace_PublicAccessGating(t *testing.T) {
 	}
 
 	// Anonymous submit → 401 (needs SSO/login).
-	if rec := do(http.MethodPost, "/api/v1/marketplace/submit", []byte(`{"repo_url":"`+repo+`"}`)); rec.Code != http.StatusUnauthorized {
+	if rec := do(http.MethodPost, "/api/v1/marketplace/submit", mustJSON(t, map[string]string{"repo_url": repo})); rec.Code != http.StatusUnauthorized {
 		t.Errorf("anon submit = %d; want 401", rec.Code)
 	}
 	// Anonymous install → 401.

@@ -250,7 +250,7 @@ func TestPlatformAdmin_TheMarketplacePluginRoutesAskTheChokepoint(t *testing.T) 
 	f := newDerivationFixtureWith(t, func(c *Config) { c.Marketplace = registry })
 	ctx := context.Background()
 	admin := f.superAdmin(t)
-	if code, _, body := f.call(t, http.MethodPost, "/api/v1/marketplace/submit", admin.AccessToken, `{"repo_url":"`+repo+`"}`); code != http.StatusOK {
+	if code, _, body := f.call(t, http.MethodPost, "/api/v1/marketplace/submit", admin.AccessToken, string(mustJSON(t, map[string]string{"repo_url": repo}))); code != http.StatusOK {
 		t.Fatalf("submit the plugin: %d %s", code, body)
 	}
 	otherDevice, err := f.svc.Login(ctx, "admin@example.com", fixturePassword, "other-device", "ip2")
