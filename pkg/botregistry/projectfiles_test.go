@@ -1,6 +1,7 @@
 package botregistry
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -386,5 +387,41 @@ chat:
 	}
 	if len(res.Skipped) != 0 {
 		t.Fatalf("skipped = %+v, want none", res.Skipped)
+	}
+}
+
+// A walk of one root meets every path once, so the dedupe key of a walked file
+// is its directory's key (resolved once per directory) plus its name — not a
+// PathKey (Abs + EvalSymlinks) per file, which made a `--bots-path .` listing of
+// a big tree cost syscalls on every .bot found.
+func TestListProjectWorkflows_KeysWalkedFilesPerDirectoryNotPerFile(t *testing.T) {
+	root := t.TempDir()
+	const files = 40
+	for i := 0; i < files; i++ {
+		writeProjectFile(t, filepath.Join(root, "flows", "pkg", fmt.Sprintf("f%02d.bot", i)), "workflow w:\n")
+	}
+
+	calls := 0
+	orig := projectPathKey
+	projectPathKey = func(p string) string { calls++; return orig(p) }
+	defer func() { projectPathKey = orig }()
+
+	res := ListProjectWorkflows(root, []string{root}, 0)
+	if res.Total != files {
+		t.Fatalf("Total = %d, want %d (rows: %v)", res.Total, files, relsOf(res.Items))
+	}
+	if calls >= files {
+		t.Fatalf("PathKey ran %d times for %d files in one directory; want one per directory", calls, files)
+	}
+}
+
+// A root spelled twice (a directory and a file inside it) must still list the
+// file once even though walked files are keyed through their directory.
+func TestListProjectWorkflows_AFileRootInsideAWalkedRootIsListedOnce(t *testing.T) {
+	root := t.TempDir()
+	writeProjectFile(t, filepath.Join(root, "flows", "a.bot"), "workflow a:\n")
+	res := ListProjectWorkflows(root, []string{filepath.Join(root, "flows"), filepath.Join(root, "flows", "a.bot")}, 0)
+	if want := []string{"flows/a.bot"}; !reflect.DeepEqual(relsOf(res.Items), want) {
+		t.Fatalf("rows = %v, want %v", relsOf(res.Items), want)
 	}
 }
