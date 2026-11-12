@@ -65,6 +65,11 @@ type state struct {
 	// candidates in tick); an entry is cleared the moment its issue
 	// successfully claims. Actor-goroutine-owned; no mutex needed.
 	dispatchSkips map[string]DispatchSkipView
+	// routerNoProbeWarned records that the "ticket_router is on but the tracker
+	// cannot probe linked PRs" warning was already logged, so it fires once per
+	// process rather than on every unassigned card. Actor-goroutine-owned; no
+	// mutex needed.
+	routerNoProbeWarned bool
 	// lastRunHoldWarned records the "refusing a fresh sibling" warn
 	// already emitted for an issue (value = the reason). The dispatchSkips
 	// entry can't carry this dedup: dispatch() deletes it before
