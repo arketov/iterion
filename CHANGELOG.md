@@ -3,6 +3,80 @@
 Generated from Conventional Commits at each release. Older majors are archived
 under [docs/changelog/](https://github.com/SocialGouv/iterion/tree/main/docs/changelog).
 
+## [5.23.0](https://github.com/SocialGouv/iterion/compare/v5.22.0...v5.23.0) (2026-11-11)
+
+### Features
+
+* **llmroute,runview,server:** routing cells reach every slot — node[#route](https://github.com/SocialGouv/iterion/issues/route) and supervisor selectors, a decided walk, the claw gateway hint ([#2005](https://github.com/SocialGouv/iterion/issues/2005)) ([#3176](https://github.com/SocialGouv/iterion/issues/3176)) ([ca54d88](https://github.com/SocialGouv/iterion/commit/ca54d88ef4433f3e648c26c674294e5d11d75811))
+
+    <details><summary>why</summary>
+
+    Revi (and any bot) routes every LLM slot of a run — nodes, named fallbacks: routes, supervisors — onto a team's own OpenAI-compatible gateway key through the DB routing cascade alone (ADR-129 cells, ADR-132 D21 selectors): the activation half of #2005.
+
+    </details>
+
+## [5.22.0](https://github.com/SocialGouv/iterion/compare/v5.21.2...v5.22.0) (2026-11-11)
+
+### Features
+
+* **bots:** Vetty carries its gate across a pure rebase, with no LLM call ([318729b](https://github.com/SocialGouv/iterion/commit/318729b5d442ff978b931b20ee887ad86619ef5c)), references [#3128](https://github.com/SocialGouv/iterion/issues/3128) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    A rebase of a gated dependency PR bought a full LLM audit, and an audit in flight when the rebase landed was refused at publish for the moved head. Nothing tied an earlier verdict to the identical change on a new head.
+
+    </details>
+* **bots:** Vetty merges an UNSTABLE pull request whose required checks pass ([fe7cc7e](https://github.com/SocialGouv/iterion/commit/fe7cc7ecd8a20824333145977fbaadcd7f4701c7)), references [#3128](https://github.com/SocialGouv/iterion/issues/3128) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    GitHub refuses enablePullRequestAutoMerge on an UNSTABLE pull request (every required check passing, another one failing or running) as it refuses a CLEAN one: nothing required is left to wait for. arm_automerge re-raised every refusal but "clean status", so a green, gated pull request with a flaky optional check sat unarmed until a human acted.
+
+    </details>
+
+### Bug Fixes
+
+* **bots:** Vetty proves the alignment push from the remote, not from the agent's report ([b792df0](https://github.com/SocialGouv/iterion/commit/b792df0fce541af7be16a0758f507a4900525b4e)), references [#3128](https://github.com/SocialGouv/iterion/issues/3128) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    commit_probe rejected an empty or non-hex REPORT before it read git, so a push the commit agent left unreported was pinned to the head the run had just moved away from, and the server refused it as "head moved" onto the run's own push.
+
+    </details>
+* **bots:** Vetty repins and stamps only what the forge and the gate history vouch for ([ed4ebb7](https://github.com/SocialGouv/iterion/commit/ed4ebb7739043e82fb56916d7c40bdb9867da35c)), references [#3128](https://github.com/SocialGouv/iterion/issues/3128) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    Round-1 review fix pass of lane I2 (Vetty 2.12.0).
+
+    </details>
+* **bots:** Vetty reuses only an unedited history it wrote, onto a head a required check builds ([861897a](https://github.com/SocialGouv/iterion/commit/861897af6f083ce09813a8bb00425cd5fa7c3e0e)), references [#1](https://github.com/SocialGouv/iterion/issues/1) [#1](https://github.com/SocialGouv/iterion/issues/1) [#1](https://github.com/SocialGouv/iterion/issues/1) [#2](https://github.com/SocialGouv/iterion/issues/2) [#2](https://github.com/SocialGouv/iterion/issues/2) [#3](https://github.com/SocialGouv/iterion/issues/3) [#4](https://github.com/SocialGouv/iterion/issues/4) [#5](https://github.com/SocialGouv/iterion/issues/5) [#5](https://github.com/SocialGouv/iterion/issues/5) [#6](https://github.com/SocialGouv/iterion/issues/6) [#6](https://github.com/SocialGouv/iterion/issues/6) [#6](https://github.com/SocialGouv/iterion/issues/6) [#7](https://github.com/SocialGouv/iterion/issues/7) [#7](https://github.com/SocialGouv/iterion/issues/7) [#7](https://github.com/SocialGouv/iterion/issues/7) [#8](https://github.com/SocialGouv/iterion/issues/8) [#3128](https://github.com/SocialGouv/iterion/issues/3128) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    Targeted fix of the two HIGHs round 3 left open, at their class, then a test of the guarantee in place of a fourth round.
+
+    </details>
+* **bots:** Vetty's change identity names every path, and every reuse obeys one veto and one switch ([36da019](https://github.com/SocialGouv/iterion/commit/36da019b26369fdaf8c0da6d3f135ad20f0b42a6)), references [#3128](https://github.com/SocialGouv/iterion/issues/3128) [#1585](https://github.com/SocialGouv/iterion/issues/1585)
+
+    <details><summary>why</summary>
+
+    Round-2 review fix pass of lane I2 (Vetty 2.12.0).
+
+    </details>
+
+## [5.21.2](https://github.com/SocialGouv/iterion/compare/v5.21.1...v5.21.2) (2026-11-11)
+
+### Bug Fixes
+
+* **tool:** every registry listing is deterministic, at the one place the map is ranged ([#3172](https://github.com/SocialGouv/iterion/issues/3172)) ([9a95342](https://github.com/SocialGouv/iterion/commit/9a953426c260cfd028ced70ee489a59fce280c89)), references [#3171](https://github.com/SocialGouv/iterion/issues/3171) [#3171](https://github.com/SocialGouv/iterion/issues/3171) [#3171](https://github.com/SocialGouv/iterion/issues/3171) [#3153](https://github.com/SocialGouv/iterion/issues/3153) [docs/merge-policy.md#a-parked-gate-decided-2026-11-10](https://github.com/docs/merge-policy.md/issues/a-parked-gate-decided-2026-11-10)
+
+    <details><summary>why</summary>
+
+    `Registry.List`, `ListByOrigin` and `ListByServer` each ranged the registry's map and returned the result as it came. `List`'s own doc said "The order is not guaranteed", which understated it: Go randomises map iteration per iteration, so a listing disagreed with ITSELF across two calls on an unchanged registry.
+
+    </details>
+
 ## [5.21.1](https://github.com/SocialGouv/iterion/compare/v5.21.0...v5.21.1) (2026-11-11)
 
 ### Bug Fixes

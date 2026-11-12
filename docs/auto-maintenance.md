@@ -335,6 +335,30 @@ the pin stops being satisfiable.
 Push a new commit to an open PR and confirm the gate goes back to pending and
 holds the PR. A gate that only ever goes green has not been observed to gate.
 
+A new commit, not a rebase. With `review_on_sync` on, Vetty (2.12.0) carries
+its gate across a **pure rebase** with no LLM call: its `continuity` node
+compares the change identity of the new head (the `patch-id --verbatim` of
+`merge-base..head`, folded with the changed paths and modes and with
+`base_ref`) against the identity stamped on
+its earlier verdicts, and publishes the green verdict `carried` on the new head
+— or, when the head already carries its own green, only renews the arming. Any
+verdict on the same change that is not green, and any red already on the new
+head, vetoes the carry — so does a review of Vetty's edited after it was
+published, or its stamp on a status another identity wrote — and a green older
+than `carry_max_age_h` (72 h, from the original audit) is audited again, on the
+new head and on its own. A carry also needs a check the base REQUIRES other
+than the gate on the new head: on a base whose only required check is the gate,
+a carried head would merge with no build, so it is audited in full instead. An audit that finishes after the rebase
+is repinned onto the new head under the same veto, the new head's identity
+read from the forge, never from the workspace its agents ran in.
+So "the gate went green again on its own" after a rebase is the gate working;
+the build on the new base is the repository's required checks', which run on
+every head. The verdict set Vetty publishes is now eight — `carried` is the
+third green, beside `clean` and `committed` — and `/vetty` buys a full audit
+unless the integration's `launch_vars` pin `continuity` (they win over the
+command's own). The mechanics and their limits are in
+[the bundle's README](../bots/dep-update-guard/README.md#gate-continuity--a-rebase-keeps-its-gate-with-no-llm-call).
+
 ### 8. Arm auto-merge — last
 
 ```
@@ -356,8 +380,9 @@ Which is why the preflight's agreement 7 sharpens its wording once
 And the launch var is only **half** the gesture. The other half is the
 repository's own **Allow auto-merge**: the bot arms a PR through
 `enablePullRequestAutoMerge`, which GitHub refuses outright while that setting
-is off, so an armed bot on a repository that forbids auto-merge merges nothing
-and reports nothing to read. A repository created without it has it off —
+is off, so an armed bot on a repository that forbids auto-merge merges nothing:
+Vetty reads the setting back and never turns that refusal into a merge of its
+own, and its reason names it. A repository created without it has it off —
 GitHub's default — so this is a gesture, not a box already ticked:
 
 ```
