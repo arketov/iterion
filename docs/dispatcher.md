@@ -1273,7 +1273,7 @@ it never blocks an issue and never dedups against a PR-webhook it can't
 observe. An explicit per-ticket `Bot`/assignee always wins; the router
 only touches fully-unassigned issues. With the router off and
 `require_assignee: true`, an unassigned card is not dispatched at all
-(see [Quick start](#quick-start-zero-config)). 
+(see [Quick start](#quick-start-zero-config)).
 
 **The router outranks `require_assignee`.** It names the implement bot
 before the `require_assignee` guard runs, so with `ticket_router.enabled`

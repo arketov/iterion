@@ -135,8 +135,8 @@ func TestRouteUnassignedIssue_NoProbeWarnsOnce(t *testing.T) {
 			t.Fatalf("no-probe tracker must route to feature-dev: bot=%q ok=%v", bot, ok)
 		}
 	}
-	if n := strings.Count(buf.String(), "ticket_router"); n != 1 {
-		t.Fatalf("expected exactly one ticket_router no-probe WARN, got %d in %q", n, buf.String())
+	if n := strings.Count(buf.String(), "cannot check for a linked PR"); n != 1 {
+		t.Fatalf("expected exactly one no-probe WARN, got %d in %q", n, buf.String())
 	}
 }
 
