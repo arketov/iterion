@@ -133,14 +133,10 @@ function AwaitingInput({ runID }: { runID: string }) {
   );
 }
 
-// Statuses a run cannot leave on its own — the server refuses a branch
-// discard on anything else, so the button is only offered on these.
-const DISCARDABLE_STATUSES = new Set([
-  "finished",
-  "failed",
-  "failed_resumable",
-  "cancelled",
-]);
+// Final statuses — the server refuses a branch discard on anything else
+// (failed_resumable included: the run can still be resumed), so the button
+// is only offered on these.
+const DISCARDABLE_STATUSES = new Set(["finished", "failed", "cancelled"]);
 
 // RunPanel renders one run's surfaces (paused answer affordance, run
 // console link, branch diff, worktree links). It is the single-run unit

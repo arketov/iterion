@@ -1,7 +1,10 @@
 package server
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 
 	"github.com/arketov/iterion/pkg/auth"
@@ -33,10 +36,20 @@ func (s *Server) handleDiscardRunBranch(w http.ResponseWriter, r *http.Request) 
 		s.httpErrorFor(w, r, http.StatusBadRequest, "missing run id")
 		return
 	}
+	// An empty body is the plain {force:false} request.
 	var req discardBranchRequest
-	if err := readJSON(r, &req); err != nil {
-		s.httpErrorFor(w, r, http.StatusBadRequest, "invalid request: %v", err)
-		return
+	if r.Body != nil && r.Body != http.NoBody {
+		raw, err := io.ReadAll(io.LimitReader(r.Body, 1<<16))
+		if err != nil {
+			s.httpErrorFor(w, r, http.StatusBadRequest, "invalid request: %v", err)
+			return
+		}
+		if len(bytes.TrimSpace(raw)) > 0 {
+			if err := json.Unmarshal(raw, &req); err != nil {
+				s.httpErrorFor(w, r, http.StatusBadRequest, "invalid request: %v", err)
+				return
+			}
+		}
 	}
 	if err := s.runs.DiscardBranchCtx(r.Context(), id, req.Force); err != nil {
 		switch {

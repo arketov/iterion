@@ -135,3 +135,71 @@ func TestDiscardBranchEndpoint_UnknownRunIs404(t *testing.T) {
 		t.Fatalf("status = %d (%s), want 404", code, body)
 	}
 }
+
+func TestDiscardBranchEndpoint_EmptyBodyIsNoForce(t *testing.T) {
+	srv, hs := newTestServer(t)
+	repo, branch := seedFinalizedRun(t, srv, "r-empty", store.RunStatusFinished, store.MergeStatusPending)
+
+	code, body := postDiscard(t, hs.URL, "r-empty", "")
+	if code != http.StatusConflict || !strings.Contains(body, "branch_unmerged") {
+		t.Fatalf("status = %d (%s), want 409 branch_unmerged, not a 400 for the empty body", code, body)
+	}
+	if !branchExists(t, repo, branch) {
+		t.Error("a refused discard deleted the branch")
+	}
+
+	srv2, hs2 := newTestServer(t)
+	repo2, branch2 := seedFinalizedRun(t, srv2, "r-empty-merged", store.RunStatusFinished, store.MergeStatusMerged)
+	if code, body := postDiscard(t, hs2.URL, "r-empty-merged", ""); code != http.StatusNoContent {
+		t.Fatalf("status = %d (%s), want 204", code, body)
+	}
+	if branchExists(t, repo2, branch2) {
+		t.Error("the merged run's branch survived an empty-body discard")
+	}
+}
+
+func TestDiscardBranchEndpoint_RefusesWhatTheBranchStillServes(t *testing.T) {
+	cases := []struct {
+		name   string
+		status store.RunStatus
+		merge  store.MergeStatus
+		remote bool
+	}{
+		{"resumable run", store.RunStatusFailedResumable, store.MergeStatusMerged, false},
+		{"merge in progress", store.RunStatusFinished, store.MergeStatusMerging, false},
+		{"merge conflict", store.RunStatusFinished, store.MergeStatusConflicted, false},
+		{"repo-targeted run", store.RunStatusFinished, store.MergeStatusMerged, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv, hs := newTestServer(t)
+			repo, branch := seedFinalizedRun(t, srv, "r-guard", tc.status, tc.merge)
+			if tc.remote {
+				st, err := store.New(srv.cfg.StoreDir)
+				if err != nil {
+					t.Fatalf("open store: %v", err)
+				}
+				r, err := st.LoadRun(context.Background(), "r-guard")
+				if err != nil {
+					t.Fatalf("LoadRun: %v", err)
+				}
+				r.RepoURL = "https://example.invalid/org/repo.git"
+				r.RepoRoot = ""
+				if err := st.SaveRun(context.Background(), r); err != nil {
+					t.Fatalf("SaveRun: %v", err)
+				}
+			}
+
+			code, body := postDiscard(t, hs.URL, "r-guard", `{"force":true}`)
+			if code != http.StatusConflict {
+				t.Fatalf("status = %d (%s), want 409", code, body)
+			}
+			if !branchExists(t, repo, branch) {
+				t.Error("the branch was deleted")
+			}
+			if got := finalBranchInStore(t, srv, "r-guard"); got != branch {
+				t.Errorf("final_branch = %q, want it untouched (%q)", got, branch)
+			}
+		})
+	}
+}

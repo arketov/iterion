@@ -977,8 +977,17 @@ func (s *Service) DiscardBranchCtx(ctx context.Context, runID string, force bool
 	if err := store.RunDeletable(r); err != nil {
 		return err
 	}
+	if r.Status == store.RunStatusFailedResumable {
+		return fmt.Errorf("run %q is %s — it can be resumed, and its branch is the GC guard of its commits", runID, r.Status)
+	}
 	if r.FinalBranch == "" {
 		return fmt.Errorf("run %q has no storage branch — nothing to discard", runID)
+	}
+	if r.MergeStatus == store.MergeStatusMerging || r.MergeStatus == store.MergeStatusConflicted {
+		return fmt.Errorf("run %q is %s — its branch is in use by the merge", runID, r.MergeStatus)
+	}
+	if r.RepoURL != "" && r.RepoRoot == "" {
+		return fmt.Errorf("run %q targets a remote repository — its branch lives on the forge, not here", runID)
 	}
 	repoRoot := mergeRepoRoot(r)
 	if s.publisher != nil || repoRoot == "" {
