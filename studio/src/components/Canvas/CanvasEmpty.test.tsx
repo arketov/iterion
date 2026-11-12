@@ -37,7 +37,7 @@ describe("Start blank, while an example is still loading", () => {
     );
 
     fireEvent.click(screen.getByText("Examples"));
-    fireEvent.click(await screen.findByText("main.bot"));
+    fireEvent.click(await screen.findByText("x"));
     await waitFor(() => expect(api.loadExample).toHaveBeenCalledTimes(1));
     fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     fireEvent.click(screen.getByText("Start blank"));
@@ -74,13 +74,13 @@ describe("an example that fails to load from the empty canvas", () => {
       </QueryClientProvider>,
     );
     fireEvent.click(screen.getByText("Examples"));
-    fireEvent.click(await screen.findByText("main.bot"));
+    fireEvent.click(await screen.findByText("x"));
     await waitFor(() =>
       expect(useUIStore.getState().toasts.map((t) => t.message).join(" | ")).toContain(
         "Open failed: the example is being rewritten by another process",
       ),
     );
-    expect(screen.getByText("main.bot")).toBeTruthy();
+    expect(screen.getByText("x")).toBeTruthy();
   });
 });
 
@@ -102,5 +102,32 @@ describe("the empty canvas in a project with no starter examples", () => {
     expect(await screen.findByText(/This project has no starter examples yet/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Open file…" }));
     expect(useUIStore.getState().filePickerOpen).toBe(true);
+  });
+});
+
+describe("the examples picker on the empty canvas", () => {
+  it("labels each bundle with its persona or bot id, not the shared main.bot", async () => {
+    api.listExampleEntries.mockResolvedValue([
+      { name: "whats-next/main.bot", display_name: "Nexie" },
+      { name: "feature_dev/main.bot" },
+    ]);
+    api.loadExample.mockReturnValue(new Promise(() => {}));
+    const store = createDocumentStore();
+    store.getState().setDocument(createEmptyDocument());
+    store.getState().markSaved();
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <DocumentStoreProvider store={store}>
+          <CanvasEmpty />
+        </DocumentStoreProvider>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByText("Examples"));
+    expect(await screen.findByText("Nexie")).toBeTruthy();
+    expect(screen.getByText("feature_dev")).toBeTruthy();
+    expect(screen.queryByText("main.bot")).toBeNull();
+    // The sub-line keeps the full path, and picking still loads by that name.
+    fireEvent.click(screen.getByText("whats-next/main.bot"));
+    await waitFor(() => expect(api.loadExample).toHaveBeenCalledWith("whats-next/main.bot", expect.anything()));
   });
 });
