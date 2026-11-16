@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -144,7 +145,14 @@ func TestBotsInstallCmd_SilentWhenTheCatalogRefreshSucceeds(t *testing.T) {
 func TestBotsInstallCmd_SilentWhenTheCatalogRefreshSucceedsWithNestedSource(t *testing.T) {
 	workdir := filepath.Clean(t.TempDir())
 	healthyCatalogOwner(t, workdir)
-	source := filepath.Join(workdir, "nested", "! catalog not refreshed")
+	// The source path carries the full warning prefix so that the
+	// ReplaceAll below is what keeps it out of the assertion. ":" is not
+	// allowed in a Windows file name, so there the name stops short of it.
+	name := "! catalog not refreshed:"
+	if runtime.GOOS == "windows" {
+		name = "! catalog not refreshed"
+	}
+	source := filepath.Join(workdir, "nested", name)
 	writeCatalogTestBundle(t, source, "newbot")
 
 	out := runBotsCommand(t, botsInstallCmd, map[string]string{"workdir": workdir}, source)
