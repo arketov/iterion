@@ -238,9 +238,10 @@ describe("LastRunSection run history list", () => {
     expect(runLinks.length).toBe(2);
     expect(runLinks[0]?.getAttribute("href")).toContain("run-aaaaaaaa");
     expect(runLinks[1]?.getAttribute("href")).toContain("run-bbbbbbbb");
-    // Both worktrees surface.
-    expect(screen.getByText("/tmp/wd-1")).toBeTruthy();
-    expect(screen.getByText("/tmp/wd-2")).toBeTruthy();
+    // Both worktrees surface — once each run has loaded and confirmed its
+    // directory still exists (the row is hidden until then).
+    expect(await screen.findByText("/tmp/wd-1")).toBeTruthy();
+    expect(await screen.findByText("/tmp/wd-2")).toBeTruthy();
   });
 
   it("keeps the awaiting-input affordance working for a paused run in the list", async () => {
