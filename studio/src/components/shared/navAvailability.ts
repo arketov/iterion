@@ -1,16 +1,31 @@
-// Which registry pages THIS server answers — the sidebar's gates, as data, so
-// the Sitemap page can list only what is reachable in the current mode. Kept
-// next to NavLinks.tsx (which gates the rail inline) and mirrored from it: a
-// page the rail hides for lack of a server_info flag is hidden here too.
+// Which registry pages THIS server answers to THIS user — the one place the
+// sidebar rail and the Sitemap page both decide whether a page is listed:
+// server_info flags plus the caller's access (active team, role).
 
 import type { ServerInfo } from "@/api/types";
+import type { Role } from "@/api/auth";
+import { canEditConfigShares } from "@/auth/AuthContext";
+
+/** What the signed-in user may reach, beyond what the server answers. */
+export interface NavAccess {
+  hasActiveTeam: boolean;
+  role: Role | null;
+  isSuperAdmin: boolean;
+}
+
+const NO_ACCESS: NavAccess = {
+  hasActiveTeam: false,
+  role: null,
+  isSuperAdmin: false,
+};
 
 /** Whether the studio page at `href` is available on a server described by
- *  `info`. `info` is null while server_info is still loading: only the pages
- *  every mode answers are listed then. */
+ *  `info` to a user with `access`. `info` is null while server_info is still
+ *  loading: only the pages every mode answers are listed then. */
 export function isNavHrefAvailable(
   href: string,
   info: ServerInfo | null,
+  access: NavAccess = NO_ACCESS,
 ): boolean {
   const cloud = info?.mode === "cloud";
   switch (href) {
@@ -31,11 +46,14 @@ export function isNavHrefAvailable(
     case "/skills":
       return !!info?.skills_enabled;
     case "/config-editor":
-      return !!info?.config_shares_enabled;
+      return (
+        !!info?.config_shares_enabled &&
+        canEditConfigShares(access.role, access.isSuperAdmin)
+      );
     case "/secrets":
       return !!info?.secrets_enabled;
     case "/integrations":
-      return cloud;
+      return cloud && access.hasActiveTeam;
     default:
       return true;
   }
