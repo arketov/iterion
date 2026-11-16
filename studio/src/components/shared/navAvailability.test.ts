@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { isNavHrefAvailable } from "./navAvailability";
 
 const info = (o: Record<string, unknown>) => o as never;
-const team = { hasActiveTeam: true, role: "member" as const, isSuperAdmin: false };
+const team = { hasActiveTeam: true, canEditConfigShares: false };
 
 describe("isNavHrefAvailable", () => {
   it("lists only the always-on pages while server_info is loading", () => {
@@ -51,19 +51,14 @@ describe("isNavHrefAvailable", () => {
     ).toBe(false);
   });
 
-  it("shows the Config editor only to a role that can edit config shares", () => {
+  it("shows the Config editor only when the caller can edit config shares", () => {
     const on = info({ mode: "cloud", config_shares_enabled: true });
     expect(isNavHrefAvailable("/config-editor", on)).toBe(false);
-    expect(isNavHrefAvailable("/config-editor", on, { ...team, role: "member" })).toBe(false);
-    expect(isNavHrefAvailable("/config-editor", on, { ...team, role: "viewer" })).toBe(false);
-    expect(isNavHrefAvailable("/config-editor", on, { ...team, role: "admin" })).toBe(true);
-    expect(isNavHrefAvailable("/config-editor", on, { ...team, role: "config_editor" })).toBe(true);
+    expect(isNavHrefAvailable("/config-editor", on, { ...team, canEditConfigShares: false })).toBe(false);
+    expect(isNavHrefAvailable("/config-editor", on, { ...team, canEditConfigShares: true })).toBe(true);
+    // The flag still gates it for a caller that could edit.
     expect(
-      isNavHrefAvailable("/config-editor", on, { hasActiveTeam: false, role: null, isSuperAdmin: true }),
-    ).toBe(true);
-    // The flag still gates it for a role that could edit.
-    expect(
-      isNavHrefAvailable("/config-editor", info({ mode: "cloud" }), { ...team, role: "admin" }),
+      isNavHrefAvailable("/config-editor", info({ mode: "cloud" }), { ...team, canEditConfigShares: true }),
     ).toBe(false);
   });
 });
