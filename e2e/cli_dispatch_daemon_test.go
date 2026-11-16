@@ -107,6 +107,7 @@ func waitHealthy(t *testing.T, base string, done <-chan error) {
 // Content-Type text/plain makes it a CORS "simple request": no preflight, and
 // the JSON decoders never inspect Content-Type.
 func TestDispatchDaemonRefusesCrossOriginWrites(t *testing.T) {
+	requireUnixSignals(t)
 	// Deliberately NOT t.Parallel(). TestDispatchDaemonBootsServesAndStopsOnSignal
 	// exercises the daemon's SIGTERM path by signalling the TEST PROCESS
 	// (syscall.Kill(syscall.Getpid(), …)) — the daemon-SIGTERM aliasing this
@@ -171,7 +172,7 @@ func TestDispatchDaemonRefusesCrossOriginWrites(t *testing.T) {
 			return
 		default:
 		}
-		if err := syscall.Kill(syscall.Getpid(), syscall.SIGTERM); err != nil {
+		if err := signalSelfTerm(); err != nil {
 			t.Errorf("signal daemon: %v", err)
 			return
 		}
@@ -219,6 +220,7 @@ func TestDispatchDaemonRefusesCrossOriginWrites(t *testing.T) {
 }
 
 func TestDispatchDaemonBootsServesAndStopsOnSignal(t *testing.T) {
+	requireUnixSignals(t)
 	t.Parallel()
 	dir := t.TempDir()
 	cfgPath := writeDispatchConfig(t, dir)
@@ -285,7 +287,7 @@ func TestDispatchDaemonBootsServesAndStopsOnSignal(t *testing.T) {
 
 	// Shutdown: the daemon's documented stop is a signal, and a signal-driven
 	// stop is a CLEAN exit.
-	if err := syscall.Kill(syscall.Getpid(), syscall.SIGTERM); err != nil {
+	if err := signalSelfTerm(); err != nil {
 		t.Fatalf("signal daemon: %v", err)
 	}
 	select {
