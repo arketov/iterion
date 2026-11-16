@@ -1,6 +1,6 @@
 import { Button, Dialog, Input } from "@/components/ui";
 
-import type { DocumentSaveAsController } from "./useDocumentSaveAs";
+import { isListedSavePath, type DocumentSaveAsController } from "./useDocumentSaveAs";
 
 export default function DocumentSaveAsDialog({
   controller,
@@ -61,6 +61,13 @@ export default function DocumentSaveAsDialog({
         Save As creates a new file under this name (it is not renamed to match the workflow) and writes it in
         iterion&apos;s canonical format: field order, commas and line breaks may differ from the original.
       </p>
+      {!isListedSavePath(controller.fileName) && (
+        <p className="mt-2 text-caption text-warning-fg" role="status">
+          A file saved here won&apos;t appear in Project files or on the Bots page — only in Recents or Open by
+          path. To keep it listed, save it as a bot in bots/&lt;name&gt;/main.bot, or directly in the project
+          root.
+        </p>
+      )}
       {controller.error && (
         <p className="mt-2 text-caption text-danger-fg" role="alert">
           {controller.error}
