@@ -83,7 +83,8 @@ func TestSupersededServerServesDiagnosticsWithoutStartingWorkers(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	// Shutdown polls for idle connections with backoff; a 1s budget flakes on a saturated host, while a real hang still fails at 10s.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		t.Fatalf("shutdown: %v", err)
