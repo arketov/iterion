@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
 )
 
 // A declared tool_search searches the registry's WHOLE catalogue, which is

@@ -1,7 +1,63 @@
 name: review-pr
 display_name: Revi
 icon: 🔎
-version: 0.9.19
+version: 0.9.23
+## 0.9.23 — evaluation mode: `publish_mode: off` (a hidden launch var:
+## operators set it — --var, bot_args, a remote launch, an integration's
+## pinned launch vars — and so can a bot holding board.create, through a
+## card's bot_args; a pull request's author or a webhook payload never can,
+## since the webhook lanes write fixed payload keys and no manifest channel
+## they layer may carry it) runs the whole review and publishes nothing:
+## publish_review builds the request, the gate verdict and its note included,
+## and sends nothing to the forge-publish endpoint (no review, no inline
+## comment, no commit status, no grant needed), `tier_expand` turns
+## `post_to_board` off whatever it says, and every exit reports
+## `gate_requested: false`. publish_output carries `evaluation: true` on the
+## withheld exit; publish_health judges the review as the forge would have
+## taken it — `evaluation mode` when nothing else is wrong, never OK, and
+## degraded whenever the default mode reads what the review carries as
+## degraded (a lost finding set, findings all reclassified). The server
+## reads the literal (a `$` expansion is refused at its launch admission)
+## and holds the run to it: its merge-gate arms (the launch claim, the
+## reconciler, the pause and DLQ notices, the auto-fix lane) owe it nothing,
+## it mints it no publish grant, and its review seeds no fixer. The floor
+## rises to the release carrying that server half (`>= next`). For
+## measuring cost and quality on a live pull request without posting on it
+## (#3283).
+## 0.9.22 — `publish_health` judges a loss against what the review carries.
+## It compared against converge's own `total_findings`, so converge at 0
+## over findings the merge floor restored read `forge publish OK: 0 inline
+## comment(s)` when they never landed (re-fetch shortfall) or the publish
+## failed (HTTP 502, no gate). `publish_output` now carries
+## `findings_in_review`, `comments_sent` and `findings_reclassified` on
+## every exit, mapped to `publish_health`, which takes the larger count;
+## `INLINE COMMENTS MISSING` counts the inline comments sent, and findings
+## all reclassified as workspace anomaly read `FINDINGS RECLASSIFIED`
+## (degraded, title only) instead of a request to re-post them; with no
+## inline comment sent it names the merge step's count against what the
+## review carries. A `publish_output` without these counts (another
+## review-pr version's, on a resume) is never read as zero findings: with
+## nothing inline and no fold it reads `FINDINGS COUNT UNKNOWN` (degraded).
+## The server answers `fallback` `partial`, never `summary`, in every mode
+## once it dropped a submitted comment as unanchorable (in neither the body
+## nor inline).
+## 0.9.21 — only `fallback` `summary` reads as a fold. `partial` with zero
+## inline comments is, on GitHub and Forgejo, the re-fetch listing fewer
+## comments than were sent — nothing folded — and read `forge publish OK`;
+## it now reads `INLINE COMMENTS MISSING` (degraded, no auth advice). The
+## folds nobody reported now say `summary`: the server in
+## `pr_review_mode: summary`, and `publish_review` when no finding had a
+## diff anchor (no file:line, or HEAD moved) — both read degraded before.
+## 0.9.20 — `publish_health` reads the forge's fold. A review the forge
+## published with every refused anchor folded into its body (`fallback`
+## `summary`/`partial`, body landed) raised "FORGE PUBLISH FAILED … fix the
+## forge CLI auth" over a PR that held both findings with their file:line
+## (SocialGouv/egapro #5149, #5157). `publish_output` now carries `fallback`
+## structured on every exit, mapped to `publish_health`: a reported fold is
+## `forge publish OK … folded into the review body`, not degraded; a
+## published review with no reported fold is `INLINE COMMENTS MISSING`
+## (degraded, no auth advice); only an unpublished review keeps the FAILED
+## banner.
 ## 0.9.19 — max_duration 120m → 180m: with the forge-native ticket lookup
 ## reachable (PR #3119), a PIC review explored its forge for 118 min and
 ## died at the 108-minute wall one node short of converge — the workload
@@ -175,8 +231,14 @@ version: 0.9.19
 ## A bot in several files (`import "lib/…"` at the head of main.bot): a runner
 ## older than the release that reads `import` would fail at its first parse of
 ## a fragment — the floor keeps such a runner from admitting the bundle.
+## Evaluation mode (0.9.23) needs the release whose server reads
+## publish_mode — its gate arms, its publish-grant mint, its hand-off walk;
+## below it the server claims the gate, mints a grant and, once the run ends
+## without a verdict, paints a synthetic failure and relaunches. `next` until
+## that release is cut, when the release-floors hook writes its number
+## (docs/agents/workflow/release.md).
 requires:
-  iterion: ">= 3.225.0"
+  iterion: ">= 7.2.0"
 ## 0.9.0 — ticket conformance now works with NO configuration on the
 ## forge's own issues. Since 0.6.0 the check only ran when an operator
 ## pinned `tracker_api_base` per repo, which meant that on 16 connected
@@ -452,6 +514,9 @@ invocations:
 
 ## Studio launch-form hierarchy: `primary` inputs render top-level in
 ## the declared order; `hidden` vars are dispatch/webhook plumbing kept
-## out of the form (still settable via --var / bot_args).
+## out of the form (still settable via --var / bot_args). publish_mode is
+## an operator's evaluation switch, hidden so no form offers to silence a
+## review.
 launch:
   primary: [pr_url, base_ref, review_tier]
+  hidden: [publish_mode]

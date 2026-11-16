@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
 )
 
 // proseClient answers every request with billed prose and no tool call.

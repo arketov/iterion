@@ -1,7 +1,64 @@
 name: revi-converse
 display_name: Revi (converse)
 icon: 💬
-version: 0.1.6
+version: 0.1.9
+## 0.1.9 — evaluation mode: `publish_mode: off` (a hidden launch var:
+## operators set it — --var, bot_args, a remote launch, an integration's
+## pinned launch vars — and so can a bot holding board.create, through a
+## card's bot_args; a pull request's author or a webhook payload never can,
+## since the webhook lanes write fixed payload keys and no manifest channel
+## they layer may carry it) runs the agent and drafts the answer, and
+## publish_reply sends nothing — no duplicate read, no POST, no token
+## needed — reporting `evaluation: true` and a reason that says so;
+## converse_health reads it as `evaluation mode`, neither OK nor degraded.
+## The server reads the literal (a `$` expansion is refused at its launch
+## admission) and holds the run to it: its merge-gate arms owe it nothing,
+## it mints it no publish grant, and its hand-off walk skips it. The floor
+## rises to the release carrying that server half (`>= next`). For
+## measuring cost and quality on a live thread without answering in it
+## (#3283).
+## 0.1.8 — the agent drafts, a deterministic node posts. converse_agent
+## hands its answer back in converse_output.answer and never writes on the
+## forge; publish_reply (no LLM) posts it in the thread with the forge_token
+## — a GitHub review-thread reply or PR comment, a GitLab discussion note or
+## MR note, a Forgejo PR comment — with the anti-trigger and GitLab
+## quick-action guards and the run footer, then re-reads the note by its id;
+## converse_health reads its result. Posting no longer depends on how many
+## steps the model spent reading: on VAO !48 a reply that took 61 steps was
+## drafted and never posted, the POST being the agent's last step. The
+## forge-reply skill is folded into the prompt as reading and answer-shape
+## guidance. publish_reply is a python `script:`, so a draft of any size or
+## byte content reaches it (a NUL is dropped before posting), and it is safe
+## to execute twice: one bounded read of the thread finds a note that is an
+## exact copy of this run's reply and reports it instead of posting again. A
+## drafted answer is posted whatever its skipped_reason says ("N/A" from a
+## step-limited model); the reason speaks for an empty draft, or a filler one
+## beside it ("N/A", "none", "-", no run of three letters), and rides into the
+## summary whenever given. The forge token is not posted in a body:
+## forge_token is granted the `file` sink only (a placeholder the answer
+## quotes is defused before the body runs, never materialised), and the body
+## refuses a text carrying the placeholder, the token, or its percent, base64
+## or hex encoding — as written or as a forge renders it, and run together
+## past any separator for a long token (requires.iterion rises to 4.7.0, the
+## release that reads the grant). Every field it reports drops NUL bytes, and
+## an unreadable token file is a reason, not a crash. The webhook's pinned
+## forge base reaches the run as forge_base_url (hidden): a forge connection's
+## base URL keeps its sub-path, so a GitLab or Forgejo under one is reached
+## where it lives (a pin set through the webhook API keeps scheme://host). And the run's duration budget follows the agent's tool loop:
+## 30 minutes, not 10 — with tool_max_steps 60 (0.1.7) a step on the team
+## gateway's deepseek takes ~10-15 s, and a question that needed ~50 steps
+## died on its 10-minute budget before it posted (VAO !48).
+## 0.1.7 — the converse agent declares its tools (bash, read_file, glob,
+## grep): a routing cell that moves it to claw (the team gateway lanes) gave
+## it NO tool, so it could neither read the diff nor post and answered a
+## placeholder. Its tool loop is bounded at 60 steps, review-pr's
+## reviewer_claude bound: claw's default of 5 stopped short of the
+## forge-reply skill's VERIFY. converse_health reads a question as answered
+## only when the agent posted AND returned an http(s) reply_url on the PR's
+## host (it now receives pr_url): an unanswered question is always degraded
+## (its skipped_reason, when given, is the banner), and a claimed post whose
+## reply_url is not such a URL ("placeholder", another host) reads
+## UNVERIFIED instead of OK.
 ## 0.1.6 — every body it posts on a forge ends with the run that wrote it:
 ## the evidence behind the text, and the way into the platform for a reader
 ## meeting it on their own repository (AGENTS.md, docs/agents/bots/run-link.md)
@@ -67,13 +124,21 @@ invocations:
 
 ## Studio launch-form hierarchy: `primary` inputs render top-level in
 ## the declared order; `hidden` vars are dispatch/webhook plumbing kept
-## out of the form (still settable via --var / bot_args).
+## out of the form (still settable via --var / bot_args). publish_mode is
+## an operator's evaluation switch, hidden so no form offers to silence a
+## reply.
 launch:
   primary: [converse_question, pr_url]
-  hidden: [discussion_id, trigger_note, thread_context, replier]
+  hidden: [discussion_id, trigger_note, thread_context, replier, forge_base_url, publish_mode]
 
-## Profile 2 (`dsl: 2` at the head of main.bot): a runner older than the
-## release that reads the profile would refuse the header as an unknown
-## declaration — the floor keeps such a runner from admitting the bundle.
+## Profile 2 (`dsl: 2` at the head of main.bot) needs 3.225.0, and the
+## `sinks:` grant on forge_token needs 4.7.0, the release that reads it (the
+## grant is what keeps a quoted placeholder from being materialised in
+## publish_reply's body): the floor keeps an older runner from admitting the
+## bundle. Evaluation mode (0.1.9) needs the release whose server reads
+## publish_mode — its gate arms, its publish-grant mint, its hand-off walk;
+## below it the server claims and repairs the gate for a run that publishes
+## nothing. `next` until that release is cut, when the release-floors hook
+## writes its number (docs/agents/workflow/release.md).
 requires:
-  iterion: ">= 3.225.0"
+  iterion: ">= 7.2.0"

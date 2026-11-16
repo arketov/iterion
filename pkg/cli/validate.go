@@ -577,7 +577,7 @@ func RunValidateWithContext(ctx context.Context, path string, p *Printer, opts V
 		skippedServers, prepErr := mcp.PrepareWorkflowReport(cr.Workflow, filepath.Dir(path), workspace, runview.AnalysisTrust)
 		// A server left out of the catalog (a reserved name in `.mcp.json`) is
 		// a warning, structured-list only for the reason the plugin warning
-		// above is: the workflow is not invalid, and the C337 check below still
+		// above is: the workflow is not invalid, and the C347 check below still
 		// runs over what the catalog resolved.
 		for _, sk := range skippedServers {
 			result.Diagnostics = append(result.Diagnostics, ValidateDiagnostic{
@@ -596,7 +596,7 @@ func RunValidateWithContext(ctx context.Context, path string, p *Printer, opts V
 			})
 			result.Valid = false
 		} else {
-			// C337 reads the catalog PrepareWorkflow just resolved, so it
+			// C347 reads the catalog PrepareWorkflow just resolved, so it
 			// runs only when that succeeded. Warnings, kept out of
 			// CompileDiagnostics for the reason the plugin warning above is.
 			for _, d := range mcp.UnknownToolServerDiagnostics(cr.Workflow) {
@@ -610,7 +610,7 @@ func RunValidateWithContext(ctx context.Context, path string, p *Printer, opts V
 				})
 			}
 		}
-		// C338 reads the model registry, not the MCP catalog, so it runs even
+		// C348 reads the model registry, not the MCP catalog, so it runs even
 		// when the catalog could not be built. A warning kept out of
 		// CompileDiagnostics for the reason the plugin warning above is.
 		for _, d := range model.UnknownModelDiagnostics(cr.Workflow) {

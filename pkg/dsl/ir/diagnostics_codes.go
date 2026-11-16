@@ -218,7 +218,7 @@ const (
 	DiagUnknownRunMember DiagCode = "C153" // {{run.<member>.…}} names a member the namespace has not (warning; the runtime renders no value for it — and an exclusion list that renders empty turns a tree gate off in silence, #1464)
 	// The tree-noise channel in an EXECUTABLE body (#1555, the #1464/#1530
 	// class): the prompt rendering lands as ONE word no file matches
-	// (shell-escaped in a command, JSON-quoted in a shell script), and the
+	// (shell-escaped in a command, one quoted variable read in a shell script), and the
 	// quoted env var collapses the same way — or never expands at all under
 	// single quotes. Both shell bodies only: a js/py script consumes the ref
 	// as data. Both warnings — the catalogue carries zero instances (the
@@ -490,7 +490,36 @@ const (
 
 	DiagNativeVerbNotExposed DiagCode = "C336" // a native action (board.*) names a verb the native facade does not expose — every launch is refused at admission (warning)
 
-	// DiagUnknownMCPServer is C337: a node's `tools:` names an MCP server
+	DiagInvalidCodemode DiagCode = "C337" // codemode: value not one of on|off (error)
+
+	// C338 was `codemode: on` declared while no build served it. It shipped
+	// in v5.32.0 as the honesty clause of the attribute-only slice, and that
+	// slice's own text promised this: the slice that registers the tool
+	// deletes the emission. It is RETIRED rather than reused — a code names
+	// one defect for as long as anyone can read it in a log, and the defect
+	// it named ceased to exist when claw's cell went to shipped. C339 is the
+	// narrowed question that replaces it, and it is an ERROR, because what it
+	// diagnoses now fails the dispatch rather than running degraded.
+	//
+	// Nothing may be allocated to "C338" again.
+
+	DiagCodemodeBackendUnsupported DiagCode = "C339" // `codemode: on` on a route whose backend serves no codemode tool — refused at dispatch (error)
+
+	DiagTypedSecretPlaceholder DiagCode = "C340" // a declared or server-minted secret's placeholder typed as text in a tool body — a body resolves only the author's references, so the text runs as written (warning)
+
+	DiagSecretNameReserved DiagCode = "C341" // a secret name whose placeholder spells another's redact-only form (`<name>_redacted`), which the guard writes where that secret must resolve nowhere (error)
+
+	DiagSecretInShellLiteral DiagCode = "C342" // a value secret's default-form reference in a shell script where the shell expands nothing (single quotes, a quoted heredoc) — the script reads the variable's name, not the value (warning)
+
+	DiagShellScriptDataNotArriving DiagCode = "C343" // a data reference in a sh/bash script where the shell reads nothing (single quotes, $'…', a quoted heredoc, a comment) — the text holds the environment variable's read, not the value (warning)
+
+	DiagShellScriptDataArith DiagCode = "C344" // a data reference in a sh/bash script where bash evaluates the value — as arithmetic, a compound array assignment or a variable name ($(( )), (( )), [[ -gt ]], let, declare -i / -a, a subscript, [[ -v ]], read, printf -v, …) — best effort (warning)
+
+	DiagShellScriptDataCommand DiagCode = "C345" // a data reference as a command word in a sh/bash script — the shell runs the value as a program (warning)
+
+	DiagShellScriptDataCode DiagCode = "C346" // a data reference where another shell parses the value as code (a double-quoted sh -c / eval / trap argument, an unquoted heredoc fed to a shell, a mapfile -C callback, PS4/BASH_ENV/ENV, alias, ssh) (warning)
+
+	// DiagUnknownMCPServer is C347: a node's `tools:` names an MCP server
 	// (`mcp.<server>.<tool>`, `mcp.<server>.*` or `mcp__<server>__<tool>`) that
 	// no `mcp_server` block, project `.mcp.json` entry or enabled plugin
 	// declares. The compiler cannot know the host's catalog, so `iterion
@@ -498,10 +527,11 @@ const (
 	// resolved the catalog; a run only finds out at node build. A warning: the
 	// catalog is the host's, and the same file may be clean where the server exists.
 	// (Fork-only. It was C332 until the upstream v5.11.0 merge, which took
-	// C332–C336 for the board-action diagnostics.)
-	DiagUnknownMCPServer DiagCode = "C337" // a node's `tools:` names an MCP server that no `mcp_server` block, `.mcp.json` entry or enabled plugin declares (warning)
+	// C332–C336 for the board-action diagnostics, then C337 until the v7.2.0
+	// merge, which took C337–C346 for the codemode and secret/shell diagnostics.)
+	DiagUnknownMCPServer DiagCode = "C347" // a node's `tools:` names an MCP server that no `mcp_server` block, `.mcp.json` entry or enabled plugin declares (warning)
 
-	// DiagUnknownModel is C338: a node (agent, judge, LLM router, or one of its
+	// DiagUnknownModel is C348: a node (agent, judge, LLM router, or one of its
 	// `fallbacks:` routes) names a literal `anthropic/<id>` or `openai/<id>`
 	// model that neither the live model table nor the embedded models.dev
 	// snapshot lists. The compiler cannot consult the registry (pkg/backend/model
@@ -509,5 +539,5 @@ const (
 	// it after Compile via model.UnknownModelDiagnostics; without it a typo reads
 	// "usable" and fails only at the first paid call. A warning: a model newer
 	// than the snapshot, or a custom endpoint, is a false positive.
-	DiagUnknownModel DiagCode = "C338" // a literal anthropic/* or openai/* model that neither the live model table nor the embedded snapshot lists (warning)
+	DiagUnknownModel DiagCode = "C348" // a literal anthropic/* or openai/* model that neither the live model table nor the embedded snapshot lists (warning)
 )

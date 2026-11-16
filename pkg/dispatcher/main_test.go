@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/arketov/iterion/internal/hometest"
+	"github.com/arketov/iterion/internal/pricingtest"
 	"github.com/arketov/iterion/internal/proctest"
 	"github.com/arketov/iterion/pkg/internal/hostshelltest"
 )
@@ -22,6 +23,6 @@ import (
 func TestMain(m *testing.M) {
 	hostshelltest.PreferPosix() // sh fixtures; PowerShell is the Windows default
 	os.Exit(hometest.IsolateUserHome(func() int {
-		return hometest.Isolate(func() int { return proctest.NoProcessLeaks(m.Run) })
+		return hometest.Isolate(func() int { return proctest.NoProcessLeaks(func() int { return pricingtest.Run(m.Run) }) })
 	}))
 }

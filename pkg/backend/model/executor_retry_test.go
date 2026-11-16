@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	clawapi "github.com/SocialGouv/claw-code-go/pkg/api"
+	clawapi "github.com/arketov/iterion/pkg/claw/pkg/api"
 
 	"github.com/arketov/iterion/pkg/backend/delegate"
 	iterlog "github.com/arketov/iterion/pkg/log"

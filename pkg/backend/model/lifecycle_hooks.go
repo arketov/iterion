@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api/hooks"
+	"github.com/arketov/iterion/pkg/claw/pkg/api/hooks"
 )
 
 // NewDefaultLifecycleHooks returns a Runner pre-configured with the

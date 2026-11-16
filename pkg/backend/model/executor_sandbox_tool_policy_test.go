@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/claw-code-go/pkg/permissions"
 	"github.com/arketov/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/claw/pkg/permissions"
 	"github.com/arketov/iterion/pkg/dsl/ir"
 	iterlog "github.com/arketov/iterion/pkg/log"
 )

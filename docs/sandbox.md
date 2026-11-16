@@ -1227,7 +1227,7 @@ class gets one of two answers:
   plant by, ARB-122) answers it, the engine's own credential and route
   families answer the members that shape cannot see, and
   pkg/platformcfg's sweep walks every `ITERION_` name spelled as a
-  literal in the engine's Go source, in the vendored claw it links and
+  literal in the engine's Go source, the claw runtime (`pkg/claw`) included, and
   in the manifests it embeds — 416 names, 94 of them neutralised and 322
   reported — where a name whose side disagrees with the shape arrives
   red until a row carries the reason (#2859). A name the engine
@@ -2049,7 +2049,7 @@ client-identity settings, and the knobs its own loop reads
 host sets it. Those routing names are read by claw's own provider
 packages rather than by a provider table, which is why they were missing
 until #1804; `TestEveryVendoredProviderEnvNameIsDecided` derives them
-from the vendored claw the registry imports, so a provider claw gains
+from the claw source the registry imports (`pkg/claw`), so a provider claw gains
 arrives forwarded or red. The whole routing list — the endpoints plus
 the four names above and `CLAW_OPENAI_REASONING_SUMMARY` — crosses as
 explicit EMPTIES when the host leaves them unset, and the exec env
@@ -2071,7 +2071,18 @@ never crosses either — decided launcher-side for ever by #2802:
 `computer_use` drives the launcher host's display, a sandboxed node has
 none, and the tool is refused for a sandboxed node rather than proxied
 ([claw_vendored_tool_env_test.go](../pkg/backend/model/claw_vendored_tool_env_test.go)
-derives and pins the classification). The retry budget the launcher
+derives and pins the classification). Nor do the names claw's tools read
+from the environment of the process they run in (#3256): the locations
+claw's credential read guard protects (`KUBECONFIG`, `DOCKER_CONFIG`,
+`GH_CONFIG_DIR`, `NPM_CONFIG_USERCONFIG`, `NPM_CONFIG_GLOBALCONFIG`,
+`AWS_SHARED_CREDENTIALS_FILE`), `TMPDIR`, `XDG_CACHE_HOME`, `PATH` and `PWD`.
+Each names a place on the host that sets it, so with a container driver the
+container's process reads its own — from its image, a `containerEnv` key, or a
+project `.env` overlay; the engine never copies the launcher's value (a
+`containerEnv` value written as `${localEnv:…}` expands from the launcher, by
+the operator's choice). `HOME` is the runner home below. The noop driver runs
+the runner on the host: `HOME` is still the runner home and `PWD` the
+workspace, the other names the host's own. The retry budget the launcher
 resolves from `ITERION_NODE_MAX_RETRIES` / `_TRANSIENT_RETRIES` rides the
 task envelope instead: it bounds billed attempts, so the container's own
 environment never sets it — a runner image older than that field keeps its built-in
@@ -2339,7 +2350,7 @@ carries). The crossing's words stay as the detail of the error.
 >   (`sandbox: none` / `--sandbox none`) — a node-level `sandbox:` is not
 >   honoured at run time.
 >
-> A name nothing classifies — a claw bump's new tool — is refused, not
+> A name nothing classifies — a new claw tool — is refused, not
 > proxied: the default direction is the safe one. A name that merely
 > starts like an MCP tool (`mcp_bash`) is not one: the MCP rule needs a
 > server and a tool segment.

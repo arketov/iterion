@@ -240,7 +240,7 @@ what protects a live finish worker, which keeps renewing it until its last
 write. The column is not looked at and the card is not moved; a `paused_*`,
 `failed_resumable`, `cancelled` or in-flight run keeps the claim. The cloud
 board parks a card without a claim, so it needs no such sweep. Design:
-[ADR-166](adr/166-settled-claim-sweep.md).
+[ADR-171](adr/171-settled-claim-sweep.md).
 
 A reboot (new PID) drops the park-claim. `in_progress` stays eligible
 for crash-recovery, but a live `last_run` is **never** replaced by a
@@ -675,7 +675,7 @@ record that carries no column-entry time counts as an unfinished transition.
 With `completed_state: none` there is nothing to complete and the old
 behaviour stays. The cloud dispatcher keeps its own watchdog for finished
 runs; this guard is the native tracker's. Design record:
-[ADR-166](adr/166-finish-worker-retries-completed-state-move.md).
+[ADR-170](adr/170-finish-worker-retries-completed-state-move.md).
 
 #### `completed_state` and eligible columns
 

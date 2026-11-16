@@ -105,6 +105,9 @@ var teamScopedCollections = []string{
 	// the platform tier's rows live under the "platform:" sentinel tenant,
 	// which no org purge names
 	"connector_packages",
+	// connector intake (pkg/connector/intake) — a delivery's durable row and
+	// the pairs it owes the team's subscriptions
+	"connector_intakes", "connector_pairs",
 	// control-plane audit (pkg/audit) — written under BOTH scopes: a
 	// team-scoped row carries tenant_id == the team id (auditTenant: the
 	// member.added with the member's email, team.status_changed, …), an
@@ -129,8 +132,8 @@ var orgScopedCollections = []string{
 var purgedByBespokeFilter = map[string]string{
 	"oauth_credentials":       "keyed by an owner in its own namespace (secrets.OrgOwnerKey / OrgTierOwnerKey), not by a tenant id",
 	"llm_routing_policies":    "composite _id (\"team:<id>\" / \"org:<id>\"), ADR-121 delivery 2",
-	"price_feeds":             "composite _id (\"team:<id>\" / \"org:<id>\"), ADR-163",
-	"price_feed_state":        "composite _id (\"<scope>:<id>/<feed>\"), purged by the scope prefix, ADR-163",
+	"price_feeds":             "composite _id (\"platform\" / \"org:<id>\" / \"team:<id>\"), ADR-163 — the platform doc is NOT an org row and stays",
+	"price_feed_state":        "composite _id (\"platform/<feed>\" / \"<scope>:<id>/<feed>\"), purged by the org: and team: scope prefixes, ADR-163 — the platform feeds' states stay",
 	"pool_attachments":        "composite _id (\"platform\" / \"org:<id>\" / \"team:<id>\" / \"bot:<team>/<bot>\"), purged by the scope prefix, ADR-164 — the platform doc is NOT an org row and stays",
 	"org_usage":               "composite _id (\"org|<id>|<month>\", \"forkauthor|<id>|…\"), purged by the id-prefix alternation",
 	"schedule_launch_intents": "the tenant rides the embedded schedule document (schedule.tenant_id), not a top-level field",
@@ -170,7 +173,7 @@ var notPurged = map[string]string{
 	// Deployment-wide records with no tenant dimension.
 	"leases":             "deployment-wide coordination leases keyed by resource name, expiry-reaped",
 	"usage_windows":      "per-credential provider readings keyed by the credential, not the tenant; the credential itself is purged",
-	"cred_slots":         "the hard per-key concurrency ledger, one row per credential fingerprint shared across tenants; a deleted org's runs leave its holders as the reconcile pulls a holder whose run document is gone",
+	"cred_slots":         "the hard run-admission ledger, one row per credential fingerprint or shared capacity subject (gw:<host>, ADR-167), shared across tenants; a deleted org's runs leave its holders as the reconcile pulls a holder whose run document is gone",
 	"platform_settings":  "the deployment's own settings record",
 	"sent_notifications": "idempotency claims keyed by notification key, TTL-reaped, carry no tenant",
 	// Uploads a launch form staged and no run claimed yet: the staging sweep
@@ -379,7 +382,9 @@ func (p *Purger) PurgeOrg(ctx context.Context, orgID string) (int64, error) {
 	}
 	// The gateway price feed's tenant state (ADR-163): the feed lists are
 	// composite _id documents like the routing policies above; the state
-	// documents key "<scope>/<feed>", reached by prefix.
+	// documents key "<scope>/<feed>", reached by prefix. The PLATFORM
+	// document ("platform") and its states ("platform/<feed>") are the
+	// deployment's own: no filter below names them.
 	deleted += p.deleteMany(ctx, pricefeed.ColConfigs,
 		bson.M{"_id": pricefeed.OrgConfigDocID(orgID)})
 	deleted += p.deleteMany(ctx, pricefeed.ColStates,

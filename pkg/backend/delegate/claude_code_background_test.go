@@ -254,6 +254,13 @@ func scriptSleepsBetween(t *testing.T, script []string, anchor, end func(string)
 // test's own values win over the short defaults applied here).
 func runBgSession(t *testing.T, script []string, env map[string]string, task Task) bgRun {
 	t.Helper()
+	return runBgSessionWithTimer(t, script, env, task, nil)
+}
+
+// runBgSessionWithTimer keeps the real CLI and select loop while allowing a
+// scenario to synchronize its timer with an observed subprocess boundary.
+func runBgSessionWithTimer(t *testing.T, script []string, env map[string]string, task Task, factory func(context.Context, string, func() bool) backgroundSessionTimer) bgRun {
+	t.Helper()
 	dir := t.TempDir()
 	fake := filepath.Join(dir, "fake-claude")
 	if err := os.WriteFile(fake, []byte(fakeClaudeScripted), 0o755); err != nil {
@@ -322,7 +329,17 @@ func runBgSession(t *testing.T, script []string, env map[string]string, task Tas
 	start := time.Now()
 	var bgTimer *observedBackgroundTimer
 	rm, meta, err := b.runSessionWithBackgroundTimer(ctx, "do the work", task, opts, func() backgroundSessionTimer {
-		bgTimer = &observedBackgroundTimer{backgroundSessionTimer: newBackgroundSessionTimer()}
+		var timer backgroundSessionTimer
+		if factory != nil {
+			timer = factory(ctx, stdinLog, func() bool {
+				mu.Lock()
+				defer mu.Unlock()
+				return slices.ContainsFunc(run.events, func(w BackgroundWork) bool { return w.Phase == BackgroundFinalizing })
+			})
+		} else {
+			timer = newBackgroundSessionTimer()
+		}
+		bgTimer = &observedBackgroundTimer{backgroundSessionTimer: timer}
 		return bgTimer
 	})
 	if bgTimer != nil {
@@ -1218,18 +1235,20 @@ func TestBackground_AWrapUpTheCLINeverTakesIsAFastNamedError(t *testing.T) {
 	// take runs on the answer wait, so the session ends on a named error well
 	// before the (here 30× longer) silence watchdog it would otherwise park to
 	// (#2202). The error's identity convicts, never the wall clock: a loaded
-	// runner stretches both.
+	// runner stretches both. The take tick may only close this fixture after
+	// the CLI has actually logged the wrap-up: a pipe write alone cannot prove
+	// the subprocess was scheduled to read it before Close kills it.
 	script := append(launchAgent(),
 		lnAssistant("m2", "", cText("WAITING")),
 		lnResult(resultSpec{text: "WAITING", turns: 2, cost: 0.01}),
 		// The wrap-up is read, never taken: no replay, no turn, no word.
 		"@drain",
 	)
-	run := runBgSession(t, script, map[string]string{
+	run := runBgSessionWithTimer(t, script, map[string]string{
 		"ITERION_CLAUDE_CODE_BACKGROUND_WAIT":        "1s",
 		"ITERION_CLAUDE_CODE_BACKGROUND_ANSWER_WAIT": "1s",
 		"ITERION_CLAUDE_CODE_STREAM_IDLE_TIMEOUT":    "30s",
-	}, Task{})
+	}, Task{}, wrapUpInputBeforeTakeTimer(t))
 	if !strings.Contains(run.stdin, "background wait budget") {
 		t.Fatalf("no wrap-up on stdin (scenario broken):\n%s", run.stdin)
 	}
@@ -1478,6 +1497,11 @@ func TestExecuteHandsTheDeadWorkToTheTurnHook(t *testing.T) {
 	if err := os.WriteFile(fake, []byte(fakeClaudeScripted), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	executeDeadWorkTurn(t, fake, dir)
+}
+
+func executeDeadWorkTurn(t *testing.T, fake, dir string) Result {
+	t.Helper()
 	scriptPath := filepath.Join(dir, "script")
 	script := []string{
 		lnInit("2.1.280"),
@@ -1505,15 +1529,29 @@ func TestExecuteHandsTheDeadWorkToTheTurnHook(t *testing.T) {
 	b := &ClaudeCodeBackend{Logger: iterlog.New(iterlog.LevelWarn, io.Discard)}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	if _, err := b.Execute(ctx, task); err != nil {
+	result, err := b.Execute(ctx, task)
+	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if len(got.TerminatedBackgroundTasks) != 1 || !strings.Contains(got.TerminatedBackgroundTasks[0], "npm run dev") {
-		t.Fatalf("turn hook got %+v, want the server that died with the process", got)
+	// Execute joins protocol tasks with processes stopped by the node sweep.
+	// The expected task must survive that union on every publication surface.
+	const taskLabel = "npm run dev (local_bash, b1)"
+	count := 0
+	for _, label := range got.TerminatedBackgroundTasks {
+		if label == taskLabel {
+			count++
+		}
 	}
-	if entry := ledger.Terminated("s1"); len(entry) != 1 || !strings.Contains(entry[0], "npm run dev") {
-		t.Fatalf("ledger s1 = %v, want the server recorded", entry)
+	if got.SessionID != "s1" || count != 1 {
+		t.Fatalf("turn hook got %+v, want exactly one %q under s1", got, taskLabel)
 	}
+	if !slices.Equal(result.TerminatedBackgroundTasks, got.TerminatedBackgroundTasks) {
+		t.Fatalf("result = %v, turn hook = %v", result.TerminatedBackgroundTasks, got.TerminatedBackgroundTasks)
+	}
+	if entry := ledger.Terminated("s1"); !slices.Equal(entry, got.TerminatedBackgroundTasks) {
+		t.Fatalf("ledger s1 = %v, turn hook = %v", entry, got.TerminatedBackgroundTasks)
+	}
+	return result
 }
 
 func TestBackground_AFreshReportFromBeforeTheWrapUpIsNotKept(t *testing.T) {

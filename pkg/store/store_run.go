@@ -187,6 +187,10 @@ func (s *FilesystemRunStore) SaveRun(_ context.Context, r *Run) error {
 		// Work on a copy: the caller's struct must not observe the
 		// bookkeeping (the Mongo implementation doesn't mutate either).
 		rr := *r
+		rr.PreEngineRefusal = preEngineRefusalForSave(&rr, persisted)
+		if rr.PreEngineRefusal != nil {
+			rr.Error = rr.PreEngineRefusal.Message
+		}
 		// The merge claim is owned by ClaimMerge/UpdateRunMergeIf. A
 		// caller whose copy predates a live claim (rename, rewind
 		// bookkeeping) must not disavow it through this full-document
@@ -255,6 +259,7 @@ func (s *FilesystemRunStore) SaveRun(_ context.Context, r *Run) error {
 	// creation is not a transition, and a reactor must not treat an
 	// imported/fixture document as a fresh outcome.
 	rr := *r
+	rr.PreEngineRefusal = nil
 	rr.OutcomeSeq = 0
 	rr.ContinuationState = ""
 	if err := s.writeRun(&rr); err != nil {
@@ -742,6 +747,7 @@ func (s *FilesystemRunStore) RevertQueuedFlip(_ context.Context, id string, flip
 	}
 	prior := flip.Prior
 	r.Status = prior.Status
+	r.PreEngineRefusal = nil
 	r.QueuedAt = cloneTimePtr(prior.QueuedAt)
 	r.Error = prior.Error
 	if runErr != "" {
@@ -840,6 +846,10 @@ func (s *FilesystemRunStore) applyStatusTransitionOutcome(r *Run, status RunStat
 // transitionRunStatus applies applyStatusTransitionOutcome's discipline to r
 // in memory; the caller persists it.
 func transitionRunStatus(r *Run, status RunStatus, runErr string, meta RunOutcomeMeta) {
+	refusalCauseChanged := r.PreEngineRefusal != nil && ((runErr != "" && runErr != r.PreEngineRefusal.Message) || (meta.Code != "" && meta.Code != r.PreEngineRefusal.Code))
+	if refusalCauseChanged || r.Status != status || status.IsQueued() || status == RunStatusRunning || status.IsFinalSuccess() || status.IsFinalFailure() {
+		r.PreEngineRefusal = nil
+	}
 	terminal := status.IsFinalSuccess() || status.IsFinalFailure() || status.IsTerminalResumable()
 	transition := r.Status != status
 	if transition || status != RunStatusRunning {
@@ -987,6 +997,7 @@ func (s *FilesystemRunStore) PauseRun(ctx context.Context, id string, cp *Checkp
 	}
 	r.Checkpoint = cp
 	r.Status = RunStatusPausedWaitingHuman
+	r.PreEngineRefusal = nil
 	r.AwaitAnswersWaits = nil
 	// A paused run has no platform continuation statement — same
 	// discipline as FailureCode below.
@@ -1246,10 +1257,7 @@ func (s *FilesystemRunStore) SetRunCredStamp(ctx context.Context, runID string, 
 	if err != nil {
 		return err
 	}
-	r.CredFingerprints = stamp.Fingerprints
-	r.CredentialTiers = stamp.Tiers
-	r.SkippedCredReopensAt = stamp.SkippedReopensAt
-	r.LLMIdleSince = nil
+	stamp.Apply(r)
 	return s.SaveRun(ctx, r)
 }
 
@@ -1381,8 +1389,9 @@ func (s *FilesystemRunStore) SetRunBudgetSnapshot(_ context.Context, runID strin
 }
 
 // CountAliveRunsWithCredFingerprint counts queued/running runs stamped with
-// fingerprint, model-idle or not (see RunStore). Scan-and-filter like the
-// other fs-side reverse queries — local scale, no secondary index.
+// fingerprint — a credential's, or a capacity subject — model-idle or not
+// (see RunStore). Scan-and-filter like the other fs-side reverse queries —
+// local scale, no secondary index.
 func (s *FilesystemRunStore) CountAliveRunsWithCredFingerprint(ctx context.Context, fingerprint, excludeRunID string) (int, error) {
 	if fingerprint == "" {
 		return 0, nil

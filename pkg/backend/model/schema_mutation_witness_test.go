@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
 	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
 )
 
 func mutationExecutor(t *testing.T, backend *capturingBackend, reg *Registry) *ClawExecutor {

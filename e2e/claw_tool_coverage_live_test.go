@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	clawlsp "github.com/SocialGouv/claw-code-go/pkg/api/lsp"
-	clawtools "github.com/SocialGouv/claw-code-go/pkg/api/tools"
+	clawlsp "github.com/arketov/iterion/pkg/claw/pkg/api/lsp"
+	clawtools "github.com/arketov/iterion/pkg/claw/pkg/api/tools"
 
 	"github.com/arketov/iterion/pkg/backend/delegate"
 	"github.com/arketov/iterion/pkg/backend/mcp"

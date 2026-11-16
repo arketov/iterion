@@ -641,6 +641,46 @@ func (c *compiler) validateAmbientContext(w *Workflow) {
 	}
 }
 
+// normCodemode is what the IR's `Codemode` field is allowed to hold. The
+// compiler ACCEPTS `ON`, `On` and a padded ` on ` (ValidCodemode lowercases
+// and trims before judging, as validateAutoMemory does), so carrying the
+// author's raw text into the IR would let a consumer compare `== "on"` and
+// read a node the compiler told its author was ON as off. The AST keeps the
+// raw text — that is what the unparser and the author writer round-trip —
+// and the IR keeps the decided value, which is the value the executor
+// resolves from.
+func normCodemode(v string) string { return strings.ToLower(strings.TrimSpace(v)) }
+
+// validateCodemode holds `codemode:` to on|off.
+//
+// It judges the VALUE and nothing else; whether the node's route can serve
+// the capability is validateCodemodeBackends (C339), which is a different
+// question with a different answer per route. Keeping them apart is what
+// lets an invalid value be reported once rather than once per fallback.
+//
+// [ValidCodemode] is the shared predicate, the same one the executor
+// resolves with: a second spelling of "on|off here" is the way a compiler
+// ends up accepting what the engine refuses.
+func (c *compiler) validateCodemode(w *Workflow) {
+	if !ValidCodemode(w.Codemode) {
+		c.errorfAtProperty(DiagInvalidCodemode, "workflow", w.Name, "codemode",
+			"workflow %q has invalid codemode %q; valid values are on, off",
+			w.Name, w.Codemode)
+	}
+	for _, n := range w.Nodes {
+		nn, ok := n.(LLMNode)
+		if !ok {
+			continue
+		}
+		if value := nn.GetCodemode(); !ValidCodemode(value) {
+			kind := nn.NodeKind().String()
+			c.errorfAtProperty(DiagInvalidCodemode, kind, n.NodeID(), "codemode",
+				"%s %q has invalid codemode %q; valid values are on, off",
+				kind, n.NodeID(), value)
+		}
+	}
+}
+
 // ambientRoute is the node a declared ambient_context is checked for.
 type ambientRoute struct {
 	kind, node string

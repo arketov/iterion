@@ -11,12 +11,12 @@ import (
 	"sync"
 	"testing"
 
-	clawtools "github.com/SocialGouv/claw-code-go/pkg/api/tools"
 	"github.com/arketov/iterion/internal/liveenv"
 	"github.com/arketov/iterion/pkg/backend/delegate"
 	"github.com/arketov/iterion/pkg/backend/detect"
 	"github.com/arketov/iterion/pkg/backend/model"
 	"github.com/arketov/iterion/pkg/backend/tool"
+	clawtools "github.com/arketov/iterion/pkg/claw/pkg/api/tools"
 	"github.com/arketov/iterion/pkg/dsl/ir"
 	"github.com/arketov/iterion/pkg/liveledger"
 	iterlog "github.com/arketov/iterion/pkg/log"

@@ -6,6 +6,7 @@ import (
 
 	"github.com/arketov/iterion/internal/gittest"
 	"github.com/arketov/iterion/internal/hometest"
+	"github.com/arketov/iterion/internal/pricingtest"
 	"github.com/arketov/iterion/internal/proctest"
 	"github.com/arketov/iterion/internal/testparallel"
 )
@@ -46,6 +47,7 @@ const e2eParallelEnv = "ITERION_E2E_PARALLEL"
 // directory it owns doubles as processScratch.
 func TestMain(m *testing.M) {
 	capParallelism()
+	pricingtest.Isolate() // for the rest of the process: no restore before os.Exit
 	restoreProviders := isolateProviders()
 	code := hometest.Isolate(func() int {
 		processScratch = os.Getenv("ITERION_HOME")

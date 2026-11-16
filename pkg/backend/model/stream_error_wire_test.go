@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
-	anthropicprovider "github.com/SocialGouv/claw-code-go/pkg/api/providers/anthropic"
-	openaiprovider "github.com/SocialGouv/claw-code-go/pkg/api/providers/openai"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
+	anthropicprovider "github.com/arketov/iterion/pkg/claw/pkg/api/providers/anthropic"
+	openaiprovider "github.com/arketov/iterion/pkg/claw/pkg/api/providers/openai"
 
 	"github.com/arketov/iterion/pkg/backend/delegate"
 	"github.com/arketov/iterion/pkg/dsl/ir"

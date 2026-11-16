@@ -95,7 +95,11 @@ Chantier and current state: [epic #1421](https://github.com/SocialGouv/iterion/i
   `~/.gitconfig` otherwise decides whether a test passes (a global
   `commit.gpgsign` hangs every fixture commit on a pinentry with no TTY).
   The helper bakes both in; `pkg/git.TestEveryTestGitCallerDisablesAutoMaintenance`
-  sweeps `_test.go` and fails a new site that assembles its own argv.
+  sweeps `_test.go` and fails a new site that assembles its own argv — a git
+  named by a value (a `LookPath("git")` result, a constant) included, as in
+  the production sweeps beside it (#3255). A git passed as a parameter (a
+  generic runner's `run(t, dir, "git", …)`, a git helper's) is not followed:
+  route it through gittest.
 - **Run tests with devbox's pinned Git.** The assistant's attested authoring
   commits use guarded ref transactions, which need **Git ≥ 2.46**.
   `devbox.json` pins Git 2.55.0 and `devbox.lock` resolves it for each platform;
@@ -138,7 +142,9 @@ Chantier and current state: [epic #1421](https://github.com/SocialGouv/iterion/i
   before the run is done never removes it, and `pkg/runtime`'s `TestMain`
   fails the suite on one left behind.
 - **A test never reaches the operator's machine** — no login shell under the operator's HOME (`hometest.IsolateUserHome` in `TestMain`, `RequireNoOperatorProfile` pins it), the bundle cache pinned (`dispatcher.WithBundleCacheRoot`), the SSRF lookup injected (`notify.WithResolver`); each seam asserts it was consulted. Details: [backends/sandbox.md](../backends/sandbox.md#tests-never-reach-the-operators-machine) (#2231, #2080).
+- **A test binary that links a live pricing tier isolates it from `TestMain`** — claw's model registry or the models.dev aggregator: `os.Exit(pricingtest.Run(m.Run))`, or `pricingtest.Isolate()` before the tests run ([internal/pricingtest](../../../internal/pricingtest/pricingtest.go)). A guard reads `go list -test` and names a package that does not (#3257).
 - **Capture process stdout/stderr through [internal/stdiotest](../../../internal/stdiotest/capture.go).** It drains while the callback writes, joins the reader and closes both pipe ends on exit. Reading only after the callback returns deadlocks when the pipe fills; a loaded Linux host can shrink pipe capacity. Use `Run` for one callback, or `Start` with deferred `Close` for repeated `Read` intervals. Join all writers before reading/closing; process-global captures cannot run in parallel tests.
+- **Write an executable a test execs through [testfs.WriteExecutable](../../../internal/testfs/executable.go).** It holds `syscall.ForkLock` from open to close, so no concurrent fork in the test binary (cgo's aside) copies the write descriptor and the exec cannot answer ETXTBSY ("text file busy"). Dropping `t.Parallel()` fixes one test and leaves the class.
 - **Repository sweeps resolve their root from the test process's working directory**, through [sweepwalk.ModuleRoot](../../../internal/sweepwalk/sweepwalk.go) or a relative walk. A compile-time path such as `runtime.Caller` can point at another checkout when a test binary is reused; it is not the tree being tested.
 - Table-driven subtests with standard `testing` package
 - **Mongo conformance locally** — one `mongo:8.0` replica-set container on port 27018, launched exactly as the CI job does; recipe and the two traps in [docs/development.md](../../development.md#running-the-mongo-conformance-harness-locally). A store-twin or conformance-row change is unverified until it ran there.

@@ -67,6 +67,16 @@ tasks:
     cmds:
       - go run -mod=vendor ./scripts/ci/testcaps {{.CLI_ARGS}}
 
+  claw:fold:plan:
+    desc: "Print the fold of claw-code-go into pkg/claw — the computed membership, the slices under the line cap, the switch and its residuals — writing nothing; pass -- -cap N or -json. Reads the vendored claw the switch removed: run it on the fold commit (git log --grep='MG-4 1/3'), docs/agents/backends/clawfold.md"
+    cmds:
+      - go run -mod=vendor ./scripts/clawfold plan {{.CLI_ARGS}}
+
+  claw:fold:verify:
+    desc: "Replay the fold's per-file proofs on the tree — blob, exact inverse, rewritten lines only, mode; pass -- -slice K and the caps the plan was read with. Run it on the fold commit (git log --grep='MG-4 1/3'): after the switch the vendored claw it reads is gone"
+    cmds:
+      - go run -mod=vendor ./scripts/clawfold verify {{.CLI_ARGS}}
+
   test:verbose:
     desc: Run all unit tests with verbose output
     cmds:
@@ -738,6 +748,47 @@ tasks:
     desc: Regenerate the committed repository maps (packages, docs + ADR, bots + skills)
     cmds:
       - go run -mod=vendor ./cmd/iterion map gen
+
+  ci:gate:
+    desc: "The local gate the operator direct-landing lane asks for — runs the members `.github/ci-gate-map.yaml` names, reads each exit code separately, and reports `ran N of N`, any REQUIRED context with no member, and every reached row whose coverage is only `partial`. Exit 3 = green but incomplete, not the lane's proof; exit 2 = a precondition refused, either the runner's (no yq, a map it cannot trust) or a MEMBER's (`refusing_members`: no docker for mongo, a dirty vendor tree) — and a refusal is not a verdict. `task ci:gate -- --list` prints the plan without running it"
+    cmds:
+      - bash scripts/ci/gate.sh {{.CLI_ARGS}}
+
+  ci:golangci:
+    desc: "The local member of CI's `golangci` required check — `golangci-lint run --timeout 10m`, the job's command verbatim. NOT `task lint`, which has `deps: [fmt, vet]` and whose `fmt` runs `go fmt ./...` and REWRITES tracked source: a member that repairs the defect CI fails on and then reports green is worse than no member"
+    env:
+      # Keyed on the worktree, like task lint's — golangci's default cache is
+      # keyed on absolute paths, so sibling worktrees of one repo poison each
+      # other's findings.
+      GOLANGCI_LINT_CACHE:
+        sh: 'top=$(git rev-parse --show-toplevel 2>/dev/null) || top=$PWD; h=$(printf %s "$top" | git hash-object --stdin 2>/dev/null | cut -c1-12); echo "${XDG_CACHE_HOME:-$HOME/.cache}/golangci-lint/${h:-shared}"'
+    cmds:
+      - golangci-lint run --timeout 10m
+
+  ci:vendor-check:
+    desc: "The local member of CI's `vendor-check` required check — go mod verify, then tidy+vendor and `git diff --exit-code`. It REWRITES go.mod, go.sum and vendor/, so it refuses a tree whose own paths are already dirty and must run LAST in any aggregate"
+    cmds:
+      - bash scripts/ci/vendor-check.sh
+
+  ci:mongo-conformance:
+    desc: "The local member of CI's `mongo-conformance` required check — a real one-member mongo:8.0 replica set (change streams + transactions), then BOTH `go test` invocations READ FROM the job itself rather than restated here. Needs docker; `ITERION_CI_GATE_EVIDENCE=<dir>` keeps the per-invocation logs and the exit-code matrix"
+    cmds:
+      - bash scripts/ci/mongo-conformance.sh
+
+  bench:codemode-inpod:
+    desc: "The in-pod gating bench for codemode (#3155). Invoke it as `task -x bench:codemode-inpod …`: go-task answers 201 for ANY failure, which flattens this member's exit vocabulary (2 = nothing was tested, 1 = a red verdict) — the SHIPPED binary confining itself inside its OWN image, under the runner's real securityContext (caps dropped, no-new-privileges, RuntimeDefault seccomp). No CI job runs it: it needs docker and a pulled image. `IMAGE=<repo@sha256:…>` is required and must be a DIGEST — a tag would measure whatever moved under it. `RUN_AS_UID=` is the uid the image runs as, default 10001 (the server image); the production RUNNER image is iterion-runner-devbox at 1000. NOT named `UID`: `UID=1000 task …` is refused by bash (its UID is readonly) and the member would silently fall back to its default. Measured: `UID` is NOT exported, so `{{.UID}}` would always have been empty — the first version of this note had the hazard backwards. `MUTANT=eperm|enosys` denies landlock_create_ruleset to prove the bench can redden on the class it exists for; both mutants must FAIL. The containerd arm is bench:codemode-cluster"
+    cmds:
+      - bash scripts/ci/codemode-inpod-bench.sh --image "{{.IMAGE}}" {{if .RUN_AS_UID}}--uid "{{.RUN_AS_UID}}"{{end}} {{if .MUTANT}}--mutant "{{.MUTANT}}"{{end}}
+
+  bench:codemode-cluster:
+    desc: "The containerd arm of #3155's posture bench. Invoke it as `task -x bench:codemode-cluster …`: go-task answers 201 for ANY failure and flattens the 2-versus-1 distinction — a real Pod carrying the chart's securityContext on a local `kind` cluster, because `seccompProfile: RuntimeDefault` names whatever the RUNTIME defaults to and the docker arm therefore answers only for docker. Five pods: the bench, a posture readback, an Unconfined twin that proves the filter moves, and the two Localhost seccomp mutants that must FAIL. `IMAGE=<repo@sha256:…>` required (digest); `KEEP=1` leaves the cluster up. Reports the containerd version it measured — a default profile belongs to its build, so the production node's own is still owed"
+    cmds:
+      - bash scripts/ci/codemode-cluster-bench.sh --image "{{.IMAGE}}" {{if .NODE_IMAGE}}--node-image "{{.NODE_IMAGE}}"{{end}} {{if .KEEP}}--keep{{end}}
+
+  ci:gofmt:
+    desc: "The local member of the `gofmt (check)` step inside CI's `test-unit` job — which feeds the REQUIRED `test` aggregator, so an unformatted tracked file reddens a required context. Reports, never writes: `task fmt` would repair the defect CI fails on and then report green. The file list is `git ls-files`, not the job's `find .`, because find reaches `.works/`, `.repos/` and every registered worktree — the script says what that changes"
+    cmds:
+      - bash scripts/ci/gofmt-check.sh
 
   map:check:
     desc: Fail if a committed repository map is stale, or if the freshness gate cannot redden

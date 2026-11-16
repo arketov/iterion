@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
 
 	"github.com/arketov/iterion/pkg/backend/compatgw"
 	"github.com/arketov/iterion/pkg/backend/modelroute"
@@ -173,7 +173,7 @@ func effortAfterCut(ctx context.Context, opts GenerationOptions) (lowered Genera
 	if from == "" {
 		return opts, "", false
 	}
-	to = gatewayReasoningEffort(ctx, opts.Model, coerceEffortForModel("low", modelroute.Parse(opts.Model).CapabilityID()), iterlog.NewFromEnv(os.Stderr).Warn)
+	to, _ = gatewayReasoningEffort(ctx, opts.Model, coerceEffortForModel("low", modelroute.Parse(opts.Model).CapabilityID()), iterlog.NewFromEnv(os.Stderr).Warn)
 	if to == "" || effortRank(to) >= effortRank(from) {
 		return opts, "", false
 	}

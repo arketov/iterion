@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
 	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
 	iterlog "github.com/arketov/iterion/pkg/log"
 	"github.com/arketov/iterion/pkg/sandbox"
 )

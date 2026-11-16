@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
 	"github.com/arketov/iterion/pkg/backend/secretguard"
 	"github.com/arketov/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
 	"github.com/arketov/iterion/pkg/dsl/ir"
 	"github.com/arketov/iterion/pkg/secrets"
 	"github.com/arketov/iterion/pkg/store"
@@ -530,7 +530,10 @@ func TestAPreviewNeverRendersTheMintedGrant(t *testing.T) {
 	// The script preview: the placeholder as the language literal the value
 	// would have been.
 	script := "token = {{vars.forge_publish_token}}"
-	got = RenderScript(script, mustRefs(script), nil, vars, nil, "preview", nil)
+	got, err := RenderScript(script, "py", mustRefs(script), nil, vars, nil, "preview", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if want := `token = "` + ph + `"`; got != want {
 		t.Errorf("RenderScript = %q, want %q", got, want)
 	}

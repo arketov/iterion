@@ -33,8 +33,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
 	"github.com/arketov/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
 )
 
 // SchemaVersion is bumped when the Snapshot JSON shape changes

@@ -85,6 +85,9 @@ registered by `board_forge.go`, `local_secrets_routes.go`, `notifications_routes
 | `POST` | `/api/admin/orgs/{id}/status` | platform admin | yes |
 | `GET` | `/api/admin/orgs/{id}/teams` | platform admin | yes |
 | `GET` | `/api/admin/orgs/{id}/usage` | platform admin | yes |
+| `GET` | `/api/admin/price-feeds` | platform admin | yes |
+| `PUT` | `/api/admin/price-feeds` | platform admin | yes |
+| `POST` | `/api/admin/price-feeds/sync` | platform admin | yes |
 | `GET` | `/api/admin/runner-pools` | platform admin | yes |
 | `PUT` | `/api/admin/runner-pools` | platform admin | yes |
 | `GET` | `/api/admin/runs` | platform admin | yes |
@@ -684,6 +687,7 @@ registered by `board_forge.go`, `local_secrets_routes.go`, `notifications_routes
 | `PUT` | `/api/teams/{id}/pool-attachment` | session | yes |
 | `GET` | `/api/teams/{id}/price-feeds` | session | yes |
 | `PUT` | `/api/teams/{id}/price-feeds` | session | yes |
+| `GET` | `/api/teams/{id}/price-feeds/effective` | session | yes |
 | `POST` | `/api/teams/{id}/price-feeds/sync` | session | yes |
 | `GET` | `/api/teams/{id}/provision-approvals` | session | yes |
 | `GET` | `/api/teams/{id}/routing-policy` | session | yes |
@@ -734,6 +738,7 @@ registered by `board_forge.go`, `local_secrets_routes.go`, `notifications_routes
 
 | Method | Path | Auth | Spec |
 |---|---|---|---|
+| `POST` | `/api/webhooks/c/{id}` | open | yes |
 | `POST` | `/api/webhooks/deliveries/{id}/retry` | platform admin | yes |
 | `POST` | `/api/webhooks/forgejo/{id}` | open | yes |
 | `POST` | `/api/webhooks/generic/{id}` | open | yes |

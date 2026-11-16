@@ -46,11 +46,22 @@ that exist. The lane's blocking proof replaces the PR's:
 
 1. **The gate, locally reproduced.** The full required-check set a workflow
    job can express — everything but `revi/review`, which item 2 replaces —
-   runs locally. Its definition is `task ci:gate`, and the lane is CLOSED
-   until that stream lands: no direct landing before the checked-in
-   exhaustive mapping from `tests.yml` jobs to local members exists in this
-   tree (the mapping lives with the chantier's evidence until then). Exit
-   codes are read per member, never piped.
+   runs locally. Its definition is `task ci:gate`, over the checked-in map
+   [`.github/ci-gate-map.yaml`](../../../.github/ci-gate-map.yaml): one row per
+   `tests.yml` job, keyed by job id, read by the runner AND by
+   `internal/ciguard`'s `TestTheCIGateMapIsTotalAndHonest`. Exit codes are read
+   per member, never piped, and the runner prints `ran N of N` against its own
+   plan — two members of three cannot read as three.
+   **Every required and staged context is now COVERED** — by a member, or,
+   for the two pure aggregators, by every leg's — so **exit 3**, green
+   members over incomplete coverage, is no longer the standing answer. What a
+   0 does NOT claim: the verdict NAMES the reached rows that are `partial`
+   (`brand`, plus the four legs `test` and `race` speak for), because a
+   member is not an equivalence and each row's `residual` says what it leaves
+   to CI. **A verdict of 0 satisfies this item and nothing else**: items 2 to
+   5 are still owed, a gate short of 0 is how you see the distance rather
+   than a proof you may land, and a green gate reads "every member passed",
+   never "CI can find nothing this did not run".
 2. **A converged local adversarial loop.** Per
    [the loop](adversarial-review-loop.md): rounds until no unassumed
    high/critical finding stands, the fixes re-attacked, the budget respected.

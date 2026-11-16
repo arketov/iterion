@@ -820,6 +820,7 @@ func TestEveryReadingAPIIsListed(t *testing.T) {
 // a conversion through unsafe.Pointer reads any value as any other — a view
 // as the unit it wraps — and no type rule holds it.
 var unsafeFiles = map[string]string{
+	"pkg/sandbox/execenv/protocol/guest_linux.go":     "the NUL pathname pointer passed synchronously to faccessat2(AT_EMPTY_PATH) to check an already-open image file with effective credentials",
 	"pkg/server/assistant_authoring_local_windows.go": "the NT rename's FILE_RENAME_INFORMATION buffer (NtSetInformationFile)",
 	"pkg/authoringlock/platform_windows.go":           "the NT object attributes' Length (unsafe.Sizeof) and the ACL entry's SID read through unsafe.Pointer",
 	"pkg/cli/tty_darwin.go":                           "the terminal's ioctl (TIOCGETA) argument",
@@ -827,6 +828,7 @@ var unsafeFiles = map[string]string{
 	"pkg/cli/tty_windows.go":                          "the console mode's syscall argument",
 	"cmd/iterion-desktop/prgname_linux.go":            "the C string handed to g_set_prgname",
 	"cmd/iterion-desktop/window_icon_linux.go":        "the GTK window handle the icon is set on",
+	"pkg/scripthost/confine_linux.go":                 "the landlock_ruleset_attr handed to landlock_create_ruleset(2), which takes a struct pointer and its size",
 }
 
 // reflectPointerFiles are the production files that turn a reflect.Value

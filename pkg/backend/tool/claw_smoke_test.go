@@ -8,11 +8,11 @@ import (
 	"sort"
 	"testing"
 
-	clawmcp "github.com/SocialGouv/claw-code-go/pkg/api/mcp"
-	clawtask "github.com/SocialGouv/claw-code-go/pkg/api/task"
-	clawteam "github.com/SocialGouv/claw-code-go/pkg/api/team"
-	clawtools "github.com/SocialGouv/claw-code-go/pkg/api/tools"
-	clawworker "github.com/SocialGouv/claw-code-go/pkg/api/worker"
+	clawmcp "github.com/arketov/iterion/pkg/claw/pkg/api/mcp"
+	clawtask "github.com/arketov/iterion/pkg/claw/pkg/api/task"
+	clawteam "github.com/arketov/iterion/pkg/claw/pkg/api/team"
+	clawtools "github.com/arketov/iterion/pkg/claw/pkg/api/tools"
+	clawworker "github.com/arketov/iterion/pkg/claw/pkg/api/worker"
 
 	"github.com/arketov/iterion/pkg/backend/delegate"
 )

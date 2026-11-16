@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
-	clawrt "github.com/SocialGouv/claw-code-go/pkg/runtime"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
+	clawrt "github.com/arketov/iterion/pkg/claw/pkg/runtime"
 
 	"github.com/arketov/iterion/pkg/backend/delegate"
 	"github.com/arketov/iterion/pkg/knowledge"

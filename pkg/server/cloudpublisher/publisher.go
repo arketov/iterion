@@ -65,13 +65,15 @@ type Config struct {
 	NATS  *natsq.Conn
 	Store store.RunStore
 	// PriceFeedEffective answers the run's effective gateway price-feed
-	// table (ADR-163): the server-side fold over the org/team feed state,
-	// nil when no fresh feed answers. A func, not a store handle: the
-	// publisher never learns where feeds live, and the fold's precedence
-	// (fresh feed over operator floor, team over org) stays beside the
-	// stores that own it. Nil (local shape, no stores) means no feed and
-	// the operator table is the floor.
-	PriceFeedEffective func(ctx context.Context, orgID, teamID string, named []string) json.RawMessage
+	// table (ADR-163): the server-side fold over the platform, org and
+	// team feeds, nil when no feed answers. A func, not a store handle:
+	// the publisher never learns where feeds live, and the fold's
+	// precedence (an answering feed over the operator floor, team over
+	// org over platform) stays beside the stores that own it. Nil (local
+	// shape, no stores) means no feed and the operator table is the floor.
+	// An error is a level the fold could not read: the launch or resume
+	// is refused with it (ADR-166 §4).
+	PriceFeedEffective func(ctx context.Context, orgID, teamID string, named []string) (json.RawMessage, error)
 	// MongoColl is the Mongo collection the publisher counts
 	// queued runs against (for queue_position computation). The
 	// caller passes it directly so the publisher doesn't have to
@@ -253,14 +255,15 @@ type Publisher struct {
 	pools                RunnerPoolResolver
 	requireLLMCredential bool
 	// priceFeedEffective answers the run's effective gateway price-feed
-	// table (ADR-163): the server-side fold over the org/team feed state,
-	// nil when no fresh feed answers. A func, not a store handle: the
-	// publisher never learns where feeds live, and the fold's precedence
-	// (fresh feed over operator floor, team over org) stays beside the
-	// stores that own it. Nil (local shape, no stores) means no feed and
-	// the operator table is the floor — the bundle then serializes
-	// exactly as before this field existed.
-	priceFeedEffective func(ctx context.Context, orgID, teamID string, named []string) json.RawMessage
+	// table (ADR-163): the server-side fold over the platform, org and
+	// team feeds, nil when no feed answers. A func, not a store handle:
+	// the publisher never learns where feeds live, and the fold's
+	// precedence (an answering feed over the operator floor, team over
+	// org over platform) stays beside the stores that own it. Nil (local
+	// shape, no stores) means no feed and the operator table is the floor
+	// — the bundle then serializes exactly as before this field existed.
+	// An error refuses the launch or resume.
+	priceFeedEffective func(ctx context.Context, orgID, teamID string, named []string) (json.RawMessage, error)
 
 	// orgCache memoizes team → org id so the publish hot path doesn't
 	// add a Mongo read per launch (team/org membership changes are
@@ -466,24 +469,25 @@ func (p *Publisher) runnerPoolForTeam(ctx context.Context, teamID string) (strin
 // — the same boundary discipline as the pool mapping above: a stale or
 // guessed answer would seal platform credentials into a sovereign team's
 // runs. A store error refuses (fail closed); so does an unknown value, which
-// is never read as the default.
-func (p *Publisher) llmFallbackForTeam(ctx context.Context, teamID string) (string, error) {
+// is never read as the default. The same read answers the team's org: ""
+// when no team row answers or the team has none.
+func (p *Publisher) llmFallbackForTeam(ctx context.Context, teamID string) (policy, orgID string, err error) {
 	if teamID == "" || p.identity == nil {
-		return "", nil
+		return "", "", nil
 	}
 	t, err := p.identity.GetTeam(ctx, teamID)
 	if errors.Is(err, identity.ErrNotFound) {
 		// A definitive answer: no team row, no policy — the platform
 		// default applies (the CI smoke launches under exactly this shape).
-		return "", nil
+		return "", "", nil
 	}
 	if err != nil {
-		return "", fmt.Errorf("cloudpublisher: resolve llm fallback for team %s: %w (refusing the launch — the policy must be known, never guessed)", teamID, err)
+		return "", "", fmt.Errorf("cloudpublisher: resolve llm fallback for team %s: %w (refusing the launch — the policy must be known, never guessed)", teamID, err)
 	}
 	if !identity.ValidLLMFallback(t.LLMFallback) {
-		return "", fmt.Errorf("cloudpublisher: team %s carries an unknown llm_fallback policy %q — refusing the launch (set a valid policy with PUT /api/admin/teams/%s/llm-fallback)", teamID, t.LLMFallback, teamID)
+		return "", "", fmt.Errorf("cloudpublisher: team %s carries an unknown llm_fallback policy %q — refusing the launch (set a valid policy with PUT /api/admin/teams/%s/llm-fallback)", teamID, t.LLMFallback, teamID)
 	}
-	return t.LLMFallback, nil
+	return t.LLMFallback, t.OrgID, nil
 }
 
 // New builds a Publisher.
@@ -573,7 +577,7 @@ func genericSecretNamesForWorkflow(wf *ir.Workflow) []string {
 	}
 	names := make([]string, 0, len(wf.Secrets))
 	for name, s := range wf.Secrets {
-		if strings.TrimSpace(s.Value) != "" {
+		if s.HasInlineValue() {
 			continue
 		}
 		names = append(names, name)
@@ -592,7 +596,7 @@ func requiredSecretNamesForWorkflow(wf *ir.Workflow) []string {
 	}
 	names := make([]string, 0, len(wf.Secrets))
 	for name, s := range wf.Secrets {
-		if s == nil || s.Optional || strings.TrimSpace(s.Value) != "" {
+		if s == nil || s.Optional || s.HasInlineValue() {
 			continue
 		}
 		names = append(names, name)
@@ -706,7 +710,7 @@ func (p *Publisher) resolveAndSealCredentials(ctx context.Context, runID, orgID,
 	// after the caller's pool read: the policy rides the same boundary
 	// discipline, and the indexed _id read costs less than threading
 	// another parameter through every walk caller.
-	llmFallback, err := p.llmFallbackForTeam(ctx, tenantID)
+	llmFallback, teamOrgID, err := p.llmFallbackForTeam(ctx, tenantID)
 	if err != nil {
 		return credResolution{}, err
 	}
@@ -1788,8 +1792,28 @@ func (p *Publisher) resolveAndSealCredentials(ctx context.Context, runID, orgID,
 	// the next run without a deployment order. Not secret; sealed because
 	// the bundle is sealed. A nil fold (no stores, no fresh feed) leaves
 	// the field absent and the runner at the operator floor.
+	//
+	// The fold reads the org this resolution's fresh team read names, and
+	// orgID only when that read names none (no identity seam, no team row,
+	// an org-less team). orgID comes from a cached resolve that answers ""
+	// after a failed identity read as it does for an org-less team: folded
+	// under it, the org level's declarations would leave the run's table.
+	//
+	// A fold that could not read a level refuses, launch and resume alike,
+	// as the identity and pool reads above do: a table sealed without the
+	// level would carry none of its accepted efforts, and the gateway
+	// refuses a level the run then sends unmapped. The error keeps its
+	// type (retryable, PRICE_FEED_UNREAD) for the caller's answer.
 	if p.priceFeedEffective != nil {
-		bundle.GatewayPriceFeed = p.priceFeedEffective(ctx, orgID, tenantID, model.RouteGatewayModelIDs(wf, view.Overrides))
+		foldOrgID := orgID
+		if teamOrgID != "" {
+			foldOrgID = teamOrgID
+		}
+		table, err := p.priceFeedEffective(ctx, foldOrgID, tenantID, model.RouteGatewayModelIDs(wf, view.Overrides))
+		if err != nil {
+			return res, fmt.Errorf("cloudpublisher: the price-feed fold of team %s: %w", tenantID, err)
+		}
+		bundle.GatewayPriceFeed = table
 	}
 
 	// ADR-123: the bundle seals under a fresh per-run DEK that travels in
@@ -1952,10 +1976,10 @@ func (c credResolution) poolAttemptID() string {
 
 // applyTo writes the resolution onto an IN-MEMORY run document — the launch
 // path's counterpart to RunStore.SetRunCredStamp, which the resume path
-// takes. Both go through stamp(), so a fact a resume RE-RESOLVES cannot
-// reach one path and silently miss the other; that unit is the whole promise
-// of RunCredStamp, and assigning those fields one by one here is what would
-// break it.
+// takes. Both go through stamp(), and this path writes it with
+// RunCredStamp.Apply — the filesystem twin's own writer — so a fact a resume
+// RE-RESOLVES cannot reach one path and silently miss the other: that unit is
+// the whole promise of RunCredStamp.
 //
 // One field is a launch fact and deliberately outside stamp(): the content
 // boundary (ADR-131 §4). It is frozen when the launch derives it and the
@@ -1964,17 +1988,8 @@ func (c credResolution) poolAttemptID() string {
 // re-resolution may write it: putting it in stamp() would let a resume move a
 // running run onto whichever answer its walk gives today.
 func (c credResolution) applyTo(r *store.Run) {
-	s := c.stamp()
-	r.CredFingerprints = s.Fingerprints
-	r.CredentialTiers = s.Tiers
-	r.SkippedCredReopensAt = s.SkippedReopensAt
+	c.stamp().Apply(r)
 	r.ContentBoundary = c.contentBoundary
-	// Both stores clear the model-idle marker on a stamp — a re-resolution
-	// is a fresh attempt. At launch the document is new and the marker is
-	// already nil, so this changes nothing today; it is here so the
-	// in-memory twin cannot answer differently from the persisted one if it
-	// is ever applied to a loaded run.
-	r.LLMIdleSince = nil
 }
 
 // spendable answers "may a run with these routes spend a credential of
@@ -3939,6 +3954,20 @@ func (p *Publisher) SubmitLaunch(ctx context.Context, runID string, spec runview
 	now := time.Now().UTC()
 	tenantID, _ := store.TenantFromContext(ctx)
 	ownerID, _ := store.OwnerFromContext(ctx)
+	// A keyed submission is judged again HERE, at the persistence point
+	// (runview/submission.go): the service read the run before compiling, and
+	// a runner may have claimed it since. A run still queued by the launch
+	// path's own attempt is completed as a new attempt — the save below
+	// replaces it under compare-and-swap on the version read here, so a claim
+	// or a flip landing in between refuses the save instead of being
+	// overwritten.
+	prior, err := p.priorSubmission(ctx, runID, tenantID, spec.SubmissionKey)
+	if err != nil {
+		return runview.LaunchSubmission{}, err
+	}
+	if prior != nil && prior.acknowledged {
+		return runview.LaunchSubmission{Status: prior.run.Status, FailureCode: prior.run.FailureCode, AlreadySubmitted: true}, nil
+	}
 	// One inputs map shared by the run doc and the RunMessage, so the
 	// credential-derived topology injection below reaches both carriers.
 	inputs := varsAsAny(spec.Vars)
@@ -4062,6 +4091,21 @@ func (p *Publisher) SubmitLaunch(ctx context.Context, runID string, spec runview
 	}
 	if r.PermissionMode == "" {
 		r.PermissionMode = wf.Permission
+	}
+	if spec.SubmissionKey != "" {
+		// The attempt this launch queues, recorded so a later submission of
+		// the key can tell it from any re-queue (runview.QueuedBySubmission).
+		attempt := now
+		r.SubmissionAttemptAt = &attempt
+	}
+	if prior != nil {
+		// Completing: the same row at the version read, created when it was,
+		// queued NOW. The new queued_at is what retires the first attempt: a
+		// runner claims a queued run only for a delivery published at or
+		// after its queued_at (ClaimQueuedRunIfAttempt), so a first
+		// publication that did land can no longer claim it.
+		r.CASVersion = prior.run.CASVersion
+		r.CreatedAt = prior.run.CreatedAt
 	}
 	// Resolve the same versioned context the local launch authority stamps.
 	// It is persisted before the queued row is published so admission on the
@@ -4439,12 +4483,30 @@ func (p *Publisher) SubmitLaunch(ctx context.Context, runID string, spec runview
 		// outside it — a forbidden rescue burns no retry budget on the pod.
 		LLMProviders: policyProviders(spec.LLMRoutePolicy),
 	}
+	if prior != nil {
+		// A new attempt of a run queued once: its own message identity, or
+		// the broker's dedup window would swallow it for the first one's —
+		// which its queued_at has just retired.
+		msg.LaunchAttempt = r.QueuedAt.Format(time.RFC3339Nano)
+	}
 	if err := p.publish(ctx, msg); err != nil {
 		// The deferred choke point above flips the row to failed — while it
 		// is still queued for this launch.
 		return runview.LaunchSubmission{}, fmt.Errorf("cloudpublisher: publish: %w", err)
 	}
 	launched = true
+	if prior != nil && creds.poolLease() == nil && p.credPool != nil {
+		// Published: the first attempt is over, as after a resume. A grant
+		// acquired here superseded its pool lease already; without one, it
+		// is superseded now, or it holds its donor's slot to the lease TTL.
+		supersedingPublishedAt, perr := time.Parse(time.RFC3339Nano, msg.PublishedAtRFC)
+		if perr != nil {
+			supersedingPublishedAt = time.Time{}
+		}
+		if err := p.credPool.SupersedeRun(context.WithoutCancel(ctx), runID, tenantID, supersedingPublishedAt); err != nil {
+			p.logger.Warn("cloudpublisher: supersede the first attempt's pool lease of %s after its completion: %v", runID, err)
+		}
+	}
 	if p.metrics != nil {
 		p.metrics.RunsCreatedTotal.WithLabelValues(string(store.RunStatusQueued)).Inc()
 	}
@@ -4458,6 +4520,47 @@ func (p *Publisher) SubmitLaunch(ctx context.Context, runID string, spec runview
 		p.logger.Warn("cloudpublisher: queue position lookup: %v", err)
 	}
 	return runview.LaunchSubmission{QueuePosition: pos, Status: store.RunStatusQueued}, nil
+}
+
+// priorRun is the run a keyed submission's id already names, as the
+// publisher read it.
+type priorRun struct {
+	run *store.Run
+	// acknowledged: the run was handed on; nothing is persisted or published.
+	acknowledged bool
+}
+
+// priorSubmission reads the run a keyed submission's id names and judges it
+// (runview.ClassifySubmission): nil when there is none, a run to complete, or
+// an acknowledged one. The id must be the one the key derives — the service
+// derived it, and a publisher handed another would complete a run the key
+// does not name.
+//
+// Completing is a new attempt, as a resume is: it re-resolves and re-seals
+// the credentials, and its acquisition supersedes the first attempt's pool
+// lease — that attempt can no longer claim the run. The first attempt's
+// sealed bundle is left to its own expiry.
+func (p *Publisher) priorSubmission(ctx context.Context, runID, tenantID, key string) (*priorRun, error) {
+	if key == "" {
+		return nil, nil
+	}
+	if want := runview.SubmissionRunID(tenantID, key); runID != want {
+		return nil, fmt.Errorf("cloudpublisher: run id %q is not the one submission key %q derives in tenant %q (%q)", runID, key, tenantID, want)
+	}
+	r, err := p.store.LoadRun(ctx, runID)
+	switch {
+	case errors.Is(err, store.ErrRunNotFound):
+		return nil, nil
+	case errors.Is(err, store.ErrRunDeleted):
+		return nil, runview.SubmissionDeleted(runID, err)
+	case err != nil:
+		return nil, fmt.Errorf("cloudpublisher: read submission run %s: %w", runID, err)
+	}
+	verdict, err := runview.ClassifySubmission(r, tenantID, true)
+	if err != nil {
+		return nil, err
+	}
+	return &priorRun{run: r, acknowledged: verdict == runview.SubmissionAcknowledged}, nil
 }
 
 // CancelRun flips the Mongo doc to cancelled. Two effects:

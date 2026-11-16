@@ -7,12 +7,15 @@ native harness. Leaves, one line each:
 |---|---|
 | [backend-selection.md](backend-selection.md) | Wrong backend or wiring a new one. |
 | [Capability registry](../../backend-capability-registry.md) | Backend facts, unchanged seed, derived enumerations and mutation witnesses. |
-| [gateway.md](gateway.md) | Serving `openai_compatible/…` from the deployment env, its catalog, separate tolerant effort mapping, typed refusals, where provider/model config lives. |
+| [gateway.md](gateway.md) | Serving `openai_compatible/…`: its catalog, the price feed's platform/org/team seats and declarations, accepted efforts (run table, then env fallback), typed refusals. |
 | [key-pools.md](key-pools.md) | Named credential pools attached per scope, the fallback strategy, an entry that never serves, debugging the margins (ADR-164). |
 | [fallbacks-and-parity.md](fallbacks-and-parity.md) | `fallbacks:`, C173/C176, a "dumber" node, a degrading forfait. |
 | [facade-substitution.md](facade-substitution.md) | GLM/Kimi served under a claude/gpt label, or a base URL the substitution verdict ignores. |
 | [metering.md](metering.md) | Trusted delegate counters, reserved output metadata, interaction spend and recovery retry accounting. |
 | [plugins-compression.md](plugins-compression.md) | Output compression (rtk), secret substitution, or a plugin changing what a node sees. |
 | [codemode.md](codemode.md) | The model's code calling the node's own tools: the dispatcher door and its context contract, why confinement is kernel-side, and what is NOT built yet (ADR-165). |
+| [codemode-confinement.md](codemode-confinement.md) | The script host's ten bounds, the kernel mechanism behind each, the witness that was seen to fail without it, and the three statements measurement refuted. |
+| [clawfold.md](clawfold.md) | Folding claw-code-go into `pkg/claw`: the computed membership, the per-file blob and inverse proofs, the slices and their floor, the switch and its residuals. |
 | [sandbox.md](sandbox.md) | `SANDBOX_*` and `ATTACHMENT*` failures, host binds dropped or carried, changing what a node may execute. |
+| [exec-environment.md](exec-environment.md) | Kubernetes per-call environment transport, native image pair, operator controls and qualification. |
 | [prompt-engineering-dials.md](prompt-engineering-dials.md) | Authoring `cursor:` / `supervisor:` / ultracode. |

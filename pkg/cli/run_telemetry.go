@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SocialGouv/claw-code-go/pkg/apikit/telemetry/otlpgrpc"
+	"github.com/arketov/iterion/pkg/claw/pkg/apikit/telemetry/otlpgrpc"
 
 	"github.com/arketov/iterion/pkg/benchmark"
 	iterlog "github.com/arketov/iterion/pkg/log"

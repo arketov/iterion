@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
-	clawcmds "github.com/SocialGouv/claw-code-go/pkg/api/commands"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
+	clawcmds "github.com/arketov/iterion/pkg/claw/pkg/api/commands"
 
 	iterlog "github.com/arketov/iterion/pkg/log"
 	"github.com/arketov/iterion/pkg/store"

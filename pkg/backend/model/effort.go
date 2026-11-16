@@ -1,7 +1,7 @@
 package model
 
 import (
-	"github.com/SocialGouv/claw-code-go/pkg/apikit"
+	"github.com/arketov/iterion/pkg/claw/pkg/apikit"
 )
 
 // effortRank returns a comparable ordinal for reasoning_effort levels.
