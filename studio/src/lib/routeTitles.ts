@@ -40,7 +40,6 @@ export const ROUTE_TITLES: readonly RouteTitle[] = [
   { pattern: "/board/labels", title: "Board labels" },
   { pattern: "/board/fields", title: "Board fields" },
   { pattern: "/pipelines", title: "Pipelines" },
-  // Routed inside the pipelines view, not by an App.tsx <Route> literal.
   { pattern: "/pipelines/cards/:kind/:id", title: "Pipeline card" },
   { pattern: "/dispatcher", title: "Dispatcher" },
   { pattern: "/insights", title: "Insights" },

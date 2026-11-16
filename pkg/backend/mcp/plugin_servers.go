@@ -8,21 +8,6 @@ import (
 	"github.com/arketov/iterion/pkg/plugin"
 )
 
-// loadPluginServers loads the plugin registry and returns the MCP servers
-// contributed by every enabled plugin, keyed by server name, with activation-
-// time placeholders ({{workspace}}, {{plugin.dir}}, {{plugin.cache}}) expanded
-// against the given workspace. A registry-load failure yields an empty map —
-// a broken plugin must never break MCP setup for a run. This is the bridge
-// between the plugin "mcp" contribution kind and the existing MCP catalog.
-//
-// Origin is OriginPlugin only for a plugin whose CODE is the operator's — a
-// builtin, or a manifest under the iterion home the inherited environment
-// names (Registry.OperatorControlled). A plugin loaded from a home a project
-// `.env` selected keeps every other behaviour and loses only that authority:
-// its servers are OriginUnknown, so the launcher will not start them while a
-// sandbox is active. Without the distinction, a repository carrying `.env` and
-// a `default_enabled` manifest would classify its own code as the operator's.
-
 // PluginServersUnavailable returns the reason plugin MCP servers are missing
 // from a workflow, or nil when the registry loaded whole.
 //
@@ -56,8 +41,23 @@ func PluginServersUnavailable() error {
 	return nil
 }
 
-// loadPluginServers returns the servers and, alongside, contributedBy: which
-// plugin each server came from, so a withdrawal can name its source.
+// loadPluginServers loads the plugin registry and returns the MCP servers
+// contributed by every enabled plugin, keyed by server name, with activation-
+// time placeholders ({{workspace}}, {{plugin.dir}}, {{plugin.cache}}) expanded
+// against the given workspace. A registry-load failure yields an empty map —
+// a broken plugin must never break MCP setup for a run. This is the bridge
+// between the plugin "mcp" contribution kind and the existing MCP catalog.
+//
+// Origin is OriginPlugin only for a plugin whose CODE is the operator's — a
+// builtin, or a manifest under the iterion home the inherited environment
+// names (Registry.OperatorControlled). A plugin loaded from a home a project
+// `.env` selected keeps every other behaviour and loses only that authority:
+// its servers are OriginUnknown, so the launcher will not start them while a
+// sandbox is active. Without the distinction, a repository carrying `.env` and
+// a `default_enabled` manifest would classify its own code as the operator's.
+//
+// It returns the servers and, alongside, contributedBy: which plugin each
+// server came from, so a withdrawal can name its source.
 func loadPluginServers(workspace string, logger *iterlog.Logger) (map[string]*ServerConfig, map[string]string) {
 	reg, err := plugin.Load()
 	if err != nil {
