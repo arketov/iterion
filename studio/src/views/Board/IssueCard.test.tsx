@@ -288,6 +288,34 @@ describe("IssueCard no-bot badge", () => {
     expect(screen.queryByText(/won't/i)).toBeNull();
     expect(screen.queryByRole("button", { name: /won't|no assignee|no bot/i })).toBeNull();
   });
+
+  it("renders a neutral banner, not a refusal, while the last run is alive", () => {
+    renderWithSkip({ kind: "last_run_active", reason: "last run r1 is running — refusing a fresh sibling" });
+    const banner = screen.getByTestId("last-run-active-banner");
+    expect(banner.textContent).toContain("run in progress");
+    expect(banner.textContent).toContain("refusing a fresh sibling");
+    expect(banner.className).not.toMatch(/danger/);
+    expect(screen.queryByText(/won't dispatch/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /won't dispatch/i })).toBeNull();
+  });
+
+  it("renders a neutral banner, not a refusal, for a card parked after a clean run", () => {
+    renderWithSkip({ kind: "run_finished", reason: 'last run r1 finished cleanly and the dispatcher itself returned the card to "review"' });
+    const banner = screen.getByTestId("run-finished-banner");
+    expect(banner.textContent).toContain("run finished");
+    expect(banner.className).not.toMatch(/danger/);
+    expect(banner.getAttribute("title") ?? "").toContain("moved to another column and back");
+    expect(screen.queryByText(/won't dispatch/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /won't dispatch/i })).toBeNull();
+  });
+
+  it("keeps a warning with the way out for a last_run_hold skip", () => {
+    renderWithSkip({ kind: "last_run_hold", reason: "last run r1 was cancelled by the operator" });
+    const badge = screen.getByRole("button", { name: /held — last run/i });
+    expect(badge.className).toMatch(/danger/);
+    expect(badge.getAttribute("title") ?? "").toContain("--clear-last-run");
+    expect(screen.queryByText(/won't dispatch/i)).toBeNull();
+  });
 });
 
 // A refused resume (the bot source changed since the last run started) keeps
