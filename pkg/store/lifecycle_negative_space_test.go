@@ -218,10 +218,8 @@ func TestNoHandRolledTerminalSets(t *testing.T) {
 			t.Errorf("hand-rolled RunStatus set: %q (in %v) — replace it with a lifecycle.go predicate or allowlist it with its reason", key, anchors)
 			continue
 		}
-		want := append([]string(nil), e.anchors...)
-		sort.Strings(want)
-		if strings.Join(want, ",") != strings.Join(anchors, ",") {
-			t.Errorf("allowlist entry %q expects anchors %v, found %v — a set moved, was added or removed; re-justify per site", key, want, anchors)
+		if msg := anchorMismatch(key, e, anchors); msg != "" {
+			t.Error(msg)
 		}
 	}
 	for key, e := range negativeSpaceAllowlist {
@@ -235,6 +233,29 @@ type allowEntry struct {
 	// anchors: the enclosing function of each justified occurrence.
 	anchors []string
 	reason  string
+}
+
+// anchorMismatch compares an allowlist entry's anchors with the functions
+// the set was found in. It returns "" on a match, otherwise a message with
+// a ready allowlist line to paste when the set only moved (same
+// justification). It sorts copies, never the caller's slices.
+func anchorMismatch(key string, e allowEntry, found []string) string {
+	want := append([]string(nil), e.anchors...)
+	sort.Strings(want)
+	got := append([]string(nil), found...)
+	sort.Strings(got)
+	if strings.Join(want, ",") == strings.Join(got, ",") {
+		return ""
+	}
+	quoted := make([]string, len(got))
+	for i, a := range got {
+		quoted[i] = fmt.Sprintf("%q", a)
+	}
+	return fmt.Sprintf("allowlist entry %q expects anchors %v, found %v — the set moved, was added or removed.\n"+
+		"If it only moved (e.g. into a helper) and the justification still holds, replace the entry in negativeSpaceAllowlist with:\n"+
+		"\t%q: {[]string{%s}, %q},\n"+
+		"If a set was added or removed, re-justify per site instead of pasting it.",
+		key, want, got, key, strings.Join(quoted, ", "), e.reason)
 }
 
 // markLogicalDescendants flags every &&/|| expression under n as part
@@ -311,4 +332,26 @@ var negativeSpaceAllowlist = map[string]allowEntry{
 
 	// -- pkg/worktreepool.
 	"pkg/worktreepool/classify.go :: PausedOperator+PausedWaitingHuman": {[]string{"isPausedResumable"}, "the paused pair guarding checkout sparing (GC policy nuance documented at the site)"},
+}
+
+func TestAnchorMismatchPrintsReplacementEntry(t *testing.T) {
+	const key = "pkg/cli/issue.go :: PausedOperator+Queued"
+	e := allowEntry{[]string{"liveRunOf"}, "live-run guard"}
+
+	if msg := anchorMismatch(key, e, []string{"liveRunOf"}); msg != "" {
+		t.Fatalf("matching anchors must stay silent, got %q", msg)
+	}
+
+	found := []string{"zeta", "alpha"}
+	msg := anchorMismatch(key, e, found)
+	wantLine := `"pkg/cli/issue.go :: PausedOperator+Queued": {[]string{"alpha", "zeta"}, "live-run guard"},`
+	if !strings.Contains(msg, wantLine) {
+		t.Fatalf("message lacks the ready allowlist line\nwant: %s\ngot:  %s", wantLine, msg)
+	}
+	if !strings.Contains(msg, "re-justify") {
+		t.Errorf("message must say when to re-justify instead of pasting: %s", msg)
+	}
+	if found[0] != "zeta" || e.anchors[0] != "liveRunOf" {
+		t.Errorf("anchorMismatch must not sort or mutate its inputs: %v %v", found, e.anchors)
+	}
 }
