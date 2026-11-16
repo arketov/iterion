@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 
-import { useMaybeAuth } from "@/auth/AuthContext";
+import { canEditConfigShares, useMaybeAuth } from "@/auth/AuthContext";
 import { NAV_REGISTRY } from "@/components/shared/NavLinks";
 import { isNavHrefAvailable } from "@/components/shared/navAvailability";
 import { useServerInfoStore } from "@/store/serverInfo";
@@ -19,8 +19,10 @@ export default function Sitemap() {
   const auth = useMaybeAuth();
   const access = {
     hasActiveTeam: !!auth?.activeTeam,
-    role: auth?.activeRole ?? null,
-    isSuperAdmin: !!auth?.user?.is_super_admin,
+    canEditConfigShares: canEditConfigShares(
+      auth?.activeRole ?? null,
+      !!auth?.user?.is_super_admin,
+    ),
   };
   const studioGroups = NAV_REGISTRY.map((g) => ({
     ...g,

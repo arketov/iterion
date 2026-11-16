@@ -25,7 +25,7 @@ import {
 } from "@radix-ui/react-icons";
 import { useShallow } from "zustand/react/shallow";
 
-import { useAuth } from "@/auth/AuthContext";
+import { canEditConfigShares, useAuth } from "@/auth/AuthContext";
 import { useRuns } from "@/hooks/useRuns";
 import { useServerInfoStore } from "@/store/serverInfo";
 import {
@@ -145,8 +145,7 @@ export default function NavLinks({ collapsed }: Props) {
   // from NAV_PAGES / isNavHrefAvailable, the same source the Sitemap uses.
   const access = {
     hasActiveTeam: !!activeTeam,
-    role: activeRole,
-    isSuperAdmin: !!user?.is_super_admin,
+    canEditConfigShares: canEditConfigShares(activeRole, !!user?.is_super_admin),
   };
   const railLinks = (group: NavGroup): LinkDef[] =>
     NAV_PAGES.flatMap((p) =>

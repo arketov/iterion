@@ -1,22 +1,21 @@
 // Which registry pages THIS server answers to THIS user — the one place the
 // sidebar rail and the Sitemap page both decide whether a page is listed:
-// server_info flags plus the caller's access (active team, role).
+// server_info flags plus the caller's access (active team, config-share
+// capability). The caller derives canEditConfigShares from
+// AuthContext.canEditConfigShares (the mirror of the server gate), so this
+// module stays a pure function with no React or auth imports.
 
 import type { ServerInfo } from "@/api/types";
-import type { Role } from "@/api/auth";
-import { canEditConfigShares } from "@/auth/AuthContext";
 
 /** What the signed-in user may reach, beyond what the server answers. */
 export interface NavAccess {
   hasActiveTeam: boolean;
-  role: Role | null;
-  isSuperAdmin: boolean;
+  canEditConfigShares: boolean;
 }
 
 const NO_ACCESS: NavAccess = {
   hasActiveTeam: false,
-  role: null,
-  isSuperAdmin: false,
+  canEditConfigShares: false,
 };
 
 /** Whether the studio page at `href` is available on a server described by
@@ -46,10 +45,7 @@ export function isNavHrefAvailable(
     case "/skills":
       return !!info?.skills_enabled;
     case "/config-editor":
-      return (
-        !!info?.config_shares_enabled &&
-        canEditConfigShares(access.role, access.isSuperAdmin)
-      );
+      return !!info?.config_shares_enabled && access.canEditConfigShares;
     case "/secrets":
       return !!info?.secrets_enabled;
     case "/integrations":
