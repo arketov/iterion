@@ -129,3 +129,16 @@ func TestBuildSpec_NoAssigneeUsesGlobalDispatch(t *testing.T) {
 		t.Fatalf("per-assignee leaked when Assignee empty: %v", spec.Vars)
 	}
 }
+
+// A dispatcher that has no runner yet (before Start, or a unit-test helper)
+// must report a nil runner, not dereference an empty atomic pointer: callers
+// type-assert the result and fail open on a nil.
+func TestCurrentRunner_NilWithoutRunner(t *testing.T) {
+	d := newMinimalDispatcher(t)
+	if r := d.currentRunner(); r != nil {
+		t.Fatalf("currentRunner() = %v, want nil before any setRunner", r)
+	}
+	if vars := d.declaredVarsFor("any"); vars != nil {
+		t.Fatalf("declaredVarsFor() = %v, want nil (fail-open) without a runner", vars)
+	}
+}
