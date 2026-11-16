@@ -75,7 +75,9 @@ an ordinary CLI / Studio Launch / fork-spawned run. `kind` is one of
 vocabulary here: a reader must accept a kind it does not know rather than
 treat the run as unlaunched. Beside it rides the id of the record that
 launched the run, one field per record kind — `issue_id` (+ the
-`issue_identifier` / `issue_title` snapshot), `schedule_id` (a
+`issue_identifier` / `issue_title` snapshot, and on a dispatcher run
+`claimed_from_state`, the column the card was first claimed from, whose
+per-state slot a resumed run keeps), `schedule_id` (a
 `cloudsched.ScheduledBot` id OR a `trigger.Subscription` id,
 `schedule_name` for display), `client_id` + `conversation_id` for a chat
 tab, and `delivery_id` for an inbound webhook delivery

@@ -206,7 +206,7 @@ func (m cmdCandidates) apply(c *Dispatcher, ctx context.Context) {
 		// No free slot (global cap or this state's cap): the card cannot start
 		// now, but its refusal/queue state must still be current. Keep scanning;
 		// other candidates may be in states that still have room.
-		if !c.hasSlot(iss.WorkflowState, cfg) {
+		if !c.hasSlot(c.slotStateFor(cfg, iss), cfg) {
 			c.noteQueued(cfg, iss)
 			continue
 		}
@@ -459,10 +459,10 @@ func (c *Dispatcher) finishRun(ctx context.Context, issueID string, err error) {
 		return
 	}
 	delete(c.state.running, issueID)
-	if r.WorkflowState != "" {
-		c.state.slotsByState[r.WorkflowState]--
-		if c.state.slotsByState[r.WorkflowState] <= 0 {
-			delete(c.state.slotsByState, r.WorkflowState)
+	if col := r.slotColumn(); col != "" {
+		c.state.slotsByState[col]--
+		if c.state.slotsByState[col] <= 0 {
+			delete(c.state.slotsByState, col)
 		}
 	}
 

@@ -3833,6 +3833,9 @@
       },
       "RunSource": {
         "properties": {
+          "claimed_from_state": {
+            "type": "string"
+          },
           "client_id": {
             "type": "string"
           },

@@ -184,6 +184,15 @@ per-state** (`agent.max_concurrent_by_state`). A workflow state in
 the per-state map cannot exceed its individual cap even when the
 global cap has room.
 
+A run holds the slot of the column its card was **first claimed from**, which
+the dispatcher records on the run as `source.claimed_from_state`
+([persisted formats](persisted-formats.md)). A run resumed after a studio
+restart (for example `PROCESS_ORPHANED`, whose card the parked sweep returns to
+`agent.running_state`) therefore keeps charging that column, not
+`running_state`; if its slot is taken, the card waits as `queued`, naming that
+column. Runs without the field (created before it existed) are counted in the
+card's current column.
+
 ### Paused runs — the `awaiting_input` column + parked sweep
 
 > The studio's own launch loop never runs beside a configured dispatcher

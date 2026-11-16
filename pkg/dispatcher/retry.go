@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/arketov/iterion/pkg/backend/delegate"
+	"github.com/arketov/iterion/pkg/dispatcher/tracker"
 	"github.com/arketov/iterion/pkg/retrypolicy"
 	"github.com/arketov/iterion/pkg/runtime"
 	"github.com/arketov/iterion/pkg/store"
@@ -323,6 +324,48 @@ func (c *Dispatcher) resumableRunID(runID string) string {
 	// decision. The ticket stays held (lastRunForbidsFresh) until they
 	// resume it or clear last_run.
 	return ""
+}
+
+// claimedFromState returns the column a dispatcher run's card was first claimed
+// from (store.RunSource.ClaimedFromState), or "" for an empty id, a missing or
+// unreadable run, a non-dispatcher run, or a run created before the field
+// existed. Local disk I/O on the actor, like resumableRunID.
+func (c *Dispatcher) claimedFromState(runID string) string {
+	if runID == "" || c.storeDir == "" {
+		return ""
+	}
+	s, err := c.openRunStore()
+	if err != nil {
+		return ""
+	}
+	r, err := c.loadRunForDecision(s, runID, "slot column")
+	if err != nil || r.Source == nil || r.Source.Kind != store.RunSourceKindDispatcher {
+		return ""
+	}
+	return r.Source.ClaimedFromState
+}
+
+// slotStateFor names the column whose per-state slot iss would hold if it were
+// dispatched now. That is the card's own column, except for a card sitting in
+// the running column that resumes a run: the resumed run keeps the slot of the
+// column it was first claimed from, so max_concurrent_by_state survives a
+// studio restart that returned the card to running_state. Mirrors the
+// resume-target choice of resolveRunID. Actor goroutine only.
+func (c *Dispatcher) slotStateFor(cfg *Config, iss tracker.Issue) string {
+	if len(cfg.Agent.MaxConcurrentByState) == 0 || cfg.Agent.RunningState == "" ||
+		iss.WorkflowState != cfg.Agent.RunningState {
+		return iss.WorkflowState
+	}
+	resumeID := ""
+	if cur, present := c.state.retries[iss.ID]; present {
+		resumeID = cur.PrevRunID
+	} else {
+		resumeID = c.resumableRunID(c.lastRunID(iss.ID))
+	}
+	if col := c.claimedFromState(resumeID); col != "" {
+		return col
+	}
+	return iss.WorkflowState
 }
 
 // promoteIfOrphaned re-examines a running run whose owner may be

@@ -2083,6 +2083,12 @@ type RunSource struct {
 	// not re-fetched on resume, so a later title edit doesn't
 	// rewrite the historical run record.
 	IssueTitle string `json:"issue_title,omitempty" bson:"issue_title,omitempty"`
+	// ClaimedFromState is the board column the dispatcher took the card from
+	// when it started this run (Kind == dispatcher). A run resumed after a
+	// studio restart charges the per-column slot of this column, not the
+	// running column its card sits in by then. Empty on runs created before the
+	// field existed.
+	ClaimedFromState string `json:"claimed_from_state,omitempty" bson:"claimed_from_state,omitempty"`
 	// ScheduleID is the stable schedule identity for
 	// RunSourceKindSchedule runs: ScheduleEntry.Name (host-cron),
 	// trigger.Subscription.ID (spine), cloudsched.ScheduledBot.ID
