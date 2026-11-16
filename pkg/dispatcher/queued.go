@@ -26,7 +26,7 @@ func (c *Dispatcher) noteQueued(cfg *Config, iss tracker.Issue) {
 	if c.refuseWithoutBot(cfg, iss) {
 		return // records no_assignee / no_bot with the card's current bot and assignee
 	}
-	c.recordDispatchSkipKind(iss, DispatchSkipQueued, c.queuedReason(cfg, iss.WorkflowState))
+	c.recordDispatchSkipKind(iss, DispatchSkipQueued, c.queuedReason(cfg, c.slotStateFor(cfg, iss)))
 }
 
 // queuedReason is the operator-facing text of the queued skip: it names the cap

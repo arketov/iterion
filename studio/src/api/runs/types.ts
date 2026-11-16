@@ -611,6 +611,9 @@ export interface RunSource {
   issue_id?: string;
   issue_identifier?: string;
   issue_title?: string;
+  // Dispatcher runs: the board column the card was first claimed from; a
+  // run resumed after a restart holds that column's concurrency slot.
+  claimed_from_state?: string;
   // Schedule provenance (kind === "schedule"): the stable schedule
   // identity the overlap gate queries, plus its human label when it
   // differs. Mirror of store.RunSource.

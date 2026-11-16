@@ -7929,6 +7929,7 @@ export interface components {
             viewer?: components["schemas"]["RunViewer"];
         };
         RunSource: {
+            claimed_from_state?: string;
             client_id?: string;
             conversation_id?: string;
             delivery_id?: string;

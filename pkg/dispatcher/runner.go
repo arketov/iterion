@@ -63,6 +63,9 @@ type IssueRef struct {
 	ID         string
 	Identifier string
 	Title      string
+	// ClaimedFromState is the column whose slot the run holds; stamped into
+	// Source.ClaimedFromState on a fresh run.
+	ClaimedFromState string
 }
 
 // Runner abstracts the engine that turns a DispatchSpec into a running
