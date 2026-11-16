@@ -2,10 +2,10 @@ package runtime
 
 import (
 	"errors"
-	"github.com/SocialGouv/claw-code-go/pkg/api"
 	"github.com/arketov/iterion/pkg/backend/delegate"
 	"github.com/arketov/iterion/pkg/backend/model"
 	"github.com/arketov/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
 	"strings"
 )
 

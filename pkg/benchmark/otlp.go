@@ -16,8 +16,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/SocialGouv/claw-code-go/pkg/apikit"
-	"github.com/SocialGouv/claw-code-go/pkg/apikit/telemetry/otlpgrpc"
+	"github.com/arketov/iterion/pkg/claw/pkg/apikit"
+	"github.com/arketov/iterion/pkg/claw/pkg/apikit/telemetry/otlpgrpc"
 
 	"github.com/arketov/iterion/pkg/store"
 )

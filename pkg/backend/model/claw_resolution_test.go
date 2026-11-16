@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
 
 	"github.com/arketov/iterion/internal/envtrust"
 	"github.com/arketov/iterion/pkg/backend/credroute"

@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SocialGouv/claw-code-go/pkg/permissions"
+	"github.com/arketov/iterion/pkg/claw/pkg/permissions"
 
 	"github.com/arketov/iterion/pkg/backend/model"
 	"github.com/arketov/iterion/pkg/backend/secretguard"

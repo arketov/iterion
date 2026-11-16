@@ -17,8 +17,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
-	"github.com/SocialGouv/claw-code-go/pkg/api/hooks"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
+	"github.com/arketov/iterion/pkg/claw/pkg/api/hooks"
 
 	"github.com/arketov/iterion/pkg/backend/delegate"
 	"github.com/arketov/iterion/pkg/backend/permission"

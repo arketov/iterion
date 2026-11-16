@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
 )
 
 // TestTurnCaptureIsUniformAcrossGenerationModes locks the invariant the

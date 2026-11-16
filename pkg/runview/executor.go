@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	clawtools "github.com/SocialGouv/claw-code-go/pkg/api/tools"
-	"github.com/SocialGouv/claw-code-go/pkg/permissions"
+	clawtools "github.com/arketov/iterion/pkg/claw/pkg/api/tools"
+	"github.com/arketov/iterion/pkg/claw/pkg/permissions"
 
 	"github.com/arketov/iterion/pkg/backend/delegate"
 	"github.com/arketov/iterion/pkg/backend/mcp"
@@ -351,9 +351,6 @@ type ExecutorSpec struct {
 // state directory. Used by both the CLI and the HTTP service so the
 // two transports stay aligned on tool policies, MCP auth, and
 // executor lifecycle.
-// declaredSecretNames returns the names of the workflow's declared
-// `secrets:` block — the only names a `{{secrets.X}}` reference can legally
-// use (compile-checked). Nil-safe.
 // StampLocalCredentials resolves the workflow's declared `secrets:` names
 // from the local sealed store and returns a context carrying them — the
 // in-process equivalent of the cloud runner's injectCredentials. Returns
@@ -380,9 +377,12 @@ func StampLocalCredentials(
 	if _, already := secrets.CredentialsFromContext(ctx); already {
 		return ctx, nil
 	}
-	creds, err := secrets.ResolveLocalCredentials(ctx, localSecrets, sealer, declaredSecretNames(wf), logger)
+	creds, err := secrets.ResolveLocalCredentials(ctx, localSecrets, sealer, storedSecretNames(wf), logger)
 	if err != nil {
 		return nil, fmt.Errorf("runview: resolve local secrets: %w", err)
+	}
+	if err := warnShadowedStoreEntries(ctx, wf, localSecrets, logger); err != nil {
+		return nil, err
 	}
 	// Required-secret launch gate (parity with the cloud publisher): a
 	// non-`optional` declared secret with no inline value MUST resolve to
@@ -400,15 +400,61 @@ func StampLocalCredentials(
 	return secrets.WithCredentials(ctx, creds), nil
 }
 
-func declaredSecretNames(wf *ir.Workflow) []string {
+// storedSecretNames returns the declared secret names the local store
+// fills: those declared without an inline `value:`, which the run resolves
+// from its own expression. The cloud publisher asks its store for the same
+// names (genericSecretNamesForWorkflow), so a declaration resolves to the
+// same source on either launch path. Nil-safe.
+func storedSecretNames(wf *ir.Workflow) []string {
 	if wf == nil || len(wf.Secrets) == 0 {
 		return nil
 	}
 	names := make([]string, 0, len(wf.Secrets))
-	for name := range wf.Secrets {
+	for name, s := range wf.Secrets {
+		if s.HasInlineValue() {
+			continue
+		}
 		names = append(names, name)
 	}
 	return names
+}
+
+// warnShadowedStoreEntries names each local store entry an inline-valued
+// declaration shadows. The run resolves such a secret from its own `value:`
+// expression, on this launch path as on the cloud's, so the entry is not read
+// — its value, nor the host scope `iterion secret set --hosts` gave it, which
+// the secret guard would otherwise have narrowed the value's egress to. An
+// operator who set that scope learns it is inert here, rather than finding it
+// dropped. A store that cannot be listed fails the launch, as the resolution
+// above does.
+func warnShadowedStoreEntries(ctx context.Context, wf *ir.Workflow, store secrets.GenericSecretStore, logger *iterlog.Logger) error {
+	if wf == nil || logger == nil {
+		return nil
+	}
+	inline := map[string]bool{}
+	for name, s := range wf.Secrets {
+		if s.HasInlineValue() {
+			inline[name] = true
+		}
+	}
+	if len(inline) == 0 {
+		return nil
+	}
+	stored, err := store.ListByTeam(ctx, secrets.LocalScopeTeam, "")
+	if err != nil {
+		return fmt.Errorf("runview: list local secrets: %w", err)
+	}
+	for _, rec := range stored {
+		if !inline[rec.Name] {
+			continue
+		}
+		if len(rec.AllowedHosts) > 0 {
+			logger.Warn("secret %q is declared with an inline value, so the run resolves it from that expression: the local store's entry of the same name is not read, nor its host scope %v — the secret guard does not narrow the value's egress to those hosts. Declare `hosts:` on the secret to scope it, or drop its `value:` to read the stored one", rec.Name, rec.AllowedHosts)
+			continue
+		}
+		logger.Warn("secret %q is declared with an inline value, so the run resolves it from that expression: the local store's entry of the same name is not read. Drop the declaration's `value:` to read the stored one", rec.Name)
+	}
+	return nil
 }
 
 // requiredSecretNames returns the declared secret names that MUST resolve to a
@@ -423,7 +469,7 @@ func requiredSecretNames(wf *ir.Workflow) []string {
 	}
 	names := make([]string, 0, len(wf.Secrets))
 	for name, s := range wf.Secrets {
-		if s == nil || s.Optional || strings.TrimSpace(s.Value) != "" {
+		if s == nil || s.Optional || s.HasInlineValue() {
 			continue
 		}
 		names = append(names, name)

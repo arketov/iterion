@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	apikit "github.com/SocialGouv/claw-code-go/pkg/apikit"
+	apikit "github.com/arketov/iterion/pkg/claw/pkg/apikit"
 	codexsdk "github.com/ethpandaops/codex-agent-sdk-go"
 
 	"github.com/arketov/iterion/pkg/backend/modelroute"

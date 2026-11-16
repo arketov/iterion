@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
 )
 
 func TestOpus55StructuredAutoTool(t *testing.T) {

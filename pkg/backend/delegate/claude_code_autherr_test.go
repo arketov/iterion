@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	clawapi "github.com/SocialGouv/claw-code-go/pkg/api"
 	"github.com/arketov/iterion/pkg/backend/delegate/claudesdk"
+	clawapi "github.com/arketov/iterion/pkg/claw/pkg/api"
 	iterlog "github.com/arketov/iterion/pkg/log"
 	"github.com/arketov/iterion/pkg/secrets"
 	"github.com/arketov/iterion/pkg/usagecap"

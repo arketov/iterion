@@ -13,12 +13,12 @@ The bundles under `bots/`, then the skills they carry.
 | `adr-rechallenge` | ⚖️ ReArchi | Human-in-the-loop ADR re-challenge. | 0.1.3 |
 | `app-dev` | 🏗️ Appy | Autonomous end-to-end APPLICATION development from a prompt — greenfield. | 0.4.5 |
 | `arbitrate` | ⚖️ Themis | Judges the divergence cases a modernisation programme leaves blocked, by applying the target repository's own written arbitration doctrine… | 0.1.4 |
-| `assessment` | 🧭 Assessy | Assesses a repository at the START of a modernisation campaign and writes the contract the execution bot then carries out: the state of the… | 0.1.3 |
+| `assessment` | 🧭 Assessy | Assesses a repository at the START of a modernisation campaign and writes the contract the execution bot then carries out: the state of the… | 0.1.4 |
 | `bmady` | 🎭 Bmady | BMAD-METHOD-inspired agile delivery bot. | 0.1.4 |
 | `branch-improve-loop` | 🌿 Billy | Branch-scoped REVIEW-AND-IMPROVE campaign — one capable agent, its natural flow, minimal framing. | 1.9.9 |
-| `campaign` | 🧭 Campy | Supervises a WHOLE modernisation programme, lot after lot, by running the modernize bot as a subbot in a bounded loop — and holding the… | 0.1.3 |
+| `campaign` | 🧭 Campy | Supervises a WHOLE modernisation programme, lot after lot, by running the modernize bot as a subbot in a bounded loop — and holding the… | 0.1.4 |
 | `copilot` | 💬 Copi | Conversational iterion assistant. | 0.2.14 |
-| `dep-update-guard` | 💂 Vetty | Reactive security + alignment guard for automated dependency-update PRs (Dependabot / Renovate). | 2.12.0 |
+| `dep-update-guard` | 💂 Vetty | Reactive security + alignment guard for automated dependency-update PRs (Dependabot / Renovate). | 2.12.2 |
 | `devbox-setup` | 🧰 Devy | Bootstraps a reproducible dev environment for a repository. | 0.1.4 |
 | `docs-refresh` | 📚 Doki | Documentation alignment bot — one capable agent + a mission + truth gates only. | 3.8.0 |
 | `e2e-coverage` | 🕸️ Endy | Autonomous end-to-end coverage completion — one capable agent, its natural flow, minimal framing. | 0.5.4 |
@@ -30,12 +30,12 @@ The bundles under `bots/`, then the skills they carry.
 | `golden-master` | 🪞 Goldy | Builds a behavioural non-regression net for an EXISTING application, and PROVES it is not blind. | 0.1.6 |
 | `instrument` | 📡 Obsy | Observability instrumentation campaign — one capable agent wires a repo for error tracking and standardized logs, one verified semantic… | 0.2.3 |
 | `issue-triage` | 🏷️ Triagy | Lightweight single-shot card triage. | 0.2.3 |
-| `modernize` | 🧱 Morphy | Carries a repository through a programme of modernisation LOTS — steps whose entry and exit are both deterministic gates — one… | 0.7.0 |
+| `modernize` | 🧱 Morphy | Carries a repository through a programme of modernisation LOTS — steps whose entry and exit are both deterministic gates — one… | 0.7.1 |
 | `prod-watch` | 👁️ Argus | Production watchdog for ONE deployed application (scheduled ticks, zero LLM in this slice — the compiled workflow contains no agent or… | 0.4.0 |
 | `product-docs` | 🧭 Prody | Functional documentation bot — one capable agent writes and maintains the BUSINESS-AUDIENCE documentation of a product ("what it does for… | 1.6.0 |
-| `revi-converse` | 💬 Revi (converse) | Conversational sibling of Revi (review-pr). | 0.1.6 |
+| `revi-converse` | 💬 Revi (converse) | Conversational sibling of Revi (review-pr). | 0.1.9 |
 | `review-env` | 🌐 Envy | Deploys the CURRENT workspace's already-CI-published image to the operator-attached platform and hands back a LIVE https URL — a real… | 0.1.4 |
-| `review-pr` | 🔎 Revi | Read-only cross-family code reviewer. | 0.9.19 |
+| `review-pr` | 🔎 Revi | Read-only cross-family code reviewer. | 0.9.23 |
 | `rgaa-audit` | ♿ Acci | RGAA 4.1.2 / WCAG 2.2 AA accessibility audit (read-only) on the ultra11y engine. | 3.2.0 |
 | `sec-audit-deps` | 📦 Depsy | Universal supply-chain malware auditor. | 0.1.5 |
 | `sec-audit-source` | 🛡️ Seki | Universal source-code security auditor. | 0.1.11 |
@@ -164,7 +164,6 @@ The pair a model sees before it decides to open the file.
 | `product-docs` | `product-docs` | Operating playbook for Prody — writing functional, business-audience product documentation in a dedicated docs repository from… |
 | `product-docs` | `publish-static-site` | Build the product documentation into a static site (GitBook blocks → MkDocs Material) and package it as a non-root nginx… |
 | `product-docs` | `ton-et-style` | Default tone and style rules for published functional pages — person, tense, sentence shape, the sourced-or-[à confirmer]… |
-| `revi-converse` | `forge-reply` | How to POST a reply note in an EXISTING pull-request (merge-request on GitLab) discussion thread on GitHub, GitLab, or… |
 | `review-pr` | `ticket-context` | How to obtain the ticket(s) a PR claims to deliver — from an external tracker (Jira Cloud/DC) or, with no configuration, from… |
 | `rgaa-audit` | `adjudication-protocol` | How to rule on one batch of criteria the engine could not decide: reading a brief and an evidence file, the four verdicts and… |
 | `rgaa-audit` | `iterion-board` | How to write to the iterion native kanban board from inside a `.bot` workflow. |

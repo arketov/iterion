@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api/hooks"
+	"github.com/arketov/iterion/pkg/claw/pkg/api/hooks"
 
 	"github.com/arketov/iterion/pkg/backend/tool"
 	"github.com/arketov/iterion/pkg/dsl/ir"

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
 
 	"github.com/arketov/iterion/pkg/backend/auxllm"
 	"github.com/arketov/iterion/pkg/backend/detect"

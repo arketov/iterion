@@ -17,8 +17,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
-	"github.com/SocialGouv/claw-code-go/pkg/api/hooks"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
+	"github.com/arketov/iterion/pkg/claw/pkg/api/hooks"
 
 	"path/filepath"
 
@@ -38,6 +38,7 @@ import (
 	iterlog "github.com/arketov/iterion/pkg/log"
 	"github.com/arketov/iterion/pkg/memory"
 	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/scripthost"
 	"github.com/arketov/iterion/pkg/secrets"
 	"github.com/arketov/iterion/pkg/store"
 )
@@ -223,6 +224,10 @@ func NewClawBackend(registry *Registry, hk EventHooks, retry RetryPolicy, opts .
 	}
 	return b
 }
+
+// DefaultClawToolMaxSteps bounds the tool loop of a claw node that names no
+// `tool_max_steps:`.
+const DefaultClawToolMaxSteps = 5
 
 // Execute implements delegate.Backend.
 //
@@ -485,7 +490,10 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 	// When both tools AND output schema are present, inject schema format
 	// instruction into user text (GenerateText supports tool loop,
 	// GenerateObject does not).
-	if task.OutputSchema != nil && task.HasTools {
+	// The question, not the flag: a codemode node runs a tool loop even when
+	// it declared no tools, and this instruction is what that arm depends on
+	// to get its JSON back.
+	if task.OutputSchema != nil && task.NeedsToolLoop() {
 		schemaJSON, _ := json.MarshalIndent(task.OutputSchema, "", "  ")
 		userText += fmt.Sprintf(
 			"\n\nOUTPUT FORMAT: After completing all tool operations, your final message MUST be a raw JSON object matching this schema:\n%s\nNo markdown fences, no extra text — ONLY the JSON object.",
@@ -625,7 +633,7 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 		applyAsyncAskExecs(task, opts.Tools)
 		maxSteps := task.ToolMaxSteps
 		if maxSteps <= 0 {
-			maxSteps = 5
+			maxSteps = DefaultClawToolMaxSteps
 		}
 		opts.MaxSteps = maxSteps
 		// A tool-equipped claw node is agentic by intent: it must ground its
@@ -764,6 +772,18 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 		}
 	}
 
+	// Codemode (ADR-165): the node's extra tool, whose input is a program.
+	// The decision is the executor's — it walked the precedence and refused a
+	// declared `on` this backend could not serve before building the task —
+	// so the only question left here is whether the task says so.
+	if task.Codemode {
+		installCodemode(&opts, func(requested, applied scripthost.Limits) {
+			if b.logger != nil {
+				b.logger.Warn("[%s] codemode: the platform ceiling reduced this node's script bounds (requested %+v, applied %+v)", task.NodeID, requested, applied)
+			}
+		})
+	}
+
 	// Dispatch to the appropriate generation strategy. A gateway route's
 	// catalog record is resolved ONCE, HERE, before anything runs, and
 	// carried immutable on everything the invocation produces (ADR-122
@@ -789,9 +809,9 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 		genErr error
 	)
 	switch {
-	case hasSchema && !task.HasTools:
+	case hasSchema && !task.NeedsToolLoop():
 		res, genErr = b.generateStructuredWithRetry(ctx, client, task, opts)
-	case hasSchema && task.HasTools:
+	case hasSchema && task.NeedsToolLoop():
 		res, genErr = b.generateTextWithToolsAndSchemaRetry(ctx, client, task, opts)
 	default:
 		res, genErr = b.generateTextWithRetry(ctx, client, task, opts)
@@ -1267,7 +1287,7 @@ func (b *ClawBackend) generateTextWithToolsAndSchema(ctx context.Context, client
 	// emitted a JSON verdict (looksStructured) or that used its tools is
 	// left untouched, so a reviewer whose data is inline (e.g.
 	// whole_improve_loop's chunk_content) never pays for it.
-	if task.HasTools && countToolCalls(result) == 0 && !looksStructured(result.Text) {
+	if task.NeedsToolLoop() && countToolCalls(result) == 0 && !looksStructured(result.Text) {
 		nudged := opts
 		// The nudge is the harness's re-ask, not the operator's prompt —
 		// already screened on the first pass.
@@ -3027,7 +3047,15 @@ func forwardableProviderEnv(ctx context.Context, model, providerHint string) (ma
 		// devcontainer.json, which becomes the env the container is
 		// STARTED with — because ExecOpts.Env outranks that environment.
 		env[compatgw.CatalogModelsEnv] = ""
-		env[compatgw.ReasoningEffortsEnv] = envtrust.Inherited(compatgw.ReasoningEffortsEnv)
+		// The accepted efforts cross as the HOST's merged answer, under
+		// the name they always crossed: the env table's valid entries
+		// overlaid by the run's feed-table efforts (normalized id, every
+		// env spelling of it, and this node's own wire spelling), read
+		// through Inherited like the feed table below — so an older
+		// sandbox image, which reads only this name, maps an effort by
+		// the table the host mapped it by; the explicit empty when
+		// neither table states anything.
+		env[compatgw.ReasoningEffortsEnv] = compatgw.CrossingReasoningEfforts(modelroute.Parse(model).Wire, func(name string) string { return credroute.Inherited(ctx, name) }, iterlog.NewFromEnv(os.Stderr).Warn)
 		env[compatgw.CatalogProviderEnv] = ""
 		env[compatgw.ResolvedEnvName] = ""
 		// The run's price-feed table crosses beside them, the same

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -35,6 +34,7 @@ import (
 	iterconfig "github.com/arketov/iterion/pkg/config"
 	"github.com/arketov/iterion/pkg/configshare"
 	"github.com/arketov/iterion/pkg/connection"
+	"github.com/arketov/iterion/pkg/connector/intake"
 	"github.com/arketov/iterion/pkg/credpool"
 	"github.com/arketov/iterion/pkg/credusage"
 	"github.com/arketov/iterion/pkg/dispatcher/boardmongo"
@@ -599,12 +599,11 @@ func runServer(cmd *cobra.Command, _ []string) error {
 		}(),
 		// The SAME resolver instance the server's admin PUT invalidates —
 		// publish-time pinning sees a mutation immediately on this replica.
-		// The run's effective price-feed table (ADR-163): folded fresh at
-		// every launch and resume from the tenant stores above; nil when
-		// no fresh feed answers and the operator table is the floor.
-		PriceFeedEffective: func(ctx context.Context, orgID, teamID string, named []string) json.RawMessage {
-			return server.EffectivePriceFeed(ctx, stores.priceFeedConfigs, stores.priceFeedStates, orgID, teamID, named, logger.Warn)
-		},
+		// The run's effective price-feed table (ADR-163): folded at every
+		// launch and resume from the feed stores above (platform, org and
+		// team documents); nil when no feed answers and the operator table
+		// is the floor.
+		PriceFeedEffective: server.PublisherPriceFeedEffective(stores.priceFeedConfigs, stores.priceFeedStates, logger.Warn),
 		SandboxImage: func(ctx context.Context) string {
 			return sandboxResolver.Get(ctx).EffectiveImage()
 		},
@@ -793,6 +792,17 @@ func runServer(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+	// The connector ingress lane's dials: a value that does not parse
+	// refuses to start the server rather than read as the default — the
+	// operator stated a bound.
+	intakeRetention, err := intake.RetentionFromEnv(os.Getenv)
+	if err != nil {
+		return fmt.Errorf("server: %w", err)
+	}
+	intakeBacklogMax, err := intake.BacklogMaxFromEnv(os.Getenv)
+	if err != nil {
+		return fmt.Errorf("server: %w", err)
+	}
 
 	srv := server.New(server.Config{
 		Port:        serverOpts.port,
@@ -890,6 +900,9 @@ func runServer(cmd *cobra.Command, _ []string) error {
 		WebhookDeliveries:           stores.webhooks.Deliveries,
 		WebhookCounter:              stores.webhooks.Counter,
 		WebhookDeferred:             stores.webhooks.Deferred,
+		ConnectorIntakes:            intake.NewMongoStore(st.DB()),
+		ConnectorIntakeRetention:    intakeRetention,
+		ConnectorIntakeBacklogMax:   intakeBacklogMax,
 		ConfigShares:                stores.configShares,
 		OrgUsage:                    stores.orgUsage,
 		CredUsage:                   stores.credUsage,
@@ -1123,6 +1136,7 @@ func buildCloudStores(ctx context.Context, st *mongostore.Store, logger *iterlog
 		{"audit", func(c context.Context) error { return audit.EnsureSchema(c, st.DB()) }},
 		{"board", func(c context.Context) error { return boardmongo.EnsureSchema(c, st.DB()) }},
 		{"trigger_subscriptions", func(c context.Context) error { return trigger.NewMongoSubscriptionStore(st.DB()).EnsureSchema(c) }},
+		{"connector_intake", func(c context.Context) error { return intake.EnsureSchema(c, st.DB()) }},
 		{"assistant_run_watches", func(c context.Context) error { return runwatch.NewMongoStore(st.DB()).EnsureSchema(c) }},
 		{"scheduled_bots", func(c context.Context) error { return cloudsched.EnsureSchema(c, st.DB()) }},
 		{"config_shares", func(c context.Context) error { return configshare.EnsureSchema(c, st.DB()) }},

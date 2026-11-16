@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	clawtools "github.com/SocialGouv/claw-code-go/pkg/api/tools"
+	clawtools "github.com/arketov/iterion/pkg/claw/pkg/api/tools"
 
 	"github.com/arketov/iterion/pkg/backend/delegate"
 )

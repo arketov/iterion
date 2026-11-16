@@ -616,7 +616,7 @@ instead.
   board.
 - **Triggers**: revi-converse, ask, converse
 - **Tags**: code-review, conversational, read-only
-- **Vars**: `base_ref` (string), `converse_question` (string), `discussion_id` (string), `pr_url` (string), `replier` (string), `thread_context` (string), `trigger_note` (string), `workspace_dir` (string)
+- **Vars**: `base_ref` (string), `converse_question` (string), `discussion_id` (string), `forge_base_url` (string), `pr_url` (string), `publish_mode` (string), `replier` (string), `thread_context` (string), `trigger_note` (string), `workspace_dir` (string)
 - **Path**: `bots/revi-converse/main.bot`
 
 ### `review-pr` — Revi
@@ -648,7 +648,7 @@ the demand — per-ticket verdicts in the review, gaps as
   tracker ticket(s) it references.
 - **Triggers**: review-pr, pr-review, review
 - **Tags**: code-review, read-only
-- **Vars**: `base_ref` (string), `fixer_hint` (string), `forge_publish_token` (string), `forge_publish_url` (string), `gate_context` (string), `gate_enabled` (bool), `gate_severity` (string), `max_findings` (int), `mono_family` (string), `post_to_board` (string), `pr_review_mode` (string), `pr_url` (string), `prior_pushback` (string), `report_path` (string), `review_mode` (string), `review_tier` (string), `scope_notes` (string), `severity_threshold` (string), `source_branch` (string), `ticket_context` (string), `ticket_refs` (string), `tracker_api_base` (string), `tracker_user` (string), `workspace_dir` (string)
+- **Vars**: `base_ref` (string), `fixer_hint` (string), `forge_publish_token` (string), `forge_publish_url` (string), `gate_context` (string), `gate_enabled` (bool), `gate_severity` (string), `max_findings` (int), `mono_family` (string), `post_to_board` (string), `pr_review_mode` (string), `pr_url` (string), `prior_pushback` (string), `publish_mode` (string), `report_path` (string), `review_mode` (string), `review_tier` (string), `scope_notes` (string), `severity_threshold` (string), `source_branch` (string), `ticket_context` (string), `ticket_refs` (string), `tracker_api_base` (string), `tracker_user` (string), `workspace_dir` (string)
 - **Path**: `bots/review-pr/main.bot`
 
 ### `rgaa-audit` — Acci
@@ -1044,7 +1044,7 @@ redefine what judges it, because a golden master dies by re-baselining. The
   decision recorded in the contract, and the lot DAG in particular encodes
   compatibility knowledge that cannot be re-derived from the tree.
 - **Tags**: ships-code, upgrade
-- **Vars**: `extend` (bool), `max_passes` (int), `only_lot` (string), `plan_path` (string), `reanchor` (bool), `source_issue_ref` (string), `workspace_dir` (string)
+- **Vars**: `campaign_elapsed_s` (float), `campaign_lot_room_s` (int), `campaign_wall_s` (float), `extend` (bool), `max_passes` (int), `only_lot` (string), `plan_path` (string), `reanchor` (bool), `source_issue_ref` (string), `workspace_dir` (string)
 - **Path**: `bots/modernize/main.bot`
 
 ### `secured-renovacy` — Renovacy
@@ -1664,8 +1664,10 @@ added or reshaped in the plan) fall under a configured governance:
 accepted in flight and listed at the head of the final handoff (default),
 or paused for human approval every time. Other escalations either pause
 the run (interactive) or accumulate into the handoff (default) — and the
-campaign always ends on a committed handoff plus a human review node,
-with blocked lots requalified against the final tree.
+campaign ends on a committed handoff plus a human review node, with
+blocked lots requalified against the final tree. A lot whose child fails
+fails the campaign at that lot, resumable; its resume runs a lot only
+where one can still finish, and hands off otherwise.
 
 - **Use when**:
   Use to carry a WHOLE programme unattended once its two prerequisites
@@ -1680,7 +1682,7 @@ with blocked lots requalified against the final tree.
   is a human decision recorded in the contract, and this bot's whole
   authority over it is measuring whether it advances.
 - **Tags**: programme
-- **Vars**: `escalation` (string), `governance` (string), `lot_max_passes` (int), `max_lots` (int), `plan_path` (string), `stagnation_stop` (int), `workspace_dir` (string)
+- **Vars**: `escalation` (string), `governance` (string), `lot_max_passes` (int), `lot_room_s` (int), `max_lots` (int), `plan_path` (string), `stagnation_stop` (int), `workspace_dir` (string)
 - **Path**: `bots/campaign/main.bot`
 
 ### `copilot` — Copi

@@ -205,6 +205,21 @@ concurrency:
 # pinned against each other by TestSelfHostedRoutingExpressionsAgree in
 # internal/ciguard: one copy edited alone turns it red.
 
+# These runners' kernels offer Landlock ABI 1, which has no network rights —
+# they arrive at ABI 4 (kernel 6.7). So codemode's escape suite CANNOT prove
+# that a confined script host is unable to open a TCP connection here, and it
+# refuses to skip a bound silently: the lane has to say out loud what it does
+# not test. Measured 2026-11-11 on arc-runners: the filesystem, exec and
+# every-thread bounds ARE proven, the network one is not, and the connect a
+# confined child made succeeded.
+#
+# Workflow-level rather than per-step because four jobs run the Go suite and a
+# record on one of them is a record on none — `race-shard` found that the hard
+# way. It takes effect only BELOW the ABI an arm needs, so when the runners
+# move to a 6.7+ kernel the arm proves itself and this block can go.
+env:
+  ITERION_CODEMODE_ALLOW_NO_LANDLOCK_NET: "1"
+
 jobs:
   # ---- gated legs: the real work, one side each, aggregated by `test` ----
 
@@ -216,7 +231,10 @@ jobs:
     # aggregator; carries the tap skip and nothing else — see the header.
     # A Homebrew tap update skips this leg: the header says why, and `brand` verifies it.
     if: "!startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ')"
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    # Nested read-only mount witnesses need a namespace-capable runner.
+    # ARC pods refuse that mount; a qualified private runner may override
+    # CI_NATIVE_EXEC_RUNNER. Fork/bot and global-off guards still win.
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_NATIVE_EXEC_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     env:
       CGO_ENABLED: "0"
@@ -363,6 +381,23 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Prepare installed Helm chart dependencies
+        # Hosted VMs include Helm, so chart tests execute there as well as in
+        # helm-lint. Prepare the declared archives before either Go suite.
+        run: |
+          if command -v helm >/dev/null 2>&1; then
+            sh scripts/chart-check-deps.sh charts/iterion
+          fi
+
+      - name: Native exec environment prerequisites
+        # The native transport tests execute the real pair on a read-only mount.
+        # Missing isolation is a failure, not permission to skip the witness.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap build-essential
+          bwrap --version
+          bwrap --die-with-parent --ro-bind / / --dev /dev --proc /proc /bin/true
+
       - name: Unit tests
         # `./...` includes the e2e package, which has its own job (test-e2e)
         # with its own budget; running it here too doubled the wall-clock AND
@@ -401,8 +436,8 @@ jobs:
         run: go test -mod=vendor -tags live -count=1 -run '^$' ./...
 
   test-e2e:
-    # The e2e half. Its own pod, parallel with test-unit, so the suite's
-    # ~9 minutes stop appending to the unit floor. It rebuilds the studio
+    # Partition top-level test families across four pods: the growing e2e
+    # package exceeded its 900s ceiling in one pod (#2911). Each rebuilds the studio
     # frontend because `pkg/server/static/` is gitignored and embedded with
     # `//go:embed all:static` — the e2e server boots against nothing without
     # it, and artifact-sharing would serialize this job behind `studio`
@@ -413,6 +448,10 @@ jobs:
     if: "!startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ')"
     runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     env:
       CGO_ENABLED: "0"
     steps:
@@ -462,23 +501,16 @@ jobs:
           rm -rf ../pkg/server/static/assets ../pkg/server/static/index.html
           cp -r dist/* ../pkg/server/static/
 
-      - name: E2E tests
-        # The ONLY run of the e2e package in this workflow (the unit job
-        # excludes it). The number bounds a HANG, not a slow machine: a
-        # timeout that a healthy run can reach is a coin flip that ejects PRs
-        # from the merge queue with a panic dump naming whichever test
-        # happened to be in flight.
-        #
-        # The suite runs its tests in parallel (t.Parallel() on every row that
-        # owns its state; e2e/main_test.go caps how many run at once, because
-        # these tests wait on background loops and oversubscription starves
-        # them). Measured 2026-09-07 on a 32-core box, whole package, the two
-        # runs back to back: 503.8 s at -parallel 1, 114.5 s capped — a 4.4x
-        # cut. CI runners are smaller than that box, so the wall is longer
-        # here (9-10 min measured 2026-10-04) and the 900 s hang bound now
-        # carries less headroom than it did on the big box: the job budget is
-        # the real ceiling.
-        run: go test -mod=vendor -count=1 -v -timeout 900s ./e2e/...
+      - name: E2E tests (shard ${{ matrix.shard }} of 4)
+        # Discovery includes Test, Example and Fuzz corpus names. Subtests
+        # stay with their parent. All legs use one commit and Go's own
+        # inventory; a discovery failure must stop before running any test.
+        # The per-shard hang bound and e2e/main_test.go's parallel cap stay.
+        shell: bash
+        run: |
+          set -euo pipefail
+          pattern=$(go run -mod=vendor ./scripts/ci/testshards -tests ./e2e -n 4 -i ${{ matrix.shard }} -list-timeout 5m)
+          go test -mod=vendor -count=1 -v -run "$pattern" -timeout 900s ./e2e
 
   studio:
     # The studio half: eslint + tsc -b + vitest, plus the two drift checks
@@ -624,7 +656,10 @@ jobs:
     # lesson: a matrix over runs-on diverges from its id silently).
     # A Homebrew tap update skips this leg: the header says why, and `brand` verifies it.
     if: "!startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ')"
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    # Nested read-only mount witnesses need a namespace-capable runner.
+    # ARC pods refuse that mount; a qualified private runner may override
+    # CI_NATIVE_EXEC_RUNNER. Fork/bot and global-off guards still win.
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_NATIVE_EXEC_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 50
     env:
       CGO_ENABLED: "1"
@@ -674,6 +709,23 @@ jobs:
           echo "fa52a4e758c63d38299163fbdd1edfb4c4963247918bf9c1c5d31d84789eded4  /tmp/yq" | sha256sum -c -
           sudo install -m 0755 /tmp/yq /usr/local/bin/yq
           yq --version
+
+      - name: Prepare installed Helm chart dependencies
+        # Hosted VMs include Helm, so chart tests execute there as well as in
+        # helm-lint. Prepare the declared archives before either Go suite.
+        run: |
+          if command -v helm >/dev/null 2>&1; then
+            sh scripts/chart-check-deps.sh charts/iterion
+          fi
+
+      - name: Native exec environment prerequisites
+        # The native transport tests execute the real pair on a read-only mount.
+        # Missing isolation is a failure, not permission to skip the witness.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap build-essential
+          bwrap --version
+          bwrap --die-with-parent --ro-bind / / --dev /dev --proc /proc /bin/true
 
       - name: Race tests (shard ${{ matrix.shard }} of 3)
         # 1800s bounds a HANG, not a slow machine — the same bound the
@@ -818,7 +870,8 @@ jobs:
             ./pkg/runview/runstream/... ./pkg/cloud/orgsweep/... \
             ./pkg/usagecap/... ./pkg/dispatcher/boardmongo/... ./pkg/identity/... ./pkg/usernotify/... ./pkg/configshare/... \
             ./pkg/pluginsource/... ./pkg/assistantmission/... ./pkg/runwatch/... ./pkg/webhooks/... ./pkg/server/cloudpublisher/... \
-            ./pkg/forge/... ./pkg/trigger/... ./pkg/lease/... ./pkg/platformcfg/... ./pkg/server/...
+            ./pkg/forge/... ./pkg/trigger/... ./pkg/lease/... ./pkg/platformcfg/... ./pkg/server/... \
+            ./pkg/connector/intake/...
           # Exercise the public cloud coordinator against the durable outbox,
           # including tenants that only subscribe to custom/run events.
           go test -mod=vendor -count=1 -v -timeout 15m ./pkg/server/ \

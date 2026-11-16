@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
-	anthropicprovider "github.com/SocialGouv/claw-code-go/pkg/api/providers/anthropic"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
+	anthropicprovider "github.com/arketov/iterion/pkg/claw/pkg/api/providers/anthropic"
 
 	"github.com/arketov/iterion/pkg/backend/credroute"
 	iterlog "github.com/arketov/iterion/pkg/log"

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	clawtools "github.com/SocialGouv/claw-code-go/pkg/api/tools"
+	clawtools "github.com/arketov/iterion/pkg/claw/pkg/api/tools"
 )
 
 // read_file is registered for every claw agent node (RegisterClawBuiltins),

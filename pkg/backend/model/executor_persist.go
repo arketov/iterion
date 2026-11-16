@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
-	clawrt "github.com/SocialGouv/claw-code-go/pkg/runtime"
 	"github.com/arketov/iterion/pkg/backend/backendcaps"
 	"github.com/arketov/iterion/pkg/backend/delegate"
 	"github.com/arketov/iterion/pkg/backend/sessionpack"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
+	clawrt "github.com/arketov/iterion/pkg/claw/pkg/runtime"
 	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 

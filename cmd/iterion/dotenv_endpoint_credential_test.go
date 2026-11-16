@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
 	"github.com/arketov/iterion/internal/envtrust"
 	"github.com/arketov/iterion/internal/stdiotest"
 	"github.com/arketov/iterion/pkg/backend/model"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
 )
 
 // isolateEndpointEnv puts the whole pair class under the test's control: the

@@ -3,7 +3,7 @@ package recovery
 import (
 	"context"
 	"errors"
-	"github.com/SocialGouv/claw-code-go/pkg/api"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
 	"github.com/arketov/iterion/pkg/retrypolicy"
 	"github.com/arketov/iterion/pkg/runtime"
 	"strings"

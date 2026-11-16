@@ -90,3 +90,264 @@ Four parallel readers were sent to inventory the ground CM-1 stands on, with pro
 CM-1's binding must land inside `pkg/backend/model`, or widen the walk of `toolFunnelCallers` in the same change: that guard reads `os.ReadDir(".")`, so a host in `cmd/iterion` is invisible to the very check that exists to refuse a second dispatch path. And the one existing IPC tool proxy — `ClawBackend.multiplexerHandler`'s `OnToolCall` — ends at `td.Execute` with the gate re-applied by hand and never constructs a dispatcher, so the nearest working example is the anti-pattern. Since the dispatcher is a per-node value built inside `GenerateText`, the script host's parent is the node's tool-execution site, not the backend's crossing.
 
 Seams to implement rather than write: `pkg/backend/delegate/envelope.go` (one framing, plus its fail-closed convention), `pkg/internal/proc` (binary location, process group, wait delay, work dir — and the new self-confinement verb, since `SysProcAttr` carries no rlimit field), `pkg/config/scrub_linux.go` (`PR_SET_DUMPABLE`, already written, with a witness that reads a child's `/proc/<pid>/environ`), `internal/proctest`'s `NoProcessLeaks` for the no-orphan arm, and `pkg/operatormcp/spawn.go` as the stdio-child template. No rlimit seam exists anywhere in the tree.
+
+## Amendment — 2026-11-13: the abandonment criterion CM-17 measures against
+
+The record above says the switch "defaults off until CM-17 measures it against
+a named abandonment criterion written **before** CM-5 lands". The attribute
+landed inert and self-declaring (`bfb031129`: `codemode: on|off` carried to the
+IR, a C338 warning that no build served it), which is why that slice could land
+without this. The slice that gives the switch an EFFECT cannot. Here is the
+criterion, named, before any measurement exists to be fitted to.
+
+**What is measured.** `TurnUsage.InputTokens` per node turn, read from the run
+store (`pkg/store/turn.go`) — no new instrumentation. Only turns where the
+backend reported a real split count: a turn carrying `AggregateTokens` instead
+is **excluded from both arms**.
+
+**The void condition, corrected 2026-11-13 after an adversarial round showed
+the first draft voided itself.** That draft read "if the two arms do not
+retain comparable counts of countable turns (within 10%) the measurement is
+void" — and collapsing many tool-call turns into one program turn IS
+codemode's mechanism, so the arms' absolute turn counts diverge by
+construction and the only reachable verdict was `void`. A criterion that can
+only return one answer is not a criterion. What the clause was reaching for is
+that neither arm may lose its EXPENSIVE turns to exclusion, so it is stated as
+a **retention rate**: countable turns ÷ total turns, computed per arm, and the
+measurement is void if the two rates differ by more than 10 points. The arms
+may then differ in turn COUNT as much as codemode makes them — which is the
+thing being measured — while a backend that silently stopped splitting its
+counts on one arm still voids the run.
+
+**And a rate alone is not enough, which a sixth adversarial round showed by
+constructing the cheat the clause is named for.** Two arms can hold the same
+90% retention while one drops only CHEAP turns and the other drops its single
+expensive program turn: the rate reports a 0.0-point difference and the median
+falls 98%, a win manufactured from nothing but which turns each arm lost. A
+rate is blind to WHICH turns it drops. So the second half of the clause: an
+excluded turn still carries a number — `TurnUsage.AggregateTokens` — and the
+measurement is also void if, in either arm, the median `AggregateTokens` of
+the EXCLUDED set and the median `InputTokens` of the countable set differ by
+more than 2×. In the constructed cheat that is 1,000 against 50,000. Still no
+new instrumentation: the number was already in the store and was being thrown
+away.
+
+**On what.** At least three catalogue bots whose output is contractual, and at
+least twenty runs per arm per bot, same inputs, same models. Two arms: the
+same bots with `codemode: off` and with `codemode: on`.
+
+**The threshold.** The MEDIAN input tokens per countable turn must fall by at
+least **20%** in the `on` arm. The median rather than the mean: one run that
+avoids a single enormous tool result would carry a mean on its own, and the
+thesis is about the ordinary turn, not the outlier.
+
+**At equal verdict quality.** Each bot's own contract must still hold —
+`review-pr`'s gate verdict and finding count, every other bot's declared
+output schema and deliverables. A regression in any bot's contract voids the
+win whatever the token number says. The win is not "fewer tokens"; it is
+"fewer tokens for the same work".
+
+**And if the threshold is not met: the switch is REMOVED** — the attribute,
+its two diagnostics and the tool registration — rather than shipped off by
+default. A bound nobody can justify is a maintenance cost and a bound with no
+override (philosophy 1 cuts both ways): the honest end of a measured
+experiment that failed is deletion, not a dial left at zero.
+
+## Amendment — 2026-11-13: the capability is refused, never degraded
+
+The slice that registers the tool had to answer a question the record above
+left open: what happens to a node whose author wrote `codemode: on` and whose
+backend serves no codemode tool. Three decisions, each against a plausible
+alternative.
+
+**It is a typed refusal, not a silent degradation.** Philosophy 1 says warn
+rather than reject, and the first draft of this check was a warning. It is
+wrong here, and `ambient_context` is the precedent that says why: a declared
+value the backend cannot honour is refused at dispatch
+(`ErrCapabilityUnsupported`), while an inherited DEFAULT is not. A node that
+silently ran without the capability its author asked for would keep its whole
+loop in context and bill the very cost codemode exists to avoid, with nothing
+in the run saying so — the "fallback silencieux" the conventions forbid. The
+DEFAULT is never refused, because a fleet inheriting nothing must not start
+failing the day a registry cell moves.
+
+**The refusal is TERMINAL, and an earlier draft of this amendment said
+otherwise.** It claimed a `fallbacks:` route would carry a node past an
+`ErrCapabilityUnsupported`; an adversarial round executed that and found no
+route is tried — a refused PRIMARY never enters the chain (its task is built
+outside it), and a refused FALLBACK ends the chain rather than being skipped,
+which the twin's own `TestAmbientContextRefusesAFallbackThatCannotHonourIt`
+already asserted. In this codebase the class ends a node. Being typed is what
+lets a reader tell a missing capability from a transport failure; it is not a
+recovery path. The claim is corrected here rather than quietly dropped,
+because it was one of three legs the decision stood on; the other two carry
+it — silent degradation is forbidden, and the operator keeps two escape
+hatches (`codemode: off` on the node, or a route to a backend that serves it).
+
+**What a dialled route is judged as.** The compiler resolves
+`backend: "${VAR:-name}"` to the name written in the SOURCE — deliberately, so
+one artifact compiles the same on every machine — while the dispatch expands
+the same text from the pod's environment. The two can name different backends,
+so C339's verdict says when it was read from a source default, and a
+deployment that dials a route elsewhere is judged at dispatch.
+
+**Migration, owed because C338 invited the declaration.** `codemode: on` on a
+non-claw backend COMPILED in v5.32.0 and v5.32.1: C338 warned that nothing
+served it, and its hint read "keep the declaration if you are preparing a
+bot". It is now refused. A `.bot` written in that window — and an already
+queued run carrying one — must re-route the node to a backend that serves
+codemode or declare `codemode: off`. The wire version fence does not catch
+this: such a message is inside the accept window, so an upgraded runner
+recompiles it, C339 refuses it, and the run parks on the DLQ.
+
+**The cell is the capability ceiling (law 4).** `claw` is `shipped`, every
+other backend `typed-refused`, and the discriminator is not model quality but
+structure: codemode's guarantee is that a nested call IS a direct call, which
+only a loop that owns the tool dispatcher can offer. A CLI-agent backend owns
+none. The compiler reads the same registry the engine reads
+(`ir.CodemodeServedBy`), so the two cannot disagree — a compiler that accepted
+what the engine refuses would cost an operator a green gate and a failed run.
+The bounds ceiling is unchanged: `scripthost.Ceiling`, clamped in the parent.
+
+**C338 is retired, not renarrowed.** The warning that said nothing served the
+attribute shipped one day earlier and its own text promised this slice would
+delete the emission. Its successor, C339, asks a narrower question and is an
+ERROR rather than a warning, because what it diagnoses now fails the dispatch
+instead of running degraded — C267's discriminator. A code names one defect
+for as long as anyone can read it in a log, so the number is burned rather
+than reused.
+
+**The wire version rises with it (v31).** `codemode:` adds no RunMessage
+field — it rides `IRCompiled`, which already travels — but a pre-codemode
+runner's decoder drops the key and runs the node without the tool, which is
+the additive-field rule's case: a knob the caller set, that a stale runner
+silently falls back from. `MinSchemaVersion` stays 27.
+
+## Amendment — 2026-11-14: what the in-pod bench measured, and two legs it refused to invent
+
+#3155's bench exists and holds: seven legs on the SHIPPED binary inside its
+OWN image, under the runner's real securityContext, on docker AND containerd.
+[The posture bench](../agents/testing/deployment-posture-bench.md) carries the
+method; this records what it changes in this ADR.
+
+**It does not replace the unit suite, and the first draft of this amendment
+said it did.** `pkg/scripthost`'s suite does not go green without Landlock — it
+fails loudly, skipping only when a lane sets
+`ITERION_CODEMODE_ALLOW_NO_LANDLOCK=1` to go on record (measured: 5 passes
+become 5 failures under ENOSYS and 5 under EPERM). What it cannot do is judge
+the shipped image under the deployment's posture, which is the only thing the
+bench adds.
+
+**The feared answer was not the one we got.** The confinement this record
+mandates rests on `landlock_create_ruleset`, and a container's seccomp profile
+can refuse a syscall it does not list — `Confine` names that shape in its own
+comment, and collapsing it with absence once produced a child with a full
+filesystem and no error. Measured on `ghcr.io/socialgouv/iterion@sha256:0eeb55…`
+(v6.0.0) under `runAsUser` 10001, capabilities dropped,
+`allowPrivilegeEscalation: false` and the daemon's default seccomp profile
+(`Seccomp: 2` with a filter loaded, read back from the child's own
+`/proc/self/status` before anything was concluded): **`landlock_abi: 4`,
+`all_threads: true`**, both bombs biting. The posture's non-seccomp parts do
+not disturb Landlock.
+
+**Both runtimes, because `RuntimeDefault` is not one profile.** It names
+whatever the runtime defaults to, so a bench measuring only docker would answer
+for containerd by assumption. The containerd arm is a real Pod carrying the
+chart's securityContext on a local `kind` cluster (a devbox package of this
+repo): containerd 2.1.1, `seccompProfile: RuntimeDefault`, `landlock_abi: 4`,
+`all_threads: true`, container exit 0. Each arm reads its filter back against an
+`Unconfined` twin reporting `Seccomp: 0`, so a silently unconfined container
+cannot pass for a confined one — and that twin also isolates `NoNewPrivs: 1` as
+coming from `allowPrivilegeEscalation: false` rather than from seccomp.
+
+Seven mutants, six killed and one assumed, and the two that a SECOND
+adversarial round added are the instructive ones. The seccomp pair — `EPERM`
+and `ENOSYS` for that one syscall — reddens both arms and differently for each
+(no confinement reported vs `landlock_abi: 0` plus the `allow_without_landlock`
+remedy); in-cluster they are Kubernetes `Localhost` profiles. A Landlock that
+installs nothing while still reporting ABI 4 reddens the escape leg. No
+Landlock plus `-allow-without-landlock` exits 5, *it is not a pass*. `--uid 0`
+is refused before any leg runs.
+
+**THREE adversarial rounds, and the lesson is that each round killed a guard
+the previous one had just written.** Round 2 defeated two round-1 fixes: the
+same stubbed Landlock **plus `RLIMIT_NOFILE: 0`** made all three escape
+attempts fail with `EMFILE`, and a leg asking only *whether* they failed
+printed "too many open files" and passed — so the oracle requires `EACCES`,
+the errno Landlock refuses with on ABI 4, connect included. And a **global
+lock around every run** serialised the concurrency leg while still reporting
+the maximum overlap of timestamp windows, because those windows include the
+wait in queue.
+
+Round 3 then defeated round 2's replacement. Counting live children is
+satisfied by **either group alone**, so a scheduler admitting the three
+siblings together and then the three bombs together passed with a peak of 3
+and zero meetings. The kinds are now told apart by `argv[0]` — the bombs run
+through a second `Host` whose `Binary` is a symlink of the same file, which
+`command()` puts in the child's argv — and some 5 ms sample must see both at
+once: 0 under that mutant, ~330 honest.
+
+Round 3 also found the posture guard reading only the EFFECTIVE capability
+set, which an unprivileged uid holds empty whatever it may acquire: a
+`--privileged` container with a permissive seccomp profile reported every leg
+held, with the host's disks visible inside it. It now requires the BOUNDING
+set empty too — `CapBnd 0000000000000000` under the chart's
+`capabilities: drop: [ALL]`, `000001ffffffffff` in that container.
+
+Round 4 found the same shape once more, in the one input this gate exists to
+judge. `Seccomp: 2` names the MODE and never the PROFILE: an **allow-all
+seccomp profile alone** — no `--privileged`, nothing else — reported every leg
+held with exit 0, because a filter that denies nothing reports exactly the two
+fields the guard read. The profile comes from the daemon's `--seccomp-profile`
+and the kubelet's `RuntimeDefault`, and nothing was reading it, which is the
+defect this bench already refuses for the runner image and the kind node
+image. So the posture now asks the KERNEL: `add_key` must answer `EPERM`,
+which a runtime default refuses and a permissive profile lets through
+(measured: `EPERM` under the daemon default, `ENOKEY` under allow-all);
+`ENOSYS` is reported as not covered. Round 4 also found `--user 10001:0`
+accepted, the evidence files citing a `CapBnd` they did not contain, and a
+run with all seven legs executed answering the code reserved for "nothing was
+tested".
+
+One round-1 guard went the other way and was REMOVED: an asserted margin on
+the spinner compared wall time to a CPU bound and flipped its own verdict at
+14.9 s and 17.0 s over a healthy deployment.
+
+**Four rounds, four rounds with findings, and the pattern is the record's real
+contribution**: every round killed a guard the previous had just written, and
+twice the guard had been fixed in ONE FIELD of a two-field class. The mutant
+register is therefore a page of its own
+([posture-bench-mutants.md](../agents/testing/posture-bench-mutants.md)) with a
+standing rule — adding a guard to that bench means adding the mutant that
+proves it.
+
+The assumed survivor is named: with `applyParentDeathSignal` turned into a
+no-op the drain leg stays green, because that function's own doc calls
+`Pdeathsig` a backstop rather than the orphan bound — so that leg witnesses
+the property a drain needs and nothing about which holder delivers it.
+
+**What is still owed**: the production node's own containerd build, since a
+default profile is a property of that build. The structural question is settled
+— a containerd `RuntimeDefault` does not refuse `landlock_create_ruleset` — so
+what remains is re-running this bench against a production node and recording
+its version, not designing an experiment.
+
+**Two legs of the gate name mechanisms this codebase does not have — but the
+axis they protect is OWED, not covered.** The Consequences section asks for
+`oom_score_adj` and RSS probing to work under the runner's securityContext, and
+neither exists here (zero production sites, every spelling). So those legs
+cannot be written as specified. What must not follow — and the first draft of
+this amendment did follow it — is that the axis is therefore handled:
+`Confine`'s own comment says `RLIMIT_DATA` bounds the Go heap and that *a
+`MAP_SHARED` or memfd mapping is not charged to it, so a native payload's real
+ceiling is the pod's memory cgroup*, which is exactly the ground those legs
+covered. The concurrency leg bounds each bomb by its own `RLIMIT_DATA` and
+cannot observe an eviction. The requirement stands as written and is
+unsatisfied; what is retired is the SHAPE of the two legs, not the axis.
+
+**And the bench found a gap in the product while measuring itself**:
+`Limits.Clamp` enforces no FLOOR on `Memory`. A bound below what the child's Go
+runtime needs makes it crash — measured at 64 MiB, `script_host_died` with a
+SIGSEGV where the caller asked for `memory_exceeded`. A tenant can therefore
+write a `memory:` that produces an unexplained crash instead of a typed
+refusal. Its own ticket.

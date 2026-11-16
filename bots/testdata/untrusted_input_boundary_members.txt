@@ -116,14 +116,14 @@ issue-triage/triage	capability board.assign
 issue-triage/triage	capability board.comment
 issue-triage/triage	capability board.label
 issue-triage/triage	tools: skill
-modernize/upgrade_campaign	no `tools:` list declared on claude_code, the full native toolset
+modernize/upgrade_campaign	tools: bash, write_file, file_edit, notebook_edit, agent, web_search, tool_search, todo_write, skill
 product-docs/campaign	capability board.create
 product-docs/campaign	no `tools:` list declared on claude_code, the full native toolset
 product-docs/diagram	no `tools:` list declared on claude_code, the full native toolset
 product-docs/finalize_mr	capability board.comment
 product-docs/finalize_mr	tools: bash
 product-docs/publish	tools: bash
-revi-converse/converse_agent	no `tools:` list declared on claude_code, the full native toolset
+revi-converse/converse_agent	tools: bash
 review-env/deploy	no `tools:` list declared on claude_code, the full native toolset
 review-pr/converge	capability board.create
 review-pr/converge	capability board.label

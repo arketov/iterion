@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/SocialGouv/claw-code-go/pkg/api"
-	"github.com/SocialGouv/claw-code-go/pkg/api/hooks"
+	"github.com/arketov/iterion/pkg/claw/pkg/api"
+	"github.com/arketov/iterion/pkg/claw/pkg/api/hooks"
 
 	"github.com/arketov/iterion/pkg/backend/credroute"
 	"github.com/arketov/iterion/pkg/backend/permission"

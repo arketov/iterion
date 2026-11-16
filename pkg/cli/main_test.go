@@ -2,13 +2,13 @@ package cli_test
 
 import (
 	"github.com/arketov/iterion/internal/detecttest"
-	"os"
-	"testing"
-
 	"github.com/arketov/iterion/internal/gittest"
 	"github.com/arketov/iterion/internal/hometest"
+	"github.com/arketov/iterion/internal/pricingtest"
 	"github.com/arketov/iterion/internal/proctest"
 	"github.com/arketov/iterion/pkg/internal/hostshelltest"
+	"os"
+	"testing"
 )
 
 // `iterion run` takes its workspace from the process cwd, so a run with
@@ -24,6 +24,7 @@ import (
 // operator's.
 func TestMain(m *testing.M) {
 	hostshelltest.PreferPosix() // sh fixtures; PowerShell is the Windows default
+	pricingtest.Isolate()       // for the rest of the process: no restore before os.Exit
 	restoreProviders := detecttest.IsolateProviders()
 	code := hometest.Isolate(func() int {
 		return proctest.NoProcessLeaks(func() int { return gittest.NoWorktreeLeaks(m) })
