@@ -25,13 +25,13 @@ export default function RunButton() {
     <>
       {backendProbed && !hasResolvedBackend && !refusal && (
         // The credential is the only thing holding this launch: surface a
-        // clickable nudge straight to Preferences → Backends — otherwise the
+        // clickable nudge straight to Settings → Backends — otherwise the
         // only signal is a silently greyed-out button.
         <IconButton
           variant="warning"
           size="sm"
-          label="No LLM credential detected — open Preferences → Backends"
-          tooltip="No LLM credential detected — click to open Preferences → Backends"
+          label="No LLM credential detected — open Settings → Backends"
+          tooltip="No LLM credential detected — click to open Settings → Backends"
           onClick={() =>
             window.dispatchEvent(
               new CustomEvent("iterion:open-settings", {
@@ -58,7 +58,7 @@ export default function RunButton() {
         title={
           refusal ??
           (!hasResolvedBackend
-            ? "No LLM credentials detected — open Preferences → Backends to configure."
+            ? "No LLM credentials detected — open Settings → Backends to configure."
             : currentFilePath
               ? `Launch ${currentFilePath}`
               : "Launch the unsaved workflow")

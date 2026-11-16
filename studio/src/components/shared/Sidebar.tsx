@@ -125,8 +125,8 @@ export default function Sidebar() {
             type="button"
             onClick={openSettings}
             className="inline-flex items-center justify-center h-7 w-7 rounded text-fg-subtle hover:text-fg-default hover:bg-surface-2 transition-colors"
-            title="Preferences"
-            aria-label="Open preferences"
+            title="Settings"
+            aria-label="Open settings"
           >
             <GearIcon className="w-4 h-4" />
           </button>
@@ -137,7 +137,7 @@ export default function Sidebar() {
             className="flex w-full items-center gap-2 px-2 py-1 text-xs rounded text-fg-default hover:bg-surface-2 transition-colors"
           >
             <GearIcon className="w-4 h-4 shrink-0" />
-            <span>Preferences</span>
+            <span>Settings</span>
           </button>
         )}
       </div>

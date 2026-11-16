@@ -124,12 +124,22 @@ describe("the toolbar's Run", () => {
   });
 
   describe("without an LLM credential", () => {
-    it("is disabled and nudges to Preferences → Backends when the credential is the only blocker", () => {
+    it("is disabled and nudges to Settings → Backends when the credential is the only blocker", () => {
       credential("");
       mount(boundClean());
       expect(run().disabled).toBe(true);
       expect(run().title).toMatch(/No LLM credentials detected/);
       expect(nudge()).not.toBeNull();
+    });
+
+    it("names the Settings dialog, not Preferences, in the Run title and the nudge", () => {
+      credential("");
+      mount(boundClean());
+      expect(run().title).toMatch(/Settings → Backends/);
+      expect(run().title).not.toMatch(/Preferences/);
+      const hint = nudge();
+      expect(hint?.getAttribute("aria-label")).toMatch(/open Settings → Backends/);
+      expect(hint?.getAttribute("aria-label")).not.toMatch(/Preferences/);
     });
 
     it("names the document's own reason first, and shows no nudge for it", () => {

@@ -40,7 +40,7 @@ the pages *your* server answers.
 | — | **Home** | The start page: a *What's Next* entry, tiles for the other pages your server has, your project's `.bot` files and recent runs. |
 | — | **What's Next** | A conversation with the `whats-next` bot ("Nexie"): it surveys the repo and the board, proposes what to do next and can create and dispatch cards. The same session is available from the assistant dock on every page ([assistant dock](assistant-dock.md)). A dot on the entry means it is waiting for your answer. |
 | — | **Editor** | Author a bot: canvas, node inspector, source view and live diagnostics. Its start page lists the project's `.bot` files (built from the same places as the catalog, one row per bundle, capped at 500), **Open…**, **Import copy…** and your recent files. Open tabs fold under the entry. |
-| — | **Runs** | Every run of this project, live and past: status, cost, duration, filters; open one for the run console (live graph, event log, diffs, commits, cost report). A badge counts runs paused for your input. **Analytics** (button on this page, `/insights`) shows cost over time and per-workflow run counts, failure rates and durations. |
+| — | **Runs** | Every run of this project, live and past: status, cost, duration, filters; open one for the run console (live graph, event log, diffs, commits, cost report). A badge counts runs paused for your input. **Insights** (button on this page, `/insights`) shows cost over time and per-workflow run counts, failure rates and durations. |
 | — | **Bots** | The catalog: every bot you can launch, with its origin and *enabled* flag; **New bot** opens the guided builder. |
 | Operate | **Board** | The project's kanban of cards. Cards become runs when a bot is assigned and the card is in a ready column. **Refresh** re-reads every card from disk. |
 | Operate | **Pipelines** | A control-center view of *root* runs across all bots in four lanes (Opened, In progress, Needs attention, Closed); pending human reviews can be answered from a card there. Shares the Board's store. |
@@ -53,7 +53,7 @@ the pages *your* server answers.
 | — | **Sitemap** | The list of every page this server answers. An unknown address shows **Page not found** with links to Home and the Sitemap — it no longer falls back to Home. |
 
 Cloud-only pages (Integrations, Admin) and the Config editor appear only on a
-server that has them. The sidebar's **Preferences** button opens the Settings dialog: Backends
+server that has them. The sidebar's **Settings** button opens the Settings dialog: Backends
 (the detected LLM credentials), Appearance and more.
 
 ### Bots versus the Editor's file list
@@ -96,7 +96,7 @@ Goal: take a `.bot` file and see it run.
 1. **Editor → Open…** and pick the file (or use **Bots** → the bot → *Open in
    editor*). Fix anything the live diagnostics flag; **Save**.
 2. Press **Run** (top right). If it is greyed out, the tooltip says why: no LLM
-   credential detected (the warning icon beside it opens **Preferences →
+   credential detected (the warning icon beside it opens **Settings →
    Backends**), an unsaved empty buffer, or errors in the document.
 3. The launch form (`/runs/new`) asks for the bot's variables, attachments and
    options (model, budget, sandbox, worktree). Press **Launch**.
