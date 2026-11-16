@@ -49,6 +49,20 @@ export async function mergeRun(
   });
 }
 
+// discardRunBranch deletes a finished run's iterion/run/<id> storage branch
+// from the local repository (the server answers 204). A branch whose commits
+// are not merged is refused with 409 and errorCode "branch_unmerged" until
+// the call is repeated with force: true.
+export async function discardRunBranch(
+  runId: string,
+  req: { force?: boolean } = {},
+): Promise<void> {
+  await request<void>(`/runs/${encodeURIComponent(runId)}/discard-branch`, {
+    method: "POST",
+    body: JSON.stringify(req),
+  });
+}
+
 // commitAndFinalizeRun stages and commits a run's uncommitted workdir
 // changes with the operator-supplied message, then promotes the new
 // HEAD onto a persistent branch (FinalCommit + FinalBranch land on

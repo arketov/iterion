@@ -537,6 +537,7 @@ registered by `board_forge.go`, `local_secrets_routes.go`, `notifications_routes
 | `GET` | `/api/runs/{id}/commits/{sha}` | session | yes |
 | `GET` | `/api/runs/{id}/commits/{sha}/diff` | session | yes |
 | `GET` | `/api/runs/{id}/diagnostic` | session | yes |
+| `POST` | `/api/runs/{id}/discard-branch` | session | yes |
 | `GET` | `/api/runs/{id}/events` | session | yes |
 | `GET` | `/api/runs/{id}/files` | session | yes |
 | `GET` | `/api/runs/{id}/files/content` | session | yes |

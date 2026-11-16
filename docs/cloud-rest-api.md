@@ -907,6 +907,7 @@ so a new id-addressed route cannot land unclassified:
 | `POST` | `/api/runs/{id}/merge/conflicts/finalize` | member | Commit the resolved merge and continue the pipeline |
 | `POST` | `/api/runs/{id}/merge/conflicts/abort` | member | Abandon the merge; the storage branch is preserved |
 | `POST` | `/api/runs/{id}/commit-and-finalize` | member | Commit pending work and finalise |
+| `POST` | `/api/runs/{id}/discard-branch` | member | Delete a finished local run's `iterion/run/<id>` storage branch and clear `final_branch`. Body `{"force": bool}`; 204. A branch whose commits are not merged is refused with 409 `error_code: branch_unmerged` until `force` is sent; a live run, a moved or foreign branch, or a run with no local repository (cloud) is a plain 409 |
 | `POST` | `/api/runs/{id}/rename` | member | Rename a run |
 | `GET` | `/api/runs/{id}/children` | viewer | Child (subbot) runs |
 | `GET` | `/api/runs/{id}/review/scope` / `…/review/diff` | viewer | Human-gate review scope and its diff ([review-scope.md](review-scope.md)) |
