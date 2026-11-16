@@ -9,13 +9,19 @@ import (
 // noteQueued keeps the dispatch-skip entry of a candidate that has no free slot
 // truthful. dispatch() is never reached for such a card, so without this a
 // refusal recorded before the operator (or a board trigger) assigned a bot
-// stays on the card for as long as the slots are busy. Actor goroutine only.
+// stays on the card for as long as the slots are busy. A last-run hold is
+// re-evaluated against the card's current column, bot and last run (the card was
+// moved, or the run ended) and replaced by queued once it no longer applies.
+// Actor goroutine only.
 func (c *Dispatcher) noteQueued(cfg *Config, iss tracker.Issue) {
+	hadLastRunHold := false
 	if prev, ok := c.state.dispatchSkips[iss.ID]; ok {
-		switch prev.Kind {
-		case DispatchSkipNoAssignee, DispatchSkipNoBot, DispatchSkipQueued:
+		switch {
+		case prev.Kind == DispatchSkipNoAssignee, prev.Kind == DispatchSkipNoBot, prev.Kind == DispatchSkipQueued:
+		case isLastRunSkipKind(prev.Kind):
+			hadLastRunHold = true
 		default:
-			return // another refusal (source_changed, completion_pending, last-run hold, bot misconfiguration) keeps its own text
+			return // another refusal (source_changed, completion_pending, bot misconfiguration) keeps its own text
 		}
 	}
 	// The ticket router assigns a bot inside dispatch(); judging such a card
@@ -25,6 +31,12 @@ func (c *Dispatcher) noteQueued(cfg *Config, iss tracker.Issue) {
 	}
 	if c.refuseWithoutBot(cfg, iss) {
 		return // records no_assignee / no_bot with the card's current bot and assignee
+	}
+	if hadLastRunHold {
+		if c.lastRunHoldBeforeClaim(iss) {
+			return // still held: the skip is rewritten with the current reason
+		}
+		delete(c.state.lastRunHoldWarned, iss.ID)
 	}
 	c.recordDispatchSkipKind(iss, DispatchSkipQueued, c.queuedReason(cfg, iss.WorkflowState))
 }

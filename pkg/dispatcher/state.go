@@ -373,6 +373,32 @@ const DispatchSkipSourceChanged = "source_changed"
 // a free slot (global or per-state cap). It is not a refusal.
 const DispatchSkipQueued = "queued"
 
+// DispatchSkipLastRunActive is DispatchSkipView.Kind for a card whose last run
+// is running or queued: the dispatcher refuses a fresh sibling. It is not a
+// refusal the operator has to fix.
+const DispatchSkipLastRunActive = "last_run_active"
+
+// DispatchSkipRunFinished is DispatchSkipView.Kind for a card whose run finished
+// cleanly and which the dispatcher itself returned to completed_state: it is
+// not dispatched again until the card is moved to another column and back. Not
+// an error.
+const DispatchSkipRunFinished = "run_finished"
+
+// DispatchSkipLastRunHold is DispatchSkipView.Kind for every other hold caused
+// by the card's last run (cancelled by the operator, paused by a foreign owner,
+// run store or workspace ownership unreadable). A warning: it needs an operator.
+const DispatchSkipLastRunHold = "last_run_hold"
+
+// isLastRunSkipKind reports whether kind is one of the last-run hold kinds,
+// which noteQueued re-evaluates instead of preserving.
+func isLastRunSkipKind(kind string) bool {
+	switch kind {
+	case DispatchSkipLastRunActive, DispatchSkipRunFinished, DispatchSkipLastRunHold:
+		return true
+	}
+	return false
+}
+
 // DispatchSkipView is one entry of the "won't dispatch" surface: an
 // eligible issue the dispatcher refused to claim because its explicit
 // bot can't be resolved to a workflow file, or resolves but has no
@@ -393,8 +419,11 @@ type DispatchSkipView struct {
 	// "completion_pending" (the run finished but the move to completed_state
 	// failed and is being retried), "source_changed" (the last run cannot
 	// resume: the bot source changed), "queued" (a routable card waiting for a
-	// concurrency slot — not a refusal), or empty for the bot-misconfiguration
-	// family.
+	// concurrency slot — not a refusal), "last_run_active" (the last run is
+	// running or queued — not a refusal), "run_finished" (the run finished
+	// cleanly and the card is parked — not a refusal), "last_run_hold" (any
+	// other last-run hold: cancelled, foreign pause, unreadable store), or
+	// empty for the bot-misconfiguration family.
 	Kind string `json:"kind,omitempty"`
 }
 
