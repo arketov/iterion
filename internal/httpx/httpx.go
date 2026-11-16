@@ -88,7 +88,7 @@ func WriteErrorJSON(w http.ResponseWriter, status int, payload any) {
 var errorRedactor atomic.Pointer[func(string) string]
 
 // SetErrorRedactor installs f as the rewrite WriteErrorJSON applies to the
-// "error" message of every 4xx answer — the one chokepoint of the studio and
+// "error", "detail" and "hint" messages of every 4xx answer — the one chokepoint of the studio and
 // cloud APIs' client errors, where a handler that formats err.Error() of a
 // file operation (`open /srv/store/runs/x/run.json: no such file`) would hand
 // the caller the host's directory layout. A 5xx body never carries the message
@@ -112,10 +112,14 @@ func RedactError(msg string) string {
 	return msg
 }
 
-// redactErrorPayload returns payload with its "error" message redacted. The
-// maps the callers pass are copied, never edited in place: a caller may keep
-// and reuse its payload. Other payload shapes (a struct, a list) are returned
-// as they are.
+// redactedKeys are the message-bearing fields of a 4xx map payload: the error
+// text, a launch denial's detail and a Remedy's hint.
+var redactedKeys = []string{"error", "detail", "hint"}
+
+// redactErrorPayload returns payload with its "error", "detail" and "hint"
+// messages redacted. The maps the callers pass are copied, never edited in
+// place: a caller may keep and reuse its payload. Other payload shapes (a
+// struct, a list) are returned as they are.
 func redactErrorPayload(payload any) any {
 	f := errorRedactor.Load()
 	if f == nil {
@@ -123,15 +127,29 @@ func redactErrorPayload(payload any) any {
 	}
 	switch p := payload.(type) {
 	case map[string]string:
-		if msg, ok := p["error"]; ok {
-			c := maps.Clone(p)
-			c["error"] = (*f)(msg)
+		var c map[string]string
+		for _, k := range redactedKeys {
+			if msg, ok := p[k]; ok {
+				if c == nil {
+					c = maps.Clone(p)
+				}
+				c[k] = (*f)(msg)
+			}
+		}
+		if c != nil {
 			return c
 		}
 	case map[string]any:
-		if msg, ok := p["error"].(string); ok {
-			c := maps.Clone(p)
-			c["error"] = (*f)(msg)
+		var c map[string]any
+		for _, k := range redactedKeys {
+			if msg, ok := p[k].(string); ok {
+				if c == nil {
+					c = maps.Clone(p)
+				}
+				c[k] = (*f)(msg)
+			}
+		}
+		if c != nil {
 			return c
 		}
 	}

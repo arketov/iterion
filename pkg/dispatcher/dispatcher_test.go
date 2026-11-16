@@ -804,3 +804,17 @@ func TestReloadWithRunnerSwapsRunner(t *testing.T) {
 		t.Fatal("a reload carrying a runner did not swap it")
 	}
 }
+
+// A Dispatcher built as a literal (tests) has no runner until setRunner:
+// currentRunner returns nil instead of dereferencing the unset box.
+func TestCurrentRunner_NilBeforeSetRunner(t *testing.T) {
+	d := &Dispatcher{}
+	if got := d.currentRunner(); got != nil {
+		t.Fatalf("currentRunner before setRunner = %v, want nil", got)
+	}
+	r := &StubRunner{}
+	d.setRunner(r)
+	if d.currentRunner() != Runner(r) {
+		t.Fatal("currentRunner did not return the runner given to setRunner")
+	}
+}

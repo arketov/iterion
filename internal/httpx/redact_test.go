@@ -102,3 +102,32 @@ func TestRedactError_AppliesTheInstalledRedactor(t *testing.T) {
 		t.Errorf("RedactError = %q", got)
 	}
 }
+
+// "detail" (a launch denial's human message) and "hint" (a Remedy) of a 4xx map
+// payload name paths as readily as "error" does.
+func TestWriteErrorJSON_RedactsDetailAndHint(t *testing.T) {
+	installMask(t)
+	payload := map[string]any{
+		"error":      "e /srv/secret-store/a",
+		"detail":     "d /srv/secret-store/b",
+		"hint":       "h /srv/secret-store/c",
+		"error_code": "x",
+	}
+	rec := httptest.NewRecorder()
+	WriteErrorJSON(rec, http.StatusUnprocessableEntity, payload)
+	body := decodeBody(t, rec)
+	for k, want := range map[string]string{"error": "e <store>/a", "detail": "d <store>/b", "hint": "h <store>/c", "error_code": "x"} {
+		if body[k] != want {
+			t.Errorf("%s = %v, want %q", k, body[k], want)
+		}
+	}
+	if payload["detail"] != "d /srv/secret-store/b" {
+		t.Errorf("the caller's map was edited in place: %v", payload)
+	}
+
+	rec = httptest.NewRecorder()
+	WriteErrorJSON(rec, http.StatusUnprocessableEntity, map[string]string{"error": "denied", "detail": "d /srv/secret-store/b"})
+	if got := decodeBody(t, rec)["detail"]; got != "d <store>/b" {
+		t.Errorf("string-map detail = %v, want it masked", got)
+	}
+}

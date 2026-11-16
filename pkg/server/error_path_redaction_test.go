@@ -7,9 +7,105 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/gorilla/websocket"
 
 	iterlog "github.com/arketov/iterion/pkg/log"
+	"github.com/arketov/iterion/pkg/runtime"
 )
+
+func namesHostPath(s, work string) bool {
+	return strings.Contains(s, work) || strings.Contains(s, filepath.ToSlash(work))
+}
+
+// The launch-denial envelope writes its 4xx arm without WriteErrorJSON, and
+// "detail" is built from the error of the operation that failed.
+func TestLaunchDenialDetailNamesNoHostPath(t *testing.T) {
+	work := t.TempDir()
+	srv := New(Config{DisableAuth: true, WorkDir: work}, iterlog.New(iterlog.LevelError, nil))
+	runJSON := filepath.Join(work, ".iterion", "runs", "r1", "run.json")
+	for _, status := range []int{http.StatusUnprocessableEntity, http.StatusServiceUnavailable} {
+		rec := httptest.NewRecorder()
+		srv.renderLaunchDenial(rec, httptest.NewRequest(http.MethodPost, "/x", nil), &launchDenial{status: status, reason: "fork_run_unfunded", detail: "open " + runJSON + ": denied"})
+		if namesHostPath(rec.Body.String(), work) {
+			t.Errorf("%d body names the workspace: %s", status, rec.Body.String())
+		}
+		if status != http.StatusUnprocessableEntity {
+			continue
+		}
+		var body map[string]string
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decode %q: %v", rec.Body.String(), err)
+		}
+		if body["error"] != "fork_run_unfunded" || !strings.Contains(body["detail"], "run.json") {
+			t.Errorf("body = %v, want the reason kept and the file name in detail", body)
+		}
+	}
+}
+
+// The remedy a RuntimeError carries rides in "hint" beside the redacted "error".
+func TestResumeErrorHintNamesNoHostPath(t *testing.T) {
+	work := t.TempDir()
+	srv := New(Config{DisableAuth: true, WorkDir: work}, iterlog.New(iterlog.LevelError, nil))
+	runJSON := filepath.Join(work, ".iterion", "runs", "r1", "run.json")
+	rec := httptest.NewRecorder()
+	srv.writeResumeError(rec, httptest.NewRequest(http.MethodPost, "/x", nil), &runtime.RuntimeError{
+		Code: runtime.ErrCodeScratchNotPortable, Message: "cannot resume", Hint: "check " + runJSON,
+	})
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode %q: %v", rec.Body.String(), err)
+	}
+	hint, _ := body["hint"].(string)
+	if hint == "" || namesHostPath(hint, work) {
+		t.Errorf("hint = %q, want a hint without the workspace", hint)
+	}
+}
+
+// The run socket's error envelope and its close frame carry error text too.
+func TestRunWSErrorAndCloseFrameNameNoHostPath(t *testing.T) {
+	work := t.TempDir()
+	srv := New(Config{DisableAuth: true, WorkDir: work}, iterlog.New(iterlog.LevelError, nil))
+	runJSON := filepath.Join(work, ".iterion", "runs", "r1", "run.json")
+
+	t.Run("error envelope", func(t *testing.T) {
+		rc := newRunConn(srv, nil, "r1")
+		rc.sendError("snapshot_failed", "open "+runJSON+": denied", "a1")
+		var env runWSEnvelope
+		if err := json.Unmarshal(<-rc.sendCh, &env); err != nil {
+			t.Fatalf("decode envelope: %v", err)
+		}
+		var p wsErrorPayload
+		if err := json.Unmarshal(env.Payload, &p); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		if p.Code != "snapshot_failed" || namesHostPath(p.Message, work) || !strings.Contains(p.Message, "run.json") {
+			t.Errorf("payload = %+v, want the code kept and no workspace in the message", p)
+		}
+	})
+
+	t.Run("close frame", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			conn, err := upgrader.Upgrade(w, r, nil)
+			if err != nil {
+				return
+			}
+			defer conn.Close()
+			_ = writeWSClose(conn, websocket.ClosePolicyViolation, wsCloseCredentialRefused, "open "+runJSON+": denied")
+		}))
+		t.Cleanup(ts.Close)
+		conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(ts.URL, "http"), nil)
+		if err != nil {
+			t.Fatalf("dial: %v", err)
+		}
+		t.Cleanup(func() { _ = conn.Close() })
+		ce, _ := awaitWSClose(t, conn, 10*time.Second)
+		if ce == nil || namesHostPath(ce.Text, work) || !strings.HasPrefix(ce.Text, wsCloseCredentialRefused) {
+			t.Errorf("close = %+v, want the token first and no workspace", ce)
+		}
+	})
+}
 
 func errorBody(t *testing.T, rec *httptest.ResponseRecorder) string {
 	t.Helper()
