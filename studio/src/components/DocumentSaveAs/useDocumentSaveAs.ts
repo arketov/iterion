@@ -67,7 +67,7 @@ export function isListedSavePath(name: string): boolean {
     .replace(/\\/g, "/")
     .split("/")
     .filter((segment) => segment !== "" && segment !== ".");
-  return segments.length <= 1 || LISTED_ROOTS.includes(segments[0]);
+  return segments.length <= 1 || LISTED_ROOTS.includes(segments[0] ?? "");
 }
 
 function suggestedFileName(store: DocumentStore): string {
