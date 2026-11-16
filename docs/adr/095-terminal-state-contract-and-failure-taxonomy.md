@@ -50,7 +50,9 @@ forbids NEW hand-rolled sets across eleven packages (store, supervise,
 runview, runtime, cloudpublisher, dispatcher, cli, notify, worktreepool,
 operatormcp, runner) outside its per-set allowlist, each entry anchored
 to the enclosing FUNCTION with its reason — a removed+added pair of
-same-combo sets cannot trade places behind a count.
+same-combo sets cannot trade places behind a count. When a set only moves
+(say, into a helper), the failure message prints the ready allowlist line
+to paste; an added or removed set must be re-justified instead.
 
 ### 3. `Run.FailureCode` — persisted, open-world, zero-means-unknown
 
