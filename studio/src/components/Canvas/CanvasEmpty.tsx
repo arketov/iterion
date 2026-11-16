@@ -129,8 +129,8 @@ export default function CanvasEmpty() {
 // ExamplesPicker fetches the list on open (it is only mounted while
 // open) and renders it as a scrollable card grid. The names returned
 // by the backend are repo-relative paths (e.g. "feature_dev/main.bot")
-// — we split on the last slash so the card header carries the bundle
-// name and the sub-line carries the directory.
+// — the card header carries the persona (display_name) or the bot id,
+// and the sub-line carries the path.
 function ExamplesPicker({
   onClose,
   onPick,
@@ -149,7 +149,7 @@ function ExamplesPicker({
   const loading = query.isFetching;
   const err = !loading && query.error ? errorMessage(query.error) : null;
   const examples =
-    loading || query.error ? null : (query.data?.map((e) => e.name) ?? null);
+    loading || query.error ? null : (query.data ?? null);
   return (
     <Dialog open={true} onOpenChange={onClose} title="Choose a starter example">
       <div className="space-y-2 max-h-[60vh] overflow-auto pointer-events-auto">
@@ -175,10 +175,12 @@ function ExamplesPicker({
             </Button>
           </div>
         )}
-        {examples?.map((name) => {
-          const slash = name.lastIndexOf("/");
-          const label = slash >= 0 ? name.slice(slash + 1) : name;
-          const subline = slash >= 0 ? name.slice(0, slash) : "examples";
+        {examples?.map(({ name, display_name }) => {
+          // Every bundle's main file is "main.bot", so the label is the
+          // persona, else the bot id (first path segment); the sub-line is
+          // the full load name.
+          const slash = name.indexOf("/");
+          const label = display_name || (slash >= 0 ? name.slice(0, slash) : name);
           return (
             <button
               key={name}
@@ -187,7 +189,7 @@ function ExamplesPicker({
               className="w-full text-left rounded border border-border-default px-3 py-2 hover:bg-surface-2 transition-colors"
             >
               <span className="block font-medium text-sm text-fg-default">{label}</span>
-              <span className="block text-caption text-fg-subtle font-mono">{subline}</span>
+              <span className="block text-caption text-fg-subtle font-mono">{name}</span>
             </button>
           );
         })}
