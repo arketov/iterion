@@ -144,7 +144,7 @@ func TestBotsInstallCmd_SilentWhenTheCatalogRefreshSucceeds(t *testing.T) {
 func TestBotsInstallCmd_SilentWhenTheCatalogRefreshSucceedsWithNestedSource(t *testing.T) {
 	workdir := filepath.Clean(t.TempDir())
 	healthyCatalogOwner(t, workdir)
-	source := filepath.Join(workdir, "nested", "! catalog not refreshed:")
+	source := filepath.Join(workdir, "nested", "! catalog not refreshed")
 	writeCatalogTestBundle(t, source, "newbot")
 
 	out := runBotsCommand(t, botsInstallCmd, map[string]string{"workdir": workdir}, source)
