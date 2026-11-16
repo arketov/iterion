@@ -1117,7 +1117,7 @@ func (s *Server) renderLaunchDenial(w http.ResponseWriter, r *http.Request, d *l
 	if d.retryAfter > 0 {
 		w.Header().Set("Retry-After", strconv.Itoa(int(d.retryAfter.Seconds())+1))
 	}
-	body := map[string]string{"error": d.reason, "detail": d.detail}
+	body := map[string]string{"error": d.reason, "detail": httpx.RedactError(d.detail)}
 	if !d.resetAt.IsZero() {
 		body["reset_at"] = d.resetAt.Format(time.RFC3339)
 	}
