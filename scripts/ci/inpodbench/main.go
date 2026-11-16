@@ -1,3 +1,5 @@
+//go:build linux
+
 // Command inpodbench reports what a codemode child actually confines itself
 // to under the posture it is GIVEN, whether that confinement REFUSES, and
 // whether the bounds bite there.
