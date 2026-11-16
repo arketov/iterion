@@ -12,7 +12,9 @@ const getRun = vi.fn();
 const getRunWorkflow = vi.fn();
 const resumeRun = vi.fn().mockResolvedValue({ run_id: "r1", status: "running" });
 const getRunChildren = vi.fn().mockResolvedValue([]);
+const discardRunBranch = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/api/runs", () => ({
+  discardRunBranch: (...a: unknown[]) => discardRunBranch(...a),
   getRun: (...a: unknown[]) => getRun(...a),
   getRunWorkflow: (...a: unknown[]) => getRunWorkflow(...a),
   resumeRun: (...a: unknown[]) => resumeRun(...a),
@@ -219,7 +221,7 @@ describe("LastRunSection run history list", () => {
 
   it("renders one panel per run, newest-last, with a link to each run", async () => {
     getRun.mockResolvedValue({
-      run: { id: "x", status: "finished", checkpoint: {} },
+      run: { id: "x", status: "finished", checkpoint: {}, worktree_available: true },
       executions: [],
       last_seq: 0,
     });
@@ -293,5 +295,91 @@ describe("LastRunSection run that does not exist", () => {
     expect(screen.getByText(/did not start or was deleted/i)).toBeTruthy();
     expect(screen.queryByText("View diff")).toBeNull();
     expect(screen.queryByTitle(/Open run/)).toBeNull();
+  });
+});
+
+describe("LastRunSection worktree row", () => {
+  function renderWithWorkdir(runID: string, workdir: string) {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={qc}>
+        <LastRunSection runID={runID} workdir={workdir} />
+      </QueryClientProvider>,
+    );
+  }
+
+  it("shows the branch instead of a dead worktree link once the directory is gone", async () => {
+    getRun.mockResolvedValue({
+      run: {
+        id: "abc",
+        status: "finished",
+        checkpoint: {},
+        worktree_available: false,
+        final_branch: "iterion/run/abc",
+      },
+      executions: [],
+      last_seq: 0,
+    });
+    renderWithWorkdir("abc", "/store/worktrees/abc");
+
+    const row = await screen.findByTestId("run-branch-row");
+    expect(row.textContent).toContain("iterion/run/abc");
+    expect(document.querySelector('a[href^="vscode://"]')).toBeNull();
+    expect(screen.queryByText("/store/worktrees/abc")).toBeNull();
+  });
+
+  it("keeps the VS Code link while the worktree directory exists", async () => {
+    getRun.mockResolvedValue({
+      run: {
+        id: "abc",
+        status: "running",
+        checkpoint: {},
+        worktree_available: true,
+      },
+      executions: [],
+      last_seq: 0,
+    });
+    renderWithWorkdir("abc", "/store/worktrees/abc");
+
+    await waitFor(() =>
+      expect(document.querySelector('a[href^="vscode://"]')).toBeTruthy(),
+    );
+    expect(screen.queryByTestId("run-branch-row")).toBeNull();
+  });
+
+  it("discards the branch without force, then retries with force after the operator confirms", async () => {
+    const { ApiError } = await import("@/api/client");
+    getRun.mockResolvedValue({
+      run: {
+        id: "abc",
+        status: "finished",
+        checkpoint: {},
+        worktree_available: false,
+        final_branch: "iterion/run/abc",
+      },
+      executions: [],
+      last_seq: 0,
+    });
+    discardRunBranch
+      .mockRejectedValueOnce(
+        new ApiError(
+          409,
+          "API error 409: unmerged",
+          "branch_unmerged",
+          "run branch holds unmerged commits: 3 commit(s) are not in HEAD",
+        ),
+      )
+      .mockResolvedValueOnce(undefined);
+    renderWithWorkdir("abc", "/store/worktrees/abc");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Discard" }));
+    await waitFor(() =>
+      expect(discardRunBranch).toHaveBeenCalledWith("abc", { force: false }),
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Discard anyway" }));
+    await waitFor(() =>
+      expect(discardRunBranch).toHaveBeenLastCalledWith("abc", { force: true }),
+    );
   });
 });

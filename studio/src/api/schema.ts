@@ -3506,6 +3506,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{id}/discard-branch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /api/runs/{id}/discard-branch */
+        post: operations["postRunsByIdDiscardBranch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/{id}/events": {
         parameters: {
             query?: never;
@@ -15323,6 +15342,26 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DiagnosticProjection"];
                 };
+            };
+        };
+    };
+    postRunsByIdDiscardBranch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

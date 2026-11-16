@@ -1,15 +1,16 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 
 import BranchDiffModal from "@/components/Runs/BranchDiffModal";
 import HumanPromptForm from "@/components/Runs/conversation/HumanPromptForm";
-import { getRun } from "@/api/runs";
-import { is404 } from "@/api/client";
+import { discardRunBranch, getRun } from "@/api/runs";
+import { ApiError, is404 } from "@/api/client";
 import { rehydratePendingHumanInput } from "@/store/run/reducer";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { CopyButton } from "@/components/ui/CopyButton";
+import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import { useRunChildren } from "@/hooks/useRunChildren";
 import { childLabel } from "@/components/Runs/runHeader/RunChildrenPanel";
 import { useServerInfoStore } from "@/store/serverInfo";
@@ -134,6 +135,11 @@ function AwaitingInput({ runID }: { runID: string }) {
   );
 }
 
+// Final statuses — the server refuses a branch discard on anything else
+// (failed_resumable included: the run can still be resumed), so the button
+// is only offered on these.
+const DISCARDABLE_STATUSES = new Set(["finished", "failed", "cancelled"]);
+
 // RunPanel renders one run's surfaces (paused answer affordance, run
 // console link, branch diff, worktree links). It is the single-run unit
 // the run-history list repeats — and the same body the back-compat
@@ -154,7 +160,13 @@ function RunPanel({
   // Same query AwaitingInput issues (shared cache entry): a run the server
   // does not know — a dispatch whose lifecycle hook failed before the run was
   // created, or a deleted run — must not offer a console link or a diff.
-  const { error: runError } = useBoardRun(runID ?? "");
+  const { data: runData, error: runError } = useBoardRun(runID ?? "");
+  const queryClient = useQueryClient();
+  // Unmerged-commits message while the operator is asked to confirm the
+  // forced discard; null when no confirmation is pending.
+  const [confirmUnmerged, setConfirmUnmerged] = useState<string | null>(null);
+  const [discardError, setDiscardError] = useState<string | null>(null);
+  const [discarding, setDiscarding] = useState(false);
   if (!runID && !workdir) return null;
   const runLabel = runID ? runID.slice(0, 12) : "";
   if (runID && runError && is404(runError)) {
@@ -176,6 +188,35 @@ function RunPanel({
       </div>
     );
   }
+  // With `worktree: auto` the run's directory is removed when the run is
+  // finalized and only the iterion/run/<id> branch is left, so the path (and
+  // a VS Code link to it) is shown only while it still exists. Until the run
+  // loads there is no answer yet, so no link flashes up and dies.
+  const run = runData?.run;
+  const worktreeAlive = !runID || run?.worktree_available === true;
+  const branch = !cloud && run && !run.worktree_available ? run.final_branch : undefined;
+  const canDiscard = branch && DISCARDABLE_STATUSES.has(run?.status ?? "");
+
+  const discard = async (force: boolean) => {
+    if (!runID) return;
+    setDiscarding(true);
+    setDiscardError(null);
+    try {
+      await discardRunBranch(runID, { force });
+      setConfirmUnmerged(null);
+      await queryClient.invalidateQueries({ queryKey: ["board-last-run", runID] });
+    } catch (e) {
+      if (!force && e instanceof ApiError && e.errorCode === "branch_unmerged") {
+        setConfirmUnmerged(e.detail ?? e.message);
+      } else {
+        setConfirmUnmerged(null);
+        setDiscardError(e instanceof Error ? e.message : String(e));
+      }
+    } finally {
+      setDiscarding(false);
+    }
+  };
+
   return (
     <div className="space-y-1.5">
       {runID && <AwaitingInput runID={runID} />}
@@ -212,7 +253,7 @@ function RunPanel({
       {/* The workdir is a host filesystem path. In cloud it lives inside
           the runner pod — copying it or opening it in VS Code is pure
           misdirection, so the row is local/desktop-only. */}
-      {workdir && !cloud && (
+      {workdir && !cloud && worktreeAlive && (
         <div className="flex items-center gap-1.5 text-xs">
           <span className="text-fg-muted">Worktree:</span>
           <code
@@ -231,6 +272,45 @@ function RunPanel({
           </a>
         </div>
       )}
+      {runID && branch && (
+        <div className="space-y-1" data-testid="run-branch-row">
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-fg-muted">Branch:</span>
+            <code
+              className="flex-1 min-w-0 truncate bg-surface-2 px-1 py-0.5 rounded text-micro"
+              title={branch}
+            >
+              {branch}
+            </code>
+            <CopyButton value={branch} variant="icon" label="Copy branch name" />
+            {canDiscard && (
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={discarding}
+                onClick={() => void discard(false)}
+                title="Delete this run's branch from the repository"
+              >
+                Discard
+              </Button>
+            )}
+          </div>
+          {discardError && (
+            <div className="text-micro text-danger-fg" role="alert">
+              {discardError}
+            </div>
+          )}
+        </div>
+      )}
+      <ConfirmDialog
+        open={confirmUnmerged !== null}
+        title="Discard unmerged branch?"
+        message={`${confirmUnmerged ?? ""} Deleting the branch discards these commits for good.`}
+        confirmLabel="Discard anyway"
+        confirmVariant="danger"
+        onConfirm={() => void discard(true)}
+        onCancel={() => setConfirmUnmerged(null)}
+      />
     </div>
   );
 }

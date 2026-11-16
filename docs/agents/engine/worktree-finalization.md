@@ -16,7 +16,10 @@ worktree at `<store-dir>/worktrees/<run-id>` and runs all nodes inside it
 3. **Always** creates a persistent branch on that HEAD (default
    `iterion/run/<run id>`, overridable via `--branch-name`). This
    is the GC guard — without it the commits would only be reachable via
-   reflog and eligible for `git gc` after ~30 days.
+   reflog and eligible for `git gc` after ~30 days. Only the operator's
+   *Discard* (`POST /api/runs/{id}/discard-branch`) deletes it, guarded: a
+   terminal local run, an `iterion/run/` name, the tip still at `final_commit`,
+   and merged work (`merge_status: merged` or an ancestor of HEAD) unless forced.
 4. **Best-effort** merges the run's commits into the user's
    currently-checked-out branch — by default as ONE **squash** commit
    (title = the first commit's subject, body = the per-commit
