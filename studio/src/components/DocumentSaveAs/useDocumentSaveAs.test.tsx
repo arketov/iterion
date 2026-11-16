@@ -416,6 +416,36 @@ describe("useDocumentSaveAs file name", () => {
   });
 });
 
+describe("useDocumentSaveAs visibility hint", () => {
+  async function typeName(name: string) {
+    const store = documentStore();
+    render(<Harness store={store} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open Save As" }));
+    const input = (await screen.findByRole("dialog")).querySelector("input") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: name } });
+  }
+
+  it("warns that a file saved outside the listed folders is not shown in Project files", async () => {
+    await typeName("notes/x");
+    const hint = await screen.findByRole("status");
+    expect(hint.textContent).toMatch(/won.t appear in Project files or on the Bots page/i);
+    expect(hint.textContent).toContain("bots/<name>/main.bot");
+  });
+
+  it("stays quiet for the project root and the discovery folders", async () => {
+    await typeName("x.bot");
+    expect(screen.queryByRole("status")).toBeNull();
+    fireEvent.change((await screen.findByRole("dialog")).querySelector("input") as HTMLInputElement, {
+      target: { value: "bots/x/main.bot" },
+    });
+    expect(screen.queryByRole("status")).toBeNull();
+    fireEvent.change((await screen.findByRole("dialog")).querySelector("input") as HTMLInputElement, {
+      target: { value: "examples\\x.bot" },
+    });
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+});
+
 describe("useDocumentSaveAs new document name", () => {
   it("slugs a human name with hyphens", () => {
     expect(slugFileName("Feature dev")).toBe("feature-dev.bot");

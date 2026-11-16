@@ -103,6 +103,13 @@ team store.
   italic, the workflow's DSL id; the proposed file name is the display name
   in lower-case words joined by hyphens (`Dev flow` → `dev-flow.bot`). A DSL
   id cannot hold a hyphen, a file name can.
+- **Save As says where the file will be listed.** The name is a path in the
+  project, but only the project root, `bots/`, `examples/` and `.botz/` are
+  listed in Project files and on the Bots page. A name typed outside them
+  (`notes/x.bot`) is still saved, and the dialog warns that the file will
+  show up only in Recents or Open by path; save it as `bots/<name>/main.bot`
+  or in the project root to keep it listed. The warning is a hint: a project
+  that names other bot folders (`--bots-path`) lists them too.
 - **A save rewrites the file in canonical form.** The studio writes the
   document, not your spelling of it: field order, commas and line breaks may
   change (a value written over several lines that the writer cannot
