@@ -396,7 +396,7 @@ Before adding a new primitive, ask:
 The studio is **desktop-first**. The Editor (xyflow canvas with drag-drop, multi-select, library palette) and RunView (resizable panels, scrubber, dock) are not designed for touch and remain effectively desktop-only.
 
 What does work on narrow viewports (tested ≥ 360 px wide):
-- The Sidebar collapses gracefully — NavLinks become icon-only below `sm` (640 px), `ProjectLabel` caps at 140 px, the user-team chip drops the email line. Brand + right-actions stay shrink-0.
+- The Sidebar collapses gracefully — NavLinks become icon-only below `sm` (640 px), the user-team chip drops the email line. Brand + right-actions stay shrink-0.
 - HomeView grid switches from 2-col to 1-col below `md` (768 px).
 - RunListView table scrolls horizontally inside its container.
 - Board kanban already scrolls horizontally by design.
