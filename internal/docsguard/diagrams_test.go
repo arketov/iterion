@@ -3,6 +3,7 @@ package docsguard
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -765,6 +766,9 @@ func writeSyntheticTree(t *testing.T, root string) {
 func TestARootHoldingGlobSyntaxIsReadAsAPath(t *testing.T) {
 	for _, dir := range []string{"x[y", "[ab]", "a?b", "s*t"} {
 		t.Run(dir, func(t *testing.T) {
+			if runtime.GOOS == "windows" && strings.ContainsAny(dir, "?*") {
+				t.Skip("? and * are not valid in Windows file names")
+			}
 			parent := t.TempDir()
 			root := filepath.Join(parent, dir)
 			writeSyntheticTree(t, root)

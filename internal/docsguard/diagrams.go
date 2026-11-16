@@ -480,7 +480,9 @@ func checkGates(root string, gates []GateRef) []Problem {
 	if len(gates) == 0 {
 		return nil
 	}
-	page := filepath.Join(diagramsDir, accessControlPage)
+	// Slash form: it is the Subject of the refusals below, and Subjects are
+	// repo-relative slash paths on every host. The read converts it.
+	page := diagramsDir + "/" + accessControlPage
 	// The page is read RAW. Every gate symbol on it sits in a code span, and
 	// masking code — what the link checker wants — would blank exactly the
 	// bytes this check is looking for.
