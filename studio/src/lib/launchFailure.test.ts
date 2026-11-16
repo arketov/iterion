@@ -36,4 +36,18 @@ describe("issuesWithLaunchFailures", () => {
     expect(latestLaunchFailure(b)?.at).toBe("2026-11-06T11:00:00Z");
     expect(latestLaunchFailure(none)).toBeUndefined();
   });
+
+  it("keeps a blocked card the dispatcher gave up on after failing hooks", () => {
+    // state "blocked" with launch_failures is what a hook give-up leaves on the card:
+    // see TestFailedHookGiveUpKeepsLaunchFailuresOnTheBlockedCard in pkg/dispatcher.
+    const gaveUp = { ...iss("gaveup", ["2026-11-06T10:00:00Z"]), state: "blocked" } as NativeIssue;
+    expect(issuesWithLaunchFailures([gaveUp]).map((i) => i.id)).toEqual(["gaveup"]);
+  });
+
+  it("hides cards a person settled: done, merged, cancelled", () => {
+    const settled = ["done", "merged", "cancelled"].map(
+      (state) => ({ ...iss(state, ["2026-11-06T10:00:00Z"]), state }) as NativeIssue,
+    );
+    expect(issuesWithLaunchFailures(settled)).toEqual([]);
+  });
 });
