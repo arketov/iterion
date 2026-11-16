@@ -33,7 +33,8 @@ that project, and its runs and cards are kept in the project's store
 
 A page appears only when the server supports it, so the list you see can be
 shorter than this one. **Sitemap**, at the bottom of the sidebar, lists exactly
-the pages *your* server answers.
+the pages your server answers *to your account*: the same rule as the sidebar
+(server features plus your role and active team).
 
 | Group | Page | What it is for |
 |---|---|---|
@@ -53,7 +54,10 @@ the pages *your* server answers.
 | — | **Sitemap** | The list of every page this server answers. An unknown address shows **Page not found** with links to Home and the Sitemap — it no longer falls back to Home. |
 
 Cloud-only pages (Integrations, Admin) and the Config editor appear only on a
-server that has them. The sidebar's **Preferences** button opens the Settings dialog: Backends
+server that has them. The Config editor also needs an account that can edit the
+team's config shares (admin/owner, the `config_editor` role, or a super-admin),
+and Integrations an active team in cloud mode, in the sidebar and in the
+Sitemap alike. The sidebar's **Preferences** button opens the Settings dialog: Backends
 (the detected LLM credentials), Appearance and more.
 
 ### Bots versus the Editor's file list

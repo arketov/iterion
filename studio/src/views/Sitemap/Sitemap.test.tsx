@@ -78,6 +78,14 @@ describe("the sitemap page", () => {
     expect(screen.queryByText("Triggers")).toBeNull();
   });
 
+  it("hides Integrations and the Config editor from a user without the team or the role", () => {
+    setInfo({ mode: "cloud", config_shares_enabled: true });
+    render(<Sitemap />);
+    const links = hrefs();
+    expect(links).not.toContain("/integrations");
+    expect(links).not.toContain("/config-editor");
+  });
+
   it("covers the App.tsx route literals (the technical routes allowlisted)", () => {
     const app = readFileSync(
       resolve(process.cwd(), "src/App.tsx"),

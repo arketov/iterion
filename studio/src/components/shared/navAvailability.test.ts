@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { isNavHrefAvailable } from "./navAvailability";
 
 const info = (o: Record<string, unknown>) => o as never;
+const team = { hasActiveTeam: true, canEditConfigShares: false };
 
 describe("isNavHrefAvailable", () => {
   it("lists only the always-on pages while server_info is loading", () => {
@@ -30,11 +31,34 @@ describe("isNavHrefAvailable", () => {
 
   it("keeps Integrations cloud-only and the editor behind the bot store in cloud", () => {
     expect(isNavHrefAvailable("/integrations", info({ mode: "local" }))).toBe(false);
-    expect(isNavHrefAvailable("/integrations", info({ mode: "cloud" }))).toBe(true);
+    expect(
+      isNavHrefAvailable("/integrations", info({ mode: "cloud" }), { ...team }),
+    ).toBe(true);
     expect(isNavHrefAvailable("/editor", info({ mode: "local" }))).toBe(true);
     expect(isNavHrefAvailable("/editor", info({ mode: "cloud" }))).toBe(false);
     expect(
       isNavHrefAvailable("/editor", info({ mode: "cloud", bot_editing_enabled: true })),
     ).toBe(true);
+  });
+
+  it("shows Integrations only with an active team", () => {
+    expect(isNavHrefAvailable("/integrations", info({ mode: "cloud" }))).toBe(false);
+    expect(
+      isNavHrefAvailable("/integrations", info({ mode: "cloud" }), {
+        ...team,
+        hasActiveTeam: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("shows the Config editor only when the caller can edit config shares", () => {
+    const on = info({ mode: "cloud", config_shares_enabled: true });
+    expect(isNavHrefAvailable("/config-editor", on)).toBe(false);
+    expect(isNavHrefAvailable("/config-editor", on, { ...team, canEditConfigShares: false })).toBe(false);
+    expect(isNavHrefAvailable("/config-editor", on, { ...team, canEditConfigShares: true })).toBe(true);
+    // The flag still gates it for a caller that could edit.
+    expect(
+      isNavHrefAvailable("/config-editor", info({ mode: "cloud" }), { ...team, canEditConfigShares: true }),
+    ).toBe(false);
   });
 });
