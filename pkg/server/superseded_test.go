@@ -83,7 +83,8 @@ func TestSupersededServerServesDiagnosticsWithoutStartingWorkers(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	// headroom: http.Server.Shutdown waits for unread-body keep-alive conns; 1s flaked under a loaded Windows host
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		t.Fatalf("shutdown: %v", err)
