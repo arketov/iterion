@@ -183,6 +183,17 @@ var ErrInProcessCannotDescribe = errors.New("runview: refusing a launch the in-p
 // queued cloud run whose submission the publisher completes. A store that
 // cannot answer is an error, never "no run" — read as absence, it would launch
 // a second run beside one it could not see.
+// AnswerSubmission answers a keyed launch from the run its key already
+// derived, when that run was handed on (ClassifySubmission): the caller
+// returns that run instead of spending a launch gate on it again. nil, nil
+// means the key's launch is still owed. spec.RunID is set to the key's run id.
+func (s *Service) AnswerSubmission(parent context.Context, spec *LaunchSpec) (*LaunchResult, error) {
+	if spec.SubmissionKey == "" {
+		return nil, errors.New("runview: AnswerSubmission needs a submission key")
+	}
+	return s.answerSubmission(parent, spec)
+}
+
 func (s *Service) answerSubmission(parent context.Context, spec *LaunchSpec) (*LaunchResult, error) {
 	tenantID, _ := store.TenantFromContext(parent)
 	runID := SubmissionRunID(tenantID, spec.SubmissionKey)
@@ -746,8 +757,10 @@ func (s *Service) startInProcess(parent context.Context, runID string, spec Laun
 		// MCP servers beside the launcher for a run that sandboxes.
 		BotSourceTier:  spec.BotSourceTier,
 		ModelOverrides: toModelOverrides(spec.ModelOverrides),
-		RunFallback:    toRunFallback(spec.Fallback),
-		LLMProviders:   spec.LLMRoutePolicy.ProviderAllowlist(),
+		// The fold above kept the launch's own rows apart (foldAndScreen).
+		LaunchModelOverrides: knownLaunchOverrides(toModelOverrides(spec.LaunchModelOverrides)),
+		RunFallback:          toRunFallback(spec.Fallback),
+		LLMProviders:         spec.LLMRoutePolicy.ProviderAllowlist(),
 		// Resolved, not taken raw: spec.BotID is empty whenever the caller
 		// launched by path (the studio's own file picker), and the executor
 		// would then fall back to the workflow name — while a RESUME of that
@@ -1533,6 +1546,7 @@ func (s *Service) resumeExecutorSpec(wf *ir.Workflow, r *store.Run, runLogger *i
 	if r != nil {
 		spec.RunID = r.ID
 		spec.ModelOverrides = ModelOverridesFromRun(r.ModelOverrides)
+		spec.LaunchModelOverrides = knownLaunchOverrides(LaunchOverridesOfRun(r))
 		spec.Permission = r.PermissionOverride
 		spec.LLMProviders = r.LLMRoutePolicy.ProviderAllowlist()
 	}

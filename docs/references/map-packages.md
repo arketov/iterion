@@ -89,6 +89,7 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `pkg/backend/delegate/piext` | embeds the iterion pi extension and materialises it for a run. | — |
 | `pkg/backend/delegate/pisdk` | a Go port of the client surface pi (https://pi.dev, github.com/earendil-works/pi) publishes for driving its coding agent from another process. | — |
 | `pkg/backend/detect` | probes the host environment for available LLM credentials and CLI binaries, producing a Report consumed by the studio (UI hints) and the runtime… | — |
+| `pkg/backend/effortlevel` | orders the reasoning-effort levels and coerces one onto a model's accepted set: the one rule the claw backend sends by (model.coerceEffortForModel)… | — |
 | `pkg/backend/forfait` | implements a best-effort Anthropic "forfait" (Claude Code OAuth subscription) usage-cap check used by the LAYER-2 run-level auto-resume loop. | `Doer` |
 | `pkg/backend/llmtypes` | defines iterion-owned types for the LLM generation layer. | `FatalToolError` |
 | `pkg/backend/mcp` | — | `BrowserRegistry`, `ChromiumRunner` |
@@ -125,7 +126,7 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `pkg/bundle` | implements the `.botz` archive format: a ZIP archive that packages an iterion workflow (`main.bot`) with adjacent resources (skills, prompts,… | — |
 | `pkg/bundlelint` | cross-checks a bot bundle's manifest.yaml against its compiled main.bot workflow, surfacing structural inconsistencies that neither the manifest… | — |
 | `pkg/claw/hooks` | — | `HookProgressReporter` |
-| `pkg/claw/internal/api` | — | `APIClient`, `ImageGenerator`, `Provider` |
+| `pkg/claw/internal/api` | — | `APIClient`, `EffortWire`, `ImageGenerator`, `Provider` |
 | `pkg/claw/internal/api/httputil` | holds tiny formatting helpers shared by every HTTP-based provider (openai, foundry, vertex, bedrock-on-HTTP, ...). | — |
 | `pkg/claw/internal/api/providers/anthropic` | implements the Anthropic direct API provider. | — |
 | `pkg/claw/internal/api/providers/bedrock` | implements the AWS Bedrock provider using the Anthropic "Messages" payload shape via InvokeModelWithResponseStream. | — |
@@ -190,6 +191,7 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `pkg/config` | loads iterion runtime configuration from environment variables and an optional YAML file. | — |
 | `pkg/configshare` | the scoped, self-service config-file editor: a per-(bot × repo × config-file × category) grant, addressed by a dynamic URL and authenticated by… | `Store` |
 | `pkg/connection` | what authenticates a connector call: the binding between a tenant, a connector package, an instance of that vendor, and the credential to reach it. | `Catalog`, `ForgeStore`, `PackageStore`, `Store` |
+| `pkg/connector/binding` | reads a stored connector event the way a subscription binds it (ADR-168 §6, §9): which subscriptions an event matches, and the vars a matched one… | — |
 | `pkg/connector/exec` | turns a declared operation into an HTTP call and its answer into a typed result. | — |
 | `pkg/connector/facade` | the MCP offer over a connector package (ADR-098 §2, #2758): a connector's operations exposed to an agent as MCP tools, with the model choosing among… | — |
 | `pkg/connector/gen` | turns a vendor API description into a connector package. | — |

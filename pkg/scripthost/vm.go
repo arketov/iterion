@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand/v2"
+	"reflect"
 	"time"
 
 	"github.com/dop251/goja"
@@ -130,6 +131,69 @@ func runScript(vm *goja.Runtime, src string, wall time.Duration, resultBytes int
 			}
 			return Refuse(RefusalWallClock, "script interrupted after %s: the wall-clock bound elapsed", wall)
 		}
+		// A tool-channel failure reaches here TOO, when the script had no
+		// `catch` to make the bridge's interrupt win the race: the bridge's
+		// panic surfaces as a *goja.Exception whose thrown value wraps
+		// errToolChannelBroken, and the InterruptedError branch above never
+		// matches. Measured both ways before this existed: the SAME broken
+		// channel came back script_error without a catch and
+		// script_host_died with one — and script_error is the class
+		// errToolChannelBroken's doc forbids, because a script told "your
+		// call failed" would retry a broken deployment in a loop, which is
+		// exactly the shape a bare `call(...)` — what a model writes — makes
+		// the common case. Unwrap the exception and read the thrown value.
+		// Export here is safe: the value was built by the bridge from a Go
+		// error, not by running script code.
+		var exception *goja.Exception
+		if errors.As(err, &exception) {
+			// The read is GUARDED, because Export() on a script-thrown value
+			// RUNS script code: goja walks the thrown object's own properties
+			// and invokes getters and Proxy traps (the hazard this file's
+			// encodeValue comment documents as the reason Export was
+			// abandoned for encoding — and the reason safeErrorText carries
+			// its own recover). Two measured failures without the guard:
+			// `throw {get x(){throw 1}}` panicked through Export into the
+			// outer belt, degrading the message to "could not be evaluated",
+			// and `throw {get x(){while(true){}}}` looped PAST the wall bound
+			// — the timer is stopped and the interrupt cleared before this
+			// error path — for the parent to later report wall_clock_exceeded
+			// about what is a script throw. So: recover around the read, and
+			// re-arm the wall interrupt for its duration. A panic here falls
+			// through to the generic rendering below — the verdict class
+			// never moves.
+			wrapped := func() (wrapped error) {
+				defer func() {
+					if recover() != nil {
+						wrapped = nil
+					}
+				}()
+				var guard *time.Timer
+				if wall > 0 {
+					guard = time.AfterFunc(wall, func() { vm.Interrupt(RefusalWallClock) })
+				}
+				if guard != nil {
+					defer guard.Stop()
+				}
+				// Unwrap reads ONLY the genuine GoError's "value" property
+				// (after an instanceof GoError check — vendor runtime.go): it
+				// never walks the thrown object's other properties, so a
+				// large or deeply nested throw is NOT materialised into Go.
+				// The first draft used Export() here and the gate review
+				// measured the flaw on this tree: Export recursively
+				// materialises every own property (the repo's encodeValue
+				// comment records a.length = 50000000 costing 2 GiB on this
+				// exact path) with NO JS running, so the interrupt guard
+				// could not preempt it and a script fault came back in a
+				// memory/host class. Unwrap never runs script code; the
+				// closure stays for a forged GoError prototype whose getter
+				// does.
+				return exception.Unwrap()
+			}()
+			if wrapped != nil && errors.Is(wrapped, errToolChannelBroken) {
+				return Refuse(RefusalHostDied,
+					"the script was stopped because its tool channel failed: %s", wrapped.Error())
+			}
+		}
 		// Matched on the type, because the message is a bare stack trace:
 		// goja's StackOverflowError carries no sentence, so the cause has to be
 		// supplied here or the model receives a file:line and nothing else.
@@ -171,6 +235,10 @@ func safeErrorText(err error) (text string) {
 	return err.Error()
 }
 
+// promiseType is what ExportType answers for a promise. Held as a value so
+// the comparison costs no allocation and no evaluation.
+var promiseType = reflect.TypeOf((*goja.Promise)(nil))
+
 // encodeValue turns a script value into JSON using the ENGINE's own
 // JSON.stringify rather than Go's json.Marshal over goja's Export().
 //
@@ -194,6 +262,13 @@ func safeErrorText(err error) (text string) {
 //
 // undefined becomes JSON null, so a script that returns nothing is still a
 // value rather than a refusal.
+// promiseRefusal is the one sentence both guards answer with, so a program
+// cannot tell which of them refused it — and so the depth half can be
+// strengthened or weakened without changing what a model reads.
+func promiseRefusal(what string) error {
+	return fmt.Errorf("%s is a Promise, and this host runs no event loop, so it can never settle: there is no async here — return the value itself, not a promise of it", what)
+}
+
 func encodeValue(vm *goja.Runtime, v goja.Value) (string, error) {
 	if v == nil || goja.IsUndefined(v) || goja.IsNull(v) {
 		return "null", nil
@@ -208,9 +283,80 @@ func encodeValue(vm *goja.Runtime, v goja.Value) (string, error) {
 		return "", errors.New("JSON.stringify is not callable")
 	}
 
-	out, err := stringify(goja.Undefined(), v)
+	// A PROMISE is refused rather than encoded, AT EVERY DEPTH. `JSON.stringify`
+	// renders one as `{}`, so a value holding a promise came back as a
+	// successful empty object — a silent wrong answer, which is the one thing
+	// this repository's conventions forbid outright. There is no event loop
+	// here (a bare goja.Runtime pumps no job queue), so the promise could
+	// never settle and `{}` is not a value the script computed: it is the
+	// shape of an absence. `await` is already a syntax error; this was the
+	// half that was silent.
+	//
+	// The guard is a REPLACER rather than a test on the root, and that is the
+	// correction of a first draft that checked the root only. Measured: a bare
+	// `f()` was refused while `({report: f()})` came back `{"report":{}}` and
+	// `[f()]` came back `[{}]` — and the object form is the LIKELIER shape,
+	// since a program's last expression is normally a summary of what it did.
+	// Worse, this function also encodes a tool-call INPUT, so
+	// `call("t", {q: fetchAll()})` handed a real tool `{"q":{}}`. One site
+	// fixed and the class left open is the defect this repository names
+	// "corriger le site, pas la classe"; the replacer is the throttle point
+	// both callers and every depth go through.
+	//
+	// ExportType, not Export: exporting MATERIALISES the value, which
+	// evaluates an exotic object's getters — a `new Map([[{get x(){throw 1}},1]])`
+	// threw from inside the first draft of this guard and changed the error
+	// path a sibling test pins. ExportType reads the shape without running
+	// anything, and was measured to trap on none of the exotics probed.
+	//
+	// KNOWN GAPS of the DEPTH half, stated rather than hidden, and all of them
+	// require a program to put a promise somewhere JSON does not render: a
+	// `goja.Proxy` wrapping one (it answers `goja.Proxy` from ExportType), a
+	// promise inside a `Map` or a `Set` (both encode as `{}` whatever they
+	// hold), and a program that replaces `JSON.stringify` or defines
+	// `toJSON`. The ROOT test above is what holds regardless. Closing the
+	// Proxy case needs a `then`-own-property probe, which runs script code
+	// inside the encoder — the hazard the Export path was abandoned for.
+	// TWO guards, and the pair is the point: one the script cannot reach and
+	// one that reaches further.
+	//
+	// The ROOT test runs in Go before any script code, so nothing a program
+	// does can disarm it. The REPLACER covers depth, and it is ADVISORY by
+	// construction: it runs only if whatever `JSON.stringify` names calls it,
+	// and on whatever `toJSON` left behind — both names belong to the script.
+	// A draft that replaced the root test with the replacer alone was
+	// measured and regressed exactly there: `var S = JSON.stringify;
+	// JSON.stringify = v => S(v)` — a commonplace idiom, for BigInt support
+	// or pretty-printing — re-opened the silent `{}`, as did
+	// `p.toJSON = () => 7`. A deliberate override is a program's own
+	// business; the accident is what the root test keeps.
+	if v.ExportType() == promiseType {
+		return "", promiseRefusal("the value itself")
+	}
+
+	promised := ""
+	replacer := vm.ToValue(func(call goja.FunctionCall) goja.Value {
+		v := call.Argument(1)
+		if promised == "" && v.ExportType() == promiseType {
+			if key := call.Argument(0).String(); key != "" {
+				// Clipped: a program may use a megabyte-long object key, and
+				// an error carrying it whole was measured turning the verdict
+				// into `result_too_large` — a refusal about the wrong thing.
+				clipped, _ := clipToolText(key, 80)
+				promised = "property " + clipped
+			} else {
+				promised = "the value itself"
+			}
+		}
+		return v
+	})
+
+	out, err := stringify(goja.Undefined(), v, replacer)
 	if err != nil {
 		return "", err
+	}
+	if promised != "" {
+		return "", promiseRefusal(promised)
 	}
 	// JSON.stringify answers undefined for a function, a symbol or undefined
 	// itself. The script returned something unrepresentable, which is a value

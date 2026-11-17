@@ -238,7 +238,7 @@ func newWorkspaceProjectServer(opts StudioOptions, project projects.Project, log
 			} else {
 				cfg.Dispatcher = manager
 			}
-			cfg.TriggerStore = buildLocalTriggerStore(botsPaths, logger)
+			cfg.TriggerStore = openLocalTriggerStore(project.StoreDir, botsPaths, logger)
 		}
 	}
 	if !opts.RecoveryPassive {

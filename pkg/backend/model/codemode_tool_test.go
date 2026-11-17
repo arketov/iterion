@@ -56,7 +56,15 @@ func runCodemode(t *testing.T, toolMap map[string]*GenerationTool, source string
 	if err != nil {
 		t.Fatal(err)
 	}
-	return codemodeTool(childHost(), scripthost.Limits{}).Execute(ctx, in)
+	// The memory room, for the reason codemode_tool_test.go:236 states for
+	// its own site: this child is the test binary, and on the `-race` leg it
+	// is race-instrumented, which does not fit in DefaultLimits' 256 MiB.
+	// Measured by not doing it: TestAProgramCannotPauseTheRun's
+	// await_answers/send_user_message cases died of `memory_exceeded` under
+	// load on `race-shard (1)` — the same flake the bko runbook documents
+	// with `gh run rerun` as its remedy. 1 GiB is under scripthost.Ceiling,
+	// so Clamp leaves it alone and no bound under test moves.
+	return codemodeTool(childHost(), scripthost.Limits{Memory: 1 << 30}).Execute(ctx, in)
 }
 
 // TestCodemodeCallsReachTheNodesOwnDoor is the whole slice in one assertion,
@@ -454,6 +462,29 @@ func TestTheShippedCellsAreExactlyTheLoopsThatInstallTheTool(t *testing.T) {
 				}
 				if id, ok := call.Fun.(*ast.Ident); ok && id.Name == "installCodemode" {
 					callers = append(callers, filepath.ToSlash(rel))
+					// And WHAT it passes, not only who calls it. The
+					// bounds argument must be the TASK's, read from the
+					// field: `installCodemode(&opts, nil, …)` compiles
+					// and leaves every program on DefaultLimits while the
+					// author declared otherwise, and it was measured to
+					// survive the whole of ./pkg/backend/model/.
+					//
+					// This is a SOURCE guard, not a behavioural one, and
+					// it is here because the behavioural reach is the
+					// generation loop's opts — which no seam exposes
+					// without a live model. The sandbox crossing has the
+					// behavioural witness for its own direction
+					// (TestCodemodeChangesNothingOnTheWireToASandboxRunner),
+					// and production is the NON-sandboxed path, so this
+					// one call is what carries it there.
+					if len(call.Args) < 2 {
+						t.Errorf("%s: installCodemode called with %d argument(s)", rel, len(call.Args))
+					} else {
+						sel, ok := call.Args[1].(*ast.SelectorExpr)
+						if !ok || sel.Sel == nil || sel.Sel.Name != "CodemodeBounds" {
+							t.Errorf("%s: installCodemode's bounds argument is %T, want the task's .CodemodeBounds — a literal there runs every program on the defaults", rel, call.Args[1])
+						}
+					}
 				}
 				return true
 			})

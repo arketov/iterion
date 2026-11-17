@@ -151,7 +151,7 @@ func FromIRAuth(auth *ir.MCPAuth) *AuthConfig {
 // whose name is in iterion's reserved internal namespace is left OUT of the
 // catalog, with a warning on the optional logger (and in PrepareWorkflowReport's
 // result, for a caller that shows it), instead of refusing the whole catalog:
-// one stray entry used to take every other server, and the validator's C347
+// one stray entry used to take every other server, and the validator's C351
 // check, down with it. Left out, the launcher never starts it, so it can place
 // no tool in the infrastructure namespace — which is all the refusal protected
 // (a claude_code CLI the operator told to read `.mcp.json` itself, with

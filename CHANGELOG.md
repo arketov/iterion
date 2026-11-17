@@ -3,6 +3,102 @@
 Generated from Conventional Commits at each release. Older majors are archived
 under [docs/changelog/](https://github.com/SocialGouv/iterion/tree/main/docs/changelog).
 
+## [7.5.0](https://github.com/SocialGouv/iterion/compare/v7.4.0...v7.5.0) (2026-11-16)
+
+### Features
+
+* **connectors:** subscriptions bound to connector packages — the matcher, the submitter, the routes (L1d, [#3271](https://github.com/SocialGouv/iterion/issues/3271)) ([#3334](https://github.com/SocialGouv/iterion/issues/3334)) ([85b0312](https://github.com/SocialGouv/iterion/commit/85b0312e191765e7feb7c36e21857f4531e555fb)), closes [#3305](https://github.com/SocialGouv/iterion/issues/3305), references [#3305](https://github.com/SocialGouv/iterion/issues/3305) [#3136](https://github.com/SocialGouv/iterion/issues/3136) [#3274](https://github.com/SocialGouv/iterion/issues/3274) [#3296](https://github.com/SocialGouv/iterion/issues/3296) [#3296](https://github.com/SocialGouv/iterion/issues/3296) [#3136](https://github.com/SocialGouv/iterion/issues/3136) [#1931](https://github.com/SocialGouv/iterion/issues/1931)
+
+    <details><summary>why</summary>
+
+    The L1c closing re-read's below-high product findings, ticketed by the loop's rule, fixed with a witness each: - a timed-out intake write is re-read under a bound of its own (the write's deadline was the one that failed it), so a row proven absent gives its quota unit back; Server.ingressWriteLimit is the test seam; - intake.MongoStore.Accept returns `created` along with a read-back error, and the lane gives the unit back when the row it then finds is a concurrent twin's; - the legacy Forgejo…
+
+    </details>
+
+## [7.4.0](https://github.com/SocialGouv/iterion/compare/v7.3.5...v7.4.0) (2026-11-16)
+
+### Features
+
+* **revi:** converse inherits no ambient MCP; the effort lives in the PLIAGE routing cells and the report tells what ran ([#3283](https://github.com/SocialGouv/iterion/issues/3283)) ([#3339](https://github.com/SocialGouv/iterion/issues/3339)) ([3e3251c](https://github.com/SocialGouv/iterion/commit/3e3251cdd3ed802dd9dd9908a9ab00f16d8791ac)), references [#3338](https://github.com/SocialGouv/iterion/issues/3338) [#3259](https://github.com/SocialGouv/iterion/issues/3259) [#3328](https://github.com/SocialGouv/iterion/issues/3328) [#3290](https://github.com/SocialGouv/iterion/issues/3290) [#3281](https://github.com/SocialGouv/iterion/issues/3281)
+
+    <details><summary>why</summary>
+
+    S1: revi-converse 0.1.10's converse_agent inherits no ambient MCP (the 31 tool schemas per request M1 measured drop to the node's own); claude_code keeps --strict-mcp-config for the node, codex is typed-refused when its own configuration lists an enabled server (the pinned SDK cannot disable them, measured on codex-cli 0.156.1) and a fallback route takes over.
+
+    </details>
+
+## [7.3.5](https://github.com/SocialGouv/iterion/compare/v7.3.4...v7.3.5) (2026-11-16)
+
+### Bug Fixes
+
+* **scripthost:** a memory bound under the measured working floor is raised and reported ([#3290](https://github.com/SocialGouv/iterion/issues/3290)) ([32fb118](https://github.com/SocialGouv/iterion/commit/32fb1188e2a06744ddf85f61197b70e59557073a)), references [#3153](https://github.com/SocialGouv/iterion/issues/3153)
+
+    <details><summary>why</summary>
+
+    #3290's defect: `Limits.Clamp` capped Memory at the ceiling and filled an unset value from the default, but enforced NO minimum — so a `.bot` writing `codemode: memory: 32 MiB` got a child that died at once (SIGSEGV on the shipped image, measured in the ticket), and the run carried no usable cause.
+
+    </details>
+
+## [7.3.4](https://github.com/SocialGouv/iterion/compare/v7.3.3...v7.3.4) (2026-11-16)
+
+### Bug Fixes
+
+* **preview:** the launch picker screens declared capabilities on the run-level route ([#3259](https://github.com/SocialGouv/iterion/issues/3259)) ([14a9bbc](https://github.com/SocialGouv/iterion/commit/14a9bbc083060f531c2888523a7539a0c46f1651)), references [#3153](https://github.com/SocialGouv/iterion/issues/3153) [#3333](https://github.com/SocialGouv/iterion/issues/3333)
+
+    <details><summary>why</summary>
+
+    The launch preview's picker promised "cannot drift from runtime admission" and drifted on two declared capabilities, in the same place, for the same reason: the per-candidate loop never asked the route the run actually takes.
+
+    </details>
+
+## [7.3.3](https://github.com/SocialGouv/iterion/compare/v7.3.2...v7.3.3) (2026-11-16)
+
+### Bug Fixes
+
+* **bots:** Vetty set aside a mis-transcribed commit id instead of holding red ([#3328](https://github.com/SocialGouv/iterion/issues/3328)) ([07f2efd](https://github.com/SocialGouv/iterion/commit/07f2efd3692890ef4e67fa70645da01ae4748f75)), references [buildkit-operator#65](https://github.com/buildkit-operator/issues/65)
+
+    <details><summary>why</summary>
+
+    Live on buildkit-operator#65 (run 01a1e07f): the commit agent dropped two hex digits of the pushed sha (40 hex became 38) and commit_probe refused every id that does not resolve to the workspace head, so a push git itself certified came back hold_lost_alignment. The synchronize relaunch caught it; a PR without that relaunch stays red until a manual /vetty.
+
+    </details>
+
+## [7.3.2](https://github.com/SocialGouv/iterion/compare/v7.3.1...v7.3.2) (2026-11-16)
+
+### Bug Fixes
+
+* **scripthost:** a broken tool channel is host_died whatever the catch, and the frame bounds trust the clamp ([#3316](https://github.com/SocialGouv/iterion/issues/3316)) ([5201ca5](https://github.com/SocialGouv/iterion/commit/5201ca5fecf7a1ce8e1b4e4c746b325c63a30a02)), references [#3153](https://github.com/SocialGouv/iterion/issues/3153) [#3301](https://github.com/SocialGouv/iterion/issues/3301) [#3327](https://github.com/SocialGouv/iterion/issues/3327) [#3327](https://github.com/SocialGouv/iterion/issues/3327)
+
+    <details><summary>why</summary>
+
+    TWO findings from #3301's third adversarial round, both pre-existing, both measured before this change.
+
+    </details>
+
+## [7.3.1](https://github.com/SocialGouv/iterion/compare/v7.3.0...v7.3.1) (2026-11-16)
+
+### Bug Fixes
+
+* **claw:** one tool-step bound per node execution — retries, nudge, replay and engine re-runs share it; thinking summed across attempts ([#3283](https://github.com/SocialGouv/iterion/issues/3283)) ([#3325](https://github.com/SocialGouv/iterion/issues/3325)) ([129e042](https://github.com/SocialGouv/iterion/commit/129e0426e8ac286d4e479e11901c049881eed011))
+
+    <details><summary>why</summary>
+
+    A claw node's tool_max_steps bound holds for the whole node execution: the claw retryLoop, the nudge, the executor's in-place retries, the schema re-ask, the engine's recovery re-runs and sandboxed crossings all draw from one budget, charged the completed tool turns its replay holds after an identity anchor; a resume after a human pause gets the whole bound back (operator decision); a recovery pause ends the execution. foldSpend / chainSpend sum thinking across attempts and routes instead of…
+
+    </details>
+
+## [7.3.0](https://github.com/SocialGouv/iterion/compare/v7.2.0...v7.3.0) (2026-11-16)
+
+### Features
+
+* **dsl:** the codemode bounds get an author surface — a block of seven, resolved field by field ([#3301](https://github.com/SocialGouv/iterion/issues/3301)) ([dc5b6c3](https://github.com/SocialGouv/iterion/commit/dc5b6c38fb92fbf108363ef545f165e72ee791ad)), references [#3300](https://github.com/SocialGouv/iterion/issues/3300) [#3311](https://github.com/SocialGouv/iterion/issues/3311) [#3153](https://github.com/SocialGouv/iterion/issues/3153) [#3311](https://github.com/SocialGouv/iterion/issues/3311) [#3316](https://github.com/SocialGouv/iterion/issues/3316) [#3316](https://github.com/SocialGouv/iterion/issues/3316)
+
+    <details><summary>why</summary>
+
+    ADR-165 law 4 promised every bound an operator override and a platform ceiling. The ceiling shipped with CM-5c (`scripthost.Ceiling`, clamped in the parent); the override did not, and `installCodemode`'s own doc comment said so in as many words — "There is no DSL surface for these yet, which is why the zero value is what installCodemode passes". This is that surface.
+
+    </details>
+
 ## [7.2.0](https://github.com/SocialGouv/iterion/compare/v7.1.0...v7.2.0) (2026-11-15)
 
 ### Features

@@ -519,7 +519,15 @@ const (
 
 	DiagShellScriptDataCode DiagCode = "C346" // a data reference where another shell parses the value as code (a double-quoted sh -c / eval / trap argument, an unquoted heredoc fed to a shell, a mapfile -C callback, PS4/BASH_ENV/ENV, alias, ssh) (warning)
 
-	// DiagUnknownMCPServer is C347: a node's `tools:` names an MCP server
+	DiagCodemodeBoundAboveCeiling DiagCode = "C347" // a codemode: bound above the platform ceiling (scripthost.Ceiling) — clamped where the program is spawned, never refused, so the declaration says something that will not happen (warning)
+
+	DiagCodemodeBoundsWithModeOff DiagCode = "C348" // codemode: bounds declared beside `mode: off` — no program runs, so the bounds are inert (warning)
+
+	DiagCodemodeBoundUnreadable DiagCode = "C349" // a codemode: duration that is not readable as one, or is negative — the default applies instead, which is tighter than a bound being raised and looser than one being lowered (warning)
+
+	DiagCodemodeMemoryBelowFloor DiagCode = "C350" // a codemode: memory bound below the measured floor a Go child works under — the platform raises the bound to the floor where the program is spawned (warning)
+
+	// DiagUnknownMCPServer is C351: a node's `tools:` names an MCP server
 	// (`mcp.<server>.<tool>`, `mcp.<server>.*` or `mcp__<server>__<tool>`) that
 	// no `mcp_server` block, project `.mcp.json` entry or enabled plugin
 	// declares. The compiler cannot know the host's catalog, so `iterion
@@ -528,10 +536,11 @@ const (
 	// catalog is the host's, and the same file may be clean where the server exists.
 	// (Fork-only. It was C332 until the upstream v5.11.0 merge, which took
 	// C332–C336 for the board-action diagnostics, then C337 until the v7.2.0
-	// merge, which took C337–C346 for the codemode and secret/shell diagnostics.)
-	DiagUnknownMCPServer DiagCode = "C347" // a node's `tools:` names an MCP server that no `mcp_server` block, `.mcp.json` entry or enabled plugin declares (warning)
+	// merge (C337–C346: codemode and secret/shell diagnostics), then C347 and
+	// C348 until the v7.5.0 merge (C347–C350: the codemode bounds).)
+	DiagUnknownMCPServer DiagCode = "C351" // a node's `tools:` names an MCP server that no `mcp_server` block, `.mcp.json` entry or enabled plugin declares (warning)
 
-	// DiagUnknownModel is C348: a node (agent, judge, LLM router, or one of its
+	// DiagUnknownModel is C352: a node (agent, judge, LLM router, or one of its
 	// `fallbacks:` routes) names a literal `anthropic/<id>` or `openai/<id>`
 	// model that neither the live model table nor the embedded models.dev
 	// snapshot lists. The compiler cannot consult the registry (pkg/backend/model
@@ -539,5 +548,5 @@ const (
 	// it after Compile via model.UnknownModelDiagnostics; without it a typo reads
 	// "usable" and fails only at the first paid call. A warning: a model newer
 	// than the snapshot, or a custom endpoint, is a false positive.
-	DiagUnknownModel DiagCode = "C348" // a literal anthropic/* or openai/* model that neither the live model table nor the embedded snapshot lists (warning)
+	DiagUnknownModel DiagCode = "C352" // a literal anthropic/* or openai/* model that neither the live model table nor the embedded snapshot lists (warning)
 )

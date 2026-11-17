@@ -4591,6 +4591,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/teams/{id}/bots/{name}/triggers/from-invocation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /api/teams/{id}/bots/{name}/triggers/from-invocation */
+        post: operations["postTeamsByIdBotsByNameTriggersFromInvocation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/teams/{id}/config-editor/shares": {
         parameters: {
             query?: never;
@@ -5112,6 +5132,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/teams/{id}/intakes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** GET /api/teams/{id}/intakes */
+        get: operations["getTeamsByIdIntakes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/teams/{id}/intakes/{sub}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sub: string;
+            };
+            cookie?: never;
+        };
+        /** GET /api/teams/{id}/intakes/{sub} */
+        get: operations["getTeamsByIdIntakesBySub"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/teams/{id}/intakes/{sub}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sub: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /api/teams/{id}/intakes/{sub}/replay */
+        post: operations["postTeamsByIdIntakesBySubReplay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/teams/{id}/invitations": {
         parameters: {
             query?: never;
@@ -5307,6 +5386,45 @@ export interface paths {
         put?: never;
         /** POST /api/teams/{id}/oauth/{kind}/refresh */
         post: operations["postTeamsByIdOauthByKindRefresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/teams/{id}/pairs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** GET /api/teams/{id}/pairs */
+        get: operations["getTeamsByIdPairs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/teams/{id}/pairs/{sub}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sub: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /api/teams/{id}/pairs/{sub}/replay */
+        post: operations["postTeamsByIdPairsBySubReplay"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5575,6 +5693,67 @@ export interface paths {
         /** POST /api/teams/{id}/status */
         post: operations["postTeamsByIdStatus"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/teams/{id}/triggers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** GET /api/teams/{id}/triggers */
+        get: operations["getTeamsByIdTriggers"];
+        put?: never;
+        /** POST /api/teams/{id}/triggers */
+        post: operations["postTeamsByIdTriggers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/teams/{id}/triggers/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /api/teams/{id}/triggers/preview */
+        post: operations["postTeamsByIdTriggersPreview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/teams/{id}/triggers/{sub}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sub: string;
+            };
+            cookie?: never;
+        };
+        /** GET /api/teams/{id}/triggers/{sub} */
+        get: operations["getTeamsByIdTriggersBySub"];
+        /** PUT /api/teams/{id}/triggers/{sub} */
+        put: operations["putTeamsByIdTriggersBySub"];
+        post?: never;
+        /** DELETE /api/teams/{id}/triggers/{sub} */
+        delete: operations["deleteTeamsByIdTriggersBySub"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5962,6 +6141,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/intakes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /api/v1/intakes */
+        get: operations["getV1Intakes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/intakes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** GET /api/v1/intakes/{id} */
+        get: operations["getV1IntakesById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/intakes/{id}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /api/v1/intakes/{id}/replay */
+        post: operations["postV1IntakesByIdReplay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/limits/cost": {
         parameters: {
             query?: never;
@@ -6173,6 +6407,42 @@ export interface paths {
         get: operations["getV1NativeIssuesByIdDependencyGraph"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pairs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /api/v1/pairs */
+        get: operations["getV1Pairs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pairs/{id}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /api/v1/pairs/{id}/replay */
+        post: operations["postV1PairsByIdReplay"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6631,6 +6901,23 @@ export interface paths {
         get: operations["getV1TriggersHealth"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/triggers/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /api/v1/triggers/preview */
+        post: operations["postV1TriggersPreview"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8068,10 +8355,12 @@ export interface components {
             client_id?: string;
             conversation_id?: string;
             delivery_id?: string;
+            intake_id?: string;
             issue_id?: string;
             issue_identifier?: string;
             issue_title?: string;
             kind?: string;
+            pair_id?: string;
             schedule_id?: string;
             schedule_name?: string;
         };
@@ -8165,12 +8454,17 @@ export interface components {
         Subscription: {
             args_var?: string;
             bot_id: string;
+            connection_id?: string;
+            connector_key?: string;
             consume_labels?: boolean;
             /** Format: date-time */
             created_at: string;
             created_by?: string;
             cron?: string;
             enabled: boolean;
+            filters?: {
+                [key: string]: string[];
+            };
             guard?: string;
             guard_timeout?: string;
             guard_var?: string;
@@ -8192,8 +8486,10 @@ export interface components {
             match: components["schemas"]["Matcher"];
             max_concurrent?: number;
             mode?: string;
+            no_live_run?: string;
             origin?: string;
             overlap?: string;
+            poller?: string;
             repo?: string;
             retry_jitter?: string;
             retry_max_attempts?: number;
@@ -8205,11 +8501,16 @@ export interface components {
             };
             stale_after?: string;
             tenant_id?: string;
+            trigger_id?: string;
             /** Format: date-time */
             updated_at: string;
+            var_map?: {
+                [key: string]: string;
+            };
             vars?: {
                 [key: string]: string;
             };
+            when?: string;
         };
         SyncOutcome: {
             changes?: components["schemas"]["EntryChange"][];
@@ -9000,6 +9301,7 @@ export interface components {
             tokens_out: number;
         };
         previewCostRequest: {
+            ambient_context?: string;
             backend?: string;
             backend_names?: string[];
             file_path?: string;
@@ -9017,6 +9319,9 @@ export interface components {
             effective?: components["schemas"]["previewEffectiveSettings"];
             nodes: components["schemas"]["previewCostNode"][];
             notes?: string[];
+            route_refusals?: {
+                [key: string]: string;
+            };
             tokens_max: number;
             tokens_min: number;
         };
@@ -16967,6 +17272,27 @@ export interface operations {
             };
         };
     };
+    postTeamsByIdBotsByNameTriggersFromInvocation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getTeamsByIdConfigEditorShares: {
         parameters: {
             query?: never;
@@ -17872,6 +18198,68 @@ export interface operations {
             };
         };
     };
+    getTeamsByIdIntakes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getTeamsByIdIntakesBySub: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sub: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postTeamsByIdIntakesBySubReplay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sub: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getTeamsByIdInvitations: {
         parameters: {
             query?: never;
@@ -18157,6 +18545,47 @@ export interface operations {
             path: {
                 id: string;
                 kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getTeamsByIdPairs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postTeamsByIdPairsBySubReplay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sub: string;
             };
             cookie?: never;
         };
@@ -18632,6 +19061,129 @@ export interface operations {
             header?: never;
             path: {
                 id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getTeamsByIdTriggers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postTeamsByIdTriggers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postTeamsByIdTriggersPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getTeamsByIdTriggersBySub: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sub: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    putTeamsByIdTriggersBySub: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sub: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteTeamsByIdTriggersBySub: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                sub: string;
             };
             cookie?: never;
         };
@@ -19158,6 +19710,64 @@ export interface operations {
             };
         };
     };
+    getV1Intakes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getV1IntakesById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postV1IntakesByIdReplay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getV1LimitsCost: {
         parameters: {
             query?: never;
@@ -19405,6 +20015,44 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DependencyGraphResponse"];
                 };
+            };
+        };
+    };
+    getV1Pairs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postV1PairsByIdReplay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -20064,6 +20712,24 @@ export interface operations {
         };
     };
     getV1TriggersHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postV1TriggersPreview: {
         parameters: {
             query?: never;
             header?: never;
