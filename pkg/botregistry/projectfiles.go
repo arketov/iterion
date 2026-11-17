@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -174,6 +175,10 @@ func RootWorkflowFiles(workDir string, roots []string) []Entry {
 	return out
 }
 
+// projectPathKey is the dedupe key of a path outside the walk; a variable so a
+// test can count how often the listing pays for it.
+var projectPathKey = PathKey
+
 // ListProjectWorkflows lists the project's own workflows by the rule above:
 // the project root's single .bot files plus the bot sources under roots that
 // sit inside workDir. A root outside workDir is not listed — the editor
@@ -206,12 +211,35 @@ func ListProjectWorkflows(workDir string, roots []string, limit int) ProjectWork
 	}
 	seen := map[string]struct{}{}
 	var bundles, rootFiles, otherFiles []ProjectWorkflow
-	add := func(dst *[]ProjectWorkflow, path, kind string) {
+	// A walk meets each path of one root once, so a walked file is keyed by its
+	// directory's PathKey (resolved once per directory) plus its name: a PathKey
+	// per file is Abs + EvalSymlinks on every .bot of a big tree. A symlinked
+	// file keeps the full PathKey — its target is what it must dedupe against.
+	dirKeys := map[string]string{}
+	walkedKey := func(path string, d fs.DirEntry) string {
+		if d.Type()&fs.ModeSymlink != 0 {
+			return projectPathKey(path)
+		}
+		dir := filepath.Dir(path)
+		dk, ok := dirKeys[dir]
+		if !ok {
+			dk = projectPathKey(dir)
+			dirKeys[dir] = dk
+		}
+		name := d.Name()
+		if runtime.GOOS == "windows" {
+			name = strings.ToLower(name)
+		}
+		return filepath.Join(dk, name)
+	}
+	add := func(dst *[]ProjectWorkflow, path, kind, key string) {
 		r, ok := rel(path)
 		if !ok {
 			return
 		}
-		key := PathKey(path)
+		if key == "" {
+			key = projectPathKey(path)
+		}
 		if _, dup := seen[key]; dup {
 			return
 		}
@@ -227,10 +255,10 @@ func ListProjectWorkflows(workDir string, roots []string, limit int) ProjectWork
 	}
 
 	for _, p := range projectRootFiles(workDir, roots) {
-		add(&rootFiles, p, ProjectWorkflowFile)
+		add(&rootFiles, p, ProjectWorkflowFile, "")
 	}
 	if claimed, openable, _ := bundle.DirClaim(workDir); claimed && openable {
-		add(&bundles, filepath.Join(workDir, bundle.MainBotFile), ProjectWorkflowBundle)
+		add(&bundles, filepath.Join(workDir, bundle.MainBotFile), ProjectWorkflowBundle, "")
 	}
 
 	for _, root := range roots {
@@ -249,7 +277,7 @@ func ListProjectWorkflows(workDir string, roots []string, limit int) ProjectWork
 		}
 		if !info.IsDir() {
 			if workflowfile.IsWorkflowFile(root) {
-				add(&otherFiles, root, ProjectWorkflowFile)
+				add(&otherFiles, root, ProjectWorkflowFile, "")
 			}
 			continue
 		}
@@ -278,7 +306,7 @@ func ListProjectWorkflows(workDir string, roots []string, limit int) ProjectWork
 					}
 					// One bundle: its entry file, not its parts. A bundle that
 					// is a git clone is still a bundle — the catalog lists it.
-					add(&bundles, filepath.Join(path, bundle.MainBotFile), ProjectWorkflowBundle)
+					add(&bundles, filepath.Join(path, bundle.MainBotFile), ProjectWorkflowBundle, "")
 					return filepath.SkipDir
 				}
 				if path != root && isNestedRepo(path) {
@@ -289,7 +317,7 @@ func ListProjectWorkflows(workDir string, roots []string, limit int) ProjectWork
 			if !workflowfile.IsWorkflowFile(d.Name()) || underAny(path, fragmentDirs) {
 				return nil
 			}
-			add(&otherFiles, path, ProjectWorkflowFile)
+			add(&otherFiles, path, ProjectWorkflowFile, walkedKey(path, d))
 			return nil
 		})
 	}
