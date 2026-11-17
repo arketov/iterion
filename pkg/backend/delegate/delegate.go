@@ -22,6 +22,7 @@ import (
 	"github.com/arketov/iterion/pkg/backend/toolcatalog"
 	"github.com/arketov/iterion/pkg/plugin"
 	"github.com/arketov/iterion/pkg/sandbox"
+	"github.com/arketov/iterion/pkg/scripthost"
 	"github.com/arketov/iterion/pkg/store"
 	"github.com/arketov/iterion/pkg/usagecap"
 )
@@ -549,6 +550,14 @@ type Task struct {
 	// are wired separately by each backend and are absent here.
 	MCPServers []TaskMCPServer
 
+	// MCPInheritDisabled says the node opts out of the ambient MCP set
+	// (`mcp: inherit: false`): MCPServers is its whole set. A CLI that loads
+	// MCP servers of its own configuration is held to it — claude_code runs
+	// with --strict-mcp-config whatever ITERION_CLAUDE_CODE_STRICT_MCP says;
+	// codex, which cannot be told to disable them, refuses the node, typed,
+	// when its configuration lists one.
+	MCPInheritDisabled bool
+
 	// OutputSchema is the JSON Schema for the expected structured output.
 	// Nil means free-form text output.
 	OutputSchema json.RawMessage
@@ -570,6 +579,19 @@ type Task struct {
 
 	// ToolMaxSteps is the maximum number of tool-use iterations (0 = default).
 	ToolMaxSteps int
+
+	// ToolTurnsAnchor anchors this node execution's tool-step budget at the
+	// last completed tool turn of the conversation its first attempt
+	// started from — its key and that key's occurrence, "<n>:<key>", as a
+	// provider may reuse a call id — "" when that conversation held none.
+	// The claw backend charges a loop the completed tool turns its
+	// conversation holds after the anchor — those a compaction folded
+	// included, as its summary names them; every one when the anchor is not
+	// among them — and hands the loop what is left of ToolMaxSteps.
+	// Nil on a first attempt: the backend fixes it from the conversation its
+	// first loop starts from and reports it in Result.ToolTurnsAnchor, which
+	// a retry of the same node execution carries back here.
+	ToolTurnsAnchor *string
 
 	// MaxTokens caps the LLM response length per call. Honored by API-based
 	// backends (claw); CLI-based backends (claude_code, codex) ignore it.
@@ -667,6 +689,13 @@ type Task struct {
 	// populating this field (see model.wireEffort) and sets Ultracode below.
 	ReasoningEffort string
 
+	// ReasoningEffortSource names who asked for ReasoningEffort: the run's
+	// model overrides, an upstream edge's mapping or the node's own
+	// `reasoning_effort:` (model.EffortSource*). The executor's bookkeeping,
+	// read back at the model boundary to record it on the Result; no backend
+	// reads it, and it does not cross the claw-runner wire.
+	ReasoningEffortSource string
+
 	// Ultracode enables the "Ultracode" mode: xhigh reasoning paired with a
 	// standing-consent prerogative to orchestrate multi-agent workflows.
 	// When set, BuildSystemPrompt appends a "## Workflow Orchestration"
@@ -743,6 +772,26 @@ type Task struct {
 	// it, and the zero value is off, so a task built outside the executor
 	// gets no script host rather than an accidental one.
 	Codemode bool
+
+	// CodemodeBounds are the bounds ONE program of this node runs under, as
+	// the author declared them and the executor resolved them (node over
+	// workflow, field by field — ir.ResolveCodemodeBounds). nil means nobody
+	// chose, which is the zero value Limits.Clamp fills from
+	// scripthost.DefaultLimits.
+	//
+	// It is a REQUEST, not the enforced value. The parent clamps it to
+	// scripthost.Ceiling at spawn and reports any reduction through OnClamp,
+	// so a tenant cannot raise a platform bound by declaring a bigger number
+	// — philosophy 1 forbids a bound with no override, cloud multi-tenancy
+	// forbids an override with no ceiling, and this field is the override
+	// half only.
+	//
+	// Nil here and nil at the node are the same thing on purpose: a backend
+	// that drops the field runs the DEFAULTS, which are tighter than anything
+	// an author would raise them to. That direction is what makes the field
+	// safe to transport and is why the refusal it produces — "the script has
+	// spent its budget of 64 tool calls" — is loud rather than silent.
+	CodemodeBounds *scripthost.Limits
 
 	// Rewriters is the active rewriter-plugin chain (rtk by default) carried
 	// alongside CompressMode so both the in-process claude_code hook and the
@@ -2167,6 +2216,18 @@ type Result struct {
 	// thinking was produced.
 	ThinkingMs int
 
+	// ToolTurns is how many tool turns this invocation completed, every
+	// internal attempt included. Attempts are disjoint, so a fold sums it.
+	// Zero for a backend that does not count them. It reports; it charges
+	// nothing (Task.ToolTurnsAnchor).
+	ToolTurns int
+
+	// ToolTurnsAnchor is the anchor the invocation's tool-step budget
+	// charged against — the task's, or the one it fixed — and nil when it
+	// fixed none: what a retry of the same node execution hands its next
+	// attempt.
+	ToolTurnsAnchor *string
+
 	// GatewaySpec is the invocation's catalog provenance on an
 	// OpenAI-compatible gateway route (ADR-122 §resolution): which table
 	// answered and what it said, as compact JSON. Harness-recorded — the
@@ -2175,4 +2236,44 @@ type Result struct {
 	// output goes through the way the usage counters do, and is re-stamped
 	// there as `_gateway_spec`. Empty on a non-gateway route.
 	GatewaySpec json.RawMessage
+
+	// WireReasoningEffort is the reasoning effort the backend's FIRST model
+	// request of this call carried, after the backend's own rule below the
+	// model boundary — claw: the model's accepted set (coerceEffortForModel),
+	// then the client's (an Anthropic Messages client sends no effort for a
+	// model outside its matrix, "" then); claude_code: the level its CLI sends
+	// for the model — the level handed it after the CLI's per-model rule
+	// (claudeCodeWireEffort), "" when the model takes no effort and when the
+	// call never reached the model — a call that fails mid-stream may already
+	// have carried a request the record cannot name. WireReasoningEffortLast is the
+	// effort of the call's LAST request, whose answer the output is: lower
+	// than the first when claw re-asked a cut turn, or ran its recovery pass,
+	// at a reduced effort. WireReasoningEffortReported says the backend filled
+	// both; a backend that does not leaves the record at the level it was
+	// handed (model.recordReasoningEffort). They cross the claw-runner wire.
+	WireReasoningEffort         string
+	WireReasoningEffortLast     string
+	WireReasoningEffortReported bool
+
+	// ReasoningEffort is the reasoning effort the call's model request
+	// carried — what the backend reported (WireReasoningEffort), else the
+	// level the executor handed it after the route's accepted-effort mapping
+	// (ADR-166 §7); "" when the request carried none. ReasoningEffortSource
+	// says who decided it: the request's provenance (Task.
+	// ReasoningEffortSource) when it was sent as asked, the accepted-efforts
+	// list's source (`feed:<name>`, `env:…`) when the route replaced it,
+	// `backend` when the backend sent another level, none, or its own
+	// default. ReasoningEffortRequested is the level asked for, set only
+	// when the route or the backend replaced it; ReasoningEffortLowered is
+	// the lower level the call's last request carried, set only when it
+	// differs (WireReasoningEffortLast). Recorded by the executor at the
+	// model boundary (model.executeDelegate), never by a backend. Stamped on
+	// the node's output as `_reasoning_effort_applied`,
+	// `_reasoning_effort_source`, `_reasoning_effort_requested` and
+	// `_reasoning_effort_lowered` — never `_reasoning_effort`, the input key
+	// an edge raises a node's effort with.
+	ReasoningEffort          string
+	ReasoningEffortSource    string
+	ReasoningEffortRequested string
+	ReasoningEffortLowered   string
 }

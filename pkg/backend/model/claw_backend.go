@@ -647,6 +647,14 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 
 	// Observability hooks.
 	applyHooks(task.NodeID, task.Iteration, b.hooks, &opts)
+	// The effort each model request of the call carried on the wire
+	// (StepResult.ReasoningEffort), folded into the Result on every exit:
+	// the node's record names what reached the model — after the model's
+	// matrix, the client's own rule, a reduced-effort re-ask or recovery —
+	// not only what the executor handed this backend.
+	efforts := &wireEffortTrail{}
+	opts.OnStepFinish = efforts.observe(opts.OnStepFinish)
+	defer func() { efforts.fold(&result) }()
 
 	// In-process lifecycle hooks (audit, safety, compaction
 	// observability). Nil-safe at call sites in generation.go.
@@ -777,11 +785,27 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 	// declared `on` this backend could not serve before building the task —
 	// so the only question left here is whether the task says so.
 	if task.Codemode {
-		installCodemode(&opts, func(requested, applied scripthost.Limits) {
+		installCodemode(&opts, task.CodemodeBounds, func(requested, applied scripthost.Limits) {
 			if b.logger != nil {
-				b.logger.Warn("[%s] codemode: the platform ceiling reduced this node's script bounds (requested %+v, applied %+v)", task.NodeID, requested, applied)
+				// Both directions travel this seam (#3290): the ceiling REDUCES
+				// an over-reaching bound, the floor RAISES one the child could
+				// not work under. Either way the applied bounds are not what
+				// was declared, and the operator owes the why.
+				b.logger.Warn("[%s] codemode: the platform adjusted this node's script bounds to what a child can work under (requested %+v, applied %+v)", task.NodeID, requested, applied)
 			}
 		})
+	}
+
+	// The tool-step budget the node execution shares (claw_step_budget.go):
+	// pinned once the loop's tools are final — codemode adds its own — so the
+	// first pass, every retryLoop attempt and the tool-use nudge are each
+	// charged the turns their conversation holds after the anchor the
+	// execution started from, carried here by a retry of the execution.
+	var stepBudget *toolStepBudget
+	if len(opts.Tools) > 0 {
+		stepBudget = newToolStepBudget(opts.MaxSteps, task.ToolTurnsAnchor)
+		stepBudget.sessKey = taskSessionKey(task)
+		ctx = withToolStepBudget(ctx, stepBudget)
 	}
 
 	// Dispatch to the appropriate generation strategy. A gateway route's
@@ -826,6 +850,11 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 	// What this call spent, as the arm resolved it here, where the client
 	// was built (ADR-161 decision 8): the delegate events' credential keys.
 	res.Credential = spend
+	// The tool turns every attempt of this invocation completed, and the
+	// anchor they were charged against: a retry of the execution hands the
+	// anchor to its next attempt.
+	res.ToolTurns = stepBudget.turnsRun()
+	res.ToolTurnsAnchor = stepBudget.anchorReport()
 	return res, genErr
 }
 
@@ -1065,6 +1094,38 @@ func clawCostEstimate(modelSpec string, inputTokens, outputTokens int) float64 {
 // A child that burned tokens on a model with no known price contributes its
 // tokens and no cost, exactly as an unpriced node does (cost.EstimateUSD
 // returns 0, which the budget reads as unpriced spend, never as free).
+// wireEffortTrail records, in order, the effort each model request of one
+// claw call carried (StepResult.ReasoningEffort).
+type wireEffortTrail struct {
+	mu      sync.Mutex
+	efforts []string
+}
+
+// observe wraps a step hook so every finished step is recorded first.
+func (t *wireEffortTrail) observe(next func(StepResult)) func(StepResult) {
+	return func(step StepResult) {
+		t.mu.Lock()
+		t.efforts = append(t.efforts, step.ReasoningEffort)
+		t.mu.Unlock()
+		if next != nil {
+			next(step)
+		}
+	}
+}
+
+// fold reports the first and the last recorded effort on result
+// (Result.WireReasoningEffort); a call that finished no step reports none.
+func (t *wireEffortTrail) fold(result *delegate.Result) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if len(t.efforts) == 0 {
+		return
+	}
+	result.WireReasoningEffort = t.efforts[0]
+	result.WireReasoningEffortLast = t.efforts[len(t.efforts)-1]
+	result.WireReasoningEffortReported = true
+}
+
 func subagentSpendFold(result *delegate.Result, nodeModel string, spend *SubagentSpend) {
 	usage, costUSD := spend.Total()
 	spent := usage.InputTokens + usage.OutputTokens
@@ -1165,7 +1226,23 @@ func (b *ClawBackend) generateTextWithRetry(ctx context.Context, client api.APIC
 
 func (b *ClawBackend) generateText(ctx context.Context, client api.APIClient, task delegate.Task, opts GenerationOptions) (delegate.Result, error) {
 	opts = applySessionMessagesForTask(ctx, task, opts)
-	result, err := GenerateTextDirect(ctx, client, opts)
+	result, ran, err := runToolLoop(ctx, client, opts, nil)
+	if !ran {
+		// The conversation this attempt replays already holds every tool
+		// turn the bound allows since the node execution's start: the loop
+		// would have ended there on its own, with the text of its last turn,
+		// and so does the retry — running the loop again would spend past
+		// the bound.
+		b.logger.Warn("[%s] the conversation this retry replays already holds the %d tool turns of tool_max_steps — the node ends as its loop ends at the bound, with the text of the last turn",
+			task.NodeID, toolStepBudgetFrom(ctx).limit)
+		output := map[string]any{"text": lastAssistantText(opts.Messages)}
+		return delegate.Result{
+			EffectiveModel: task.Model,
+			Output:         output,
+			Tokens:         annotateUsage(ctx, output, task.Model, Usage{}),
+			BackendName:    delegate.BackendClaw,
+		}, nil
+	}
 	captureSessionMessages(ctx, taskSessionKey(task), result)
 	if err != nil {
 		if r, ok := askUserResult(err); ok {
@@ -1265,13 +1342,23 @@ func (b *ClawBackend) generateTextWithToolsAndSchemaRetry(ctx context.Context, c
 
 func (b *ClawBackend) generateTextWithToolsAndSchema(ctx context.Context, client api.APIClient, task delegate.Task, opts GenerationOptions) (delegate.Result, error) {
 	opts = applySessionMessagesForTask(ctx, task, opts)
-	result, err := GenerateTextDirect(ctx, client, opts)
+	result, ran, err := runToolLoop(ctx, client, opts, nil)
 	captureSessionMessages(ctx, taskSessionKey(task), result)
 	if err != nil {
 		if r, ok := askUserResult(err); ok {
 			return r, nil
 		}
 		return meteredFailure(ctx, task, partialUsage(result)), fmt.Errorf("claw backend: text+tools generation: %w", err)
+	}
+	if !ran {
+		// The conversation this attempt replays already holds every tool
+		// turn the bound allows beyond the node execution's start — it
+		// retries a failure that came after the last one. The loop does not
+		// run again: the recovery pass below answers from that conversation,
+		// those turns in view.
+		b.logger.Warn("[%s] the conversation this retry replays already holds the %d tool turns of tool_max_steps — the tool loop does not run again, the recovery pass answers from it",
+			task.NodeID, toolStepBudgetFrom(ctx).limit)
+		result = &TextResult{Messages: opts.Messages}
 	}
 
 	// A tool-equipped reviewer/judge that ended the loop WITHOUT calling a
@@ -1287,23 +1374,32 @@ func (b *ClawBackend) generateTextWithToolsAndSchema(ctx context.Context, client
 	// emitted a JSON verdict (looksStructured) or that used its tools is
 	// left untouched, so a reviewer whose data is inline (e.g.
 	// whole_improve_loop's chunk_content) never pays for it.
+	//
+	// The nudge is charged by the node execution's tool-step budget like any
+	// other loop run (runToolLoop), and a conversation that already holds
+	// the whole bound has no turn to give it: no request is announced or
+	// made, and the recovery pass is what follows.
 	if task.NeedsToolLoop() && countToolCalls(result) == 0 && !looksStructured(result.Text) {
 		nudged := opts
 		// The nudge is the harness's re-ask, not the operator's prompt —
 		// already screened on the first pass.
 		nudged.SkipUserPromptSubmit = true
 		nudged.Messages = append(append([]api.Message(nil), result.Messages...), toolUseReminder())
-		if b.hooks.OnLLMRequest != nil {
-			b.hooks.OnLLMRequest(task.NodeID, LLMRequestInfo{
-				Model:        task.Model,
-				WireModel:    wireModelIfDistinct(task.Model),
-				MessageCount: len(nudged.Messages),
-				Timestamp:    time.Now(),
-			})
-		}
-		reRun, reErr := GenerateTextDirect(ctx, client, nudged)
-		switch reErr {
-		case nil:
+		reRun, nudgeRan, reErr := runToolLoop(ctx, client, nudged, func() {
+			if b.hooks.OnLLMRequest != nil {
+				b.hooks.OnLLMRequest(task.NodeID, LLMRequestInfo{
+					Model:        task.Model,
+					WireModel:    wireModelIfDistinct(task.Model),
+					MessageCount: len(nudged.Messages),
+					Timestamp:    time.Now(),
+				})
+			}
+		})
+		switch {
+		case !nudgeRan:
+			// Nothing left to give it: the recovery pass follows, on the
+			// first pass's result as it was.
+		case reErr == nil:
 			// Carry the wasted first-pass usage into the re-run so cost
 			// accounting reflects both turns.
 			accumulateUsage(&reRun.TotalUsage, result.TotalUsage)
@@ -1541,8 +1637,12 @@ func (b *ClawBackend) generateTextWithToolsAndSchema(ctx context.Context, client
 		// top of it, and the node has nothing to show for either. The error
 		// says what every turn came back with, so the next run is fixed at
 		// its cause rather than re-run blind.
+		finalTurn := describeFinalTurn(final, stepMaxTokens(final, opts), recErr)
+		if !ran {
+			finalTurn = fmt.Sprintf("none on this attempt, the conversation it replays already holding the %d tool turns of its tool_max_steps", toolStepBudgetFrom(ctx).limit)
+		}
 		return meteredFailure(ctx, task, billed), fmt.Errorf("claw backend: text+tools generation produced empty response after tool loop and structured-output recovery failed — the tool loop's final turn: %s; the recovery pass: %v",
-			describeFinalTurn(final, stepMaxTokens(final, opts), recErr), recErr)
+			finalTurn, recErr)
 	}
 	output := map[string]any{"text": text}
 	tokens := annotateUsage(ctx, output, task.Model, billed)
@@ -1732,10 +1832,10 @@ func clawRunnerHome(ctx context.Context, task delegate.Task) string {
 // tools become reachable across the IPC; V2-3 wires OnAskUser to the
 // engine pause path; V2-4 wires OnSessionCapture for compaction-retry.
 //
-// The error is a NAMED result because the stderr report below is a defer that
-// reads the outcome to pick its level; nothing reads the result value, hence
-// the blank name beside it.
-func (b *ClawBackend) executeViaSandboxRunner(ctx context.Context, task delegate.Task) (_ delegate.Result, err error) {
+// Both results are NAMED: the stderr report below is a defer that reads the
+// error to pick its level, and the crossing's tool-turn account is a defer
+// that writes onto the result whichever return the crossing takes.
+func (b *ClawBackend) executeViaSandboxRunner(ctx context.Context, task delegate.Task) (out delegate.Result, err error) {
 	run := task.Sandbox
 	if run == nil {
 		return delegate.Result{}, fmt.Errorf("claw backend: executeViaSandboxRunner called without a sandbox handle")
@@ -1758,6 +1858,23 @@ func (b *ClawBackend) executeViaSandboxRunner(ctx context.Context, task delegate
 	if err != nil && (!errors.As(err, &refusal) || refusal.Reason != credroute.ReasonNoCredential || resolution.env == nil) {
 		return delegate.Result{}, err
 	}
+
+	// V2-4: the host's copy of this task's session crosses BEFORE the task
+	// envelope — the runner stashes it, then loads it into its local store
+	// once the task arrives, so applySessionMessages prepends the replayed
+	// history to the LLM's first call. Resolved before the task envelope
+	// because the tool-step anchor the task carries is read from it, and
+	// before the multiplexer because the mirror in the other direction needs
+	// its outcome (see [sessionSeed]).
+	seed := b.sessionSeedForCrossing(ctx, task)
+	// The crossing's tool turns, accounted from what crosses
+	// (claw_step_budget.go): the runner is handed the node execution's
+	// anchor, and every result this crossing returns from here on — a death
+	// before the result envelope included — carries that anchor and the
+	// turns its captures show, so a retry is charged what it replays.
+	turns := newCrossingTurns(task, seed)
+	task.ToolTurnsAnchor = &turns.anchor
+	defer func() { turns.stamp(&out) }()
 
 	// The task envelope is built and SIZED before anything is spawned. It is
 	// the one launcher→runner envelope whose payload no producer bounds: a
@@ -2072,15 +2189,12 @@ func (b *ClawBackend) executeViaSandboxRunner(ctx context.Context, task delegate
 			iterlog.BlockPreviewRendered(diag, maxFieldSize))
 	}()
 
-	// V2-4: the host's copy of this task's session crosses BEFORE the task
-	// envelope — the runner stashes it, then loads it into its local store
-	// once the task arrives, so applySessionMessages prepends the replayed
-	// history to the LLM's first call. Resolved before the multiplexer
-	// exists because the mirror in the other direction needs its outcome
-	// (see [sessionSeed]).
-	seed := b.sessionSeedForCrossing(ctx, task)
-
 	handler, stranded := b.multiplexerHandler(ctx, task, seed)
+	mirror := handler.OnSessionCapture
+	handler.OnSessionCapture = func(snapshot json.RawMessage) {
+		turns.observe(snapshot)
+		mirror(snapshot)
+	}
 	mux := delegate.NewMultiplexer(stdoutR, stdinPipe, handler)
 	// The raw line a decode error quotes crosses the run's pass before its
 	// 256-byte cut, or a value straddling the cut publishes its head into
@@ -2219,6 +2333,13 @@ func (b *ClawBackend) executeViaSandboxRunner(ctx context.Context, task delegate
 	// keys are written by the process that built the call): relayed
 	// verbatim, never stamped here.
 	res := delegate.FromIOResult(ioRes)
+	// A runner that reports no tool turn while its own captures show some
+	// predates the shared tool-step bound: it reads no anchor from the task,
+	// so each crossing's loop runs under the node's whole bound again.
+	if res.ToolTurns == 0 && turns.counted() > 0 {
+		b.logger.Warn("[%s#%d/claw] the sandbox runner reported no tool turn while its captures show %d: it is an older iterion that does not share the node's tool_max_steps across retries — every crossing runs under the whole bound until the sandbox image is rolled",
+			task.NodeID, task.Iteration, turns.counted())
+	}
 	// The relay carries model JSON and harness counters separately. Apply
 	// the same reserved-namespace boundary on success and runner failure.
 	// A gateway route's provenance is re-resolved HERE, host-side (the

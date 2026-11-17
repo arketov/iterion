@@ -351,3 +351,166 @@ runtime needs makes it crash — measured at 64 MiB, `script_host_died` with a
 SIGSEGV where the caller asked for `memory_exceeded`. A tenant can therefore
 write a `memory:` that produces an unexplained crash instead of a typed
 refusal. Its own ticket.
+
+## Amendment — 2026-11-15: the bounds get an author surface, and the A/B that did not show a gain
+
+Two things landed together, and only one of them is good news.
+
+### The surface (CM-5d, #3301)
+
+Seven of the bounds this record calls for are now declarable: the `codemode:`
+block, `Form: BlockOrIdent` on `sandbox`'s precedent, hosted on the workflow,
+agents and judges. Operational detail in
+[dsl.md](../dsl.md) and
+[codemode-confinement](../agents/backends/codemode-confinement.md#the-authors-surface);
+the decisions this record owns are these four.
+
+- **`ir.CodemodeBounds` IS `scripthost.Limits`**, not a struct that maps onto
+  it. One type means one spelling of the seven numbers, so the `wall_ms`
+  defect the host's own field doc records — a hand-written bound enforced a
+  million times tighter — cannot be reintroduced by a second declaration.
+- **The rungs resolve FIELD BY FIELD**, node over workflow, not
+  nearest-rung-wins. The workflow rung is a *default* by its own field doc; a
+  workflow raising `tool_calls` for a whole bot must not be erased by a node
+  that only wanted a longer `wall`. It is the per-field filling `Limits.Clamp`
+  already does one rung down, so the ladder is one rule applied twice.
+- **Clamped, never refused.** The parent reduces a request above `Ceiling` and
+  reports it; the compiler says it earlier (**C347**), and that is all it does.
+  A diagnostic that also lowered the value would give the bound two owners and
+  silence `OnClamp` on exactly its own case. **C348** is bounds beside a
+  `mode: off`, **C349** a duration that is not one.
+- **Schema v32.** The bounds ride `ir_compiled`, as the switch does. A stale
+  runner drops them and runs the DEFAULTS — tighter, and its refusal is loud —
+  which satisfies the rollout runbook's first exemption condition but not its
+  second: the exemption also asks that the field carry no operator choice, and
+  declared bounds are the rule's own named class, *budget caps*.
+
+### The A/B, and why it is reported as a non-result
+
+The switch was activated on a read-only audit node — `assessment.survey`'s
+shape, `tools: [read_file, glob, grep]`, no shell — on `claw` +
+`openai/gpt-6-sol`, over this repository's own bot catalog pinned by commit,
+two `.bot` files differing by one line, three runs per arm interleaved.
+
+**It showed no gain.** Arm B was worse on every axis: +56% turns, +75% tokens,
++76% cost, +76% wall. And that number is not a result either — per-run spreads
+were 1.5× to 2.8× within each arm, and the answer was wrong in 3 of 6 runs, so
+the task sat at the model's competence limit and a share of what was measured
+is the model. The honest statement is that **this measurement does not show a
+gain and, at n=3 with that variance, cannot show one in either direction**. The
+first pair alone read −32% tokens; the replicates reversed the sign. Spend:
+$1.37.
+
+**This is a gap in the criterion above, not only in the measurement.** That
+amendment specifies what to count, which turns to exclude and three ways a run
+voids itself — and says nothing about **n**. A criterion whose sign flips
+between n=1 and n=3 is not yet a criterion. CM-17 owes a replicate count and a
+spread it refuses to conclude under, decided before its own measurement runs.
+
+### What the measurement did deliver
+
+- **The 64-call default is the wall, measured.** One program surveying 39 files
+  spent **40 of 64**; another attempt at the same task crossed it and came back
+  *"the script has spent its budget of 64 tool calls. Aggregate in the script,
+  or ask the operator to raise the bound"*. That sentence named a bound no
+  author could raise, which is what CM-5d answers — the surface arrived from a
+  refusal rather than from this record's reasoning.
+- **Two premises of this record are refuted.** A no-shell node is not unable to
+  loop: it keeps `grep`, which aggregates server-side, and claw **batches
+  parallel tool calls** (2 to 4 per turn was observed). So "one call per turn",
+  the phrase the tool's own description uses, is not what the baseline does,
+  and the turn axis is not where codemode wins on this kind of task.
+- **A second product defect, from measurement**: the tool description never
+  said `call()` is synchronous, so the model wrote `await call(...)` and lost a
+  program to a `SyntaxError`. Its own ticket
+  ([#3311](https://github.com/SocialGouv/iterion/issues/3311)); the sentence is
+  fixed in this slice because the description was already being touched.
+
+
+## Amendment — 2026-11-16: the bounds measured at scale, and what that does to CM-17
+
+The 11-15 amendment reported the small A/B and its non-result. The second
+measurement ran the same read-only audit node — `assessment.survey`'s shape,
+`claw` + `openai/gpt-6-sol` — at a scale chosen so the question could not be
+answered by the baseline's aggregation, and in **three arms** instead of two:
+arm A without codemode, arm B with codemode at the **default** bounds, arm C
+with the bound **declared** (`tool_calls: 256`). B and C differ by exactly one
+declaration, so that pair is immune to "grep aggregates well" and measures
+this record's surface itself.
+
+**The scale.** The corpus is this repository's Go tests: 21 478 matches across
+98 top-level directories of `pkg/`. A whole-repository grep result is
+**2 148 KiB against the 64 KiB per-tool-result bound**; 7 of the 98
+directories overflow it on their own; the mechanical strategy — one grep per
+directory plus a sub-split — costs ~130 calls. **Above the default 64, below
+256**: the bound the surface declares sits exactly across the wall.
+
+**The bound bit, measured.** Arm B hit the tool-call budget **14 times** in
+three runs (one run collapsing into eight blind retries and 206 k tokens);
+arm C hit it **twice**. Arm C finished **−29 % turns, −17 % wall, −39 % mean
+error at equal token cost** (845 k vs 838 k). The ceiling's doc sentence —
+*"ask the operator to raise the bound"* — now names a bound an author can
+actually raise, which is what #3301 delivers. Control: on the pre-CM-5d
+binary, arm C is a **syntax error** (`E002`/`E003`), arm B compiles — the
+third arm provably exercises the new surface.
+
+**The oracle was wrong, and the arms caught it.** The stated question counts
+test functions declared `(t *testing.T)`; the first oracle also counted the
+83 `TestMain(m *testing.M)` functions, so it answered 21 478 where the true
+answer is **21 395**. The discrepancy surfaced because all three arms
+clustered just below the wrong number — a gap too regular for noise. An
+oracle is subject to the same rule as any sentence a fix writes: it executes,
+or it is the next finding.
+
+**What this measurement does NOT establish, stated as firmly**: **no arm was
+exact.** The best run of arm B landed 23 off; arm C's best two were ~250 off;
+and one run of B and one of C collapsed onto the **same wrong 4 161** — a
+shared partial-coverage path, not noise. The task again exceeded the model's
+competence, so what the scale run establishes is the bound's bite and its
+cost, **not a CM-17 win for the declared surface**. Together with the 11-15
+amendment the criterion gap is now precise: CM-17 owes a replicate count **n**,
+a spread it refuses to conclude under, **and a reliability precondition** —
+the task must be one the model completes exactly, measured before the run,
+or the measurement keeps billing for the model. Spend: **$10.67** for this
+run, on top of the first measurement's $1.37.
+
+## Amendment — 2026-11-16 (bis): CM-17 measured on a synthetic corpus; the default stays opt-in
+
+The 11-15 amendment demanded a reliability precondition before any further
+measurement; the operator decided the direction the same day: measure the
+MECHANISM on a synthetic corpus, where the counting task's answer is exact by
+construction and the model's competence stops being the confound.
+
+**The corpus**: 98 directories × 42 files × 5 functions = 20 580 declarations,
+generated deterministically — every property the scale measurement relied on
+holds: a whole-corpus grep is **744 KiB against the 64 KiB per-result bound**,
+no single directory overflows it, and the mechanical strategy costs ~100
+calls — above the default 64, below 256.
+
+**Three arms, interleaved, the headline pair differing by one declaration**
+(B: codemode at the default bounds; C: `tool_calls: 256`):
+
+- **All six runs EXACT** — 20 580 total, 98 directories, per the manifest.
+  The reliability precondition is met by construction; the competence
+  confound is gone.
+- **The bound's bite, clean**: budget refusals — 3 runs × 1 in B, **0 in C**.
+  C: **−21 % turns, −31 % mean cost (1.09 vs 1.57 $), −22 % wall**, at equal
+  mean tokens (527 k vs 766 k — the spreads overlap).
+- Arm A (no codemode, n=1, context only): answered **1 050** — it covered 5
+  of 98 directories after its whole-corpus grep hit the truncation bound,
+  and said so in `method` while leaving `bound_hit` empty.
+- Side lesson from #3327's first CI attempt, recorded for the next witness
+  author: a real-child witness that resolves the INSTALLED binary fails in
+  CI ("exec: no command"); re-execute the test binary (childHost) and assert
+  what the seam owes — Clamp fires OnClamp before any spawn attempt.
+
+**The decision**: codemode's default **stays opt-in**. The mechanism is
+proven — the raised bound removes the wall and every budget refusal while
+every run lands exact — but the win axes are refusals/wall/cost, **not
+turns** (−21 % only), and the 11-13 abandonment criterion was written on the
+turn axis. That criterion stays AS WRITTEN with this caveat now recorded:
+the turn axis was refuted as codemode's win axis on BOTH corpora, so it will
+never fire a flip; a flip, if ever, would be decided on the measured axes
+per workload. An operator reading this record decides per workload; the
+measurement is the base. Total measurement spend across the three runs of
+records: **$1.37 + $10.67 + ~$8**.

@@ -2083,7 +2083,31 @@ without guessing a numeric equivalent for a name. Executor adjustments emit
 that listed the efforts) and `reason` — and a warning. The requested effort
 itself is the node's `reasoning_effort:`, an edge mapping, the launch
 override or a routing cell's `effort`; accepted efforts are a fact of the
-gateway, seated at the platform, org and team levels only. Gateway routes
+gateway, seated at the platform, org and team levels only. The node's output
+records what the call sent: `_reasoning_effort_applied` is the level the first
+model request carried — the claw backend reports it from its requests, after
+the model's accepted set and the client's own rule (an Anthropic Messages
+client sends no effort for a model outside its matrix; bedrock and vertex
+send none), claude_code reports the level its CLI sends for the model,
+read from the id the spawn hands the CLI — slot prefixes stripped, alias
+and snapshot date resolved (`claude-opus-5-5-20260101` is opus 5.5): none
+for the measured no-effort ids (the haiku line, sonnet-4-5,
+claude-3-5-sonnet), a clamp onto the model's accepted set otherwise
+(sonnet-4-6 sends high for xhigh; sonnet-4-7 forwards every level), a
+Claude id with neither an accepted set nor a measurement as handed (what
+the CLI would send is not known), and "" when the call never reached the
+model — one that fails mid-stream may already have carried a request the
+record cannot name — and for the other backends it is the level the
+executor handed them. `_reasoning_effort_source` says who decided it: `cell` (a routing-policy
+cell), `launch` (the launch's own row), `override` (either, when the executor
+was not told which rows the launch carried), `node`, `dial:<VAR>` (an operator
+set the node's `${VAR:-default}`), `edge`, the list's source when the mapping
+replaced the level, or `backend` when the backend sent another level, none or
+its default. `_reasoning_effort_requested` is the level asked for, written only
+when the mapping or the backend replaced it, and `_reasoning_effort_lowered`
+the lower level of a later request — a claw re-ask after a cut turn or its
+recovery pass — whose answer the output is. A report prints the effort the run
+used rather than a dial (`bots/review-pr`'s run table). Gateway routes
 run on `claw` alone (C186 above): a CLI backend refuses a gateway route at
 dispatch, so it never reaches this mapping.
 
@@ -2387,6 +2411,48 @@ retryable:
   (the inflated default only applies when neither is set). Each retry logs
   `network connectivity issue — delegate retry k/n … (backoff …)`.
 
+On `claw`, `tool_max_steps` bounds one node execution — from its first
+attempt until the node completes or the run pauses on it — and every tool
+loop is charged the completed tool turns its conversation already holds. A
+resume after an operator pause (an `ask_user` question, a permission
+decision) gets the whole bound again, charged only the turns after the
+pause; a node a recovery pause parks (a failure the recovery recipes hand to
+the operator) re-executes, once acknowledged, from what it started from — no
+conversation, or the slot its session persists in — with the whole bound,
+whichever process resumes it. The backend's own stream retries, the tool-use
+nudge, the executor's in-place retries and the engine's recovery re-runs each
+replay the conversation the dead attempt left: the session store holds it,
+for a node whose session persists in a slot too — the engine restores the
+slot before every dispatch, but never over the conversation of an execution
+still running — and a sandboxed runner captures each tool turn as it
+completes, so one that dies mid-loop has already left its turns on the host.
+Each of those captures is the whole conversation so far, so the bytes a node
+sends over the runner's channel grow with the square of its tool turns.
+Each loop is handed the bound minus the completed tool turns its replay
+holds after the last one of the conversation the node execution started
+from; the summary a compaction leaves names the turns it folded, so those
+count too, even where a provider reuses a call id from one response to the
+next, and a session persisted for a later node execution drops those names.
+A stream cut before a turn completes spends nothing. A retry that replays
+none of the dead attempt's turns gets the whole bound back, so it answers
+from turns it can see. A task that carries its own history — a resumed or a
+re-asked conversation — replays that history alone: a retry of it replays
+none of the dead attempt's turns and gets the whole bound again. Inside a
+fan-out branch the executor keeps no session for the node (a branch runs
+without the run's identity), so a retry there replays nothing and gets the
+whole bound again. A retry whose replay already holds the whole bound makes
+no loop request: a node with an output schema goes straight to the
+schema-forced recovery pass, those turns in view, and one without ends as
+its loop ends at the bound, with the text of the last turn. A loop whose
+replay holds a turn of this execution answered with a tool's result is not
+forced to call a tool first; a turn answered with an error lifts nothing. A
+route change in the fallback chain restarts from the last-good conversation,
+with the whole bound. A sandbox runner older than its launcher reads no
+anchor, so each of its crossings runs under the whole bound; the launcher
+logs the skew. `claude_code` maps the bound to `--max-turns`, which the CLI
+counts per query: a retry that resumes the session, and the formatting pass,
+each run under the whole bound again.
+
 Only after a provider exhausts this budget does the run fall through to the
 next entry in the `provider:` chain (above).
 
@@ -2455,8 +2521,9 @@ ask_user/board servers. The operator's personal user-scope servers
 undeclared tools reaching the agent, an `npx`/server boot per node visit
 (a CPU spike per iteration on loop-heavy bots), and personal API keys on the
 subprocess argv. `ITERION_CLAUDE_CODE_STRICT_MCP=0` is the escape hatch that
-restores host-config inheritance. Settings remain inherited independently
-(`--setting-sources`, above).
+restores host-config inheritance; it does not reach a node whose `mcp:` block
+says `inherit: false`, which keeps `--strict-mcp-config`. Settings remain
+inherited independently (`--setting-sources`, above).
 
 **Unnamed servers degrade per-server, on every backend.** A server whose
 tools the node does not name that fails to boot costs its OWN tools, never
@@ -3191,7 +3258,7 @@ unknown name there is dead config, not a failure — and it never touches
 qualified MCP references (`mcp.<server>.<tool>`, the `mcp__server__tool`
 alias form, wildcards), which are resolved when the server connects. One
 host-side check does read them: `iterion validate` and `POST /api/validate`
-warn (`C347`) when such a reference names a server that no `mcp_server`
+warn (`C351`) when such a reference names a server that no `mcp_server`
 block, project `.mcp.json` entry or enabled plugin declares.
 
 What it lets through, and why. iterion's own board and watch tools are

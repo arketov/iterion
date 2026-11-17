@@ -56,11 +56,12 @@ type backendFields struct {
 	capabilities     []string
 	skills           []string
 	cursors          *ir.CursorInvocation
-	compress         string // node-level `compress:` value ("" = unset)
-	autoMemory       string // node-level `auto_memory:` value ("" = inherit workflow)
-	ambientContext   string // node-level `ambient_context:` value ("" = inherit workflow)
-	codemode         string // node-level `codemode:` value ("" = inherit workflow)
-	permission       string // node-level `permission:` mode override ("" = inherit)
+	compress         string             // node-level `compress:` value ("" = unset)
+	autoMemory       string             // node-level `auto_memory:` value ("" = inherit workflow)
+	ambientContext   string             // node-level `ambient_context:` value ("" = inherit workflow)
+	codemode         string             // node-level `codemode:` value ("" = inherit workflow)
+	codemodeBounds   *ir.CodemodeBounds // node-level `codemode:` bounds (nil = inherit workflow, field by field)
+	permission       string             // node-level `permission:` mode override ("" = inherit)
 	// node-level `allow:`/`ask:`/`deny:` rule lists. A non-empty list
 	// REPLACES the workflow list of the same kind; see
 	// ir.EffectivePermissionRules, the single implementation of that rule.
@@ -112,6 +113,7 @@ func extractBackendFields(node ir.Node) (backendFields, error) {
 			autoMemory:       n.AutoMemory,
 			ambientContext:   n.AmbientContext,
 			codemode:         n.Codemode,
+			codemodeBounds:   n.CodemodeBounds,
 			permission:       n.Permission,
 			permAllow:        n.PermissionAllow,
 			permAsk:          n.PermissionAsk,
@@ -142,6 +144,7 @@ func extractBackendFields(node ir.Node) (backendFields, error) {
 			autoMemory:       n.AutoMemory,
 			ambientContext:   n.AmbientContext,
 			codemode:         n.Codemode,
+			codemodeBounds:   n.CodemodeBounds,
 			permission:       n.Permission,
 			permAllow:        n.PermissionAllow,
 			permAsk:          n.PermissionAsk,
@@ -283,7 +286,13 @@ func (e *ClawExecutor) GateCanAsk(node ir.Node) bool {
 // per-node model label and context-usage gauge. A gateway route's catalog
 // provenance is re-stamped from Result.GatewaySpec as `_gateway_spec` —
 // harness-recorded like the counters, so it survives the wipe a
-// model-written key of the same name does not (#2786).
+// model-written key of the same name does not (#2786). The effort the
+// call's model request carried lands as `_reasoning_effort_applied`, who
+// decided it as `_reasoning_effort_source`, the level asked for, when the
+// route or the backend replaced it, as `_reasoning_effort_requested`, and a
+// lower level a later request of the call carried as
+// `_reasoning_effort_lowered` (Result.ReasoningEffort): a report reads what
+// the run used instead of the dial it was set from.
 //
 // `output` is passed explicitly so the LLM router path can re-stamp
 // after a `{"text": …}` fallback has reassigned to a fresh map.
@@ -348,7 +357,28 @@ func stampDelegateOutputMeta(output map[string]any, result delegate.Result, back
 	if len(result.GatewaySpec) > 0 {
 		output["_gateway_spec"] = result.GatewaySpec
 	}
+	for key, value := range map[string]string{
+		OutputReasoningEffortApplied:   result.ReasoningEffort,
+		OutputReasoningEffortSource:    result.ReasoningEffortSource,
+		OutputReasoningEffortRequested: result.ReasoningEffortRequested,
+		OutputReasoningEffortLowered:   result.ReasoningEffortLowered,
+	} {
+		if value != "" {
+			output[key] = value
+		}
+	}
 }
+
+// The output keys stampDelegateOutputMeta records the effort a call ran at
+// under (delegate.Result.ReasoningEffort). None is `_reasoning_effort`: that
+// is the INPUT key an edge raises a node's effort with, and a stamp of that
+// name would read, wherever an output is mapped whole, as an edge's request.
+const (
+	OutputReasoningEffortApplied   = "_reasoning_effort_applied"
+	OutputReasoningEffortSource    = "_reasoning_effort_source"
+	OutputReasoningEffortRequested = "_reasoning_effort_requested"
+	OutputReasoningEffortLowered   = "_reasoning_effort_lowered"
+)
 
 // meteredFailureOutput renders what a FAILED delegation spent, in the shape
 // the engine books from (`_tokens` / `_cost_usd`).
@@ -1076,8 +1106,14 @@ func (e *ClawExecutor) validateAndRetry(
 			e.hooks.OnDelegateStarted(f.id, DelegateInfo{BackendName: backendName, DeclaredModel: task.Model, Attempt: attempt + 1, Reask: reask.mode, ReaskInChain: f.inChain})
 		}
 		retryTask := reask.task
+		// A re-ask is a conversation of its own — a restart runs the node's
+		// tool loop again — and its in-place retries replay what its dead
+		// attempt left, charged against the anchor its first attempt fixed.
+		var turnsAnchor toolTurnsAnchorCarry
 		retryResult, retryErr := e.retryDelegateLoopReask(callCtx, f.id, backendName, sharesSession(&retryTask), reask.mode, func() (delegate.Result, error) {
-			return e.executeDelegate(callCtx, backend, retryTask)
+			res, err := e.executeDelegate(callCtx, backend, turnsAnchor.attempt(retryTask))
+			turnsAnchor.observe(res)
+			return res, err
 		})
 		marginalCost := costs.add(retryResult, &retryTask, backendName)
 		e.emitReaskOutcome(f.id, backendName, task.Model, reask, retryResult, retryErr, marginalCost, attempt+1)
@@ -1375,7 +1411,7 @@ func (e *ClawExecutor) buildTask(ctx context.Context, node ir.Node, f backendFie
 	if err != nil {
 		return delegate.Task{}, err
 	}
-	codemodePolicy, err := e.codemodePolicy(f, backendName)
+	codemodePolicy, codemodeBounds, err := e.codemodePolicy(f, backendName)
 	if err != nil {
 		return delegate.Task{}, err
 	}
@@ -1392,7 +1428,7 @@ func (e *ClawExecutor) buildTask(ctx context.Context, node ir.Node, f backendFie
 
 	outputSchema := e.resolveOutputSchema(f.outputSchema)
 
-	effort := e.effortForNode(node, f.reasoningEffort, input)
+	effort, effortSource := e.requestedEffort(node, f.reasoningEffort, input)
 	// "ultracode" is a mode (xhigh + workflow-orchestration prerogative),
 	// not a wire effort value. Remap to xhigh for the provider and carry the
 	// mode separately so the task can enable the orchestration prompt + tool.
@@ -1440,6 +1476,7 @@ func (e *ClawExecutor) buildTask(ctx context.Context, node ir.Node, f backendFie
 		AmbientContext:        ambientPolicy,
 		AmbientContextSource:  ambientSource,
 		Codemode:              codemodePolicy.On,
+		CodemodeBounds:        codemodeBounds,
 		SourceIssueID:         e.sourceIssueID,
 		Iteration:             LoopIterationFromContext(ctx),
 		SystemPrompt:          systemText,
@@ -1464,6 +1501,7 @@ func (e *ClawExecutor) buildTask(ctx context.Context, node ir.Node, f backendFie
 		HomeScope:             RunnerHomeScopeFromContext(ctx),
 		ExtraEnv:              e.taskExtraEnv(),
 		ReasoningEffort:       wireEffort(effort),
+		ReasoningEffortSource: effortSource,
 		Ultracode:             ultracode,
 		InteractionEnabled:    f.interaction != ir.InteractionNone,
 		SessionLedger:         SessionLedgerFromContext(ctx),
@@ -1780,6 +1818,10 @@ func (e *ClawExecutor) buildTask(ctx context.Context, node ir.Node, f backendFie
 	if mcpForwardingBackends[backendName] && len(f.activeMCPServers) > 0 && e.mcpManager != nil {
 		task.MCPServers = e.resolveTaskMCPServers(f.activeMCPServers)
 	}
+	// A node that opted out of the ambient set holds every backend to its
+	// declared set, the servers a CLI loads from its own configuration
+	// included (delegate.Task.MCPInheritDisabled).
+	task.MCPInheritDisabled = !nodeInheritsAmbientMCP(node)
 
 	e.unpackInboundSession(ctx, input, backendName)
 	e.applySessionContinuity(&task, f, input)
@@ -1837,6 +1879,19 @@ func (e *ClawExecutor) buildTask(ctx context.Context, node ir.Node, f backendFie
 	// beside this one.
 	e.reportMCPDegrades(f.id, degraded)
 	return task, nil
+}
+
+// nodeInheritsAmbientMCP reports whether node takes the workflow's ambient
+// MCP set: its `mcp: inherit:` unset or true, mcp.PrepareWorkflow's reading.
+func nodeInheritsAmbientMCP(node ir.Node) bool {
+	var cfg *ir.MCPConfig
+	switch n := node.(type) {
+	case *ir.AgentNode:
+		cfg = n.MCP
+	case *ir.JudgeNode:
+		cfg = n.MCP
+	}
+	return cfg == nil || cfg.Inherit == nil || *cfg.Inherit
 }
 
 // mcpForwardingBackends are the backends that consume Task.MCPServers — the

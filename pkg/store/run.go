@@ -2061,6 +2061,11 @@ const (
 	// board: the admission loop and "Launch now". The run carries
 	// Source.IssueID of the card; it is not a dispatcher run.
 	RunSourceKindPipelineBoard = "pipeline_board"
+
+	// RunSourceKindConnector is a connector event's matched pair (ADR-168
+	// §8): ScheduleID names the subscription (the back-reference the
+	// run-outcome spine stamps), PairID and IntakeID the pair and the event.
+	RunSourceKindConnector = "connector"
 )
 
 // RunSource captures who originated this run. Populated by the
@@ -2112,6 +2117,10 @@ type RunSource struct {
 	// the terminal run, then asks each record kind "is this yours"). One
 	// direction of provenance, never a second way to find a record.
 	DeliveryID string `json:"delivery_id,omitempty" bson:"delivery_id,omitempty"`
+	// PairID and IntakeID name the connector pair a RunSourceKindConnector
+	// run launched for, and the stored event it was matched from.
+	PairID   string `json:"pair_id,omitempty" bson:"pair_id,omitempty"`
+	IntakeID string `json:"intake_id,omitempty" bson:"intake_id,omitempty"`
 }
 
 // ForkAnchor identifies where a forked run resumes inside the parent's

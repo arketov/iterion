@@ -9,6 +9,7 @@ import (
 	"github.com/arketov/iterion/pkg/backend/ambient"
 	"github.com/arketov/iterion/pkg/backend/credroute"
 	"github.com/arketov/iterion/pkg/plugin"
+	"github.com/arketov/iterion/pkg/scripthost"
 	"github.com/arketov/iterion/pkg/store"
 )
 
@@ -72,6 +73,7 @@ type IOTask struct {
 	Model                 string           `json:"model,omitempty"`
 	HasTools              bool             `json:"has_tools,omitempty"`
 	ToolMaxSteps          int              `json:"tool_max_steps,omitempty"`
+	ToolTurnsAnchor       *string          `json:"tool_turns_anchor,omitempty"`
 	MaxTokens             int              `json:"max_tokens,omitempty"`
 	WorkDir               string           `json:"work_dir,omitempty"`
 	// WorkspaceTrust travels WITH WorkDir, because the two answer one
@@ -164,6 +166,7 @@ type IOTask struct {
 	AmbientContext         string                 `json:"ambient_context,omitempty"`
 	AmbientContextSource   string                 `json:"ambient_context_source,omitempty"`
 	Codemode               bool                   `json:"codemode,omitempty"`
+	CodemodeBounds         *scripthost.Limits     `json:"codemode_bounds,omitempty"`
 	CompressMode           string                 `json:"compress_mode,omitempty"`
 	Rewriters              []plugin.RewriterSpec  `json:"rewriters,omitempty"`
 	SettingsHooks          json.RawMessage        `json:"settings_hooks,omitempty"`
@@ -238,6 +241,13 @@ type IOResult struct {
 	PeakInputTokens    int     `json:"peak_input_tokens,omitempty"`
 	ThinkingTokens     int     `json:"thinking_tokens,omitempty"`
 	ThinkingMs         int     `json:"thinking_ms,omitempty"`
+	ToolTurns          int     `json:"tool_turns,omitempty"`
+	// The efforts the in-container call's model requests carried
+	// (Result.WireReasoningEffort*): the launcher records what reached the
+	// model, not only what it handed the runner.
+	WireReasoningEffort         string `json:"wire_reasoning_effort,omitempty"`
+	WireReasoningEffortLast     string `json:"wire_reasoning_effort_last,omitempty"`
+	WireReasoningEffortReported bool   `json:"wire_reasoning_effort_reported,omitempty"`
 
 	Output              map[string]any  `json:"output,omitempty"`
 	Tokens              int             `json:"tokens,omitempty"`
@@ -315,6 +325,7 @@ func ToIOTask(t Task) IOTask {
 		Model:                  t.Model,
 		HasTools:               t.HasTools,
 		ToolMaxSteps:           t.ToolMaxSteps,
+		ToolTurnsAnchor:        t.ToolTurnsAnchor,
 		MaxTokens:              t.MaxTokens,
 		WorkDir:                t.WorkDir,
 		WorkspaceTrust:         t.WorkspaceTrust,
@@ -348,6 +359,7 @@ func ToIOTask(t Task) IOTask {
 		AmbientContext:         t.AmbientContext.String(),
 		AmbientContextSource:   t.AmbientContextSource,
 		Codemode:               t.Codemode,
+		CodemodeBounds:         t.CodemodeBounds,
 		CompressMode:           t.CompressMode,
 		Rewriters:              t.Rewriters,
 		SettingsHooks:          t.SettingsHooks,
@@ -385,6 +397,7 @@ func FromIOTask(t IOTask) Task {
 		Model:                  t.Model,
 		HasTools:               t.HasTools,
 		ToolMaxSteps:           t.ToolMaxSteps,
+		ToolTurnsAnchor:        t.ToolTurnsAnchor,
 		MaxTokens:              t.MaxTokens,
 		WorkDir:                t.WorkDir,
 		WorkspaceTrust:         t.WorkspaceTrust,
@@ -418,6 +431,7 @@ func FromIOTask(t IOTask) Task {
 		AmbientContext:         ambientFromIO(t.AmbientContext),
 		AmbientContextSource:   t.AmbientContextSource,
 		Codemode:               t.Codemode,
+		CodemodeBounds:         t.CodemodeBounds,
 		CompressMode:           t.CompressMode,
 		Rewriters:              t.Rewriters,
 		SettingsHooks:          t.SettingsHooks,
@@ -444,6 +458,11 @@ func ToIOResult(r Result) IOResult {
 		PeakInputTokens:    r.PeakInputTokens,
 		ThinkingTokens:     r.ThinkingTokens,
 		ThinkingMs:         r.ThinkingMs,
+		ToolTurns:          r.ToolTurns,
+
+		WireReasoningEffort:         r.WireReasoningEffort,
+		WireReasoningEffortLast:     r.WireReasoningEffortLast,
+		WireReasoningEffortReported: r.WireReasoningEffortReported,
 
 		DurationMS:              r.Duration.Milliseconds(),
 		ExitCode:                r.ExitCode,
@@ -482,6 +501,11 @@ func FromIOResult(r IOResult) Result {
 		PeakInputTokens:    r.PeakInputTokens,
 		ThinkingTokens:     r.ThinkingTokens,
 		ThinkingMs:         r.ThinkingMs,
+		ToolTurns:          r.ToolTurns,
+
+		WireReasoningEffort:         r.WireReasoningEffort,
+		WireReasoningEffortLast:     r.WireReasoningEffortLast,
+		WireReasoningEffortReported: r.WireReasoningEffortReported,
 
 		Duration:                time.Duration(r.DurationMS) * time.Millisecond,
 		ExitCode:                r.ExitCode,
