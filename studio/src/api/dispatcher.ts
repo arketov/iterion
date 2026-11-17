@@ -290,6 +290,11 @@ export interface DispatchSkipView {
   // changed; the card stays in its column (force-resume or start over).
   // "queued": a routable card waiting for a concurrency slot — not a
   // refusal; reason carries "queued — waiting for a slot (ready N/M)".
+  // "last_run_active": the last run is running or queued — not a refusal.
+  // "run_finished": the run finished cleanly and the card is parked until it
+  // is moved to another column and back — not a refusal.
+  // "last_run_hold": any other last-run hold (cancelled, foreign pause,
+  // unreadable run store) — a warning that needs the operator.
   // Absent for the bot-misconfiguration family.
   kind?: string;
 }

@@ -265,6 +265,8 @@ sibling planner from the workflow entry:
 | `finished` | No hold: a fresh run is allowed — dragging the card back to an eligible column **is** the re-queue gesture. The one exception: a card the dispatcher itself returned to its current column after the clean run (`state_reason = run_finished`, see [`completed_state` and eligible columns](#completed_state-and-eligible-columns)) is held until an operator moves it — unless the card now names another bot than the one that finished, which is a hand-off and dispatches. |
 | none, or hard `failed`, and the ticket is explicitly eligible | The only other legitimate fresh run. |
 
+Each hold is published as a `dispatch_skips` entry with a `kind`: `last_run_active` (`running` / `queued`) and `run_finished` (the clean-finish hold above) are informational — the board draws them as a neutral banner, not an error — and `last_run_hold` (`cancelled`, a foreign pause, an unreadable run or run store, a missing workspace ownership) is a warning. While no slot is free the hold is re-evaluated every poll (`noteQueued`), so it follows the card's column, bot and run status instead of going stale. A run that the studio's runview resumed after a restart is not adopted by the dispatcher: it stays a `last_run_active` hold and is not counted in the slots.
+
 The stranded-pause sweep (`reconcileStrandedPaused`) also runs while
 the dispatcher is **paused**, so a studio restart with `desired: paused`
 re-parks without dispatching. An out-of-band `iterion resume --force`
