@@ -25,7 +25,7 @@ import {
 } from "@radix-ui/react-icons";
 import { useShallow } from "zustand/react/shallow";
 
-import { useAuth, canEditConfigShares } from "@/auth/AuthContext";
+import { canEditConfigShares, useAuth } from "@/auth/AuthContext";
 import { useRuns } from "@/hooks/useRuns";
 import { useServerInfoStore } from "@/store/serverInfo";
 import {
@@ -38,6 +38,7 @@ import { useUIStore } from "@/store/ui";
 import { readBooleanFlag, writeBooleanFlag } from "@/lib/localStorageFlag";
 import { adminPath } from "@/views/admin/adminRoutes";
 
+import { isNavHrefAvailable } from "./navAvailability";
 import { deriveSection, type Section } from "./navSection";
 
 interface Props {
@@ -51,54 +52,63 @@ interface LinkDef {
   icon: typeof HomeIcon;
 }
 
+type NavGroup = "workspace" | "Operate" | "Extend" | "Manage";
+
+// One studio page. `rail` is present for the pages the sidebar draws; a page
+// without it is listed in the Sitemap only (Insights has no rail entry, the
+// Sitemap link lives in the sidebar footer).
+interface NavPage {
+  group: NavGroup;
+  href: string;
+  label: string;
+  rail?: { section: Section; icon: typeof HomeIcon };
+}
+
 export interface NavRegistryGroup {
   label: string | null;
   hrefs: { href: string; label: string }[];
 }
 
-// The one registry the Sitemap page renders. It lists every page the studio
-// can ever show; which of them THIS server answers is decided by
-// isNavHrefAvailable (navAvailability.ts), from the same server_info flags the
-// sidebar gates on.
-export const NAV_REGISTRY: NavRegistryGroup[] = [
-  { label: null, hrefs: [{ href: "/", label: "Home" }] },
-  { label: "What's Next", hrefs: [{ href: "/whats-next", label: "What's Next" }] },
-  { label: "Editor", hrefs: [{ href: "/editor", label: "Editor" }] },
-  { label: "Runs", hrefs: [{ href: "/runs", label: "Runs" }] },
-  { label: "Insights", hrefs: [{ href: "/insights", label: "Insights" }] },
-  { label: "Bots", hrefs: [{ href: "/bots", label: "Bots" }] },
-  { label: "Board", hrefs: [{ href: "/board", label: "Board" }] },
-  { label: "Pipelines", hrefs: [{ href: "/pipelines", label: "Pipelines" }] },
-  { label: "Dispatcher", hrefs: [{ href: "/dispatcher", label: "Dispatcher" }] },
-  { label: "Automations", hrefs: [{ href: "/triggers", label: "Automations" }] },
-  { label: "Marketplace", hrefs: [{ href: "/marketplace", label: "Marketplace" }] },
-  { label: "Plugins", hrefs: [{ href: "/plugins", label: "Plugins" }] },
-  { label: "Skills", hrefs: [{ href: "/skills", label: "Skills" }] },
-  { label: "Config editor", hrefs: [{ href: "/config-editor", label: "Config editor" }] },
-  { label: "Secrets", hrefs: [{ href: "/secrets", label: "Secrets" }] },
-  { label: "Integrations", hrefs: [{ href: "/integrations", label: "Integrations" }] },
-  { label: "Sitemap", hrefs: [{ href: "/sitemap", label: "Sitemap" }] },
+// The ONE ordered list of studio pages, shared by the sidebar rail and the
+// Sitemap page. Whether a page is shown — server_info flags, active team, role —
+// is decided by isNavHrefAvailable (navAvailability.ts) for both, so a page
+// added here reaches both. The rail groups are: workspace (author + run),
+// Operate (kanban / dispatch / automation surfaces), Extend (marketplace,
+// plugins, skills) and Manage (Config editor, Secrets, Integrations; the
+// super-admin Admin entry is added in NavLinks, the Sitemap has its own
+// Admin console section). Empty groups drop out of the rail.
+export const NAV_PAGES: NavPage[] = [
+  { group: "workspace", href: "/", label: "Home", rail: { section: "home", icon: HomeIcon } },
+  { group: "workspace", href: "/whats-next", label: "What's Next", rail: { section: "whatsNext", icon: PaperPlaneIcon } },
+  { group: "workspace", href: "/editor", label: "Editor", rail: { section: "editor", icon: Pencil2Icon } },
+  { group: "workspace", href: "/runs", label: "Runs", rail: { section: "runs", icon: ListBulletIcon } },
+  { group: "workspace", href: "/insights", label: "Insights" },
+  { group: "workspace", href: "/bots", label: "Bots", rail: { section: "bots", icon: CubeIcon } },
+  { group: "Operate", href: "/board", label: "Board", rail: { section: "board", icon: ViewGridIcon } },
+  { group: "Operate", href: "/pipelines", label: "Pipelines", rail: { section: "pipelines", icon: CardStackIcon } },
+  { group: "Operate", href: "/dispatcher", label: "Dispatcher", rail: { section: "dispatcher", icon: RocketIcon } },
+  { group: "Operate", href: "/triggers", label: "Automations", rail: { section: "triggers", icon: LightningBoltIcon } },
+  { group: "Extend", href: "/marketplace", label: "Marketplace", rail: { section: "marketplace", icon: ArchiveIcon } },
+  { group: "Extend", href: "/plugins", label: "Plugins", rail: { section: "plugins", icon: Component1Icon } },
+  { group: "Extend", href: "/skills", label: "Skills", rail: { section: "skills", icon: MixIcon } },
+  // The config-share editor as a full-app route, for accounts that can edit
+  // shares but aren't boxed into the minimal ConfigEditorShell (admins / owners
+  // / super-admins). A bot's own branding (e.g. feed-watch's "Éditeur de
+  // veilles") shows inside via editor_title.
+  { group: "Manage", href: "/config-editor", label: "Config editor", rail: { section: "configEditor", icon: ReaderIcon } },
+  { group: "Manage", href: "/secrets", label: "Secrets", rail: { section: "secrets", icon: LockClosedIcon } },
+  // Neither the org nor the team is a primary nav entry: the org lives in the
+  // OrgSwitcher (top), team settings in the account chip. Integrations stays —
+  // the valued "connect a repo / enable a bot" shortcut.
+  { group: "Manage", href: "/integrations", label: "Integrations", rail: { section: "integrations", icon: Link2Icon } },
+  { group: "workspace", href: "/sitemap", label: "Sitemap" },
 ];
 
-const BASE_LINKS_LOCAL: LinkDef[] = [
-  { section: "home", href: "/", label: "Home", icon: HomeIcon },
-  { section: "whatsNext", href: "/whats-next", label: "What's Next", icon: PaperPlaneIcon },
-  { section: "editor", href: "/editor", label: "Editor", icon: Pencil2Icon },
-  { section: "runs", href: "/runs", label: "Runs", icon: ListBulletIcon },
-  { section: "bots", href: "/bots", label: "Bots", icon: CubeIcon },
-];
-
-// The cloud shell omits the Editor by default; it is spliced back in below when
-// server_info.bot_editing_enabled (the team-authored bot store is wired), so the
-// editor now has a cloud save path (botsource://) and is a reachable surface.
-const BASE_LINKS_CLOUD: LinkDef[] = [
-  { section: "home", href: "/", label: "Home", icon: HomeIcon },
-  { section: "whatsNext", href: "/whats-next", label: "What's Next", icon: PaperPlaneIcon },
-  { section: "runs", href: "/runs", label: "Runs", icon: ListBulletIcon },
-  { section: "bots", href: "/bots", label: "Bots", icon: CubeIcon },
-];
-
-const EDITOR_LINK: LinkDef = { section: "editor", href: "/editor", label: "Editor", icon: Pencil2Icon };
+// The registry the Sitemap page renders, derived from NAV_PAGES.
+export const NAV_REGISTRY: NavRegistryGroup[] = NAV_PAGES.map((p) => ({
+  label: p.label,
+  hrefs: [{ href: p.href, label: p.label }],
+}));
 
 // NavLinks renders the primary navigation as a vertical column inside
 // the Sidebar. When `collapsed` is true the labels are hidden and each
@@ -131,78 +141,29 @@ export default function NavLinks({ collapsed }: Props) {
   );
 
   // Primary nav is organised into labelled groups so the rail reads as a
-  // hierarchy instead of a flat list: Workspace (author + run), Operate
-  // (the kanban / dispatch / automation control surfaces), and Extend
-  // (marketplace + plugins). Manage (Integrations / Admin) only appears in
-  // cloud mode. Each group's links are still gated by the same serverInfo
-  // flags as before — empty groups drop out entirely.
-  const operate: LinkDef[] = [];
-  if (info?.native_tracker_enabled) {
-    operate.push({ section: "board", href: "/board", label: "Board", icon: ViewGridIcon });
-    operate.push({ section: "pipelines", href: "/pipelines", label: "Pipelines", icon: CardStackIcon });
-  }
-  if (info?.dispatcher_enabled) {
-    operate.push({ section: "dispatcher", href: "/dispatcher", label: "Dispatcher", icon: RocketIcon });
-  }
-  // Shown when EITHER the trigger spine or cloud schedules exist — the
-  // Automations view carries the Schedules tab, which cloud servers have
-  // even with the event-trigger store off.
-  if (info?.triggers_enabled || info?.mode === "cloud") {
-    operate.push({ section: "triggers", href: "/triggers", label: "Automations", icon: LightningBoltIcon });
-  }
-
-  const extend: LinkDef[] = [];
-  if (info?.marketplace_enabled) {
-    extend.push({ section: "marketplace", href: "/marketplace", label: "Marketplace", icon: ArchiveIcon });
-  }
-  if (info?.plugins_enabled) {
-    extend.push({ section: "plugins", href: "/plugins", label: "Plugins", icon: Component1Icon });
-  }
-  if (info?.skills_enabled) {
-    extend.push({ section: "skills", href: "/skills", label: "Skills", icon: MixIcon });
-  }
-
-  // Neither the org nor the team is a primary nav entry: the org lives in the
-  // OrgSwitcher (top), team settings in the account chip ("Team settings").
-  // Integrations stays — the valued "connect a repo / enable a bot" shortcut.
-  // Both are cloud-only (the forge stores are wired only in cloud mode).
-  const manage: LinkDef[] = [];
-  // Config editor: the config-share editor as a full-app route, for accounts
-  // that can edit shares but aren't boxed into the minimal ConfigEditorShell
-  // (admins / owners / super-admins). Mirrors the server canEditConfigShares
-  // gate so the editor scales with access instead of vanishing when a
-  // config_editor is broadened. Generic engine surface — a bot's own branding
-  // (e.g. feed-watch's "Éditeur de veilles") shows inside via editor_title.
-  if (info?.config_shares_enabled && canEditConfigShares(activeRole, !!user?.is_super_admin)) {
-    manage.push({ section: "configEditor", href: "/config-editor", label: "Config editor", icon: ReaderIcon });
-  }
-  if (info?.secrets_enabled) {
-    manage.push({ section: "secrets", href: "/secrets", label: "Secrets", icon: LockClosedIcon });
-  }
-  if (activeTeam && info?.mode === "cloud") {
-    manage.push({ section: "integrations", href: "/integrations", label: "Integrations", icon: Link2Icon });
-  }
+  // hierarchy instead of a flat list. The pages and their availability come
+  // from NAV_PAGES / isNavHrefAvailable, the same source the Sitemap uses.
+  const access = {
+    hasActiveTeam: !!activeTeam,
+    canEditConfigShares: canEditConfigShares(activeRole, !!user?.is_super_admin),
+  };
+  const railLinks = (group: NavGroup): LinkDef[] =>
+    NAV_PAGES.flatMap((p) =>
+      p.group === group && p.rail && isNavHrefAvailable(p.href, info, access)
+        ? [{ ...p.rail, href: p.href, label: p.label }]
+        : [],
+    );
+  const manage = railLinks("Manage");
   // Admin: super-admins only, cloud mode only (/admin/orgs is a cloud-only
   // console whose API isn't registered in local/desktop mode).
   if (user?.is_super_admin && info?.mode === "cloud") {
     manage.push({ section: "admin", href: adminPath("/orgs"), label: "Admin", icon: GearIcon });
   }
 
-  // Cloud shows the Editor once the bot store is wired (bot_editing_enabled) —
-  // spliced after What's Next to match the local order. Local always has it.
-  let baseLinks = info?.mode === "cloud" ? BASE_LINKS_CLOUD : BASE_LINKS_LOCAL;
-  if (info?.mode === "cloud" && info?.bot_editing_enabled) {
-    const at = baseLinks.findIndex((l) => l.section === "runs");
-    baseLinks = [
-      ...baseLinks.slice(0, at < 0 ? baseLinks.length : at),
-      EDITOR_LINK,
-      ...baseLinks.slice(at < 0 ? baseLinks.length : at),
-    ];
-  }
   const groups: { label?: string; links: LinkDef[] }[] = [
-    { links: baseLinks },
-    { label: "Operate", links: operate },
-    { label: "Extend", links: extend },
+    { links: railLinks("workspace") },
+    { label: "Operate", links: railLinks("Operate") },
+    { label: "Extend", links: railLinks("Extend") },
     { label: "Manage", links: manage },
   ].filter((g) => g.links.length > 0);
 
