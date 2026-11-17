@@ -54,6 +54,22 @@ export function slugFileName(name: string, ...alternatives: string[]): string {
   return "workflow.bot";
 }
 
+/** The folders whose bots the project lists (Project files, the Bots page):
+ *  the discovery roots, plus the project root itself. A path anywhere else is
+ *  written but shown by no list — reachable only through Recents or Open by
+ *  path. A project may name other roots (--bots-path), so this is a hint, not
+ *  a rule the dialog enforces. */
+const LISTED_ROOTS = ["bots", "examples", ".botz"];
+
+export function isListedSavePath(name: string): boolean {
+  const segments = name
+    .trim()
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter((segment) => segment !== "" && segment !== ".");
+  return segments.length <= 1 || LISTED_ROOTS.includes(segments[0] ?? "");
+}
+
 function suggestedFileName(store: DocumentStore): string {
   const state = store.getState();
   // A document that came from a file keeps that file's name — saved under
