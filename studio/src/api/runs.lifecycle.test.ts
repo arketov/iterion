@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "./client";
 import {
   ARTIFACT_CONTRACT_INCOMPATIBLE_ERROR_CODE,
+  discardRunBranch,
   isForceResumeRequiredError,
   isWorkflowSourceChangedError,
   mergeActionReady,
@@ -131,5 +132,40 @@ describe("mergeActionReady", () => {
   it("is false for a missing run", () => {
     expect(mergeActionReady(null)).toBe(false);
     expect(mergeActionReady(undefined)).toBe(false);
+  });
+});
+
+describe("discardRunBranch", () => {
+  it("POSTs the force flag to the run's discard-branch route and resolves on 204", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      discardRunBranch("run/1", { force: true }),
+    ).resolves.toBeUndefined();
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/runs/run%2F1/discard-branch");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({ force: true });
+  });
+
+  it("surfaces the branch_unmerged refusal as an ApiError with its code", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ error: "3 commits unmerged", error_code: "branch_unmerged" }),
+          { status: 409, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    await expect(discardRunBranch("run-1")).rejects.toMatchObject({
+      status: 409,
+      errorCode: "branch_unmerged",
+    });
   });
 });

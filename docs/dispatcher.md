@@ -883,7 +883,7 @@ result is a branch you can look at, and the card shows a *Run* row for it.
 | Where | What you see |
 |---|---|
 | Card → **Ticket** tab → *Run* row | The run id (opens the run console, with the *From ticket* header) and **View diff**: the run's whole branch diff, without leaving the board |
-| Card → *Worktree* row | The directory the run executed in. For a `worktree: auto` run it is removed when the run ends cleanly; the branch is what remains |
+| Card → *Worktree* row | The directory the run executed in, with a VS Code link. It is shown only while the directory exists: a `worktree: auto` run removes it when the run ends cleanly, and the card then shows a *Branch* row instead (the branch name, a copy button and **Discard**) |
 | Run console → header | Branch name, `merge_status`, the final commit |
 | Your project, `git branch --list "iterion/run/*"` | The branch itself |
 
@@ -901,8 +901,13 @@ the card on: `agent.merged_state` (default `done`) — see
 [terminal-state keys](#terminal-state-keys).
 
 **Reject it.** Do not merge; nothing in your project changed. To drop the work
-for good, delete the branch from the project folder, with the id from the run
-header:
+for good, press **Discard** on the card's *Branch* row. A branch whose commits
+are not merged anywhere is refused first; the studio asks you to confirm, and
+confirming deletes the branch and its commits for good. Discard works on a local
+run that has ended, only on a branch that is still at the run's final commit and
+named `iterion/run/…` (a branch you named yourself with `--branch-name` is never
+deleted by it). You can also delete the branch from the project folder, with the
+id from the run header:
 
 ```bash
 git branch -D iterion/run/<run-id>
@@ -913,8 +918,9 @@ longer in an eligible state). A change that was already merged is undone with
 git as usual — `git revert <merged-commit>`; the run header shows the commit.
 
 **Branches pile up.** Every finished run that committed something leaves its own
-`iterion/run/<run-id>` branch in your project, merged or not, and nothing
-deletes them: remove the ones you will not merge.
+`iterion/run/<run-id>` branch in your project, merged or not, and merging does
+not delete it. Only **Discard** (or `git branch -D`) removes one: remove the
+ones you will not merge, and the ones already merged.
 
 **A bot with `worktree: none`** (an unset `worktree:` means `auto`) writes
 straight into the dispatcher workspace, a detached HEAD, with no finalization
