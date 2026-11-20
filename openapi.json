@@ -889,6 +889,32 @@
         ],
         "type": "object"
       },
+      "CodemodeBoundsRequest": {
+        "properties": {
+          "cpu": {
+            "type": "string"
+          },
+          "memory": {
+            "type": "integer"
+          },
+          "result_bytes": {
+            "type": "integer"
+          },
+          "script_bytes": {
+            "type": "integer"
+          },
+          "tool_calls": {
+            "type": "integer"
+          },
+          "tool_result_bytes": {
+            "type": "integer"
+          },
+          "wall": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "Comment": {
         "properties": {
           "author": {
@@ -1145,10 +1171,19 @@
           "bot_id": {
             "type": "string"
           },
+          "codemode": {
+            "type": "string"
+          },
+          "codemode_bounds": {
+            "$ref": "#/components/schemas/CodemodeBoundsRequest"
+          },
           "llm_routing": {
             "$ref": "#/components/schemas/Policy"
           },
           "permission": {
+            "type": "string"
+          },
+          "review_mode": {
             "type": "string"
           },
           "source": {
@@ -4152,6 +4187,12 @@
           "args_var": {
             "type": "string"
           },
+          "backfill": {
+            "type": "integer"
+          },
+          "backfill_done": {
+            "type": "boolean"
+          },
           "bot_id": {
             "type": "string"
           },
@@ -4251,8 +4292,17 @@
           "overlap": {
             "type": "string"
           },
+          "poll_query": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
           "poller": {
             "type": "string"
+          },
+          "poller_since": {
+            "type": "integer"
           },
           "repo": {
             "type": "string"
@@ -5542,16 +5592,21 @@
           "display_name": {
             "type": "string"
           },
+          "password": {
+            "type": "string"
+          },
           "scheme_id": {
             "type": "string"
           },
           "token": {
             "type": "string"
+          },
+          "username": {
+            "type": "string"
           }
         },
         "required": [
-          "connector",
-          "token"
+          "connector"
         ],
         "type": "object"
       },
@@ -5598,6 +5653,9 @@
           "scheme_id": {
             "type": "string"
           },
+          "scheme_kind": {
+            "type": "string"
+          },
           "scopes_known": {
             "type": "boolean"
           },
@@ -5624,6 +5682,7 @@
           "alias",
           "base_url",
           "scheme_id",
+          "scheme_kind",
           "placement",
           "capabilities",
           "status",
@@ -5643,6 +5702,9 @@
           "display_name": {
             "type": "string"
           },
+          "password": {
+            "type": "string"
+          },
           "status": {
             "type": "string"
           },
@@ -5650,6 +5712,9 @@
             "type": "string"
           },
           "token": {
+            "type": "string"
+          },
+          "username": {
             "type": "string"
           }
         },
@@ -6993,6 +7058,60 @@
         },
         "type": "object"
       },
+      "previewCodemodeBounds": {
+        "properties": {
+          "cpu": {
+            "type": "string"
+          },
+          "memory": {
+            "type": "integer"
+          },
+          "result_bytes": {
+            "type": "integer"
+          },
+          "script_bytes": {
+            "type": "integer"
+          },
+          "tool_calls": {
+            "type": "integer"
+          },
+          "tool_result_bytes": {
+            "type": "integer"
+          },
+          "wall": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool_calls",
+          "wall",
+          "cpu",
+          "memory",
+          "script_bytes",
+          "result_bytes",
+          "tool_result_bytes"
+        ],
+        "type": "object"
+      },
+      "previewCodemodeLimits": {
+        "properties": {
+          "ceiling": {
+            "$ref": "#/components/schemas/previewCodemodeBounds"
+          },
+          "default": {
+            "$ref": "#/components/schemas/previewCodemodeBounds"
+          },
+          "memory_floor": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "default",
+          "ceiling",
+          "memory_floor"
+        ],
+        "type": "object"
+      },
       "previewCostNode": {
         "properties": {
           "cost_max_usd": {
@@ -7044,6 +7163,9 @@
             },
             "type": "array"
           },
+          "codemode": {
+            "type": "string"
+          },
           "file_path": {
             "type": "string"
           },
@@ -7066,6 +7188,9 @@
               "type": "object"
             },
             "type": "object"
+          },
+          "codemode_limits": {
+            "$ref": "#/components/schemas/previewCodemodeLimits"
           },
           "cost_max_usd": {
             "type": "number"
@@ -10946,6 +11071,30 @@
           "me"
         ]
       }
+    },
+    "/api/me/pool/entries/{pledge}": {
+      "delete": {
+        "operationId": "deleteMePoolEntriesByPledge",
+        "responses": {
+          "default": {
+            "description": "Response"
+          }
+        },
+        "summary": "DELETE /api/me/pool/entries/{pledge}",
+        "tags": [
+          "me"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "pledge",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/api/me/pool/history": {
       "get": {
@@ -18117,6 +18266,30 @@
         ]
       }
     },
+    "/api/teams/{id}/sources": {
+      "get": {
+        "operationId": "getTeamsByIdSources",
+        "responses": {
+          "default": {
+            "description": "Response"
+          }
+        },
+        "summary": "GET /api/teams/{id}/sources",
+        "tags": [
+          "teams"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "/api/teams/{id}/status": {
       "parameters": [
         {
@@ -18722,6 +18895,30 @@
           "bots"
         ]
       }
+    },
+    "/api/v1/connectors/{id}/icon": {
+      "get": {
+        "operationId": "getV1ConnectorsByIdIcon",
+        "responses": {
+          "default": {
+            "description": "Response"
+          }
+        },
+        "summary": "GET /api/v1/connectors/{id}/icon",
+        "tags": [
+          "connectors"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "/api/v1/intakes": {
       "get": {
@@ -19741,6 +19938,20 @@
         "summary": "GET /api/v1/runs/stats",
         "tags": [
           "runs"
+        ]
+      }
+    },
+    "/api/v1/sources": {
+      "get": {
+        "operationId": "getV1Sources",
+        "responses": {
+          "default": {
+            "description": "Response"
+          }
+        },
+        "summary": "GET /api/v1/sources",
+        "tags": [
+          "sources"
         ]
       }
     },

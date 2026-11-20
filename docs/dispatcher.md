@@ -684,7 +684,7 @@ record that carries no column-entry time counts as an unfinished transition.
 With `completed_state: none` there is nothing to complete and the old
 behaviour stays. The cloud dispatcher keeps its own watchdog for finished
 runs; this guard is the native tracker's. Design record:
-[ADR-170](adr/170-finish-worker-retries-completed-state-move.md).
+[ADR-175](adr/175-finish-worker-retries-completed-state-move.md).
 
 #### `completed_state` and eligible columns
 
@@ -1313,7 +1313,7 @@ in a dispatchable column starts a paid run of the implement bot; the
 dispatcher logs one WARN per process the first time it routes this way. To
 make unassigned cards wait for an assignee, keep `ticket_router` off. The
 decision and its rejected alternative are in
-[ADR-169](adr/169-ticket-router-outranks-require-assignee-on-trackers-without-pr-probe.md).
+[ADR-174](adr/174-ticket-router-outranks-require-assignee-on-trackers-without-pr-probe.md).
 
 Implemented in
 [pkg/dispatcher/loop.go](../pkg/dispatcher/loop.go) (`routeUnassignedIssue`).

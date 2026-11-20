@@ -35,7 +35,9 @@ func NewMongoStore(db *mongo.Database) *MongoStore {
 // EnsureSchema creates the indexes idempotently.
 //
 // The claim query reads (state, not_before); the dead-letter view reads a
-// tenant's rows by state, newest first; a pair list reads an intake's pairs.
+// tenant's rows by state, newest first; a pair list reads an intake's pairs;
+// a polled pair's launch reads its subscription's launched pairs of the same
+// item, earliest first.
 // expires_at is a TTL index with no delay: a row expires at its own instant,
 // and a row without one never does.
 func EnsureSchema(ctx context.Context, db *mongo.Database) error {
@@ -44,6 +46,8 @@ func EnsureSchema(ctx context.Context, db *mongo.Database) error {
 		{Keys: bson.D{{Key: "state", Value: 1}, {Key: "not_before", Value: 1}, {Key: "_id", Value: 1}}, Options: options.Index().SetName("intake_claim")},
 		{Keys: bson.D{{Key: "tenant_id", Value: 1}, {Key: "state", Value: 1}, {Key: "received_at", Value: -1}}, Options: options.Index().SetName("intake_tenant_state_recent")},
 		{Keys: bson.D{{Key: "expires_at", Value: 1}}, Options: ttl.SetName("intake_expiry")},
+		// A backfill reads a poller's rows by sequence, highest first.
+		{Keys: bson.D{{Key: "tenant_id", Value: 1}, {Key: "poller_id", Value: 1}, {Key: "sequence", Value: -1}}, Options: options.Index().SetName("intake_tenant_poller_sequence")},
 	}); err != nil && !mongoutil.IsIndexConflict(err) {
 		return fmt.Errorf("intake: ensure intake indexes: %w", err)
 	}
@@ -52,6 +56,7 @@ func EnsureSchema(ctx context.Context, db *mongo.Database) error {
 		{Keys: bson.D{{Key: "state", Value: 1}, {Key: "not_before", Value: 1}, {Key: "_id", Value: 1}}, Options: options.Index().SetName("pair_claim")},
 		{Keys: bson.D{{Key: "tenant_id", Value: 1}, {Key: "intake_id", Value: 1}, {Key: "subscription_id", Value: 1}}, Options: options.Index().SetName("pair_tenant_intake")},
 		{Keys: bson.D{{Key: "tenant_id", Value: 1}, {Key: "state", Value: 1}, {Key: "received_at", Value: -1}}, Options: options.Index().SetName("pair_tenant_state_recent")},
+		{Keys: bson.D{{Key: "tenant_id", Value: 1}, {Key: "subscription_id", Value: 1}, {Key: "item_key", Value: 1}, {Key: "state", Value: 1}, {Key: "launched_at", Value: 1}, {Key: "_id", Value: 1}}, Options: options.Index().SetName("pair_subscription_item_launched")},
 		{Keys: bson.D{{Key: "expires_at", Value: 1}}, Options: ttl.SetName("pair_expiry")},
 	}); err != nil && !mongoutil.IsIndexConflict(err) {
 		return fmt.Errorf("intake: ensure pair indexes: %w", err)
@@ -117,6 +122,26 @@ func (s *MongoStore) ListIntakes(ctx context.Context, tenantID, state string, li
 	var out []Intake
 	if err := cur.All(ctx, &out); err != nil {
 		return nil, fmt.Errorf("intake: decode intakes: %w", err)
+	}
+	return out, nil
+}
+
+func (s *MongoStore) ListPollerIntakes(ctx context.Context, tenantID, pollerID string, maxSeq int64, limit int) ([]Intake, error) {
+	if pollerID == "" {
+		return nil, nil
+	}
+	filter := bson.M{"tenant_id": tenantID, "poller_id": pollerID, "sequence": bson.M{"$lte": maxSeq}}
+	opts := options.Find().SetSort(bson.D{{Key: "sequence", Value: -1}, {Key: "_id", Value: 1}})
+	if limit > 0 {
+		opts.SetLimit(int64(limit))
+	}
+	cur, err := s.intakes.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, fmt.Errorf("intake: list poller %s intakes: %w", pollerID, err)
+	}
+	var out []Intake
+	if err := cur.All(ctx, &out); err != nil {
+		return nil, fmt.Errorf("intake: decode poller %s intakes: %w", pollerID, err)
 	}
 	return out, nil
 }
@@ -322,6 +347,23 @@ func (s *MongoStore) ListPairs(ctx context.Context, tenantID string, q PairQuery
 		return nil, fmt.Errorf("intake: decode pairs: %w", err)
 	}
 	return out, nil
+}
+
+func (s *MongoStore) LaunchedPair(ctx context.Context, tenantID, subscriptionID, itemKey string) (Pair, bool, error) {
+	if err := checkItemKey(subscriptionID, itemKey); err != nil {
+		return Pair{}, false, err
+	}
+	var p Pair
+	err := s.pairs.FindOne(ctx,
+		bson.M{"tenant_id": tenantID, "subscription_id": subscriptionID, "item_key": itemKey, "state": PairLaunched},
+		options.FindOne().SetSort(bson.D{{Key: "launched_at", Value: 1}, {Key: "_id", Value: 1}})).Decode(&p)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return Pair{}, false, nil
+	}
+	if err != nil {
+		return Pair{}, false, fmt.Errorf("intake: read subscription %s's launched pair of item %s: %w", subscriptionID, itemKey, err)
+	}
+	return p, true, nil
 }
 
 func (s *MongoStore) ClaimPairs(ctx context.Context, owner string, now time.Time, ttl time.Duration, limit int) ([]Pair, error) {

@@ -205,30 +205,26 @@ concurrency:
 # pinned against each other by TestSelfHostedRoutingExpressionsAgree in
 # internal/ciguard: one copy edited alone turns it red.
 
-# These runners' kernels offer Landlock ABI 1, which has no network rights —
-# they arrive at ABI 4 (kernel 6.7). So codemode's escape suite CANNOT prove
-# that a confined script host is unable to open a TCP connection here, and it
-# refuses to skip a bound silently: the lane has to say out loud what it does
-# not test. Measured 2026-11-11 on arc-runners: the filesystem, exec and
-# every-thread bounds ARE proven, the network one is not, and the connect a
-# confined child made succeeded.
-#
-# Workflow-level rather than per-step because four jobs run the Go suite and a
-# record on one of them is a record on none — `race-shard` found that the hard
-# way. It takes effect only BELOW the ABI an arm needs, so when the runners
-# move to a 6.7+ kernel the arm proves itself and this block can go.
-env:
-  ITERION_CODEMODE_ALLOW_NO_LANDLOCK_NET: "1"
-
 jobs:
   # ---- gated legs: the real work, one side each, aggregated by `test` ----
 
   test-unit:
     # The Go unit half of what `test` ran as one mega-job. Split so the wall
     # clock stops stacking studio, e2e and unit on one pod (2026-10-04: the
-    # mega-job was 24-26 min; unit alone is ~10, dominated by the single
+    # mega-job was 24-26 min; unit alone was ~10, dominated by the single
     # `bots` package). Runs in the merge queue behind the required `test`
     # aggregator; carries the tap skip and nothing else — see the header.
+    #
+    # SHARDED three ways, like race-shard (#3402). Unsharded, the suite grew
+    # to a 24.5-min `go test` step under a 30-min job ceiling: a slow runner
+    # cut the next step and a suite whose every package passed read red in the
+    # merge queue. Every package still runs: `./...` minus e2e, partitioned by
+    # scripts/ci/testshards with the UNIT weights table, a pure function of the
+    # commit, so the three legs of one entry pick complementary sets. LPT seats
+    # the heaviest row (`bots`) on shard 0; the one-time steps — the freshness
+    # gate, gofmt, vet, the census and the live compile, ~5 min together — run
+    # on the LAST shard, away from it. Should the weights ever put them
+    # together, that shard still fits the ceiling.
     # A Homebrew tap update skips this leg: the header says why, and `brand` verifies it.
     if: "!startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ')"
     # Nested read-only mount witnesses need a namespace-capable runner.
@@ -238,6 +234,10 @@ jobs:
     timeout-minutes: 30
     env:
       CGO_ENABLED: "0"
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -270,6 +270,7 @@ jobs:
           fi
 
       - name: Generated artefacts are fresh (fail fast)
+        if: matrix.shard == 2
         # Two pull requests that each regenerate the same committed artefact
         # can merge clean and stale together — the queue's most frequent
         # failure. The freshness tests that catch it take seconds, but the
@@ -347,6 +348,7 @@ jobs:
           node "$ULTRA11Y_BIN" --version
 
       - name: gofmt (check)
+        if: matrix.shard == 2
         shell: bash
         run: |
           set -euo pipefail
@@ -361,10 +363,11 @@ jobs:
           fi
 
       - name: go vet
+        if: matrix.shard == 2
         run: go vet -mod=vendor ./...
 
       - name: Test capability census
-        if: always()
+        if: always() && matrix.shard == 2
         # Static inventory is identical locally; runner observations contain
         # boolean prerequisite presence only, never credential values.
         run: |
@@ -372,7 +375,7 @@ jobs:
           cat .iterion/test-capabilities/summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish test capabilities
-        if: always()
+        if: always() && matrix.shard == 2
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-capabilities-unit
@@ -414,9 +417,19 @@ jobs:
         # while a test had run for only 9s (#2745). Allow 25m per package,
         # still bounded by the job's 30m including setup and live compilation.
         # Individual test deadlines and all assertions remain in force.
-        run: go test -mod=vendor -count=1 -timeout 1500s $(go list -mod=vendor ./... | grep -v '/e2e$')
+        #
+        # The partition goes through an ASSIGNMENT, never inline `$( )`:
+        # inline substitution loses the splitter's exit code, and an
+        # empty-shard refusal would degrade into `go test` with no package.
+        shell: bash
+        run: |
+          set -euo pipefail
+          pkgs=$(go run -mod=vendor ./scripts/ci/testshards -n 3 -i ${{ matrix.shard }} -skip '(^|/)e2e$' -weights scripts/ci/test-shards-unit-weights.tsv)
+          echo "shard ${{ matrix.shard }} runs $(echo "$pkgs" | wc -w) packages"
+          go test -mod=vendor -count=1 -timeout 1500s $pkgs
 
       - name: Live e2e compile check
+        if: matrix.shard == 2
         # Builds every -tags=live test in the repo and runs NONE of them
         # (`-run '^$'`). No credentials, no model call, no network — pure
         # compilation. The paid live layer would otherwise bit-rot green
@@ -787,7 +800,11 @@ jobs:
     # A Homebrew tap update skips this job: the header says why, and `brand` verifies it.
     if: "!startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ')"
     runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
-    timeout-minutes: 15
+    # The sum of the harness's two inner `go test -timeout`s (20m + 15m) plus
+    # setup: a hang is named by go test's own timeout, and this ceiling only
+    # backstops the steps around it. At 15 it cut a green 11-14 min suite
+    # whenever two runs shared the runners (#3390).
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -859,9 +876,10 @@ jobs:
           ITERION_TEST_MONGO_URI: mongodb://localhost:27017/?replicaSet=rs0
         run: |
           # This includes the complete server suite, which already exceeds
-          # five minutes without Mongo. Keep its package budget below the
-          # job's fifteen-minute limit without shortening any test coverage.
-          go test -mod=vendor -count=1 -v -timeout 10m ./pkg/store/mongo/... \
+          # five minutes without Mongo and reached the old 10m package budget
+          # with it under queue load (600.6s, #3390). The budget stays below
+          # the job's ceiling without shortening any test coverage.
+          go test -mod=vendor -count=1 -v -timeout 20m ./pkg/store/mongo/... \
             ./pkg/internal/storekit/... ./pkg/audit/... ./pkg/pat/... \
             ./pkg/connection/... \
             ./pkg/cloudsched/... ./pkg/auth/... \
@@ -871,7 +889,7 @@ jobs:
             ./pkg/usagecap/... ./pkg/dispatcher/boardmongo/... ./pkg/identity/... ./pkg/usernotify/... ./pkg/configshare/... \
             ./pkg/pluginsource/... ./pkg/assistantmission/... ./pkg/runwatch/... ./pkg/webhooks/... ./pkg/server/cloudpublisher/... \
             ./pkg/forge/... ./pkg/trigger/... ./pkg/lease/... ./pkg/platformcfg/... ./pkg/server/... \
-            ./pkg/connector/intake/...
+            ./pkg/connector/intake/... ./pkg/connector/poller/...
           # Exercise the public cloud coordinator against the durable outbox,
           # including tenants that only subscribe to custom/run events.
           go test -mod=vendor -count=1 -v -timeout 15m ./pkg/server/ \

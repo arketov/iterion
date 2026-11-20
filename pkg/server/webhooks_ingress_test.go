@@ -409,7 +409,12 @@ func TestIngress_AChangedContractIsRefusedUntilReBound(t *testing.T) {
 func TestIngress_TheDeclaredAckAnswersWhileMatchingIsPending(t *testing.T) {
 	f := newIngressFixture(t, ingForgePackage())
 	f.s.cfg.ConnectorIntakeRetention = 72 * time.Hour
-	at := time.Date(2026, 11, 15, 10, 0, 0, 0, time.UTC)
+	// Anchored to the wall clock, not to a fixed date: the store prunes the
+	// rows whose expiry passed, judged against its own clock, so a literal
+	// instant becomes a bomb — the row is pruned the day real time crosses
+	// at+retention and the read below sees nothing. The server clock is
+	// pinned to the same instant so the retention assertion stays exact.
+	at := time.Now().UTC().Truncate(time.Second)
 	f.s.ingressClock = func() time.Time { return at }
 	cfg, minted := f.create(t, `{"name":"forge","provider":"connector","connector_connection_id":"conn-forge"}`)
 	body := `{"sender":{"login":"alice"}}`
@@ -1433,4 +1438,21 @@ func TestIngress_AConfigStoreOutageIsNotAnUnknownID(t *testing.T) {
 	if code, ran, _, _ := runWebhookAuth(f.s, "any", "iwh_x"); code != http.StatusServiceUnavailable || ran {
 		t.Fatalf("webhookAuth: code=%d ran=%v, want 503 and no handler", code, ran)
 	}
+}
+
+// A package whose only triggers are polled has nothing a delivery can reach:
+// binding an ingress to it would accept, ack and drop every delivery. The bind
+// refuses it, naming why; the same package with a webhook trigger binds.
+func TestIngress_APackageWhoseTriggersAreAllPolledBindsNoIngress(t *testing.T) {
+	polled := ingForgePackage()
+	polled.Triggers = []spec.Trigger{{ID: "forge.issue.listed", Delivery: spec.DeliveryPoll}}
+	f := newIngressFixture(t, polled)
+	w := httptest.NewRecorder()
+	f.s.handleCreateWebhook(w, whReq(superAdminCtx(), "POST", "/api/teams/t1/webhooks",
+		`{"name":"forge","provider":"connector","connector_connection_id":"conn-forge"}`, "t1", ""))
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "polled trigger is fed by its poller") {
+		t.Fatalf("an ingress on a polled-only package: code=%d body=%s, want 400 naming why", w.Code, w.Body.String())
+	}
+	g := newIngressFixture(t, ingForgePackage())
+	g.create(t, `{"name":"forge","provider":"connector","connector_connection_id":"conn-forge"}`)
 }

@@ -975,15 +975,26 @@ export interface CreateRunRequest {
   // ITERION_AMBIENT_CONTEXT (default workspace, ADR-119).
   ambient_context?: string;
   auto_memory?: string;
+  // codemode override ("on" | "off"; ADR-165). Empty inherits the
+  // workflow/node `codemode:` DSL — deliberately no environment rung
+  // (ADR-132 §1). It wins over the authored declarations in both
+  // directions; a backend that serves no codemode tool refuses at
+  // dispatch, and the cost preview screens it under route_refusals.
+  codemode?: string;
+  // codemode bounds raise, field by field — the HTTP twin of the CLI
+  // --codemode-* flags, in the DSL's orthography: durations as strings
+  // ("60s"), sizes and counts as raw integers. Zero/omitted fields
+  // inherit; every value still passes the platform clamp at spawn, so a
+  // launch can be warned but never bypass a bound by asking.
+  codemode_bounds?: CodemodeBoundsOverride;
   // tool-permission gate mode ("off" | "ask" | "deny"). Empty inherits
   // the workflow/node `permission:` DSL then ITERION_PERMISSION. "ask"
   // pauses for human approval on any tool not allow-listed; "deny" hard-
   // blocks it. See docs/permissions.md.
   permission?: string;
-  // Run-level mono/dual review-topology override ("auto" | "mono" |
-  // "dual") for bots that declare a `review_mode` var. Omitted/"auto"
-  // resolves from the providers detected at launch. See
-  // pkg/reviewtopology.
+  // Run-level review-topology override ("auto" | "single" | "paired") for
+  // bots that declare a `review_mode` var. Omitted/"auto" resolves to the
+  // single reviewer. See pkg/reviewtopology and ADR-169.
   review_mode?: string;
   // Run-level budget-cap overrides — the HTTP twin of the CLI --max-*
   // flags. Non-zero fields win over the workflow's `budget:` block;
@@ -1033,6 +1044,19 @@ export interface CreateRunResponse {
 // notes containing `no_llm_nodes` / `no_pricing_data` / `workflow_unparseable`
 // / `workflow_errors` (a program the launch would refuse is not priced)
 // signal that the chip should be hidden rather than blocking the form.
+// The launch's codemode bounds raise (ADR-165): the seven properties the
+// `codemode:` block declares, with the DSL's orthography. A zero/omitted
+// field means the launch did not choose and the authored value stands.
+export interface CodemodeBoundsOverride {
+  tool_calls?: number;
+  wall?: string;
+  cpu?: string;
+  memory?: number;
+  script_bytes?: number;
+  result_bytes?: number;
+  tool_result_bytes?: number;
+}
+
 export interface PreviewCostNode {
   node_id: string;
   kind: "agent" | "judge";
@@ -1042,6 +1066,20 @@ export interface PreviewCostNode {
   tokens_out: number;
   cost_min_usd: number;
   cost_max_usd: number;
+}
+
+// What the launch form's codemode fields are built from (CM-5f, ADR-165):
+// the defaults an unset field runs under, and the platform ceiling above
+// which the form warns. Served by the preview from scripthost itself — the
+// package whose clamp enforces them at spawn — so the studio never keeps a
+// second table.
+export interface CodemodeLimits {
+  default: CodemodeBoundsOverride;
+  ceiling: CodemodeBoundsOverride;
+  // The one bound with a FLOOR: a child cannot start below it, so a smaller
+  // value is raised at spawn (the clamp report names it). The form says so
+  // before the run rather than showing a number the run will not use.
+  memory_floor: number;
 }
 
 export interface PreviewCostResponse {
@@ -1065,6 +1103,10 @@ export interface PreviewCostResponse {
   // node row: the "inherit" choice is the node's declaration and cannot be
   // deselected, so saying so is the only screen before the run.
   route_refusals?: Record<string, string>;
+  // The codemode bounds table (default + ceiling) the launch form renders
+  // its placeholders and its over-ceiling warning from. Absent only when a
+  // server older than the field answers.
+  codemode_limits?: CodemodeLimits;
 }
 
 export interface PreviewBackendOption {

@@ -140,6 +140,19 @@ type LaunchSpec struct {
 	// "workspace", "operator", "all"; ADR-119). "" inherits the workflow/node
 	// `ambient_context:` DSL then ITERION_AMBIENT_CONTEXT.
 	AmbientContext string
+	// Codemode is the run-level codemode override ("", "on", "off"; ADR-165).
+	// "" inherits the workflow/node `codemode:` DSL — deliberately no
+	// environment rung. It wins over the authored rungs in BOTH directions:
+	// an operator may keep a declared capability off for this run, and may
+	// arm it on a node whose author stayed silent (then a backend that
+	// serves no codemode tool refuses at dispatch, and the picker screen
+	// names that before the run).
+	// CodemodeBounds raises bounds for the run, field by field: a zero field
+	// means the launch did not choose and the authored value stands. Every
+	// value still passes scripthost.Clamp at spawn (ceiling, floor, OnClamp
+	// report), so the launch never bypasses a bound by asking.
+	Codemode       string
+	CodemodeBounds *ir.CodemodeBounds
 	// LoopBudgetGuard is the run-level back-edge affordability override
 	// ("", "on", "off"). "" inherits the workflow `loop_budget_guard:` then
 	// ITERION_LOOP_BUDGET_GUARD.
@@ -153,11 +166,12 @@ type LaunchSpec struct {
 	// inherits the workflow/node `permission:` DSL then
 	// ITERION_PERMISSION. See docs/permissions.md.
 	Permission string
-	// ReviewMode is the run-level mono/dual review-topology override
-	// ("", "auto", "mono", "dual") from the studio Launch toggle /
+	// ReviewMode is the run-level review-topology override
+	// ("", "auto", "single", "paired") from the studio Launch toggle /
 	// dispatcher. Only affects bots that declare a review_mode var. ""
-	// / "auto" resolves from detected provider credentials at launch;
-	// "mono"/"dual" force it. See pkg/reviewtopology.
+	// / "auto" resolves to single; "paired" adds the second reviewer. The
+	// retired "mono"/"dual" spellings still read as single/paired. See
+	// pkg/reviewtopology.
 	ReviewMode string
 	// RetryPolicy is the retry contract already RESOLVED across its layers
 	// by the launch site (per-run override → launching surface → bot
@@ -598,6 +612,14 @@ type ResumeSpec struct {
 	// to the workflow's value, and could hand the operator's setup to a run
 	// launched with `none`.
 	AmbientContext string
+	// Codemode re-states the run-level codemode override ("", "on", "off").
+	// Unlike AutoMemory the launch PERSISTED its choice on the run doc, so
+	// a resume that says nothing replays the launch's decision
+	// (resumeExecutorSpec reads it); an explicit re-state here wins over
+	// the replay. CodemodeBounds re-states the launch's bounds raise the
+	// same way.
+	Codemode       string
+	CodemodeBounds *ir.CodemodeBounds
 	// LoopBudgetGuard re-states the run-level back-edge affordability
 	// override ("", "on", "off"), for the same reason AutoMemory does.
 	LoopBudgetGuard string

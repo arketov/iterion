@@ -3,6 +3,301 @@
 Generated from Conventional Commits at each release. Older majors are archived
 under [docs/changelog/](https://github.com/SocialGouv/iterion/tree/main/docs/changelog).
 
+## [7.20.0](https://github.com/SocialGouv/iterion/compare/v7.19.2...v7.20.0) (2026-11-20)
+
+### Features
+
+* **connector:** list filters, a connection's scheme kind, and polled setup notes ([#3396](https://github.com/SocialGouv/iterion/issues/3396)) ([#3411](https://github.com/SocialGouv/iterion/issues/3411)) ([7e2c709](https://github.com/SocialGouv/iterion/commit/7e2c70967c3632cbbd0018df26aabd0e23796dd4))
+
+    <details><summary>why</summary>
+
+    Three follow-ups of the event-source catalogue.
+
+    </details>
+
+## [7.19.2](https://github.com/SocialGouv/iterion/compare/v7.19.1...v7.19.2) (2026-11-19)
+
+### Bug Fixes
+
+* **connector:** a polled revision is launched once per subscription, whatever poller carried it ([#3396](https://github.com/SocialGouv/iterion/issues/3396)) ([#3407](https://github.com/SocialGouv/iterion/issues/3407)) ([f0230e1](https://github.com/SocialGouv/iterion/commit/f0230e14f0a1a6b247ead541b7e99aeec5f717a0))
+
+    <details><summary>why</summary>
+
+    A subscription moved to another query joins another poller. When that poller already exists and lags, it can accept a revision the old poller already delivered, and the subscription was paired with it and launched again: two runs of the bot for one item revision.
+
+    </details>
+
+## [7.19.1](https://github.com/SocialGouv/iterion/compare/v7.19.0...v7.19.1) (2026-11-19)
+
+### Bug Fixes
+
+* **studio:** a gateway route shows its model's vendor logo, not OpenAI's ([#3409](https://github.com/SocialGouv/iterion/issues/3409)) ([b34ea4f](https://github.com/SocialGouv/iterion/commit/b34ea4fd4ceb045ebb71264af2c120cb9bb2a2d3))
+
+    <details><summary>why</summary>
+
+    detectProvider matched keywords against the whole model spec, so a gateway route such as "openai_compatible/scaleway/deepseek-v4.1-flash" hit "openai" before "deepseek" and the node carried the OpenAI logo. The protocol's name says nothing about the vendor: detection now ignores it wherever the spec carries it (a route's first segment, an env default the run graph passes unresolved, the name of the variable holding the route), on the single function every logo site calls (run graph, editor…
+
+    </details>
+
+## [7.19.0](https://github.com/SocialGouv/iterion/compare/v7.18.3...v7.19.0) (2026-11-19)
+
+### Features
+
+* **connector:** a poll declares its answer's order, so a page-bound scan reads on ([#3396](https://github.com/SocialGouv/iterion/issues/3396)) ([#3406](https://github.com/SocialGouv/iterion/issues/3406)) ([8e5a2d9](https://github.com/SocialGouv/iterion/commit/8e5a2d96b4080be7cb562fe262bc02af413c2aeb))
+
+    <details><summary>why</summary>
+
+    A polled scan longer than its operation's page bound never completed: an incomplete scan never moved the checkpoint, so the poller re-read the same pages on every tick, and a first scan that large never primed. An opaque cursor took the last item's token and so assumed an oldest-first answer, which nothing checked.
+
+    </details>
+
+## [7.18.3](https://github.com/SocialGouv/iterion/compare/v7.18.2...v7.18.3) (2026-11-19)
+
+### Bug Fixes
+
+* **ci:** remove PID publication and chart scratch races ([#3403](https://github.com/SocialGouv/iterion/issues/3403)) ([5d4bc65](https://github.com/SocialGouv/iterion/commit/5d4bc652cc00b2fbb2395a46f3635a0732a1ea29)), closes [#3263](https://github.com/SocialGouv/iterion/issues/3263) [#3210](https://github.com/SocialGouv/iterion/issues/3210)
+
+    <details><summary>why</summary>
+
+    Wait for a valid positive fixture PID instead of treating file creation as publication. Keep rendered chart copies in TMPDIR (or /tmp) so repository sweeps cannot walk a tree another test is about to remove.
+
+    </details>
+
+## [7.18.2](https://github.com/SocialGouv/iterion/compare/v7.18.1...v7.18.2) (2026-11-19)
+
+### Bug Fixes
+
+* **scripthost:** the memory bound is room above the child's own segment, not a total it had spent before starting ([#3383](https://github.com/SocialGouv/iterion/issues/3383)) ([#3398](https://github.com/SocialGouv/iterion/issues/3398)) ([7e756a4](https://github.com/SocialGouv/iterion/commit/7e756a4d411640f439c37677203562207f3022b2)), references [#3394](https://github.com/SocialGouv/iterion/issues/3394) [#3394](https://github.com/SocialGouv/iterion/issues/3394)
+
+    <details><summary>why</summary>
+
+    Limits.Memory was applied as an absolute RLIMIT_DATA. The shipped script host holds ~86 MiB of data segment before the interpreter exists: the Go 1.26 runtime maps a 64 MiB heap arena read-write, and ~9 MiB of it is resident. So at the 64 MiB floor the child started ABOVE its own bound, and every mapping the runtime then needed was refused. Measured on a CGO_ENABLED=0 -trimpath build: a script pushing 10 000 strings died of a SIGSEGV in the GC (runtime.(*spanQueue).tryDrain) 5 runs out of 5,…
+
+    </details>
+
+## [7.18.1](https://github.com/SocialGouv/iterion/compare/v7.18.0...v7.18.1) (2026-11-19)
+
+### Bug Fixes
+
+* **connector:** a loop guard and a handshake condition are read as conditions ([#3360](https://github.com/SocialGouv/iterion/issues/3360)) ([#3399](https://github.com/SocialGouv/iterion/issues/3399)) ([5abb0b9](https://github.com/SocialGouv/iterion/commit/5abb0b98d43fac5edc1a6c05c025644f8c4baecf))
+
+    <details><summary>why</summary>
+
+    The ingress lane dropped a delivery only when `ignore` rendered the boolean true, and answered a handshake only when `handshake.when` did. The natural guard `payload.event.bot_id` renders the id, so it never dropped anything: a package shipped with it passed validation and its own sample, and looped.
+
+    </details>
+* **lease:** a campaign stopped while its acquire is in flight serves no term ([#3400](https://github.com/SocialGouv/iterion/issues/3400)) ([#3401](https://github.com/SocialGouv/iterion/issues/3401)) ([5b24e32](https://github.com/SocialGouv/iterion/commit/5b24e327caf6259304eac3d8a3e2d7ee41902ff4)), references [#3397](https://github.com/SocialGouv/iterion/issues/3397)
+
+    <details><summary>why</summary>
+
+    A store's answer can arrive after its caller's stop: the write landed while the context was still live. Run and TryRun then went straight to serveTerm, and fn started on a context already cancelled. A net whose loop acts before it reads its context did one pass on a replica that was stopping.
+
+    </details>
+
+## [7.18.0](https://github.com/SocialGouv/iterion/compare/v7.17.0...v7.18.0) (2026-11-19)
+
+### Features
+
+* **scripthost:** the child denies itself socket creation — the network wall is seccomp, not Landlock ([#3371](https://github.com/SocialGouv/iterion/issues/3371)) ([#3374](https://github.com/SocialGouv/iterion/issues/3374)) ([7988f9f](https://github.com/SocialGouv/iterion/commit/7988f9fa8fb224b70fff18e84f52a872f29eeab7)), references [#3299](https://github.com/SocialGouv/iterion/issues/3299) [#3376](https://github.com/SocialGouv/iterion/issues/3376)
+
+    <details><summary>why</summary>
+
+    Landlock has exactly two network rights, BIND_TCP and CONNECT_TCP, from ABI 4. Measured with the real Confine (host, docker, and kind/containerd under RuntimeDefault with the chart's securityContext): a confined child sent UDP on every kernel, set up io_uring where the runtime allowed it, and on the production nodes (kernel 6.1, ABI 2, #3299) opened TCP as well. codemode-confinement.md already recorded the UDP residual as "not this slice"; the production kernel made it the whole network.
+
+    </details>
+* **studio:** the editor shows a bot's sources on its start node, and the docs say what shipped (L6, [#3275](https://github.com/SocialGouv/iterion/issues/3275)) ([#3397](https://github.com/SocialGouv/iterion/issues/3397)) ([bfb3fc6](https://github.com/SocialGouv/iterion/commit/bfb3fc67cde248cd3c03fce83bdcab2f64f0a426)), references [#3269](https://github.com/SocialGouv/iterion/issues/3269)
+
+    <details><summary>why</summary>
+
+    The last lot of the event-sources epic (#3269).
+
+    </details>
+
+## [7.17.0](https://github.com/SocialGouv/iterion/compare/v7.16.0...v7.17.0) (2026-11-19)
+
+### Features
+
+* **connectors:** pollers run — a fenced store, an elected tick, rss and Jira JQL (L4-2, [#3274](https://github.com/SocialGouv/iterion/issues/3274)) ([#3395](https://github.com/SocialGouv/iterion/issues/3395)) ([1322bf7](https://github.com/SocialGouv/iterion/commit/1322bf713fbc32a55ff587701b18a67c529f0def))
+
+    <details><summary>why</summary>
+
+    A trigger with `delivery: poll` is now read (ADR-168 §7, L4-2).
+
+    </details>
+
+## [7.16.0](https://github.com/SocialGouv/iterion/compare/v7.15.0...v7.16.0) (2026-11-19)
+
+### Features
+
+* **connectors:** a trigger can be polled — the poll format, a bounded feed decoder, and one routing lookup (L4-1, [#3274](https://github.com/SocialGouv/iterion/issues/3274)) ([#3369](https://github.com/SocialGouv/iterion/issues/3369)) ([db06c67](https://github.com/SocialGouv/iterion/commit/db06c67c5928c0698728373093768575452df91e)), references [#3269](https://github.com/SocialGouv/iterion/issues/3269)
+
+    <details><summary>why</summary>
+
+    L4-1 of #3269 (#3274). A trigger gains `delivery: poll` and a `poll:` block: one read operation of the same package, its params built from the operator's query and the last checkpoint, where the items are, what an item's identity and revision are, a timestamp or opaque cursor, and an interval. Everything is judged at load, one refusal per guard: the operation is a read (a poller repeats it), every parameter it requires is built or written by its pagination, params read only `query` and…
+
+    </details>
+
+### Bug Fixes
+
+* **ops:** migrate-ids runs in two phases around the roll ([#2699](https://github.com/SocialGouv/iterion/issues/2699)) ([#3375](https://github.com/SocialGouv/iterion/issues/3375)) ([09e7002](https://github.com/SocialGouv/iterion/commit/09e700275f84d598d5ff3a959eb5a740ecb8c8a3))
+
+    <details><summary>why</summary>
+
+    The catalogue serves one review-pr version to every integration, so the roll that ships 0.10.0 moves all of them at once, and a routing block spelled for either vocabulary is inert under the other. A one-shot migrate-ids is wrong on both sides of the roll: before it, the 0.9.x runs lose their cells; after it, the 17 gateway integrations fall off their Pliage gateway onto the deployment's env pins until the script has run.
+
+    </details>
+* **webhooks:** a re-applied trigger label launches again once the previous run is terminal ([#3373](https://github.com/SocialGouv/iterion/issues/3373)) ([#3389](https://github.com/SocialGouv/iterion/issues/3389)) ([e4bdfc5](https://github.com/SocialGouv/iterion/commit/e4bdfc52eafd4a27908785a84fe973647eb83adc)), references [#n](https://github.com/SocialGouv/iterion/issues/n)
+
+    <details><summary>why</summary>
+
+    An issue label (and GitHub's zero-touch open) is a request a person can make again, but both dedupe keys were claimed once for good: the direct lane's `gh|issue|…|label` / `gl|issue|…|label` idempotency key and the board lane's `cmd:issue:<n>` card label, which answered `carded` for any card in any column. An issue served once could never be served again by the same label.
+
+    </details>
+
+## [7.15.0](https://github.com/SocialGouv/iterion/compare/v7.14.0...v7.15.0) (2026-11-18)
+
+### Features
+
+* **review:** the catalogue names roles, not vendors ([#3251](https://github.com/SocialGouv/iterion/issues/3251)) ([#3366](https://github.com/SocialGouv/iterion/issues/3366)) ([8fbe675](https://github.com/SocialGouv/iterion/commit/8fbe675a3b23bd0d39d48e25d418c5cd0363aaea)), references [converge#glm](https://github.com/converge/issues/glm) [#2699](https://github.com/SocialGouv/iterion/issues/2699)
+
+    <details><summary>why</summary>
+
+    Mechanical rename of review-pr's reviewer nodes and their telemetry fields: reviewer_claude -> reviewer_alternate, reviewer_gpt -> reviewer (and the glance variants). The mono_family guards, the converge twins and the review_mode enum are untouched - they are the next slice.
+
+    </details>
+
+## [7.14.0](https://github.com/SocialGouv/iterion/compare/v7.13.1...v7.14.0) (2026-11-18)
+
+### Features
+
+* **bench,scripthost:** the posture bench runs where the deployment runs, and the parent bounds what RLIMIT_DATA does not ([#3299](https://github.com/SocialGouv/iterion/issues/3299)) ([#3363](https://github.com/SocialGouv/iterion/issues/3363)) ([ae7adb4](https://github.com/SocialGouv/iterion/commit/ae7adb4c3dd37bb006ff289bc6d67a7b813d0b69))
+
+    <details><summary>why</summary>
+
+    The kind arm proves the SCRIPT, not the deployment's runtime: a default seccomp profile is a property of a containerd BUILD, and the production node ships its own. Re-running that arm there is impossible as written — it hands the bench binary to the node through `extraMounts` and the pod reads it from a `hostPath`, and a production node accepts neither.
+
+    </details>
+
+## [7.13.1](https://github.com/SocialGouv/iterion/compare/v7.13.0...v7.13.1) (2026-11-18)
+
+### Bug Fixes
+
+* **server:** the team api-keys page lists the team's keys only ([#3368](https://github.com/SocialGouv/iterion/issues/3368)) ([ede1f4c](https://github.com/SocialGouv/iterion/commit/ede1f4cb27b59ef6dfc9506a6e5fa81586b03ff0))
+
+    <details><summary>why</summary>
+
+    GET /api/teams/{id}/api-keys called ListByTeam with the caller's user id, which matches scope_user in {"", caller}: every caller saw their own personal keys mixed into the team's list. An operator reading a team's credentials page then believed the team held keys it never had (two personal Anthropic plan keys appeared under a team that runs on its own gateway keys only). A user-scoped key is a personal credential, managed at /api/me/api-keys, and no machine lane can spend one…
+
+    </details>
+
+## [7.13.0](https://github.com/SocialGouv/iterion/compare/v7.12.0...v7.13.0) (2026-11-18)
+
+### Features
+
+* **connectors:** seven push sources for the catalogue (L3, [#3273](https://github.com/SocialGouv/iterion/issues/3273)) ([#3358](https://github.com/SocialGouv/iterion/issues/3358)) ([c7f6254](https://github.com/SocialGouv/iterion/commit/c7f6254003837d39f87c36e34220d4389f92252a)), references [#3360](https://github.com/SocialGouv/iterion/issues/3360)
+
+    <details><summary>why</summary>
+
+    The catalogue lists only packages that declare triggers AND an ingress, and no shipped package declared one — so every source card was a built-in, none a connector.
+
+    </details>
+
+## [7.12.0](https://github.com/SocialGouv/iterion/compare/v7.11.1...v7.12.0) (2026-11-18)
+
+### Features
+
+* **credpool:** an api_key pledge is identified by the key it lends — two keys of one lender can share a pool ([#3367](https://github.com/SocialGouv/iterion/issues/3367)) ([3395451](https://github.com/SocialGouv/iterion/commit/33954512d6d62c8d1c5f37b151e6a0b9a7a7c12e))
+
+    <details><summary>why</summary>
+
+    A pledge's identity is (lender, source, ref), so a donor lending two keys of one provider writes the second over the first: half the month's credits are lost and the broker has nothing to fail over to.
+
+    </details>
+
+## [7.11.1](https://github.com/SocialGouv/iterion/compare/v7.11.0...v7.11.1) (2026-11-18)
+
+### Bug Fixes
+
+* **test:** anchor the ingress ack test clock to the wall, not a fixed date ([#3365](https://github.com/SocialGouv/iterion/issues/3365)) ([c4d15dc](https://github.com/SocialGouv/iterion/commit/c4d15dc32d9b40ad7caa3487db38f13767cf8b98))
+
+    <details><summary>why</summary>
+
+    The test pinned at=2026-11-15T10:00Z with a 72h retention, so the intake store — which prunes rows whose expiry passed, judged against its own clock — dropped the row as soon as real time crossed at+72h. The suite went red on its own at 10:00Z today, on an untouched tree.
+
+    </details>
+
+## [7.11.0](https://github.com/SocialGouv/iterion/compare/v7.10.0...v7.11.0) (2026-11-17)
+
+### Features
+
+* **studio:** the launch form gets the codemode form — mode select and the seven bounds ([#3346](https://github.com/SocialGouv/iterion/issues/3346)) ([#3354](https://github.com/SocialGouv/iterion/issues/3354)) ([70fca57](https://github.com/SocialGouv/iterion/commit/70fca5798875afc2f822c5de4fd4457836b77fb7)), references [#3345](https://github.com/SocialGouv/iterion/issues/3345) [#3333](https://github.com/SocialGouv/iterion/issues/3333)
+
+    <details><summary>why</summary>
+
+    CM-5f, the twin of CM-5e (#3345, merged f5de93fb2). The launch rung exists on the wire and in the CLI; this gives the operator the surface the studio launch dialog owes: a mode select and, behind one disclosure, the seven bounds the run may raise.
+
+    </details>
+
+## [7.10.0](https://github.com/SocialGouv/iterion/compare/v7.9.0...v7.10.0) (2026-11-17)
+
+### Features
+
+* **revi:** review-pr inherits no ambient MCP and reads a byte-stable prompt; converge merges on claw ([#3283](https://github.com/SocialGouv/iterion/issues/3283)) ([#3352](https://github.com/SocialGouv/iterion/issues/3352)) ([6f9ea42](https://github.com/SocialGouv/iterion/commit/6f9ea423ae95ba722ff87ab082d910d3e48b4320))
+
+    <details><summary>why</summary>
+
+    S6: review-pr 0.9.25's four reviewer slots carry mcp: inherit: false — the ambient schemas rode every tooled node, ~20k tokens a request, $0.19-0.44 a run, zero mcp_* calls (2026-11-13 sample). review_system and emit_system carry no template: the resolved base sha, workspace, changed-file count, anomaly list, tier and severity floor moved into the user message (a REVIEW SCOPE block on both reviewer lanes, the git commands spelled in; emit_user already carried the merge's values). Two runs of…
+
+    </details>
+
+## [7.9.0](https://github.com/SocialGouv/iterion/compare/v7.8.0...v7.9.0) (2026-11-17)
+
+### Features
+
+* **credpool:** a pinned review family is a credential want ([#3356](https://github.com/SocialGouv/iterion/issues/3356)) ([299c4d2](https://github.com/SocialGouv/iterion/commit/299c4d2dea21bc4a9b0e308edc218c545a112bff))
+
+    <details><summary>why</summary>
+
+    An operator's mono_family pin names a family the run cannot start without. Until now the credential walk derived its wants from the routes alone, so a bot whose routes spend claude and whose integration pins mono_family=gpt never asked the pool for a gpt credential. The moment any tier before the platform one granted, the platform skip removed the only gpt source and the launch refused as an unservable review family — measured on SocialGouv/iterion: attaching a forfait pool that holds both…
+
+    </details>
+
+## [7.8.0](https://github.com/SocialGouv/iterion/compare/v7.7.0...v7.8.0) (2026-11-17)
+
+### Features
+
+* **sources:** the catalog read model, sanitized logos, and the studio catalog with its plug wizard (L2, [#3272](https://github.com/SocialGouv/iterion/issues/3272)) ([#3348](https://github.com/SocialGouv/iterion/issues/3348)) ([96b8f17](https://github.com/SocialGouv/iterion/commit/96b8f175ff88ce7c6e21c4c09594ab74a93d0ad2))
+
+    <details><summary>why</summary>
+
+    The catalog (#3272) needs something to show: a category for the pills, an accent for the entries that ship no mark, and an icon. All three are connector.yaml fields, judged at load:
+
+    </details>
+
+## [7.7.0](https://github.com/SocialGouv/iterion/compare/v7.6.0...v7.7.0) (2026-11-17)
+
+### Features
+
+* **codemode:** the launch gets a rung above the DSL — run-level mode and bounds override ([#3345](https://github.com/SocialGouv/iterion/issues/3345)) ([#3347](https://github.com/SocialGouv/iterion/issues/3347)) ([f5de93f](https://github.com/SocialGouv/iterion/commit/f5de93fb2716a0dac52ef457af69d8a35da90a36)), references [#3301](https://github.com/SocialGouv/iterion/issues/3301)
+
+    <details><summary>why</summary>
+
+    The CM-17 measurement (ADR-165, 11-16 amendment) recorded the failure shape that makes a launch rung necessary: a run stops at "the script has spent its budget of 64 tool calls ... ask the operator to raise the bound" — and the operator had nothing to raise. The authored `codemode:` block (#3301) is static per `.bot`; this change gives the LAUNCH the strongest rung of both ladders, wired end to end on the ambient_context override's own seams (CLI, launch API, queue, resume, detached, remote,…
+
+    </details>
+
+## [7.6.0](https://github.com/SocialGouv/iterion/compare/v7.5.0...v7.6.0) (2026-11-17)
+
+### Features
+
+* **revi:** converse precomputes the diff scope; the loop reads at a 20-step bound from a byte-stable prompt ([#3283](https://github.com/SocialGouv/iterion/issues/3283)) ([#3344](https://github.com/SocialGouv/iterion/issues/3344)) ([6fe5be8](https://github.com/SocialGouv/iterion/commit/6fe5be84dae7c23045c8c4e2a5b29e77f3d83eb5)), references [#3342](https://github.com/SocialGouv/iterion/issues/3342)
+
+    <details><summary>why</summary>
+
+    S3: converse_system carries zero {{vars.*}} (path/base/tier/threshold moved to the user message, reordered scope -> thread -> question -> path) and the claw ambient header spells AGENTS.md workspace-RELATIVE — every claw node's cross-run cache now survives past the header. Proof on the ASSEMBLED request: two claw tasks for two checkouts, system + FULL tool defs compared byte for byte, first divergent byte reported, on the wire too; bounded in the README (host secret temp paths, sub-dir Ancestor…
+
+    </details>
+
 ## [7.5.0](https://github.com/SocialGouv/iterion/compare/v7.4.0...v7.5.0) (2026-11-16)
 
 ### Features
