@@ -119,7 +119,7 @@ goja cannot bound itself. ADR-098 F19 closed on the measurement:
 *"goja's interrupt does not preempt native calls and bounds no heap"*. A native
 regex bomb hangs the runner, not the script. So the host is a **child process**
 and the limits are applied before the interpreter exists — `RLIMIT_AS` /
-`RLIMIT_DATA` for a real memory cap, `RLIMIT_CPU`, `no-new-privs`,
+`RLIMIT_DATA` for a real memory cap (room above the child's own segment), `RLIMIT_CPU`, `no-new-privs`,
 non-dumpable, a parent-death signal, and Landlock in deny-all where the kernel
 offers it.
 
@@ -141,11 +141,9 @@ node that **already** holds a `class:shell` tool, and is otherwise refused as
 `codemode_unavailable`. Two corrections to the reasoning that wrote that rule:
 Landlock costs nothing to adopt — `golang.org/x/sys/unix` is already a direct,
 vendored dependency carrying the syscalls and every constant, no cgo — and it
-is **not filesystem-only**. ABI 4's `LANDLOCK_ACCESS_NET_CONNECT_TCP`, also
-already vendored, lets the child deny its own TCP connect unprivileged. So
-where Landlock is present a script holds a network guarantee a shell tool does
-not, and where it is absent it loses one: the fallback is re-argued against the
-bench's numbers, not against the shell comparison alone. And nothing in this
+its network rights are TCP-only from ABI 4 — so the child's network wall is a
+seccomp filter denying socket creation, on every kernel (ADR-165, 2026-11-18):
+a script holds a network guarantee a shell tool does not, Landlock or not. And nothing in this
 repository mentions gVisor or `runsc` — no part of the confinement comes from a
 runtime class here.
 

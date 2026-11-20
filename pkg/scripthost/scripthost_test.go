@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -424,11 +425,11 @@ func TestTheEvidenceInARefusalIsBoundedInBytes(t *testing.T) {
 	}
 }
 
-// The posture verdict is ONE place, and both of its refusing branches are
-// unreachable through the real syscalls on a healthy kernel and build — which
-// is exactly why they are a function with a witness.
-func TestTheConfinementVerdictRefusesBothWeakPostures(t *testing.T) {
-	healthy := Applied{LandlockABI: 4, AllThreads: true, CPUSeconds: 10, MemoryBytes: 1 << 20}
+// The posture verdict is ONE place, and its refusing branches are unreachable
+// through the real syscalls on a healthy kernel and build — which is exactly
+// why they are a function with a witness.
+func TestTheConfinementVerdictRefusesEveryWeakPosture(t *testing.T) {
+	healthy := Applied{LandlockABI: 4, SocketsDenied: true, AllThreads: true, CPUSeconds: 10, MemoryBytes: 1 << 20}
 
 	if got := confinementVerdict(healthy, Request{}); got != nil {
 		t.Errorf("a healthy posture was refused: %+v", got)
@@ -458,6 +459,24 @@ func TestTheConfinementVerdictRefusesBothWeakPostures(t *testing.T) {
 	}
 	if confinementVerdict(oneThread, Request{AllowSingleThreadConfinement: true}) != nil {
 		t.Error("the explicit allowance did not take")
+	}
+
+	// No socket wall has NO allowance: neither escape hatch the other two
+	// postures offer may admit it, alone or together.
+	open := healthy
+	open.SocketsDenied = false
+	for _, req := range []Request{{}, {AllowWithoutLandlock: true, AllowSingleThreadConfinement: true}} {
+		got = confinementVerdict(open, req)
+		if got == nil || got.Refusal != RefusalUnavailable {
+			t.Fatalf("a posture with the network open was accepted under %+v: %+v", req, got)
+		}
+	}
+	// And a kernel with no Landlock still runs with the wall: the allowance
+	// is about the filesystem only.
+	noLandlockWalled := healthy
+	noLandlockWalled.LandlockABI = 0
+	if confinementVerdict(noLandlockWalled, Request{AllowWithoutLandlock: true}) != nil {
+		t.Error("allow_without_landlock no longer admits a kernel without Landlock that still denies sockets")
 	}
 }
 
@@ -546,6 +565,15 @@ func TestADeathIsReadInOrderOfEvidence(t *testing.T) {
 			limits: limits, signalled: true, burned: 10 * time.Millisecond, stdoutCut: true}, RefusalResultBytes},
 		{"signalled, nothing names a bound", deathEvidence{
 			limits: limits, signalled: true, signal: 9, burned: 10 * time.Millisecond}, RefusalHostDied},
+		// The parent's probe ACTED, so it is positive identification — and it
+		// outranks the CPU threshold, which would otherwise claim a kill made
+		// by an allocation that happened to have burned its budget.
+		{"the resident-set probe that killed is a memory verdict", deathEvidence{
+			limits: limits, signalled: true, signal: 9, burned: 10 * time.Millisecond,
+			probe: probeResult{killed: true, peak: 300 << 20, samples: 4}}, RefusalMemory},
+		{"the probe beats the CPU threshold it outranks", deathEvidence{
+			limits: limits, signalled: true, signal: 9, burned: 10 * time.Second,
+			probe: probeResult{killed: true, peak: 300 << 20, samples: 4}}, RefusalMemory},
 		{"a runtime crash is the host's, not the deployment's", deathEvidence{
 			limits: limits, stderrText: "SIGSEGV: segmentation violation"}, RefusalHostDied},
 		{"nothing at all is a broken deployment", deathEvidence{
@@ -564,6 +592,30 @@ func TestADeathIsReadInOrderOfEvidence(t *testing.T) {
 			}
 			if resp.Refusal != tc.want {
 				t.Errorf("got %q, want %s (message: %s)", resp.Refusal, tc.want, resp.Message)
+			}
+		})
+	}
+}
+
+// The memory bound is room above the base (#3383). Zero is "nobody chose" and
+// must stay no bound at all: base+0 would be a limit the child already meets,
+// killing it on its next allocation. A sum past the range saturates rather than
+// wrapping to a limit under the base.
+func TestTheMemoryBoundIsRoomAboveTheBase(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		base   uint64
+		memory int64
+		want   uint64
+	}{
+		{"room above the base", 86 << 20, 64 << 20, 150 << 20},
+		{"nobody chose", 86 << 20, 0, 0},
+		{"a negative bound is not a tiny one", 86 << 20, -1, 0},
+		{"a sum past the range saturates", math.MaxUint64 - 10, 64 << 20, math.MaxUint64},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := growthBound(tc.base, tc.memory); got != tc.want {
+				t.Errorf("growthBound(%d, %d) = %d, want %d", tc.base, tc.memory, got, tc.want)
 			}
 		})
 	}

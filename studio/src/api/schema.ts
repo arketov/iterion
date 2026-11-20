@@ -1697,6 +1697,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/pool/entries/{pledge}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pledge: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** DELETE /api/me/pool/entries/{pledge} */
+        delete: operations["deleteMePoolEntriesByPledge"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/pool/history": {
         parameters: {
             query?: never;
@@ -5679,6 +5698,25 @@ export interface paths {
         patch: operations["patchTeamsByIdSecretsBySecretId"];
         trace?: never;
     };
+    "/api/teams/{id}/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** GET /api/teams/{id}/sources */
+        get: operations["getTeamsByIdSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/teams/{id}/status": {
         parameters: {
             query?: never;
@@ -6135,6 +6173,25 @@ export interface paths {
         put?: never;
         /** POST /api/v1/bots/{name}/triggers/from-invocation */
         post: operations["postV1BotsByNameTriggersFromInvocation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connectors/{id}/icon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** GET /api/v1/connectors/{id}/icon */
+        get: operations["getV1ConnectorsByIdIcon"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6855,6 +6912,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GET /api/v1/sources */
+        get: operations["getV1Sources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/triggers": {
         parameters: {
             query?: never;
@@ -7472,6 +7546,15 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        CodemodeBoundsRequest: {
+            cpu?: string;
+            memory?: number;
+            result_bytes?: number;
+            script_bytes?: number;
+            tool_calls?: number;
+            tool_result_bytes?: number;
+            wall?: string;
+        };
         Comment: {
             author?: string;
             body: string;
@@ -7541,8 +7624,11 @@ export interface components {
         };
         CredentialPreviewRequest: {
             bot_id?: string;
+            codemode?: string;
+            codemode_bounds?: components["schemas"]["CodemodeBoundsRequest"];
             llm_routing?: components["schemas"]["Policy"];
             permission?: string;
+            review_mode?: string;
             source: components["schemas"]["CredentialPreviewSource"];
             vars?: {
                 [key: string]: string;
@@ -8453,6 +8539,8 @@ export interface components {
         };
         Subscription: {
             args_var?: string;
+            backfill?: number;
+            backfill_done?: boolean;
             bot_id: string;
             connection_id?: string;
             connector_key?: string;
@@ -8489,7 +8577,11 @@ export interface components {
             no_live_run?: string;
             origin?: string;
             overlap?: string;
+            poll_query?: {
+                [key: string]: string;
+            };
             poller?: string;
+            poller_since?: number;
             repo?: string;
             retry_jitter?: string;
             retry_max_attempts?: number;
@@ -8876,8 +8968,10 @@ export interface components {
             capabilities?: string[];
             connector: string;
             display_name?: string;
+            password?: string;
             scheme_id?: string;
-            token: string;
+            token?: string;
+            username?: string;
         };
         connectionDTO: {
             alias: string;
@@ -8893,6 +8987,7 @@ export interface components {
             id: string;
             placement: string;
             scheme_id: string;
+            scheme_kind: string;
             scopes_known?: boolean;
             status: string;
             status_reason?: string;
@@ -8903,9 +8998,11 @@ export interface components {
         connectionPatchReq: {
             capabilities?: string[];
             display_name?: string;
+            password?: string;
             status?: string;
             status_reason?: string;
             token?: string;
+            username?: string;
         };
         createApiKeyReq: {
             base_url?: string;
@@ -9290,6 +9387,20 @@ export interface components {
             unavailable_reason?: string;
             warning?: string;
         };
+        previewCodemodeBounds: {
+            cpu: string;
+            memory: number;
+            result_bytes: number;
+            script_bytes: number;
+            tool_calls: number;
+            tool_result_bytes: number;
+            wall: string;
+        };
+        previewCodemodeLimits: {
+            ceiling: components["schemas"]["previewCodemodeBounds"];
+            default: components["schemas"]["previewCodemodeBounds"];
+            memory_floor: number;
+        };
         previewCostNode: {
             cost_max_usd: number;
             cost_min_usd: number;
@@ -9304,6 +9415,7 @@ export interface components {
             ambient_context?: string;
             backend?: string;
             backend_names?: string[];
+            codemode?: string;
             file_path?: string;
             permission?: string;
             source?: string;
@@ -9314,6 +9426,7 @@ export interface components {
                     [key: string]: components["schemas"]["previewBackendOption"];
                 };
             };
+            codemode_limits?: components["schemas"]["previewCodemodeLimits"];
             cost_max_usd: number;
             cost_min_usd: number;
             effective?: components["schemas"]["previewEffectiveSettings"];
@@ -12938,6 +13051,26 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteMePoolEntriesByPledge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pledge: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -19055,6 +19188,26 @@ export interface operations {
             };
         };
     };
+    getTeamsByIdSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     postTeamsByIdStatus: {
         parameters: {
             query?: never;
@@ -19696,6 +19849,26 @@ export interface operations {
             header?: never;
             path: {
                 name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getV1ConnectorsByIdIcon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
             };
             cookie?: never;
         };
@@ -20636,6 +20809,24 @@ export interface operations {
         };
     };
     getV1RunsStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getV1Sources: {
         parameters: {
             query?: never;
             header?: never;

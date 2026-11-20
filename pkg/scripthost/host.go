@@ -42,7 +42,9 @@ type Host struct {
 	Binary string
 
 	// AllowWithoutLandlock lets scripts run on a kernel that offers no
-	// Landlock — with an unrestricted filesystem and unrestricted sockets.
+	// Landlock — with an unrestricted filesystem. Sockets stay denied, created
+	// or borrowed from another process: that wall is seccomp, and it has no
+	// allowance.
 	//
 	// It travels in the REQUEST and not in the environment, because the
 	// child's environment is deliberately empty and an env-var opt-in could
@@ -80,6 +82,20 @@ type Host struct {
 	// lets a `.bot` ask for bounds: the hook is wired ahead of the slice that
 	// opens one, and until then its warning has never been printed.
 	OnClamp func(requested, applied Limits)
+
+	// OnWarn, when set, receives a deployment warning that does NOT change the
+	// verdict — today, a child the kernel would not let this parent mark as
+	// the OOM victim. It is called as soon as the fact is known, on every
+	// outcome: the child's stderr is read only when it dies without a
+	// document, so a refusal written only there was lost on every successful
+	// run, and a deployment that always refuses the mark was never told. Nil
+	// means the warning is unobserved — a gap stated, like OnClamp's.
+	OnWarn func(msg string)
+
+	// markVictim replaces markOOMVictim in tests, so the refusal path has a
+	// witness without mutating package state under parallel tests. Nil is the
+	// real thing.
+	markVictim func(pid int) error
 }
 
 // Run executes src in a confined child and returns its verdict.
@@ -169,6 +185,22 @@ func (h Host) Run(ctx context.Context, src string, want Limits) (Response, error
 		return Response{}, fmt.Errorf("scripthost: starting %s %s: %w", binary, Subcommand, err)
 	}
 
+	// Two things the RLIMIT bound cannot reach, both started before the child
+	// can allocate: the kernel's preference for killing THIS process when a
+	// cgroup is exhausted, and a parent-side probe of its charged memory, since a
+	// MAP_SHARED or memfd mapping is not charged to RLIMIT_DATA.
+	mark := h.markVictim
+	if mark == nil {
+		mark = markOOMVictim
+	}
+	oomAdjErr := mark(cmd.Process.Pid)
+	if oomAdjErr != nil && h.OnWarn != nil {
+		h.OnWarn(fmt.Sprintf("codemode: the script host could not be marked as the OOM victim (%v): "+
+			"a pod-level out-of-memory may take the runner instead of the script", oomAdjErr))
+	}
+	probeStop := make(chan struct{})
+	probeDone := watchRSS(cmd, limits.Memory, rssSampleInterval, probeStop)
+
 	join := func() serveVerdict { return serveVerdict{} }
 	if channel != nil {
 		channel.closeChildEnds()
@@ -176,6 +208,13 @@ func (h Host) Run(ctx context.Context, src string, want Limits) (Response, error
 	}
 
 	waitErr := cmd.Wait()
+	close(probeStop)
+	probe := <-probeDone
+	if oomAdjErr != nil {
+		// Kept beside OnWarn as death-path evidence: without the mark a
+		// pod-level OOM picks by size and may take the runner instead.
+		fmt.Fprintf(&stderr, "\nscripthost: marking the child as the OOM victim: %v", oomAdjErr)
+	}
 	serve := join()
 
 	// Inside the teardown window the primitive's own documentation requires:
@@ -227,8 +266,19 @@ func (h Host) Run(ctx context.Context, src string, want Limits) (Response, error
 		waitErr:    waitErr,
 		stderrText: stderr.String(),
 		stdoutCut:  outCap.cut,
+		probe:      probe,
 	})
 }
+
+// rssSampleInterval is how often the parent reads the child's charged memory.
+// The poll costs one open/read of a small /proc file, so the trade is between
+// that and how far a payload can run past the bound between two samples: the
+// overshoot is at most the child's own allocation rate times this interval.
+//
+// It lives here, not in the Linux file, because Run names it in the refusal it
+// builds on EVERY platform: the first version defined it beside the probe and
+// the Windows and darwin vet legs caught `undefined: rssSampleInterval`.
+const rssSampleInterval = 20 * time.Millisecond
 
 // wallGrace is how much longer than the script's own wall bound the parent
 // waits. It covers process start, the request read and the response write —
@@ -256,6 +306,7 @@ type deathEvidence struct {
 	waitErr    error
 	stderrText string
 	stdoutCut  bool
+	probe      probeResult
 }
 
 // deathToRefusal names the bound that killed a child that produced no
@@ -289,11 +340,28 @@ func deathToRefusal(e deathEvidence) (Response, error) {
 			e.limits.Wall, evidence), nil
 	}
 
+	// (1b) The parent's own resident-set probe. It ACTED, so it is positive
+	// identification of the same rank as the runtime's own message below —
+	// and it is the only thing that can name this death at all: a payload
+	// growing through a mapping RLIMIT_DATA does not charge dies by a signal
+	// the kernel does not annotate, and (5) would call it "nothing names a
+	// bound".
+	if e.probe.killed {
+		return Refuse(RefusalMemory,
+			"the script host's anonymous and shared memory grew by %d bytes, past its %d-byte memory "+
+				"bound (measured from a %d-byte baseline when the child started), and the parent killed it. "+
+				"A mapping that RLIMIT_DATA does not charge (MAP_SHARED, memfd) grows that memory without "+
+				"meeting the kernel bound, so the parent samples the GROWTH every %s; the overshoot is at "+
+				"most one sample of the child's own allocator. %s",
+			e.probe.peak, e.limits.Memory, e.probe.base, rssSampleInterval, evidence), nil
+	}
+
 	// (2) A memory death announces itself: the Go runtime prints before dying.
 	// Positive identification, so it outranks every threshold below.
 	if looksLikeMemoryDeath(e.stderrText) {
 		return Refuse(RefusalMemory,
-			"the script host died allocating past its %d-byte memory bound. %s", e.limits.Memory, evidence), nil
+			"the script host died allocating past its %d-byte memory bound (room above the data segment "+
+				"the host itself held before the script ran). %s", e.limits.Memory, evidence), nil
 	}
 
 	// (3) The CPU bound: the kernel kills on it, so the child must have been
@@ -328,23 +396,38 @@ func deathToRefusal(e deathEvidence) (Response, error) {
 	// CPU it burned is part of the report: a reader comparing it to the bound
 	// is how the ambiguity gets resolved by a human.
 	if e.signalled {
+		// A probe that never sampled is named here rather than left implicit:
+		// "the probe saw nothing" and "the probe could not look" are the same
+		// silence otherwise, and only one of them is a fact about the script.
+		blind := ""
+		if e.probe.samples == 0 {
+			why := e.probe.blind
+			if why == "" {
+				why = "no reason recorded"
+			}
+			blind = fmt.Sprintf(" The resident-set probe never sampled (%s), so a mapping outside "+
+				"RLIMIT_DATA was not ruled out.", why)
+		}
 		return Refuse(RefusalHostDied,
 			"the script host was killed by %v after burning %s of CPU against a %s bound, and nothing "+
-				"names a bound; a cgroup memory kill and an external signal are indistinguishable here. %s",
+				"names a bound; a cgroup memory kill and an external signal are indistinguishable here.%s %s",
 			e.signal, e.burned.Round(time.Millisecond),
-			time.Duration(e.limits.CPUSeconds())*time.Second, evidence), nil
+			time.Duration(e.limits.CPUSeconds())*time.Second, blind, evidence), nil
 	}
 
 	// (6) The child crashed inside the Go runtime. That is the script host
 	// failing, not the deployment — so it is a refusal, and the ambiguity is
-	// NAMED rather than resolved. Measured: the same allocation bomb prints
-	// `runtime: out of memory` under a 128 MiB bound and dies with
-	// `SIGSEGV: segmentation violation` under 64 MiB, so a crash under a tight
-	// bound is usually the bound and the runtime does not say so. Calling it
-	// memory_exceeded would be a guess wearing a verdict.
+	// NAMED rather than resolved. Measured: when a mapping the runtime needs
+	// is refused at the wrong moment, it dies of `SIGSEGV: segmentation
+	// violation` in the garbage collector rather than printing
+	// `runtime: out of memory` (the same bomb did both, #3290; a bound with no
+	// room left did it on a 10 000-push script, #3383), so a crash under a
+	// tight bound is usually the bound and the runtime does not say so.
+	// Calling it memory_exceeded would be a guess wearing a verdict.
 	if looksLikeRuntimeCrash(e.stderrText) {
 		return Refuse(RefusalHostDied,
-			"the script host crashed against a %d-byte memory bound and a %s CPU bound, and the "+
+			"the script host crashed against a %d-byte memory bound (room above its own data segment) "+
+				"and a %s CPU bound, and the "+
 				"runtime did not name a cause; a crash under a tight memory bound is usually the bound. %s",
 			e.limits.Memory, time.Duration(e.limits.CPUSeconds())*time.Second, evidence), nil
 	}

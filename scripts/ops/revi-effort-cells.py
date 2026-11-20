@@ -26,6 +26,10 @@ Commands (all but apply and restore are read-only on the instance):
   restore --dir D (--only X ... | --all) --yes
                            put each effort cell back to its backed-up effort,
                            then read the block back
+  migrate-ids --dir D (--only X ... | --all) (--stage | --prune) (--yes | --dry-run)
+                           move the retired review-pr and evolve node
+                           selectors onto their role names (ADR-169), in two
+                           phases around the roll, then read the block back
 
 X is an integration id, or a repository full name that names one integration
 only (a name two teams share is refused: name the id).
@@ -55,6 +59,41 @@ between the read and the PATCH and is replaced: closing it needs a version the
 server checks, and the repo-bots PATCH takes none (RepoIntegration.Version is
 not exposed, the request has no expected-version field).
 
+An integration with no `mono_family` launch var is AMBIGUOUS (the old engine
+resolved the family from credentials at launch): where the two readings
+migrate its block differently, migrate-ids prints an AMBIGUOUS line, writes
+nothing and exits non-zero unless `--assume-family claude|gpt` answers it.
+
+migrate-ids exists because a cell whose selector names no node decides
+nothing: the launch falls back on the bot's own literals, so the routing AND
+the effort the cell carried go inert without a word. It maps, per bot and
+per the topology the integration RAN (its launch_vars: the node it ran as
+its reviewer becomes `reviewer`, the other `reviewer_alternate`), review-pr's
+reviewer_claude/reviewer_gpt/converge_gpt and their glance variants, and
+evolve's review_claude/review_gpt; where the reviewer crosses from one route
+to the other (mono-claude), review-pr's two pacer cells swap with it. It
+drops the cells no node takes any more (the alternate's glance, the `#glm`
+routes of nodes on claw). Where two cells land on one selector, the one kept
+describes the merge the integration ran: the gpt twin's on mono-gpt, the
+claude `converge`'s everywhere else. Every other cell, its order and its
+fields stay as stored.
+
+The catalogue serves ONE review-pr version to every integration, so the roll
+that ships the rename moves them all at once, and a block spelled for either
+side is inert on the other. Hence two phases:
+
+  --stage  before the roll: the role cells are written BESIDE the retired
+           ones, so both bundles find theirs while the fleet moves (a
+           selector the running bundle does not declare warns at launch and
+           pins nothing).
+  --prune  after the roll: the block becomes the role view alone.
+
+Both start from the block as it was before the first write — the backup
+`<id>.pre-migrate-ids.json` in D, which --stage (or a --prune with no
+stage before it) saves, launch vars and --assume-family answer included. A
+stored block that is neither that origin nor its staged form was changed by
+someone else and is refused; one staged from another D is refused too.
+
 A failure on one integration (an HTTP error, a refusal, a read-back that
 differs) is reported and the command goes on with the next; the exit code is
 non-zero when any failed. A PATCH the org parks for an admin's approval (202,
@@ -63,6 +102,7 @@ pending_approval) is reported as parked, not applied.
 
 import argparse
 import copy
+import fnmatch
 import json
 import os
 import subprocess
@@ -115,6 +155,12 @@ def same(a, b):
     return json.dumps(normalized(a), sort_keys=True) == json.dumps(normalized(b), sort_keys=True)
 
 
+def same_block(a, b):
+    """same() over routing blocks, where an absent block and an empty one
+    both say nothing."""
+    return same(a or {}, b or {})
+
+
 def load_fixture(path):
     with open(path) as f:
         fixture = json.load(f)
@@ -144,6 +190,7 @@ def discover():
                     "id": integ["id"],
                     "repo": integ.get("repo_full_name", ""),
                     "routing": integ.get("routing"),
+                    "launch_vars": integ.get("launch_vars") or {},
                 })
     return found
 
@@ -270,6 +317,419 @@ def read_backup(directory, integ):
         raise Refusal("no backup at %s — run backup first" % path)
     with open(path) as f:
         return json.load(f)
+
+
+# The retired node names of ADR-169, per bot and per the topology the
+# integration RAN. A bot's nodes were renamed from vendor words to roles; a
+# cell still naming the old id decides nothing, so the launch falls back on
+# the bot's literals — silently, with the routing and the effort both gone.
+#
+# Which old node becomes `reviewer` is not a property of the bot: it is
+# whichever node the integration ran as its reviewer. The old default was
+# mono-claude (`mono_family` unset = claude), so on most integrations the
+# claude node was THE reviewer and its cell must land on `reviewer` — the
+# node a single review runs — not on `reviewer_alternate`, which only a
+# paired one reaches. A paired run (`review_mode: dual`, or the audit tier)
+# ran both; there the bot's own literal decides (review-pr's `reviewer` is
+# its gpt route, evolve's its claude one).
+SLOTS = {
+    "review-pr": {
+        "claude": {"reviewer": "reviewer_claude", "glance": "reviewer_claude_glance"},
+        "gpt": {"reviewer": "reviewer_gpt", "glance": "reviewer_gpt_glance"},
+        "literal": "gpt",
+        "merge": {"claude": "converge", "gpt": "converge_gpt"},
+    },
+    "evolve": {
+        "claude": {"reviewer": "review_claude"},
+        "gpt": {"reviewer": "review_gpt"},
+        "literal": "claude",
+    },
+}
+
+# Supervisors keep their names across the rename, and a name says which ROUTE
+# its supervisor watches, not which role: review-pr's `pacer` watches the node
+# on the claude route (reviewer_claude, then reviewer_alternate) and
+# `pacer_gpt` the one on the gpt route (reviewer_gpt, then reviewer). Where the
+# integration's reviewer moves across that line (mono-claude: reviewer_claude
+# becomes `reviewer`, which `pacer_gpt` watches), the two pacer cells swap.
+SUPERVISORS = {
+    "review-pr": {"claude": "supervisor:pacer", "gpt": "supervisor:pacer_gpt"},
+}
+
+# Role names the old bundles never declared: a block carrying one beside a
+# retired selector it renames from has been staged already.
+ROLE_ONLY = {"reviewer", "reviewer_alternate", "reviewer_glance"}
+
+# Names both vocabularies declare, on different nodes: a cell --stage writes
+# there is read before the roll too (review-pr's claude merge was `converge`,
+# and a pacer may watch another reviewer).
+SHARED_NAMES = {
+    "review-pr": {"converge", "supervisor:pacer", "supervisor:pacer_gpt"},
+}
+
+# Routes retired with their node, per bot: review-pr's `converge` and its
+# reviewers read no provider hint any more, so they declare no `#glm` rescue.
+# A retired route is dropped whether it is spelled on the old node or the new.
+RETIRED_ROUTES = {
+    "review-pr": {"converge#glm", "reviewer#glm", "reviewer_glance#glm"},
+}
+
+
+def ran_topology(launch_vars):
+    """(primary family, paired?) the integration's launch vars ran."""
+    lv = launch_vars or {}
+    mode = str(lv.get("review_mode", "")).strip().lower()
+    paired = mode in ("dual", "paired") or str(lv.get("review_tier", "")).strip().lower() == "audit"
+    family = str(lv.get("mono_family", "")).strip().lower() or "claude"
+    return family, paired
+
+
+def primary_family(bot, launch_vars):
+    """The family whose old node the integration ran as its reviewer."""
+    family, paired = ran_topology(launch_vars)
+    primary = SLOTS[bot]["literal"] if paired else family
+    return primary if primary in ("claude", "gpt") else "claude"
+
+
+def spells_old_names(bot, routing, launch_vars):
+    """Does the block name one of the bot's retired NODES (not a pacer, whose
+    names both vocabularies share)? Only such a block is spelled for the
+    bundle before the rename, so only its pacer cells may swap: one already
+    in the role vocabulary would swap back on every run."""
+    nodes, _ = rename_table(bot, launch_vars)
+    for o in (routing or {}).get("overrides") or []:
+        node, sep, route = o.get("selector", "").partition("#")
+        b, slash, name = node.rpartition("/")
+        if slash and b == bot and (name in nodes or name + sep + route in RETIRED_ROUTES.get(bot, ())):
+            return True
+    return False
+
+
+def rename_table(bot, launch_vars, routing=None):
+    """{old node: new node ("" = dropped)} for one bot under one integration,
+    and the merge target whose RENAMED cell wins a collision (or None). The
+    pacer swap is part of it only for a block that spells the old names
+    (spells_old_names); routing=None leaves it out."""
+    slots = SLOTS.get(bot)
+    if not slots:
+        return {}, None
+    family, paired = ran_topology(launch_vars)
+    primary = primary_family(bot, launch_vars)
+    other = "gpt" if primary == "claude" else "claude"
+    table = {
+        slots[primary]["reviewer"]: "reviewer",
+        slots[other]["reviewer"]: "reviewer_alternate",
+    }
+    sup = SUPERVISORS.get(bot)
+    if sup and primary != slots["literal"] and routing is not None and spells_old_names(bot, routing, launch_vars):
+        # `reviewer` sits on the literal's route, so its supervisor is the
+        # literal's pacer: the cell of the pacer that watched the old reviewer
+        # moves there, and the other one onto the pacer of the alternate.
+        table[sup[primary]] = sup[slots["literal"]]
+        table[sup[other]] = sup[primary]
+    if "glance" in slots[primary]:
+        table[slots[primary]["glance"]] = "reviewer_glance"
+    if "glance" in slots[other]:
+        table[slots[other]["glance"]] = ""  # the alternate has no glance tier
+    rename_wins = None
+    merge = slots.get("merge")
+    if merge:
+        if not paired and family == "gpt":
+            # mono-gpt merged on the gpt twin: its cell is the live route.
+            table[merge["gpt"]] = merge["claude"]
+            rename_wins = merge["claude"]
+        else:
+            # Every other topology merged on the claude `converge`; the gpt
+            # twin never ran, so its cell must not start deciding a route.
+            table[merge["gpt"]] = ""
+    return table, rename_wins
+
+
+def renamed_selector(selector, launch_vars=None, routing=None):
+    """(new selector, retired?) for one stored selector of the block routing
+    under one integration; new is "" when no node can take the cell any
+    more."""
+    node, sep, route = selector.partition("#")
+    bot, slash, name = node.rpartition("/")
+    if not slash:
+        return selector, False
+    routes = RETIRED_ROUTES.get(bot, set())
+    if name + sep + route in routes:
+        return "", True
+    nodes, _ = rename_table(bot, launch_vars, routing)
+    if name not in nodes:
+        return selector, False
+    new = nodes[name]
+    if not new:
+        return "", True
+    if new + sep + route in routes:
+        return "", True
+    return bot + "/" + new + sep + route, True
+
+
+def stranded_globs(routing, launch_vars=None):
+    """The glob selectors of a migrated bot that matched a retired node but
+    do not match its role: `review-pr/reviewer_*` covered every reviewer slot
+    and no longer covers the renamed primary `reviewer`. A glob cannot be
+    rewritten mechanically — the operator decides what it should cover — so
+    it is REPORTED, never edited, and the run does not count as migrated."""
+    out = []
+    for o in (routing or {}).get("overrides") or []:
+        sel = o.get("selector", "")
+        node = sel.partition("#")[0]
+        bot, slash, name = node.rpartition("/")
+        if not slash or not any(c in name for c in "*?["):
+            continue
+        for old, new in rename_table(bot, launch_vars, routing)[0].items():
+            if new and fnmatch.fnmatchcase(old, name) and not fnmatch.fnmatchcase(new, name):
+                out.append((sel, old, new))
+    return out
+
+
+def migrated_block(routing, launch_vars=None):
+    """The block with every retired selector renamed; answer (block, changes,
+    dropped), where a change is (from, to)."""
+    out = copy.deepcopy(routing or {})
+    dropped = []
+    # Pass 1: rename every cell, remembering where each one came from.
+    entries = []  # (selector, cell, renamed, original selector)
+    for o in out.get("overrides") or []:
+        new, retired = renamed_selector(o.get("selector", ""), launch_vars, routing)
+        if not retired:
+            entries.append((o["selector"], o, False, o["selector"]))
+        elif not new:
+            dropped.append(o["selector"])
+        else:
+            entries.append((new, dict(o, selector=new), True, o["selector"]))
+    # Pass 2: a rename landing on a cell the block already carries leaves
+    # ONE of the two — decided from the whole block, never from the stored
+    # order. rename_table names the target whose renamed cell describes the
+    # route the node takes now (mono-gpt's merge); everywhere else the cell already spelled
+    # with the role name is the current one and the leftover is dropped.
+    renamed_to = {sel for sel, _, renamed, _ in entries if renamed}
+    carried = {sel for sel, _, renamed, _ in entries if not renamed}
+    collisions = renamed_to & carried
+    final, changes = [], []
+    for sel, o, renamed, origin in entries:
+        if sel in collisions:
+            bot, _, node = sel.partition("#")[0].rpartition("/")
+            rename_wins = rename_table(bot, launch_vars, routing)[1] == node
+            if renamed != rename_wins:
+                dropped.append(origin)
+                continue
+        if renamed:
+            changes.append((origin, sel))
+        final.append(o)
+    out["overrides"] = final
+    return out, changes, dropped
+
+
+def stage_keeps_stored(routing, launch_vars=None):
+    """The selectors a name-swap re-means whose OLD meaning runs before the
+    roll and whose new one idles after it, so staging keeps the stored cell:
+    mono-claude's `pacer` watches the reviewer until the roll and only the
+    alternate after it."""
+    keep = set()
+    for bot, sup in SUPERVISORS.items():
+        primary = primary_family(bot, launch_vars)
+        if primary != SLOTS[bot]["literal"] and spells_old_names(bot, routing, launch_vars):
+            keep.add(bot + "/" + sup[primary])
+    return keep
+
+
+def staged_block(routing, launch_vars=None):
+    """The role view WITH the retired cells kept, for the window in which
+    the catalogue moves (--stage, before the roll): a bundle from before the
+    rename finds its retired selectors, one from after finds the roles, and a
+    selector neither bundle declares warns at launch and pins nothing.
+
+    The one name both vocabularies give a different node is review-pr's
+    `converge`: on mono-gpt it takes the gpt twin's cell (the node it names
+    after the roll merges every review; the claude merge it named before only
+    ran on the audit tier). A swapped pacer keeps its stored cell where its
+    old meaning is the one that runs (stage_keeps_stored)."""
+    role, _, _ = migrated_block(routing, launch_vars)
+    stored = (routing or {}).get("overrides") or []
+    by_sel = {o.get("selector", ""): o for o in stored}
+    keep = stage_keeps_stored(routing, launch_vars)
+    final = []
+    for o in role.get("overrides") or []:
+        sel = o["selector"]
+        if sel in keep:
+            if sel in by_sel:
+                final.append(copy.deepcopy(by_sel[sel]))
+            continue
+        final.append(o)
+    taken = {o["selector"] for o in final}
+    for o in stored:
+        sel = o.get("selector", "")
+        if sel in taken:
+            continue
+        if renamed_selector(sel, launch_vars, routing)[1]:
+            final.append(copy.deepcopy(o))
+            taken.add(sel)
+    out = copy.deepcopy(role)
+    out["overrides"] = final
+    return out
+
+
+def looks_staged(routing, launch_vars=None):
+    """Does the block carry a role name beside a retired selector renamed to
+    it — a block a --stage wrote?"""
+    sels = {o.get("selector", "") for o in (routing or {}).get("overrides") or []}
+    for sel in sels:
+        new, retired = renamed_selector(sel, launch_vars, routing)
+        if retired and new and new in sels and new.partition("#")[0].rpartition("/")[2] in ROLE_ONLY:
+            return True
+    return False
+
+
+def carries_retired(routing, launch_vars=None):
+    for o in (routing or {}).get("overrides") or []:
+        if renamed_selector(o.get("selector", ""), launch_vars, routing)[1]:
+            return True
+    return False
+
+
+def resolved_launch_vars(args, integ):
+    """The integration's launch vars with the family it ran made explicit,
+    or None (after an AMBIGUOUS line) when the operator must answer it.
+
+    An unset `mono_family` is NOT evidence of claude: the engine before
+    ADR-169 resolved it at launch from the credentials, so a GPT-only tenant
+    ran its gpt nodes with no launch var saying so. Where the two readings
+    migrate the block differently, the run refuses to guess: --assume-family
+    is the operator's answer."""
+    lv = dict(integ.get("launch_vars") or {})
+    _, paired = ran_topology(lv)
+    if paired or str(lv.get("mono_family", "")).strip():
+        return lv
+    if args.assume_family:
+        lv["mono_family"] = args.assume_family
+        return lv
+    stored = integ["routing"]
+    if migrated_block(stored, dict(lv, mono_family="claude"))[0] != migrated_block(stored, dict(lv, mono_family="gpt"))[0]:
+        print("AMBIGUOUS %s (%s): no mono_family launch var, so the family it ran was resolved from credentials at launch — pass --assume-family claude|gpt"
+              % (integ["repo"], integ["id"]))
+        return None
+    return lv
+
+
+def describe_stage(origin, staged):
+    """What --stage adds to the block: the role cells, each with the retired
+    cell it copies, and the stored cells it replaces."""
+    before = {o.get("selector", ""): o for o in (origin or {}).get("overrides") or []}
+    added, replaced = [], []
+    for o in (staged or {}).get("overrides") or []:
+        sel = o["selector"]
+        bot, _, name = sel.partition("#")[0].rpartition("/")
+        shown = sel + (" (the pre-rename bundle reads it too)" if name in SHARED_NAMES.get(bot, ()) else "")
+        if sel not in before:
+            added.append(shown)
+        elif not same(before[sel], o):
+            replaced.append(shown)
+    return added, replaced
+
+
+def migrate_one(args, integ):
+    """Stage or prune one integration's cells; answer True when it is done.
+
+    The origin of both phases is the block as it was before the first write:
+    the backup when one exists (its launch vars too, the --assume-family
+    answer included), the stored block otherwise. --stage writes the role
+    view beside the retired cells, --prune the role view alone; a stored
+    block that is neither the origin nor what this procedure wrote from it
+    was changed by someone else and is refused, not overwritten."""
+    integ = dict(integ, routing=stored_routing(integ["team_id"], integ["id"]))
+    stored = integ["routing"]
+    backup = os.path.join(args.dir, integ["id"] + ".pre-migrate-ids.json")
+    kept = None
+    if os.path.exists(backup):
+        with open(backup) as f:
+            kept = json.load(f)
+    if kept is not None:
+        origin, lv = kept.get("routing"), dict(kept.get("launch_vars") or {})
+    else:
+        lv = resolved_launch_vars(args, integ)
+        if lv is None:
+            return False
+        origin = stored
+        if looks_staged(stored, lv):
+            # Staged from another --dir: the block it started from is in that
+            # dir's backup, and deriving one from the staged block would lose
+            # the cells a pacer swap set aside.
+            raise Refusal("%s (%s) carries role cells beside the retired ones — it was staged with another --dir; pass that one"
+                          % (integ["repo"], integ["id"]))
+    role, changes, dropped = migrated_block(origin, lv)
+    staged = staged_block(origin, lv)
+    wanted = staged if args.stage else role
+    globs = stranded_globs(origin, lv)
+    for sel, old, new in globs:
+        print("GLOB     %s (%s): `%s` matched the retired `%s` but not its role `%s` — rewrite it by hand"
+              % (integ["repo"], integ["id"], sel, old, new))
+    if args.stage and same_block(stored, role) and not same_block(role, origin):
+        print("unchanged %s (%s): already migrated — --stage has nothing left to add" % (integ["repo"], integ["id"]))
+        return not globs
+    if same_block(stored, wanted):
+        if globs:
+            return False
+        if not changes and not dropped:
+            print("unchanged %s (%s): no retired selector" % (integ["repo"], integ["id"]))
+        else:
+            print("unchanged %s (%s): already %s" % (integ["repo"], integ["id"], "staged" if args.stage else "migrated"))
+        return True
+    if kept is not None and not any(same_block(stored, b) for b in (origin, staged)):
+        raise Refusal("%s (%s) changed since its pre-migration backup %s was saved: the stored block is neither that block nor its staged form — compare them by hand, or use a new --dir"
+                      % (integ["repo"], integ["id"], backup))
+    if args.stage:
+        added, replaced = describe_stage(origin, staged)
+        what = "add " + ", ".join(added)
+        if replaced:
+            what += "; replace " + ", ".join(replaced)
+        what += "; keep the retired cells until --prune"
+    else:
+        what = ", ".join("%s -> %s" % c for c in changes) + ("" if not dropped else ", drop " + ", ".join(dropped))
+    if args.dry_run:
+        # A dry run touches NOTHING — not the instance, not the backup dir.
+        # Its own line says what --yes would do.
+        print("WOULD    %s (%s): %s" % (integ["repo"], integ["id"], what))
+        return not globs
+    # Its OWN backup file, never the effort procedure's `<id>.json`: that one
+    # may hold an earlier state of the block, and reusing it would leave the
+    # block this PATCH overwrites saved nowhere.
+    if kept is None:
+        record = {"team_id": integ["team_id"], "team": integ["team"], "id": integ["id"], "repo": integ["repo"],
+                  "launch_vars": lv, "routing": stored}
+        with open(backup, "w") as f:
+            json.dump(record, f, indent=2, sort_keys=True)
+            f.write("\n")
+        print("saved    %s (%s) -> %s" % (integ["repo"], integ["id"], backup))
+    if patch_routing(integ, wanted) == "parked":
+        print("PARKED   %s (%s): the org queued the change for an admin's approval — not applied" % (integ["repo"], integ["id"]))
+        return False
+    if not same_block(stored_routing(integ["team_id"], integ["id"]), wanted):
+        raise Refusal("the block read back is not the one written — restore it from %s" % backup)
+    print("%s %s (%s): %s" % ("staged  " if args.stage else "migrated", integ["repo"], integ["id"], what))
+    return not globs
+
+
+def cmd_migrate_ids(args):
+    # The selection is over EVERY integration, not only the ones that need it:
+    # `--only <a clean one>` must answer "unchanged … no retired selector",
+    # not refuse it as "not a target" — the operator asking about a name is
+    # asking a question, not asserting that the name needs work.
+    integs = discover()
+    picked = selected(integs, args.only, args.all)
+    dirty = [i for i in picked if carries_retired(i["routing"], i.get("launch_vars")) or stranded_globs(i["routing"], i.get("launch_vars"))]
+    if dirty and not args.dry_run:
+        os.makedirs(args.dir, mode=0o700, exist_ok=True)
+    verb = ("would " if args.dry_run else "") + ("stage" if args.stage else "migrate")
+    verb += "" if args.dry_run else "d"
+    # Every named integration is answered, clean or not: migrate_one prints
+    # its own "unchanged … no retired selector" and writes nothing.
+    failed = each(picked, verb, lambda integ: migrate_one(args, integ))
+    print("\n%d of %d integration(s) read carry a retired selector" % (len(dirty), len(picked)))
+    return failed
 
 
 def cmd_plan(args, cells):
@@ -456,9 +916,26 @@ def main(argv):
         p.add_argument("--yes", action="store_true")
     p = sub.add_parser("verify")
     p.add_argument("--only", action="append")
+    p = sub.add_parser("migrate-ids")
+    p.add_argument("--dir", required=True)
+    p.add_argument("--assume-family", choices=("claude", "gpt"),
+                   help="the family an integration with no mono_family launch var ran")
+    p.add_argument("--only", action="append")
+    p.add_argument("--all", action="store_true")
+    p.add_argument("--yes", action="store_true")
+    p.add_argument("--dry-run", action="store_true")
+    phase = p.add_mutually_exclusive_group(required=True)
+    phase.add_argument("--stage", action="store_true",
+                       help="before the roll: write the role cells beside the retired ones")
+    phase.add_argument("--prune", action="store_true",
+                       help="after the roll: leave the role cells alone")
     args = ap.parse_args(argv)
     command = args.command or "plan"
     try:
+        if command == "migrate-ids":
+            if not args.yes and not args.dry_run:
+                raise Refusal("migrate-ids writes to the instance: add --yes (or --dry-run)")
+            return cmd_migrate_ids(args)
         cells = load_fixture(args.fixture)
         return {"plan": cmd_plan, "backup": cmd_backup, "apply": cmd_apply, "verify": cmd_verify, "restore": cmd_restore}[command](args, cells)
     except Refusal as err:

@@ -199,7 +199,9 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `pkg/connector/ingress` | reads one inbound delivery the way a connector package declares it (ADR-168 §3, §4): bounded extraction of the credential, the verification of the… | — |
 | `pkg/connector/intake` | holds what a connector source owes after it answered a vendor (ADR-168 §8): the durable INTAKE row a delivery or a polled item becomes, and the… | `Matcher`, `Store`, `Submitter` |
 | `pkg/connector/overlay` | the AUTHORED half of a connector package. | — |
-| `pkg/connector/spec` | the connector catalog's declarative model: what a connector package IS, independent of where it came from (a generated vendor OpenAPI description, a… | — |
+| `pkg/connector/poller` | holds the durable state of a connector source that iterion reads instead of being called (ADR-168 §7): one record per poller — a query against one… | `Store` |
+| `pkg/connector/polling` | runs a connector source iterion reads instead of being called (ADR-168 §7): each poller's tick calls its trigger's read operation through the… | — |
+| `pkg/connector/spec` | stores and judges the catalog identity a connector package may declare about its icon: the load-time sanitation, size cap and digest that let a route… | — |
 | `pkg/credpool` | mutualises LLM subscription credentials that individual developers lend to a deployment. | `AttachmentStore`, `LeaseStore`, `Ledger`, `PledgeStore`, `PoolStore` |
 | `pkg/credusage` | meters per-CREDENTIAL monthly LLM spend — the question the org bucket cannot answer. | `Counter` |
 | `pkg/deeplink` | builds the URLs that point a human at a page of the studio. | — |
@@ -278,7 +280,7 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `pkg/repomap` | generates this repository's discoverability commons: small, committed indexes that let an agent — one working on the repo, or a bot running inside… | `Extractor` |
 | `pkg/retrycoord` | contains the policy shared by runner replicas when deciding whether a retry wave should be admitted. | — |
 | `pkg/retrypolicy` | the shared "should this failed run be retried, and when?" contract — the after-the-failure counterpart to pkg/schedgate's before-the-launch gate. | — |
-| `pkg/reviewtopology` | resolves the mono/dual review topology for bi-model review-loop bots (whole-improve-loop, branch-improve-loop, feature-dev, docs-refresh,… | — |
+| `pkg/reviewtopology` | resolves the review topology for review-loop bots (review-pr, evolve) and injects the resolved review_mode var into a run's inputs when the target… | — |
 | `pkg/routing` | evaluates a run's launch-frozen RoutingPolicy against its terminal state. | — |
 | `pkg/runner` | implements the cloud-mode iterion runner pod. | — |
 | `pkg/runops` | owns the capability-gated, read-only operations used by assistant and MCP transports to inspect runs. | — |

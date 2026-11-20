@@ -60,9 +60,15 @@ func slackIntake(tenant string) intake.Intake {
 // One verdict per candidate of the intake's own connection, in
 // subscription-id order, each the subscription's own judgment.
 func TestTheMatcherJudgesItsConnectionsCandidates(t *testing.T) {
+	// Two BOTS on one connection and one trigger — one bot cannot hold the
+	// same binding twice (Store.Create refuses it); a single subscription
+	// narrows several values by listing them in one filter.
+	c1 := connectorSub("s2", "t1", "conn-a", map[string][]string{"channel": {"C1"}})
+	c1.BotID = "b1"
+	c2 := connectorSub("s1", "t1", "conn-a", map[string][]string{"channel": {"C2"}})
+	c2.BotID = "b2"
 	m := matcherWorld(t, &fakeCatalog{pkg: slackPackage()},
-		connectorSub("s2", "t1", "conn-a", map[string][]string{"channel": {"C1"}}),
-		connectorSub("s1", "t1", "conn-a", map[string][]string{"channel": {"C2"}}),
+		c1, c2,
 		connectorSub("s3", "t1", "conn-b", nil),
 	)
 	vs, err := m.Match(context.Background(), slackIntake("t1"))
@@ -164,5 +170,75 @@ func TestTheLocalTenantsMapBothWays(t *testing.T) {
 		if ConnectionTenant(team) != team || SubscriptionTenant(team) != team {
 			t.Errorf("team %q did not map to itself", team)
 		}
+	}
+}
+
+// An event belongs to its trigger only if it came the way the trigger is fed.
+// A package that turned a webhook trigger into a polled one leaves intakes its
+// ingress wrote — stored, dead-lettered, replayed — and subscriptions saved
+// before the change; neither may launch through a trigger no delivery feeds.
+// The mirror holds too: a poller's intake never reaches a webhook trigger.
+func TestAnEventReachesATriggerOnlyTheWayTheTriggerIsFed(t *testing.T) {
+	polled := slackPackage()
+	polled.Triggers[0].Delivery = spec.DeliveryPoll
+	polled.Triggers[0].Event = ""
+	m := matcherWorld(t, &fakeCatalog{pkg: polled}, connectorSub("s1", "t1", "conn-a", nil))
+	if _, refusal, err := m.Trigger(slackIntake("t1")); err != nil || !strings.Contains(refusal, "fed by a poller") {
+		t.Fatalf("an ingress intake for a polled trigger = %q %v, want a refusal naming the poller", refusal, err)
+	}
+	vs, err := m.Match(context.Background(), slackIntake("t1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range vs {
+		if v.Matched {
+			t.Fatalf("subscription %s matched an ingress event through a polled trigger", v.SubscriptionID)
+		}
+	}
+
+	webhook := matcherWorld(t, &fakeCatalog{pkg: slackPackage()}, connectorSub("s1", "t1", "conn-a", nil))
+	fromPoller := slackIntake("t1")
+	fromPoller.IngressID, fromPoller.PollerID = "", "poller-1"
+	if _, refusal, err := webhook.Trigger(fromPoller); err != nil || !strings.Contains(refusal, "fed by an ingress") {
+		t.Fatalf("a poller intake for a webhook trigger = %q %v, want a refusal naming the ingress", refusal, err)
+	}
+	if tr, refusal, err := webhook.Trigger(slackIntake("t1")); err != nil || refusal != "" || tr.ID != "slack.message.posted" {
+		t.Fatalf("an ingress intake for its webhook trigger = %v %q %v, want it resolved", tr.ID, refusal, err)
+	}
+}
+
+// A polled intake is owed to the subscriptions activated before its poller
+// accepted it: eligibility reads iterion's sequence, never the vendor's
+// clock, so a subscription created after an item never receives it and one
+// created before receives an item that became visible late.
+func TestAPolledIntakeIsOwedOnlyToSubscriptionsActivatedBeforeIt(t *testing.T) {
+	polled := slackPackage()
+	polled.Triggers[0].Delivery = spec.DeliveryPoll
+	polled.Triggers[0].Event = ""
+	sub := func(id string, since int64) trigger.Subscription {
+		s := connectorSub(id, "t1", "conn-a", nil)
+		// One binding per bot (trigger.ErrDuplicateConnectorBinding).
+		s.BotID = "bot-" + id
+		s.Poller, s.PollerSince = "pl-1", since
+		return s
+	}
+	// Created in both orders: the verdicts follow the store's id order and
+	// the sequences, never the creation order.
+	for name, subs := range map[string][]trigger.Subscription{
+		"ascending":  {sub("s-before", 4), sub("s-at", 5), sub("s-after", 9)},
+		"descending": {sub("s-after", 9), sub("s-at", 5), sub("s-before", 4)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			m := matcherWorld(t, &fakeCatalog{pkg: polled}, subs...)
+			in := slackIntake("t1")
+			in.IngressID, in.PollerID, in.Sequence = "", "pl-1", 5
+			vs, err := m.Match(context.Background(), in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(vs) != 1 || vs[0].SubscriptionID != "s-before" || !vs[0].Matched {
+				t.Fatalf("verdicts = %+v, want s-before alone, matched: activated at or after sequence 5 owes nothing", vs)
+			}
+		})
 	}
 }

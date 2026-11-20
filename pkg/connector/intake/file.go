@@ -122,6 +122,15 @@ func (f *FileStore) ListIntakes(ctx context.Context, tenantID, state string, lim
 	return out, err
 }
 
+func (f *FileStore) ListPollerIntakes(ctx context.Context, tenantID, pollerID string, maxSeq int64, limit int) (out []Intake, err error) {
+	err = f.withState(ctx, func(m *MemoryStore) error {
+		var e error
+		out, e = m.ListPollerIntakes(ctx, tenantID, pollerID, maxSeq, limit)
+		return e
+	})
+	return out, err
+}
+
 func (f *FileStore) ClaimIntakes(ctx context.Context, owner string, now time.Time, ttl time.Duration, limit int) (out []Intake, err error) {
 	err = f.withState(ctx, func(m *MemoryStore) error {
 		var e error
@@ -174,6 +183,15 @@ func (f *FileStore) ListPairs(ctx context.Context, tenantID string, q PairQuery,
 		return e
 	})
 	return out, err
+}
+
+func (f *FileStore) LaunchedPair(ctx context.Context, tenantID, subscriptionID, itemKey string) (out Pair, found bool, err error) {
+	err = f.withState(ctx, func(m *MemoryStore) error {
+		var e error
+		out, found, e = m.LaunchedPair(ctx, tenantID, subscriptionID, itemKey)
+		return e
+	})
+	return out, found, err
 }
 
 func (f *FileStore) ClaimPairs(ctx context.Context, owner string, now time.Time, ttl time.Duration, limit int) (out []Pair, err error) {

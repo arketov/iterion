@@ -83,7 +83,7 @@ type Config struct {
 // against a PR-webhook it can't observe). The router outranks RequireAssignee: it
 // names a bot first, so with it on an unassigned card is not held for an
 // assignee; a tracker with no PR probe logs a one-time WARN. Keep it off to make
-// unassigned cards wait (docs/adr/169-ticket-router-outranks-require-assignee-on-trackers-without-pr-probe.md).
+// unassigned cards wait (docs/adr/174-ticket-router-outranks-require-assignee-on-trackers-without-pr-probe.md).
 type TicketRouterConfig struct {
 	Enabled bool `yaml:"enabled" json:"enabled"`
 	// ImplementBot is the bot a PR-less unassigned issue routes to. Empty =

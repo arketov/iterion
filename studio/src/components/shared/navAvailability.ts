@@ -37,6 +37,7 @@ export function isNavHrefAvailable(
     case "/dispatcher":
       return !!info?.dispatcher_enabled;
     case "/triggers":
+    case "/sources":
       return !!info && (!!info.triggers_enabled || cloud);
     case "/marketplace":
       return !!info?.marketplace_enabled;

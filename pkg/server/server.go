@@ -34,6 +34,7 @@ import (
 	"github.com/arketov/iterion/pkg/configshare"
 	"github.com/arketov/iterion/pkg/connection"
 	"github.com/arketov/iterion/pkg/connector/intake"
+	"github.com/arketov/iterion/pkg/connector/poller"
 	"github.com/arketov/iterion/pkg/credpool"
 	"github.com/arketov/iterion/pkg/credusage"
 	"github.com/arketov/iterion/pkg/errtrack"
@@ -257,6 +258,9 @@ type Server struct {
 	// connectorIntakes is the connector ingress lane's durable intake; nil
 	// leaves POST /api/webhooks/c/{id} unregistered.
 	connectorIntakes intake.Store
+	// connectorPollers is the pollers' durable state (ADR-168 §7); nil runs
+	// no poller and refuses a subscription to a polled trigger.
+	connectorPollers poller.Store
 	orgUsage         orgusage.Counter
 	// credUsage is the per-CREDENTIAL monthly ledger the runner feeds; nil
 	// leaves the /credentials/usage views unregistered.
@@ -488,10 +492,12 @@ type Server struct {
 	// token + loop-guard + reply-in-thread detection + allowlist/role authz
 	// — test seam, the real gate calls the GitLab API). nil →
 	// realWebhookNoteGate. Returns (authorized, replyInThread, threadContext,
-	// reason, err): replyInThread marks a plain reply in a Revi thread (no
-	// /revi command); threadContext is the discussion transcript the converse
-	// bot receives as {{vars.thread_context}} ("" when not fetched).
-	webhookNoteGate func(ctx context.Context, cfg webhooks.Config, p gitlab.ParsedNote, botID string) (authorized, replyInThread bool, threadContext, reason string, err error)
+	// reason, anchor, err): replyInThread marks a plain reply in a Revi
+	// thread (no /revi command); threadContext is the discussion transcript
+	// the converse bot receives as {{vars.thread_context}} ("" when not
+	// fetched); anchor is the thread ROOT's diff position (the discussion
+	// fetch already had it), which the converse bot focuses its diff read on.
+	webhookNoteGate func(ctx context.Context, cfg webhooks.Config, p gitlab.ParsedNote, botID string) (authorized, replyInThread bool, threadContext, reason string, anchor webhooks.ThreadAnchor, err error)
 	// webhookCommandGate overrides the generic slash-command replier gate
 	// (forge token + loop-guard + allowlist/role authz, honouring the route's
 	// per-command MinReplierRole — test seam). nil → realWebhookCommandGate.
@@ -1008,6 +1014,7 @@ func New(cfg Config, logger *iterlog.Logger) *Server {
 		webhookDeliveries:    cfg.WebhookDeliveries,
 		webhookCounter:       cfg.WebhookCounter,
 		connectorIntakes:     cfg.ConnectorIntakes,
+		connectorPollers:     cfg.ConnectorPollers,
 		webhookDeferred:      cfg.WebhookDeferred,
 		syncDebounce:         webhookSyncDebounceFromEnv(),
 		orgUsage:             cfg.OrgUsage,

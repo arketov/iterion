@@ -395,7 +395,7 @@ asymmetry: not listable there, still mutable there.
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| `GET` | `/api/teams/{id}/api-keys` | team member | List team's BYOK keys |
+| `GET` | `/api/teams/{id}/api-keys` | team member | List team's BYOK keys (a user-scoped personal key is not listed — see `/api/me/api-keys`) |
 | `POST` | `/api/teams/{id}/api-keys` | team admin | Create — `base_url` required for `openai_compatible` (https, canonical; literal non-public addresses and reserved names refused) and refused elsewhere; `repos` restricts the key to repositories (full forge paths, no URL or glob); unknown fields and a second JSON value are refused (strict) |
 | `PATCH` | `/api/teams/{id}/api-keys/{key_id}` | team admin | Rename, toggle default, ROTATE the sealed secret (same shape gate as create, new `last4` + fingerprint), set `max_concurrent_runs` (0 = uncapped), replace the `bots` or `repos` audience, move a gateway key's `base_url` — a rotation: `secret` is required in the same request and is sealed under the new URL, a move without it is `400` (the stored secret is never re-sealed for a host its holder did not prove it for), re-sending the stored URL is a no-op — and every rotation of a gateway key answers `409` when another writer rotated or moved the key between the read and the write; `base_url` on a vendor key is `400`, blank included (a create ignores an empty one as absent); unknown fields and a second JSON value are refused (strict) — an absent field is left alone, `"bots": []` clears it. The write is a `$set` of the named fields only, never a replace of the row. A row whose `provider` this server build does not know (written by a newer server during a rolling update, or left by a rollback) is refused with `409`, audited as `refused`: update it from a current server, or delete it |
 | `DELETE` | `/api/teams/{id}/api-keys/{key_id}` | team admin | Delete — `404` on a row that is absent or tenant-hidden, never a success receipt for a no-op revoke |
@@ -672,9 +672,10 @@ pool — full model in [credential-pool.md](credential-pool.md).
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| `GET` | `/api/me/pool` | member | Your pledges and what they have served |
-| `PUT` | `/api/me/pool/{source}/{ref}` | member | Create or update a pledge (ceilings, sharing window, bot allow-list) |
-| `DELETE` | `/api/me/pool/{source}/{ref}` | member | Withdraw a pledge |
+| `GET` | `/api/me/pool` | member | Your pledges and what they have served. Each entry carries its `id` (and `key_id` for an api_key pledge) |
+| `PUT` | `/api/me/pool/{source}/{ref}` | member | Create or update a pledge (ceilings, sharing window, bot allow-list). The body's `key_id` completes an api_key pledge's identity |
+| `DELETE` | `/api/me/pool/entries/{pledge}` | member | Withdraw one pledge by its own id — the only address that names one of two keys of one provider. A pledge of somebody else answers 404 |
+| `DELETE` | `/api/me/pool/{source}/{ref}` | member | Withdraw, kept one release as a shim for the id route. Exact for an `oauth` pair; an api_key pair takes `?key_id=`, and without it a single match is withdrawn while several answer 400 |
 | `GET` | `/api/me/pool/history` | member | The runs your quota served |
 | `GET` | `/api/teams/{id}/pool` | team member | The pool's policy. The donor roster rides along only for an org admin/owner (`canManageOrg`) — who lends, and how much they have given, is the contributors' own business |
 | `PUT` | `/api/teams/{id}/pool` | org admin | Set the audience policy deciding who may draw. The pool document is keyed by ORG, so a team admin/owner who is not also an org admin/owner is refused `403` |

@@ -140,7 +140,7 @@ func Read(req Request) (Delivery, error) {
 		if err != nil {
 			return Delivery{}, fmt.Errorf("%w: handshake.when: %v", ErrMalformed, err)
 		}
-		if when == true {
+		if expr.Truthy(when) {
 			respond, err := spec.EvalDelivery(h.Respond, ctx)
 			if err != nil || respond == nil {
 				return Delivery{}, fmt.Errorf("%w: handshake.respond: %v", ErrMalformed, err)
@@ -170,14 +170,8 @@ func Read(req Request) (Delivery, error) {
 			d.DeliveryID = id
 		}
 	}
-	var trig *spec.Trigger
-	for i := range req.Triggers {
-		if req.Triggers[i].Event == name {
-			trig = &req.Triggers[i]
-			break
-		}
-	}
-	if trig == nil {
+	trig, ok := spec.WebhookTrigger(req.Triggers, name)
+	if !ok {
 		d.Filtered = fmt.Sprintf("the package declares no trigger for event %.64q", name)
 		return d, nil
 	}
@@ -202,7 +196,7 @@ func extract(trig spec.Trigger, event map[string]any, headers map[string]string,
 		if err != nil {
 			return nil, "", fmt.Errorf("%w: %s.ignore: %v", ErrMalformed, trig.ID, err)
 		}
-		if drop == true {
+		if expr.Truthy(drop) {
 			return nil, fmt.Sprintf("trigger %s's loop guard dropped it", trig.ID), nil
 		}
 	}
@@ -237,6 +231,16 @@ func Preview(in *spec.Ingress, trig spec.Trigger, payload map[string]any, header
 	visible := visibleHeaders(in)
 	headers := listedHeaders(visible, header)
 	return extract(trig, event, headers, spec.NewDeliveryContext(event, header, visible))
+}
+
+// ReadItem reads one polled item through its trigger as the lane reads a
+// delivery's payload (extract): the item is the event's payload (ADR-168
+// Q2), and a poller has no headers to list. The trigger's loop guard drops
+// it (filtered says why), or the event a subscription is judged against
+// comes back. The poller and the preview share it.
+func ReadItem(trig spec.Trigger, item map[string]any) (json.RawMessage, string, error) {
+	normalizeNumbers(item)
+	return extract(trig, item, map[string]string{}, spec.NewDeliveryContext(item, nil, nil))
 }
 
 // encodeEvent encodes the event without HTML escaping — a "<" stored as

@@ -56,6 +56,7 @@ import (
 	natsq "github.com/arketov/iterion/pkg/queue/nats"
 	"github.com/arketov/iterion/pkg/runtime"
 	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/scripthost"
 	"github.com/arketov/iterion/pkg/secrets"
 	"github.com/arketov/iterion/pkg/store"
 )
@@ -416,6 +417,31 @@ func (p *Publisher) poolRoutes(ctx context.Context, pool string) error {
 // since, or a pool another team has taken, refuses it. Then the dispatch
 // gate the launch carries: a pool-stamped resume routes only when its pool
 // is registry-active.
+// codemodeOrReplayed returns the resume's re-stated codemode choice, else
+// the launch's persisted one. Empty wins over empty: a run launched without
+// an override stays without one.
+func codemodeOrReplayed(restated string, prior *store.Run) string {
+	if restated != "" {
+		return restated
+	}
+	if prior == nil {
+		return ""
+	}
+	return prior.CodemodeOverride
+}
+
+// codemodeBoundsOrReplayed is codemodeOrReplayed for the bounds raise: the
+// re-stating pointer wins, the doc's persisted pointer fills the silence.
+func codemodeBoundsOrReplayed(restated *scripthost.Limits, prior *store.Run) *scripthost.Limits {
+	if restated != nil {
+		return restated
+	}
+	if prior == nil {
+		return nil
+	}
+	return prior.CodemodeBoundsOverride
+}
+
 func (p *Publisher) resumePoolRefusal(ctx context.Context, prior *store.Run) error {
 	currentPool, err := p.runnerPoolForTeam(ctx, prior.TenantID)
 	if err != nil {
@@ -1590,11 +1616,10 @@ func (p *Publisher) resolveAndSealCredentials(ctx context.Context, runID, orgID,
 	// runner's env fallback is unknowable here, and injecting "no family"
 	// facts about credentials we cannot see would be asserting a falsehood.
 	// bundle.APIKeys only, deliberately: a pinned key is spendable by the
-	// routes that name it, but these vars SHAPE THE PROGRAM (review_mode,
-	// llm_families), and widening a run's family set because one node pins a
-	// provider would switch a mono topology to dual behind the author's
-	// back. A node that wants a family pins it; funding it does not ask for
-	// a different review.
+	// routes that name it, but one of these vars SHAPES THE PROGRAM
+	// (`llm_families`), and widening a run's family set because one node
+	// pins a provider would report a host that is not this one. The review
+	// mode is not one of them any more — it reads no credential (ADR-169).
 	providers := make([]string, 0, len(bundle.APIKeys))
 	for prov := range bundle.APIKeys {
 		providers = append(providers, string(prov))
@@ -3451,6 +3476,14 @@ func (p *Publisher) acquireFromPool(ctx context.Context, runID, orgID, tenantID,
 	// One walk per launch: the wants, the diagnostics and the consulted
 	// line all read the same resolution.
 	wants, res := wantsFor(view)
+	// Deliberately NOT widened by a pinned family: this tier is the
+	// MUTUALISED pool, and it grants ONE credential (want-major, the first
+	// that admits). Widening it here is useless when the pool also holds
+	// the routes' family (the route want comes first and the pin stays
+	// unserved), and harmful when it holds only the pinned family: the
+	// grant then skips the platform tier wholesale (ADR-131), orphaning
+	// the family the routes spend. The pinned family is served by the
+	// ATTACHED tier, which fills per slot.
 	if len(res.Unknown) > 0 {
 		// A pin nobody knows never narrows the request to nothing: the
 		// walk widened to the full order instead. Name the pin — a typo
@@ -4055,6 +4088,12 @@ func (p *Publisher) SubmitLaunch(ctx context.Context, runID string, spec runview
 		// resume publisher replays it onto every later queue attempt.
 		PermissionOverride: spec.Permission,
 		PermissionMode:     spec.Permission,
+		// Same doctrine for the codemode launch choice (ADR-165): stamped so
+		// every later resume — the studio's answers, the retry sweeper,
+		// surfaces that cannot re-state an override — replays the launch's
+		// decision instead of falling back to the authored DSL.
+		CodemodeOverride:       spec.Codemode,
+		CodemodeBoundsOverride: spec.CodemodeBounds,
 		// Same display parity a local launch gets from the engine: the
 		// studio Overview reads the pins from the run doc, and the resume
 		// path replays them onto its RunMessage from here.
@@ -4229,21 +4268,34 @@ func (p *Publisher) SubmitLaunch(ctx context.Context, runID string, spec runview
 	// after the fact when the donor is already out of pocket.
 	budget := clampBudgetToGrant(spec.Budget, wf, creds.grant, 0, p.logger, runID, creds.grants...)
 
-	// Resolve the credential-derived topology vars (review_mode +
-	// mono_family, plan_review, llm_families) from what actually sealed
-	// into the run — the queued-run counterpart of the host-detection
-	// injection every in-process launch surface applies. Only when the
-	// bundle resolved at least one participating credential: an empty set
-	// means the run rides the runner's env fallback, which is unknowable
-	// here, and the bots' own "auto" defaults must survive untouched.
+	// Resolve the review mode on EVERY lane, credential or not: it reads no
+	// credential since ADR-169, so the empty-bundle exception below — which
+	// exists because plan_review and llm_families are facts about
+	// credentials this publisher cannot see — does not apply to it.
+	// Skipping it let a frozen `mono` reach the bot's enum gate (a refusal)
+	// and a `dual` reach its guards as an unknown value (a paired review
+	// silently downgraded to single).
+	if _, declares := wf.Vars[reviewtopology.VarReviewMode]; declares {
+		if inputs == nil {
+			inputs = map[string]any{}
+			r.Inputs = inputs
+		}
+		if mode, injected := reviewtopology.InjectReviewModeIfDeclared(wf, inputs, spec.ReviewMode); injected {
+			p.logger.Info("cloudpublisher: run %s review topology: %s", runID, mode)
+		}
+	}
+	// The two injections that READ the bundle — plan_review and
+	// llm_families — only when it resolved at least one participating
+	// credential: an empty set means the run rides the runner's env
+	// fallback, which is unknowable here, and the bots' own defaults must
+	// survive untouched rather than be resolved from a false "no
+	// credentials" premise.
 	if len(creds.families.Families()) > 0 {
 		if inputs == nil {
 			inputs = map[string]any{}
 			r.Inputs = inputs
 		}
-		if inj, err := reviewtopology.InjectAll(wf, inputs, creds.families, spec.ReviewMode); err != nil {
-			return runview.LaunchSubmission{}, fmt.Errorf("refusing to launch: %w", err)
-		} else if inj.Summary() != "" {
+		if inj := reviewtopology.InjectDerivedIfDeclared(wf, inputs, creds.families); inj.Summary() != "" {
 			p.logger.Info("cloudpublisher: run %s %s", runID, inj.Summary())
 		}
 	}
@@ -4411,6 +4463,8 @@ func (p *Publisher) SubmitLaunch(ctx context.Context, runID string, spec runview
 		SandboxImage:    p.effectiveSandboxImage(ctx),
 		AutoMemory:      spec.AutoMemory,
 		AmbientContext:  spec.AmbientContext,
+		Codemode:        spec.Codemode,
+		CodemodeBounds:  spec.CodemodeBounds,
 		LoopBudgetGuard: spec.LoopBudgetGuard,
 		Supervisors:     spec.Supervisors,
 		Permission:      spec.Permission,
@@ -4985,26 +5039,6 @@ func (p *Publisher) SubmitResume(ctx context.Context, spec runview.ResumeSpec, w
 		}
 		p.logger.Warn("cloudpublisher: re-stamp cred fingerprints on run %s: %v", spec.RunID, serr)
 	}
-	// The review family this run FROZE at launch, judged against the
-	// credentials THIS resume just re-sealed. A resume replays the frozen
-	// inputs and nothing else re-judges them, so a run whose family lost its
-	// credential since — deleted, rotated, capped — used to come back, start,
-	// and die at its first review node; on the forge lane that reads as a
-	// required check going dark on every pull request of the repo, and the
-	// 7-day cap on the runs listing hid the dead runs entirely (measured
-	// 2026-09-22, #1221). The judgement is read-only: the inputs stay the
-	// launch's, byte for byte.
-	//
-	// Only when the bundle resolved at least one participating credential,
-	// exactly like the launch above: an empty set means the run rides the
-	// runner's env fallback, which is unknowable from here, and refusing on
-	// "no family" facts about credentials we cannot see would ground every
-	// such resume.
-	if len(creds.families.Families()) > 0 {
-		if err := reviewtopology.RefuseFrozenPin(wf, prior.Inputs, creds.families); err != nil {
-			return fmt.Errorf("refusing to resume: %w", err)
-		}
-	}
 	// The HARD per-key concurrency cap, asked again on every resume
 	// (cred_slots.go): the slot this run held from a previous attempt is
 	// admitted again without taking a second one; a key full of OTHER runs
@@ -5062,10 +5096,17 @@ func (p *Publisher) SubmitResume(ctx context.Context, spec runview.ResumeSpec, w
 		// Re-resolved by the resume surface like credentials are re-sealed:
 		// the resumed attempt runs the CURRENT stored bundle, consistently
 		// across the compile above and the runner-side materialization.
-		BotBundle:       queueBotBundleRef(spec.BotBundle),
-		SandboxImage:    p.effectiveSandboxImage(ctx),
-		AutoMemory:      spec.AutoMemory,
-		AmbientContext:  spec.AmbientContext,
+		BotBundle:      queueBotBundleRef(spec.BotBundle),
+		SandboxImage:   p.effectiveSandboxImage(ctx),
+		AutoMemory:     spec.AutoMemory,
+		AmbientContext: spec.AmbientContext,
+		// The codemode launch choice replays from the run doc when the resume
+		// does not re-state it — the doc is the only carrier a resume surface
+		// that cannot re-state an override (the studio's answers, the retry
+		// sweeper) has. A silence here would re-arm a capability the
+		// operator killed at launch.
+		Codemode:        codemodeOrReplayed(spec.Codemode, prior),
+		CodemodeBounds:  codemodeBoundsOrReplayed(spec.CodemodeBounds, prior),
 		LoopBudgetGuard: spec.LoopBudgetGuard,
 		Supervisors:     spec.Supervisors,
 		Permission:      prior.PermissionOverride,
