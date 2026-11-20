@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -85,7 +86,8 @@ const fixtureBrokerURL = "nats://127.0.0.1:4222"
 // and ECONNREFUSED, term for term (TestRefusingDialerAnswersAsTheKernelDoes
 // holds it to a real closed port). What the witnesses using it judge is
 // natsgo's own reading of that error: a refused pool collapses into
-// ErrNoServers.
+// ErrNoServers (natsgo reads the Linux text "connection refused", which
+// this fixture carries on every host).
 type refusingDialer struct{}
 
 func (refusingDialer) Dial(network, address string) (net.Conn, error) {
@@ -141,8 +143,11 @@ func malformedURLError(t *testing.T) error {
 
 // The refusal refusingDialer hands natsgo is the kernel's. A dial to a
 // closed loopback port with no deadline cannot end in a timeout, whatever
-// the load, and both answers must read alike: natsgo recognises a refusal
-// by that text.
+// the load, and both answers must be the same refusal: the same shape
+// (*net.OpError, dial, the address) and a refused errno in the chain. The
+// wording is the platform's — Linux says "connection refused", Windows
+// "connectex: ... actively refused it" — so the texts are compared only where
+// the fixture's Linux wording is the kernel's.
 func TestRefusingDialerAnswersAsTheKernelDoes(t *testing.T) {
 	addr := closedBrokerPort(t)
 	c, kernel := net.Dial("tcp", addr)
@@ -151,11 +156,18 @@ func TestRefusingDialerAnswersAsTheKernelDoes(t *testing.T) {
 		t.Fatalf("a dial to the closed port %s connected — the comparison below would prove nothing", addr)
 	}
 	_, stub := refusingDialer{}.Dial("tcp", addr)
-	if stub.Error() != kernel.Error() {
+	if runtime.GOOS != "windows" && stub.Error() != kernel.Error() {
 		t.Fatalf("fixture refusal %q, kernel refusal %q: the fixture no longer carries the real producer's terms", stub, kernel)
 	}
-	if !errors.Is(kernel, syscall.ECONNREFUSED) || !errors.Is(stub, syscall.ECONNREFUSED) {
-		t.Fatalf("kernel %v, fixture %v: want ECONNREFUSED in both chains", kernel, stub)
+	if !isConnRefused(kernel) || !isConnRefused(stub) {
+		t.Fatalf("kernel %v, fixture %v: want a refused errno in both chains", kernel, stub)
+	}
+	var kernelOp, stubOp *net.OpError
+	if !errors.As(kernel, &kernelOp) || !errors.As(stub, &stubOp) {
+		t.Fatalf("kernel %v, fixture %v: want a *net.OpError from both", kernel, stub)
+	}
+	if kernelOp.Op != stubOp.Op || kernelOp.Net != stubOp.Net || kernelOp.Addr.String() != stubOp.Addr.String() {
+		t.Fatalf("fixture refusal %q, kernel refusal %q: the operation, network or address differ", stub, kernel)
 	}
 }
 
@@ -372,6 +384,34 @@ func TestRetryableDialClassifiesWhatTheLibraryReturns(t *testing.T) {
 	}
 }
 
+// A refused dial natsgo did not collapse into ErrNoServers is still "the
+// broker is not up yet". natsgo recognises a refusal by the text "connection
+// refused", which is the Linux wording: on Windows the kernel says "connectex:
+// No connection could be made because the target machine actively refused
+// it." and the raw *net.OpError reaches the classifier. The refusal is read by
+// its errno on every platform; both shapes are built here so the witness does
+// not depend on the host that runs it.
+func TestRetryableDialTreatsARefusalNatsgoDidNotCollapseAsNotUpYet(t *testing.T) {
+	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:4222")
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	for name, errno := range map[string]error{
+		"posix ECONNREFUSED":      syscall.ECONNREFUSED,
+		"windows WSAECONNREFUSED": syscall.Errno(10061),
+	} {
+		t.Run(name, func(t *testing.T) {
+			refused := &net.OpError{Op: "dial", Net: "tcp", Addr: addr, Err: os.NewSyscallError("connect", errno)}
+			if errors.Is(refused, natsgo.ErrNoServers) {
+				t.Fatalf("%v already is ErrNoServers — the errno class below would go unjudged", refused)
+			}
+			if !retryableDial(refused) {
+				t.Fatalf("refused dial %v classified as final, want retryable: the broker is not up yet", refused)
+			}
+		})
+	}
+}
+
 // quietBrokerError is what natsgo returns against a broker that accepts the
 // connection and never speaks the protocol — a container that bound its port
 // before it could serve. The library's own handshake bound ends the wait,
@@ -512,7 +552,7 @@ func TestConnectWaitsForABrokerThatIsNotUpYet(t *testing.T) {
 	}
 
 	var dialErr *net.OpError
-	refused := errors.Is(err, natsgo.ErrNoServers)
+	refused := errors.Is(err, natsgo.ErrNoServers) || isConnRefused(err)
 	timedOut := errors.As(err, &dialErr) && dialErr.Timeout()
 	if !refused && !timedOut {
 		t.Fatalf("err = %v, want natsgo's verdict on the dial in the chain — its refusal or its dialer's timeout: the attempt never reached the library", err)

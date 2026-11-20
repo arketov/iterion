@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"syscall"
 	"time"
 
 	natsgo "github.com/nats-io/nats.go"
@@ -158,6 +159,13 @@ func retryableDial(err error) bool {
 	if errors.Is(err, natsgo.ErrNoServers) {
 		return true
 	}
+	// natsgo recognises a refusal by the Linux text "connection refused"; on
+	// Windows the kernel words it differently ("connectex: ... actively refused
+	// it") and the raw dial error comes back. The refusal is the same fact, read
+	// here by its errno, which Go does not map between the two platforms.
+	if isConnRefused(err) {
+		return true
+	}
 	// A Service whose record is not published yet answers NXDOMAIN, which
 	// is indistinguishable from a host name nobody will ever resolve. The
 	// cluster case is the one a boot must survive; the typo costs the
@@ -178,6 +186,17 @@ func retryableDial(err error) bool {
 		return netErr.Timeout()
 	}
 	return false
+}
+
+// wsaConnRefused is WSAECONNREFUSED, the errno a refused connect carries on
+// Windows. syscall.ECONNREFUSED there is a placeholder value no kernel
+// returns, and syscall.Errno.Is does not equate the two, so both are listed.
+const wsaConnRefused = syscall.Errno(10061)
+
+// isConnRefused reports a dial the kernel refused because nothing listens on
+// the port, whichever platform worded it.
+func isConnRefused(err error) bool {
+	return errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, wsaConnRefused)
 }
 
 // describeDialBound names the bound that ended the retries, so the operator

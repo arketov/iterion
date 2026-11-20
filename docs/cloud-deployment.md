@@ -338,7 +338,8 @@ queue pod routinely starts after the processes that need it — the kubelet
 serialises image pulls, and a Service's DNS record appears when the Service
 does — so the boot dial retries for at most **30 s** (5 s per attempt, 500 ms
 between) while the failure means "not up yet": nothing listening (`nats: no
-servers available for connection`), an unresolved host, or a container that
+servers available for connection`; on Windows the kernel's raw "actively
+refused" dial error counts too, read by its errno), an unresolved host, or a container that
 accepts TCP before it serves the protocol. That is the policy
 [pkg/store/mongo/ping.go](../pkg/store/mongo/ping.go) already applies to its
 primary ping, value for value. A failure no retry can cure (a malformed URI,
