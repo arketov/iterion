@@ -695,7 +695,7 @@ func (c *Dispatcher) lastRunHoldBeforeClaim(iss tracker.Issue) bool {
 		// a held operator cancel into a fresh sibling the moment the store
 		// blips (the mint guard downstream is bypassed once a retry entry
 		// exists).
-		c.recordLastRunHold(iss, fmt.Sprintf("last run %s exists but the run store cannot be opened — holding", prev))
+		c.recordLastRunHold(iss, DispatchSkipLastRunHold, fmt.Sprintf("last run %s exists but the run store cannot be opened — holding", prev))
 		return true
 	}
 	r, err := c.loadRunForDecision(rs, prev, "pre-claim hold check")
@@ -707,7 +707,7 @@ func (c *Dispatcher) lastRunHoldBeforeClaim(iss tracker.Issue) bool {
 		return false
 	}
 	if err != nil {
-		c.recordLastRunHold(iss, fmt.Sprintf("last run %s exists but cannot be read — holding", prev))
+		c.recordLastRunHold(iss, DispatchSkipLastRunHold, fmt.Sprintf("last run %s exists but cannot be read — holding", prev))
 		return true
 	}
 	status := r.Status
@@ -729,11 +729,11 @@ func (c *Dispatcher) lastRunHoldBeforeClaim(iss tracker.Issue) bool {
 			return false
 		}
 		reason := fmt.Sprintf("last run %s is %s — refusing a fresh sibling", prev, status)
-		c.recordLastRunHold(iss, reason)
+		c.recordLastRunHold(iss, DispatchSkipLastRunHold, reason)
 		return true
 	case store.RunStatusRunning, store.RunStatusQueued:
 		reason := fmt.Sprintf("last run %s is %s — refusing a fresh sibling", prev, status)
-		c.recordLastRunHold(iss, reason)
+		c.recordLastRunHold(iss, DispatchSkipLastRunActive, reason)
 		return true
 	case store.RunStatusCancelled:
 		// Operator cancel is terminal for the retry policy: hold BEFORE the
@@ -748,7 +748,7 @@ func (c *Dispatcher) lastRunHoldBeforeClaim(iss tracker.Issue) bool {
 			delete(c.state.retries, iss.ID)
 		}
 		reason := fmt.Sprintf("last run %s was cancelled by the operator — resume it explicitly, or `iterion issue update --clear-last-run` to free the ticket", prev)
-		c.recordLastRunHold(iss, reason)
+		c.recordLastRunHold(iss, DispatchSkipLastRunHold, reason)
 		return true
 	case store.RunStatusFinished:
 		// A clean finish does not hold the card — an operator dragging it
@@ -765,7 +765,7 @@ func (c *Dispatcher) lastRunHoldBeforeClaim(iss tracker.Issue) bool {
 		// is the point of the board.
 		if iss.StateReason == tracker.ReasonRunFinished && sameBotFinished(r, iss) {
 			reason := fmt.Sprintf("last run %s finished cleanly and the dispatcher itself returned the card to %q — not re-dispatching; move the card to another column and back to re-queue it", prev, iss.WorkflowState)
-			c.recordLastRunHold(iss, reason)
+			c.recordLastRunHold(iss, DispatchSkipRunFinished, reason)
 			return true
 		}
 	}
@@ -782,18 +782,18 @@ func (c *Dispatcher) lastRunHoldBeforeClaim(iss tracker.Issue) bool {
 	_, exists, managed, err := c.workspaces.resumeGenerationState(iss.ID, resumeID)
 	if err != nil {
 		reason := fmt.Sprintf("workspace ownership probe failed for run %s: %v", resumeID, err)
-		c.recordLastRunHold(iss, reason)
+		c.recordLastRunHold(iss, DispatchSkipLastRunHold, reason)
 		return true
 	}
 	if exists && !managed {
 		reason := fmt.Sprintf("run %s has no managed v2 workspace ownership — refusing a fresh sibling", resumeID)
-		c.recordLastRunHold(iss, reason)
+		c.recordLastRunHold(iss, DispatchSkipLastRunHold, reason)
 		return true
 	}
 	return false
 }
 
-func (c *Dispatcher) recordLastRunHold(iss tracker.Issue, reason string) {
+func (c *Dispatcher) recordLastRunHold(iss tracker.Issue, kind, reason string) {
 	if c.state.lastRunHoldWarned == nil {
 		c.state.lastRunHoldWarned = map[string]string{}
 	}
@@ -801,7 +801,7 @@ func (c *Dispatcher) recordLastRunHold(iss tracker.Issue, reason string) {
 		c.state.lastRunHoldWarned[iss.ID] = reason
 		c.logger.Warn("dispatcher: %s: %s", iss.Identifier, reason)
 	}
-	c.recordDispatchSkip(iss, reason)
+	c.recordDispatchSkipKind(iss, kind, reason)
 }
 
 func (c *Dispatcher) dispatchWorkspaceLifecycle(
@@ -1036,7 +1036,7 @@ func (c *Dispatcher) resolveRunID(ctx context.Context, iss tracker.Issue) (runID
 			// from entry either: a live last_run is durable. Defer; leave
 			// the old directory untouched for operator recovery.
 			reason := fmt.Sprintf("run %s has no managed v2 workspace ownership — refusing a fresh sibling", resumeFromRunID)
-			c.recordLastRunHold(iss, reason)
+			c.recordLastRunHold(iss, DispatchSkipLastRunHold, reason)
 			c.releaseClaim(ctx, iss.ID, iss.Identifier)
 			return "", "", attempt, false
 		}
@@ -1063,7 +1063,7 @@ func (c *Dispatcher) resolveRunID(ctx context.Context, iss tracker.Issue) (runID
 			// might be an operator cancel, a pause, anything the guards
 			// below exist to hold. Hold until it reads again.
 			reason := fmt.Sprintf("last run %s exists but cannot be read — holding rather than minting a sibling blind", prev)
-			c.recordLastRunHold(iss, reason)
+			c.recordLastRunHold(iss, DispatchSkipLastRunHold, reason)
 			c.releaseClaim(ctx, iss.ID, iss.Identifier)
 			return "", "", attempt, false
 		}
@@ -1080,7 +1080,11 @@ func (c *Dispatcher) resolveRunID(ctx context.Context, iss tracker.Issue) (runID
 				}
 			}
 			reason := fmt.Sprintf("last run %s is %s — refusing a fresh sibling", prev, status)
-			c.recordLastRunHold(iss, reason)
+			kind := DispatchSkipLastRunHold
+			if status == store.RunStatusRunning || status == store.RunStatusQueued {
+				kind = DispatchSkipLastRunActive
+			}
+			c.recordLastRunHold(iss, kind, reason)
 			c.releaseClaim(ctx, iss.ID, iss.Identifier)
 			return "", "", attempt, false
 		}

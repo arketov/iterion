@@ -419,7 +419,30 @@ export function IssueCard({
           ⏳ {skip.reason}
         </div>
       )}
-      {!running && skip && skip.kind !== "source_changed" && skip.kind !== "queued" && (
+      {!running && skip && skip.kind === "last_run_active" && (
+        <div
+          className="mt-1 rounded bg-fg-muted/10 px-1.5 py-1 text-caption text-fg-subtle"
+          data-testid="last-run-active-banner"
+          title="The card's last run is still alive, so the dispatcher will not start a second one."
+        >
+          ▶ run in progress <span className="break-words">— {skip.reason}</span>
+        </div>
+      )}
+      {!running && skip && skip.kind === "run_finished" && (
+        <div
+          className="mt-1 rounded bg-fg-muted/10 px-1.5 py-1 text-caption text-fg-subtle"
+          data-testid="run-finished-banner"
+          title="The run finished; the dispatcher will not start the card again until it is moved to another column and back."
+        >
+          ✓ run finished — card parked <span className="break-words">— {skip.reason}</span>
+        </div>
+      )}
+      {!running &&
+        skip &&
+        skip.kind !== "source_changed" &&
+        skip.kind !== "queued" &&
+        skip.kind !== "last_run_active" &&
+        skip.kind !== "run_finished" && (
         <button
           type="button"
           className="mt-1 w-full text-left rounded bg-danger-soft px-1.5 py-1 text-caption text-danger-fg cursor-pointer hover:bg-danger-soft"
@@ -434,7 +457,9 @@ export function IssueCard({
                 ? `The assignee “${skip.assignee ?? ""}” is not a bot of this project, so the dispatcher will not start a run (it never falls back to a default bot). Pick a bot in the issue editor (Bot tab).`
                 : skip.kind === "completion_pending"
                   ? "The run finished but moving the card failed; the dispatcher keeps retrying — it will not run again."
-                  : `The dispatcher refuses to run this issue: ${skip.reason}. Fix the bot in the issue editor or add it to assignee_workflows.`
+                  : skip.kind === "last_run_hold"
+                    ? `The dispatcher holds this card because of its last run: ${skip.reason}. Resume the run explicitly, or clear the last run (\`iterion issue update --clear-last-run\`) to free the card.`
+                    : `The dispatcher refuses to run this issue: ${skip.reason}. Fix the bot in the issue editor or add it to assignee_workflows.`
           }
         >
           {skip.kind === "no_assignee"
@@ -443,7 +468,9 @@ export function IssueCard({
               ? "⚠ no bot — won't start"
               : skip.kind === "completion_pending"
                 ? "⚠ finishing — move retrying"
-                : "⚠ won't dispatch"}
+                : skip.kind === "last_run_hold"
+                  ? "⚠ held — last run"
+                  : "⚠ won't dispatch"}
           <span className="ml-1 text-danger-fg break-words">— {skip.reason}</span>
         </button>
       )}
