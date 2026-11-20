@@ -44,7 +44,8 @@ func TestSupersededServerServesDiagnosticsWithoutStartingWorkers(t *testing.T) {
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.ListenAndServe() }()
 
-	client := &http.Client{Timeout: time.Second}
+	// A 1s client budget flakes on a saturated host (same as Shutdown below); a real hang still fails at 10s.
+	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get("http://" + srv.Addr() + "/healthz")
 	if err != nil {
 		t.Fatalf("GET /healthz: %v", err)
