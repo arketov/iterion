@@ -181,7 +181,7 @@ const (
 	// C154 is allocated from the free C154-C169 band: C113-C119 belong to the
 	// fan_out_each/groups epic and C120-C122 are taken, so the permission
 	// family cannot grow contiguously from C112.
-	DiagGatedCLIBackendSandbox DiagCode = "C136" // a gated route needs a host-side run: external-hook backend (grok/kimi) with any gate, or claw with an ask-capable policy, and the workflow does not opt out of the sandbox (warning)
+	DiagGatedCLIBackendSandbox DiagCode = "C136" // a gated route needs a host-side run: external-hook backend (grok/kimi) with any gate, or claw whose ask-capable policy can reach a container-executed tool (the approval channel serves launcher-placed asks only), and the workflow does not opt out of the sandbox (warning)
 	DiagIndexOnScalar          DiagCode = "C120" // subscript `[...]` applied to a statically-scalar value (warning) — C113-C119 taken by the fan_out_each/groups epic
 	DiagInvalidNodeTimeout     DiagCode = "C122" // LLM node `timeout:` is not a valid Go duration (error) — C121 taken, C199 is skill-ref on main
 	DiagFileFieldNotHuman      DiagCode = "C129" // `file` schema field on the output of a node that never pauses for an operator (error — no LLM can produce a binary)
@@ -382,7 +382,7 @@ const (
 	// Stage 1 changes nothing at runtime, so a deployment's pins keep
 	// working while the catalogue is de-dialled; the hard catalogue floor
 	// arrives with the last de-dialled bot group.
-	DiagEnvDialInRunSetting DiagCode = "C315" // a run setting (route field, var default, tool body) reads the process environment instead of its authored literal and the levels above it (warning)
+	DiagEnvDialInRunSetting DiagCode = "C315" // a run setting (route field incl. a supervisor's model, var default, tool body, cursor setting, budget max_duration) reads the process environment instead of its authored literal and the levels above it (warning)
 
 	// On codex a `tools:` list is not an allowlist: codex runs its built-in
 	// shell outside the SDK's per-name callbacks, so the list buys a SANDBOX
@@ -527,7 +527,37 @@ const (
 
 	DiagCodemodeMemoryBelowFloor DiagCode = "C350" // a codemode: memory bound below the measured floor a Go child works under — the platform raises the bound to the floor where the program is spawned (warning)
 
-	// DiagUnknownMCPServer is C351: a node's `tools:` names an MCP server
+	// A node's own `allow:`/`ask:`/`deny:` lists on a claw route that serves
+	// it no tool. On claw the declared `tools:` list IS the tool surface
+	// (ClawToolSurfaceEmpty), so a node that declares rules and nothing to
+	// call is dispatched with nothing callable: the rules bound nothing, and
+	// an `allow:` row — which reads as a grant — grants nothing. A warning:
+	// the node still runs, and the same shape is a real bound on a backend
+	// that keeps its own roster (claude_code), which is why only a route the
+	// source sends to claw is named.
+	DiagPermissionRulesNoTools DiagCode = "C351" // a node declares its own allow/ask/deny rules and a route the source sends to claw (primary or fallback) serves it no tool — nothing is callable there, so the rules bound nothing (warning)
+
+	// C352 joins the Verified Action family (C103-C106 and C179, ADR-044)
+	// beside C351, whose fact it shares and whose fix it does not: a tool
+	// node's rung-4 recovery agent is dispatched with `agent_tools:` as its
+	// whole tool list, so on claw a rung that declares none sends an agent
+	// with nothing to call to achieve a goal "with its tools". A warning: the
+	// node runs, and the postcondition still judges it.
+	DiagRecoveryAgentNoTools DiagCode = "C352" // policy: recover reaches rung 4 on a workflow the source routes to claw, with no recovery.agent_tools: and no workflow codemode — the recovery agent is served no tool (warning)
+
+	DiagInvalidCodemodeStoreQuota DiagCode = "C353" // codemode store quota is negative or declared at node scope (error)
+
+	DiagInvalidCodemodeDefer DiagCode = "C354" // codemode defer: value not one of on|off (error)
+
+	// The deferral's own C348: `defer: on` declared on a node whose codemode
+	// is off by its own declaration. Not an error — the node keeps its tools
+	// declared and loses nothing — but the property the author wrote bounds
+	// nothing, and C348 is the form that says so. Workflow rung exempt, for
+	// the reason C348 states: the workflow's defer is a default every node
+	// that turns codemode on itself inherits.
+	DiagCodemodeDeferWithModeOff DiagCode = "C355" // codemode defer: on declared beside `mode: off` on a node — no program runs, so the deferral is inert (warning)
+
+	// DiagUnknownMCPServer is C356: a node's `tools:` names an MCP server
 	// (`mcp.<server>.<tool>`, `mcp.<server>.*` or `mcp__<server>__<tool>`) that
 	// no `mcp_server` block, project `.mcp.json` entry or enabled plugin
 	// declares. The compiler cannot know the host's catalog, so `iterion
@@ -537,10 +567,11 @@ const (
 	// (Fork-only. It was C332 until the upstream v5.11.0 merge, which took
 	// C332–C336 for the board-action diagnostics, then C337 until the v7.2.0
 	// merge (C337–C346: codemode and secret/shell diagnostics), then C347 and
-	// C348 until the v7.5.0 merge (C347–C350: the codemode bounds).)
-	DiagUnknownMCPServer DiagCode = "C351" // a node's `tools:` names an MCP server that no `mcp_server` block, `.mcp.json` entry or enabled plugin declares (warning)
+	// C348 until the v7.5.0 merge (C347–C350: the codemode bounds), then C351 and C352 until the v7.31.0
+	// merge (C351–C355: permission rules / recovery agent with no tool, codemode quota and defer).)
+	DiagUnknownMCPServer DiagCode = "C356" // a node's `tools:` names an MCP server that no `mcp_server` block, `.mcp.json` entry or enabled plugin declares (warning)
 
-	// DiagUnknownModel is C352: a node (agent, judge, LLM router, or one of its
+	// DiagUnknownModel is C357: a node (agent, judge, LLM router, or one of its
 	// `fallbacks:` routes) names a literal `anthropic/<id>` or `openai/<id>`
 	// model that neither the live model table nor the embedded models.dev
 	// snapshot lists. The compiler cannot consult the registry (pkg/backend/model
@@ -548,5 +579,5 @@ const (
 	// it after Compile via model.UnknownModelDiagnostics; without it a typo reads
 	// "usable" and fails only at the first paid call. A warning: a model newer
 	// than the snapshot, or a custom endpoint, is a false positive.
-	DiagUnknownModel DiagCode = "C352" // a literal anthropic/* or openai/* model that neither the live model table nor the embedded snapshot lists (warning)
+	DiagUnknownModel DiagCode = "C357" // a literal anthropic/* or openai/* model that neither the live model table nor the embedded snapshot lists (warning)
 )

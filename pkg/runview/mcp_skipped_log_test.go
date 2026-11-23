@@ -1,6 +1,7 @@
 package runview
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,7 +58,7 @@ workflow main:
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
 	}
-	buf, logger := svc.prepareRunLog("run-mcp-skip")
+	buf, logger := svc.prepareRunLog(context.Background(), "run-mcp-skip")
 	logMCPSkips(logger, cs)
 
 	_, data, _ := buf.Snapshot(0)

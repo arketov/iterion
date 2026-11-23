@@ -1,4 +1,4 @@
-# ADR-171 — Settled-claim sweep
+# ADR-176 — Settled-claim sweep
 
 - **Status**: Accepted — the gateway's design for the board card "a claim is not released when a run resumed after a pause moved its own card to a terminal column" (2026-11-06).
 - **Date**: 2026-11-09

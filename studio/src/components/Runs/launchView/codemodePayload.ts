@@ -15,22 +15,28 @@ import type { CodemodeBoundsOverride, CodemodeLimits } from "@/api/runs";
 
 export interface CodemodeFieldValues {
   toolCalls: string;
+  concurrentToolCalls: string;
   wall: string;
   cpu: string;
   memory: string;
   scriptBytes: string;
   resultBytes: string;
   toolResultBytes: string;
+  storeEntries: string;
+  storeBytes: string;
 }
 
 export const emptyCodemodeFieldValues: CodemodeFieldValues = {
   toolCalls: "",
+  concurrentToolCalls: "",
   wall: "",
   cpu: "",
   memory: "",
   scriptBytes: "",
   resultBytes: "",
   toolResultBytes: "",
+  storeEntries: "",
+  storeBytes: "",
 };
 
 export interface CodemodePayload {
@@ -68,6 +74,8 @@ export function buildCodemodePayload(
   const bounds: CodemodeBoundsOverride = {};
   const toolCalls = positiveNumber(fields.toolCalls);
   if (toolCalls !== undefined) bounds.tool_calls = toolCalls;
+  const concurrentToolCalls = positiveNumber(fields.concurrentToolCalls);
+  if (concurrentToolCalls !== undefined) bounds.concurrent_tool_calls = concurrentToolCalls;
   // Durations travel VERBATIM (the server owns the parse and 400s a value it
   // cannot read, naming the field) — except a value that PARSES TO ZERO:
   // "0s" reaches the resolver as the unset it looks like, silently reverting
@@ -85,6 +93,10 @@ export function buildCodemodePayload(
   if (result !== undefined) bounds.result_bytes = result;
   const toolResult = positiveNumber(fields.toolResultBytes);
   if (toolResult !== undefined) bounds.tool_result_bytes = toolResult;
+  const storeEntries = positiveNumber(fields.storeEntries);
+  if (storeEntries !== undefined) bounds.store_entries = storeEntries;
+  const storeBytes = positiveNumber(fields.storeBytes);
+  if (storeBytes !== undefined) bounds.store_bytes = storeBytes;
 
   if (Object.keys(bounds).length > 0) out.codemode_bounds = bounds;
   return out;
@@ -130,10 +142,13 @@ export function droppableDuration(raw: string): boolean {
 export function unreadableFields(fields: CodemodeFieldValues): string[] {
   const numeric: Array<[string, string]> = [
     ["tool_calls", fields.toolCalls],
+    ["concurrent_tool_calls", fields.concurrentToolCalls],
     ["memory", fields.memory],
     ["script_bytes", fields.scriptBytes],
     ["result_bytes", fields.resultBytes],
     ["tool_result_bytes", fields.toolResultBytes],
+    ["store_entries", fields.storeEntries],
+    ["store_bytes", fields.storeBytes],
   ];
   const out: string[] = [];
   for (const [name, raw] of numeric) {
@@ -195,11 +210,14 @@ export function overCeiling(
     if (got !== undefined && cap !== undefined && got > cap) over.push(name);
   };
   num("tool_calls", fields.toolCalls, ceil.tool_calls);
+  num("concurrent_tool_calls", fields.concurrentToolCalls, ceil.concurrent_tool_calls);
   dur("wall", fields.wall, ceil.wall);
   dur("cpu", fields.cpu, ceil.cpu);
   num("memory", fields.memory, ceil.memory);
   num("script_bytes", fields.scriptBytes, ceil.script_bytes);
   num("result_bytes", fields.resultBytes, ceil.result_bytes);
   num("tool_result_bytes", fields.toolResultBytes, ceil.tool_result_bytes);
+  num("store_entries", fields.storeEntries, ceil.store_entries);
+  num("store_bytes", fields.storeBytes, ceil.store_bytes);
   return over;
 }

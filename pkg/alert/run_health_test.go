@@ -16,7 +16,7 @@ func TestStoreSink_StallEpisodeBothEdges(t *testing.T) {
 	clock := base
 	m := NewManager(
 		WithStallTimeout(5*time.Minute),
-		WithStoreSink(func(a Alert) { persisted = append(persisted, a) }),
+		WithStoreSink(func(a Alert, _ store.RunObservation, _ bool) { persisted = append(persisted, a) }),
 	)
 	m.now = func() time.Time { return clock }
 
@@ -52,7 +52,7 @@ func TestObserve_RunHealthReplayIsInert(t *testing.T) {
 	clock := base
 	m := NewManager(
 		WithStallTimeout(5*time.Minute),
-		WithStoreSink(func(a Alert) { persisted = append(persisted, a) }),
+		WithStoreSink(func(a Alert, _ store.RunObservation, _ bool) { persisted = append(persisted, a) }),
 	)
 	m.now = func() time.Time { return clock }
 
@@ -133,26 +133,26 @@ func TestObserve_ToolHeartbeatIsProgressAndNamesTheCommand(t *testing.T) {
 	}
 
 	fired := m.checkStalls(base.Add(16 * time.Minute))
-	if len(fired) != 1 || fired[0].Kind != KindStall {
+	if len(fired) != 1 || fired[0].a.Kind != KindStall {
 		t.Fatalf("want one stall once the beats stop, got %+v", fired)
 	}
-	if fired[0].NodeID != "gate" {
-		t.Fatalf("stall NodeID = %q, want gate", fired[0].NodeID)
+	if fired[0].a.NodeID != "gate" {
+		t.Fatalf("stall NodeID = %q, want gate", fired[0].a.NodeID)
 	}
 	for _, want := range []string{"no activity for", "shell:gate", "go test ./pkg/..."} {
-		if !strings.Contains(fired[0].Reason, want) {
-			t.Fatalf("stall reason %q lacks %q", fired[0].Reason, want)
+		if !strings.Contains(fired[0].a.Reason, want) {
+			t.Fatalf("stall reason %q lacks %q", fired[0].a.Reason, want)
 		}
 	}
 
 	// A following ordinary event closes the episode and clears the detail.
 	m.Observe(store.Event{RunID: "r1", Type: store.EventToolCalled, NodeID: "gate", Timestamp: base.Add(17 * time.Minute)})
 	fired = m.checkStalls(base.Add(23 * time.Minute))
-	if len(fired) != 1 || fired[0].Kind != KindStall {
+	if len(fired) != 1 || fired[0].a.Kind != KindStall {
 		t.Fatalf("want a second stall, got %+v", fired)
 	}
-	if strings.Contains(fired[0].Reason, "last signal") {
-		t.Fatalf("the second stall still names the heartbeat: %q", fired[0].Reason)
+	if strings.Contains(fired[0].a.Reason, "last signal") {
+		t.Fatalf("the second stall still names the heartbeat: %q", fired[0].a.Reason)
 	}
 }
 
@@ -165,7 +165,7 @@ func TestStoreSink_PanicContained(t *testing.T) {
 	m := NewManager(
 		WithStallTimeout(5*time.Minute),
 		WithSinks(sink),
-		WithStoreSink(func(Alert) { panic("boom") }),
+		WithStoreSink(func(_ Alert, _ store.RunObservation, _ bool) { panic("boom") }),
 	)
 	m.now = func() time.Time { return clock }
 

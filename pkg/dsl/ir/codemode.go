@@ -46,7 +46,7 @@ var CodemodeValues = []string{"on", "off"}
 // (`wall_ns`, `memory_bytes`, …) are the ones the host enforces, so the
 // `wall_ms` bug its own field doc records — a hand-written `"wall_ms":30000`
 // enforced as 30µs — cannot be reintroduced by a second declaration of the
-// same seven numbers. It is also what the repository asks for in general:
+// same limits. It is also what the repository asks for in general:
 // read the vocabulary where it is defined rather than keep a copy.
 //
 // A zero field means UNSET, which is exactly what Limits.Clamp already reads
@@ -105,13 +105,61 @@ func ResolveCodemodeBounds(run, node, workflow *CodemodeBounds) *CodemodeBounds 
 		w = *workflow
 	}
 	out := CodemodeBounds{
-		Wall:            pickDur(r.Wall, n.Wall, w.Wall),
-		CPU:             pickDur(r.CPU, n.CPU, w.CPU),
-		Memory:          pick(r.Memory, n.Memory, w.Memory),
-		ScriptBytes:     pick(r.ScriptBytes, n.ScriptBytes, w.ScriptBytes),
-		ResultBytes:     pick(r.ResultBytes, n.ResultBytes, w.ResultBytes),
-		ToolCalls:       pick(r.ToolCalls, n.ToolCalls, w.ToolCalls),
-		ToolResultBytes: pick(r.ToolResultBytes, n.ToolResultBytes, w.ToolResultBytes),
+		Wall:                pickDur(r.Wall, n.Wall, w.Wall),
+		CPU:                 pickDur(r.CPU, n.CPU, w.CPU),
+		Memory:              pick(r.Memory, n.Memory, w.Memory),
+		ScriptBytes:         pick(r.ScriptBytes, n.ScriptBytes, w.ScriptBytes),
+		ResultBytes:         pick(r.ResultBytes, n.ResultBytes, w.ResultBytes),
+		ToolCalls:           pick(r.ToolCalls, n.ToolCalls, w.ToolCalls),
+		ConcurrentToolCalls: pick(r.ConcurrentToolCalls, n.ConcurrentToolCalls, w.ConcurrentToolCalls),
+		ToolResultBytes:     pick(r.ToolResultBytes, n.ToolResultBytes, w.ToolResultBytes),
+	}
+	return &out
+}
+
+// ResolveCodemodeStoreLimits resolves the quota of the one bank shared by a
+// run, field by field. Only the launch and the workflow may choose it; a
+// node never does. Zero inherits and the platform ceiling always applies.
+func ResolveCodemodeStoreLimits(run, workflow *CodemodeBounds) (entries, bytes int64) {
+	defaults, ceiling := scripthost.DefaultLimits(), scripthost.Ceiling()
+	entries, bytes = defaults.StoreEntries, defaults.StoreBytes
+	for _, rung := range []*CodemodeBounds{workflow, run} {
+		if rung == nil {
+			continue
+		}
+		if rung.StoreEntries > 0 {
+			entries = rung.StoreEntries
+		}
+		if rung.StoreBytes > 0 {
+			bytes = rung.StoreBytes
+		}
+	}
+	return min(entries, ceiling.StoreEntries), min(bytes, ceiling.StoreBytes)
+}
+
+// ReplayCodemodeBounds keeps existing replacement semantics when a restatement
+// includes a per-program bound. Restating only bank quotas leaves per-program
+// bounds untouched, and each omitted quota keeps its previous value. The
+// result is an execution snapshot, not an explicit quota patch for a claim.
+func ReplayCodemodeBounds(restated, prior *CodemodeBounds) *CodemodeBounds {
+	if restated == nil {
+		return prior
+	}
+	if prior == nil {
+		return restated
+	}
+	entries, bytes := restated.StoreEntries, restated.StoreBytes
+	out := *restated
+	out.StoreEntries, out.StoreBytes = 0, 0
+	if out == (CodemodeBounds{}) && (entries > 0 || bytes > 0) {
+		out = *prior
+	}
+	out.StoreEntries, out.StoreBytes = entries, bytes
+	if out.StoreEntries == 0 {
+		out.StoreEntries = prior.StoreEntries
+	}
+	if out.StoreBytes == 0 {
+		out.StoreBytes = prior.StoreBytes
 	}
 	return &out
 }
@@ -143,12 +191,15 @@ func CodemodeBoundsAboveCeiling(b *CodemodeBounds) []string {
 		}
 	}
 	num("tool_calls", b.ToolCalls, ceil.ToolCalls)
+	num("concurrent_tool_calls", b.ConcurrentToolCalls, ceil.ConcurrentToolCalls)
 	dur("wall", b.Wall, ceil.Wall)
 	dur("cpu", b.CPU, ceil.CPU)
 	num("memory", b.Memory, ceil.Memory)
 	num("script_bytes", b.ScriptBytes, ceil.ScriptBytes)
 	num("result_bytes", b.ResultBytes, ceil.ResultBytes)
 	num("tool_result_bytes", b.ToolResultBytes, ceil.ToolResultBytes)
+	num("store_entries", b.StoreEntries, ceil.StoreEntries)
+	num("store_bytes", b.StoreBytes, ceil.StoreBytes)
 	return over
 }
 
@@ -160,6 +211,40 @@ func ValidCodemode(v string) bool {
 	return normCodemode(v) == "" || slices.Contains(CodemodeValues, normCodemode(v))
 }
 
+// ValidCodemodeDefer is ValidCodemode for the defer property: the same two
+// spellings, "" meaning inherit. It is the predicate the compiler judges the
+// block's value with (C354), so a second surface that grows a launch rung
+// validates with this rather than re-deriving the set.
+func ValidCodemodeDefer(v string) bool {
+	return normCodemode(v) == "" || slices.Contains(CodemodeValues, normCodemode(v))
+}
+
+// ResolveCodemodeDefer decides whether a node defers its own `tools:` list to
+// the codemode catalogue, nearest rung first: the launch request's value,
+// then the node's, then the workflow's, then "" — which reads as off.
+//
+// There is deliberately NO launch surface carrying the value yet (no queue
+// field, no CLI flag — the queue's SchemaVersion was not bumped for it), so
+// today every caller passes "" at the run rung. The rung exists because the
+// attribute is a configuration the operator may one day override per run,
+// and ResolveCodemode is the shape a second switch beside it must take —
+// nearest-wins, "" inherit, no environment rung (ADR-132 §1).
+//
+// The two ladders are walked SEPARATELY, and that has one reach worth
+// stating: a launch override of the MODE (ResolveCodemode's run rung) turns
+// codemode on for a node whose own block says `mode: off` — and this
+// resolver then answers that node's `defer: on` as written, so the deferral
+// goes live with it. That is the parity C348 has for the bounds beside
+// `mode: off`, and why C355 says "inert as written", never "inert".
+func ResolveCodemodeDefer(run, node, workflow string) string {
+	for _, v := range []string{normCodemode(run), normCodemode(node), normCodemode(workflow)} {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 // CodemodeBoundsSet reports whether the launch (or an author) set ANY field
 // of b. It is the launch's half of C348: bounds beside a run-level
 // `codemode: off` are inert, and the launch path warns rather than refuses —
@@ -167,7 +252,8 @@ func ValidCodemode(v string) bool {
 func CodemodeBoundsSet(b *CodemodeBounds) bool {
 	return b != nil && (b.Wall > 0 || b.CPU > 0 || b.Memory > 0 ||
 		b.ScriptBytes > 0 || b.ResultBytes > 0 ||
-		b.ToolCalls > 0 || b.ToolResultBytes > 0)
+		b.ToolCalls > 0 || b.ConcurrentToolCalls > 0 || b.ToolResultBytes > 0 ||
+		b.StoreEntries > 0 || b.StoreBytes > 0)
 }
 
 // CodemodeBoundsNegativeField names the first property of b set BELOW zero,
@@ -193,12 +279,15 @@ func CodemodeBoundsNegativeField(b *CodemodeBounds) string {
 	}
 	for _, name := range []string{
 		checkInt("tool_calls", b.ToolCalls),
+		checkInt("concurrent_tool_calls", b.ConcurrentToolCalls),
 		checkDur("wall", b.Wall),
 		checkDur("cpu", b.CPU),
 		checkInt("memory", b.Memory),
 		checkInt("script_bytes", b.ScriptBytes),
 		checkInt("result_bytes", b.ResultBytes),
 		checkInt("tool_result_bytes", b.ToolResultBytes),
+		checkInt("store_entries", b.StoreEntries),
+		checkInt("store_bytes", b.StoreBytes),
 	} {
 		if name != "" {
 			return name

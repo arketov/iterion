@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/pflag"
+
 	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
@@ -45,5 +47,52 @@ func TestCodemodeFlagsProjectBoundsOrNothing(t *testing.T) {
 	}
 	if name := (&codemodeFlagSet{toolCalls: 4}).negativeField(); name != "" {
 		t.Errorf("a clean set named %q, want silence", name)
+	}
+}
+
+func TestCodemodeConcurrencyFlagAlone(t *testing.T) {
+	t.Parallel()
+	var c codemodeFlagSet
+	flags := pflag.NewFlagSet("codemode", pflag.ContinueOnError)
+	c.register(flags)
+	if err := flags.Parse([]string{"--codemode-concurrent-tool-calls=3"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := c.bounds(); got == nil || got.ConcurrentToolCalls != 3 {
+		t.Errorf("bounds = %+v, want only ConcurrentToolCalls 3", got)
+	}
+	if err := flags.Set("codemode-concurrent-tool-calls", "0"); err != nil {
+		t.Fatal(err)
+	}
+	if got := c.bounds(); got != nil {
+		t.Errorf("bounds = %+v, want nil for explicit inherit", got)
+	}
+	if err := flags.Set("codemode-concurrent-tool-calls", "-1"); err != nil {
+		t.Fatal(err)
+	}
+	if got := c.negativeField(); got != "--codemode-concurrent-tool-calls" {
+		t.Errorf("negativeField = %q, want concurrency flag", got)
+	}
+}
+
+func TestCodemodeStoreFlags(t *testing.T) {
+	t.Parallel()
+	for _, flag := range []string{"codemode-store-entries", "codemode-store-bytes"} {
+		var c codemodeFlagSet
+		flags := pflag.NewFlagSet("codemode", pflag.ContinueOnError)
+		c.register(flags)
+		if err := flags.Parse([]string{"--" + flag + "=48"}); err != nil {
+			t.Fatal(err)
+		}
+		got := c.bounds()
+		if got == nil || (flag == "codemode-store-entries" && got.StoreEntries != 48) || (flag == "codemode-store-bytes" && got.StoreBytes != 48) {
+			t.Errorf("%s bounds = %+v, want the quota carried on its own", flag, got)
+		}
+		if err := flags.Set(flag, "-1"); err != nil {
+			t.Fatal(err)
+		}
+		if got := c.negativeField(); got != "--"+flag {
+			t.Errorf("negativeField() = %q, want --%s", got, flag)
+		}
 	}
 }

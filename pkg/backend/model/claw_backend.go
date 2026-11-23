@@ -142,12 +142,17 @@ func (b *StoreInboxBinder) Bind(ctx context.Context, runID string) InboxHook {
 	if b == nil || b.Store == nil || runID == "" {
 		return nil
 	}
+	binding, bound := store.RunDataBindingFrom(ctx)
+	scoped, _ := b.Store.(store.ScopedQueuedInboxVersioner)
 	return &storeInboxHook{
-		store:      b.Store,
-		publish:    b.Publish,
-		runID:      runID,
-		activeNode: NodeIDFromContext(ctx),
-		versioner:  asInboxVersioner(b.Store),
+		binding:         binding,
+		bound:           bound,
+		scopedVersioner: scoped,
+		store:           b.Store,
+		publish:         b.Publish,
+		runID:           runID,
+		activeNode:      NodeIDFromContext(ctx),
+		versioner:       asInboxVersioner(b.Store),
 	}
 }
 
@@ -164,14 +169,17 @@ func asInboxVersioner(s store.RunStore) store.QueuedInboxVersioner {
 // stable home for the cross-iteration state (last delivered IDs +
 // last observed inbox version) so the closures stay garbage-free.
 type storeInboxHook struct {
-	store         store.RunStore
-	publish       func(store.Event)
-	runID         string
-	activeNode    string
-	versioner     store.QueuedInboxVersioner
-	lastDelivered []string
-	lastVersion   uint64
-	versionSeen   bool
+	store           store.RunStore
+	publish         func(store.Event)
+	runID           string
+	activeNode      string
+	versioner       store.QueuedInboxVersioner
+	scopedVersioner store.ScopedQueuedInboxVersioner
+	binding         store.RunDataBinding
+	bound           bool
+	lastDelivered   []string
+	lastVersion     uint64
+	versionSeen     bool
 }
 
 // Drain transitions queued→delivered and returns texts in FIFO order.
@@ -179,23 +187,59 @@ type storeInboxHook struct {
 // fast-skips loading the JSONL when the counter is unchanged — the
 // common case for a busy tool loop on a run with no queued messages.
 func (h *storeInboxHook) Drain(ctx context.Context) []string {
-	if h.versioner != nil {
-		v := h.versioner.QueuedInboxVersion(h.runID)
-		if h.versionSeen && v == h.lastVersion {
+	ctx, err := h.operationContext(ctx)
+	if err != nil {
+		return nil
+	}
+	var version uint64
+	versioned := false
+	if h.scopedVersioner != nil {
+		version, err = h.scopedVersioner.QueuedInboxVersionContext(ctx, h.runID)
+		if err != nil {
 			return nil
 		}
-		h.lastVersion = v
-		h.versionSeen = true
+		versioned = true
+	} else if _, bound := store.RunDataBindingFrom(ctx); !bound && h.versioner != nil {
+		version = h.versioner.QueuedInboxVersion(h.runID)
+		versioned = true
 	}
-	texts, ids, _ := store.DrainPendingForNode(ctx, h.store, h.publish, h.runID, h.activeNode)
+	if versioned && h.versionSeen && version == h.lastVersion {
+		return nil
+	}
+	texts, ids, err := store.DrainPendingForNode(ctx, h.store, h.publish, h.runID, h.activeNode)
+	if err != nil {
+		return nil
+	}
+	if versioned {
+		h.lastVersion, h.versionSeen = version, true
+	}
 	if len(ids) > 0 {
 		h.lastDelivered = ids
 	}
 	return texts
 }
 
+// operationContext keeps the Bind-time observation but the current operation's
+// cancellation. A different binding cannot silently retarget an existing hook.
+func (h *storeInboxHook) operationContext(ctx context.Context) (context.Context, error) {
+	if h.bound {
+		return store.WithRunDataBinding(ctx, h.binding)
+	}
+	if ctx == nil {
+		return nil, store.ErrRunDataBindingRequired
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return ctx, nil
+}
+
 // Consume marks the previously-drained messages as consumed.
 func (h *storeInboxHook) Consume(ctx context.Context) {
+	ctx, err := h.operationContext(ctx)
+	if err != nil {
+		return
+	}
 	if len(h.lastDelivered) == 0 {
 		return
 	}
@@ -409,21 +453,24 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 		}
 	}
 
+	approval := exactClawApprovalFrom(ctx)
 	if task.Sandbox != nil {
 		// The permission gate crosses the sandbox IPC boundary as a
 		// pre-task permission_policy envelope: the in-container
 		// `iterion __claw-runner` rebuilds the policy through the same
 		// parser and enforces it in its own tool loop (see
-		// executeViaSandboxRunner). What CANNOT cross is an Ask
-		// decision — the runner has no seam to pause the parent run for
-		// a human — so a policy that can ever produce one (mode ask, or
-		// any explicit ask rule, which outranks mode deny) is refused
-		// loudly rather than silently degraded to deny; pi treats the
-		// same combination as fail-not-degrade.
-		if task.Permission.CanAsk() {
-			return delegate.Result{}, fmt.Errorf(
-				"claw backend: node %q declares a permission policy that can produce an Ask decision (mode %s), which a sandboxed runner cannot pause for — drop the ask rules / use deny, run the workflow unsandboxed (`sandbox: none` / `--sandbox none`), or route the node to claude_code",
-				task.NodeID, task.Permission.Mode)
+		// executeViaSandboxRunner). A policy that can Ask is SERVED, not
+		// refused, since the approval channel (#3513): the launcher
+		// announces the channel pre-task, and a permission Ask crosses as
+		// permission_ask — the held claim spends and executes, or the run
+		// suspends for a human and the re-asked approval is served on
+		// resume (including an exact approval resumed across the channel:
+		// the ctx approval above is read by the ask handler, which is why
+		// the old exact-approval-in-sandbox refusal is gone). The gate is
+		// still re-checked on THIS side at every ask and every forwarded
+		// call, so the runner's verdict stays a request, never a verdict.
+		if !task.Permission.CanAsk() && approval != nil {
+			return delegate.Result{}, fmt.Errorf("claw: exact approval resumed under a policy that no longer asks — the claim cannot be served across the sandbox")
 		}
 		// The async question pair is served by the launcher, which does not
 		// bind it to the run's question channel on this path: a task wired
@@ -434,6 +481,37 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 				NodeID: task.NodeID, Backend: delegate.BackendClaw, Capability: "interaction: async in a sandboxed run"}
 		}
 		task.ToolDefs = withoutUnplaceableToolsThePolicyDenies(task)
+		// The channel's enabled scope is LAUNCHER-placed asks only: the
+		// launcher consumes the approval AND executes the call, so it
+		// cannot certify a container-executed one. A node pairing an
+		// ask-capable policy with container-executed tools is refused here,
+		// explicitly and before the spawn — not degraded to per-call
+		// denials the model silently works around.
+		if task.Permission.CanAsk() {
+			var container []string
+			for _, td := range task.ToolDefs {
+				placement, _ := tool.SandboxPlacementOf(td.Name)
+				if placement == tool.PlacementLauncher {
+					continue
+				}
+				// Only a container tool this policy could ever ask about
+				// keeps the node out of the served scope: an ask rule
+				// scoped to launcher-placed tools leaves the container
+				// tools on their mode default, and those never pause.
+				// Argument scopes count — a scoped rule can fire on SOME
+				// invocation of the tool, and that invocation would
+				// degrade to a per-call denial.
+				if task.Permission.CanAskAbout(td.Name) {
+					container = append(container, td.Name)
+				}
+			}
+			if len(container) > 0 {
+				sort.Strings(container)
+				return delegate.Result{}, fmt.Errorf(
+					"claw backend: node %q pairs an ask-capable policy with container-executed tools (%s) — the approval channel serves launcher-placed tools only (MCP, in-memory registries); scope the ask rules to launcher-placed tools, drop the container tools, or run unsandboxed (`sandbox: none` / `--sandbox none`)",
+					task.NodeID, strings.Join(container, ", "))
+			}
+		}
 		if err := refuseToolsWithNoSandboxPlacement(task); err != nil {
 			return delegate.Result{}, err
 		}
@@ -494,6 +572,7 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 		UnmaterializeSecrets:  task.UnmaterializeSecrets,
 		NamesSecret:           task.NamesSecret,
 		ScreenModelText:       task.ScreenModelText,
+		RedactApprovalText:    task.RedactSecrets,
 	}
 
 	// Reasoning effort via ProviderOptions. Coerce against the model's
@@ -604,7 +683,12 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 	// suffix.
 	if len(task.ResumeConversation) > 0 {
 		var prior []api.Message
-		if err := json.Unmarshal(task.ResumeConversation, &prior); err != nil {
+		if !json.Valid(task.ResumeConversation) {
+			return delegate.Result{}, fmt.Errorf("claw backend: invalid resume conversation JSON")
+		}
+		decoder := json.NewDecoder(bytes.NewReader(task.ResumeConversation))
+		decoder.UseNumber()
+		if err := decoder.Decode(&prior); err != nil {
 			return delegate.Result{}, fmt.Errorf("claw backend: decode resume conversation: %w", err)
 		}
 		if task.ResumePendingToolUseID == "" {
@@ -616,7 +700,6 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 			resultText = "(no answer provided)"
 		}
 		isErr := false
-
 		// Permission-gate resume: when the pending tool_use is a real
 		// action the gate paused on (not the ask_user infra tool), the
 		// operator's answer is an authorization decision, not a question
@@ -624,25 +707,27 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 		// executor (from the runtime's GrantInputKey); here we just replace
 		// the tool_result with the right instruction so the agent re-issues
 		// the now-authorized call (which then runs through the normal tool
-		// loop) or adapts on denial.
+		// loop) or adapts on denial. On the approval channel's runner side
+		// the allow-once instruction is the SAME re-issue text: the text is
+		// display only — the launcher re-authorizes the re-issued call by
+		// exact bytes (the held claim spends on a match, defers to a fresh
+		// pause on any difference) — so a container that holds no claim
+		// still tells the model the truth about the operator's answer.
 		if name, _, ok := findPendingToolUse(prior, task.ResumePendingToolUseID); ok &&
 			!permission.IsInfrastructureTool(name) && task.Permission.Enabled() {
-			if allow, _ := permission.ParseAnswer(task.ResumeAnswer); allow {
-				resultText = "✅ The operator approved this action. Re-issue the exact same tool call now to perform it."
-			} else {
-				resultText = "⛔ The operator denied this action. Do not retry it; take a different approach or explain why it is needed."
-				isErr = true
-			}
+			resultText, isErr = resumeAnswerToolResult(task.ResumeAnswer, sandboxApprovalForwarderFrom(ctx) != nil)
 		}
 
-		prior = append(prior, api.Message{
-			Role: "user",
-			Content: []api.ContentBlock{api.ToolResult{
-				ToolUseID: task.ResumePendingToolUseID,
-				Content:   resultText,
-				IsError:   isErr,
-			}.ToContentBlock()},
-		})
+		if approval == nil {
+			prior = append(prior, api.Message{
+				Role: "user",
+				Content: []api.ContentBlock{api.ToolResult{
+					ToolUseID: task.ResumePendingToolUseID,
+					Content:   resultText,
+					IsError:   isErr,
+				}.ToContentBlock()},
+			})
+		}
 		opts.Messages = prior
 	}
 
@@ -828,7 +913,8 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 	// declared `on` this backend could not serve before building the task —
 	// so the only question left here is whether the task says so.
 	if task.Codemode {
-		installCodemode(&opts, task.CodemodeBounds, func(requested, applied scripthost.Limits) {
+		opts.codemodeState = codemodeStateFrom(ctx)
+		if err := installCodemode(&opts, task.CodemodeDefer, task.CodemodeBounds, func(requested, applied scripthost.Limits) {
 			if b.logger != nil {
 				// Both directions travel this seam (#3290): the ceiling REDUCES
 				// an over-reaching bound, the floor RAISES one the child could
@@ -840,7 +926,29 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 			if b.logger != nil {
 				b.logger.Warn("[%s] %s", task.NodeID, msg)
 			}
-		})
+		}); err != nil {
+			return delegate.Result{}, fmt.Errorf("claw backend: %w", err)
+		}
+	}
+
+	if approval != nil {
+		pending, err := pendingClawApproval(task.ResumeConversation, task.ResumePendingToolUseID)
+		if err != nil || pending.Name != approval.toolName || len(opts.Messages) == 0 {
+			return delegate.Result{}, fmt.Errorf("claw: exact approval has no matching pending conversation")
+		}
+		dispatcher, dispatchCtx := newToolDispatcher(WithoutExactClawApproval(ctx), buildToolMap(opts.Tools), opts.OnToolStarted, opts.OnToolCall, opts.Hooks, opts.MaterializeSecrets, opts.Permission)
+		call := toolUseBlock{ID: task.ResumePendingToolUseID, Name: pending.Name, PartialJSON: string(pending.Input)}
+		block, err := dispatcher.dispatchWithApproval(dispatchCtx, call, approval)
+		if err != nil {
+			return delegate.Result{}, err
+		}
+		blocks := []api.ContentBlock{block}
+		unmaterializeEchoingResults(blocks, []toolUseBlock{call}, opts.MaterializeSecrets, opts.UnmaterializeSecrets, opts.NamesSecret)
+		opts.Messages = append(opts.Messages, api.Message{Role: "user", Content: blocks})
+		// The approved call is dispatched and its real result appended: the
+		// transcript already carries it, so later retries, usage-window
+		// parking and session fallback cannot replay it — restore them.
+		ctx = WithoutExactClawApproval(ctx)
 	}
 
 	// The tool-step budget the node execution shares (claw_step_budget.go):
@@ -902,6 +1010,12 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 	// anchor to its next attempt.
 	res.ToolTurns = stepBudget.turnsRun()
 	res.ToolTurnsAnchor = stepBudget.anchorReport()
+	if approval != nil && genErr != nil {
+		var interrupted *approvedDispatchInterrupted
+		if !errors.As(genErr, &interrupted) {
+			genErr = &approvedDispatchInterrupted{cause: genErr}
+		}
+	}
 	return res, genErr
 }
 
@@ -969,7 +1083,7 @@ func (b *ClawBackend) retryLoop(ctx context.Context, nodeID string, fn func() (d
 	// retryable to the transport, but the window shuts for hours, and every
 	// re-issue within seconds only meets it again. The node stops on it and
 	// the run parks (clawUsageWindow types it at Execute's exit).
-	for attempt := 1; err != nil && isRetryable(err) && !delegate.IsUsageWindow(clawUsageWindow(err, time.Now())); attempt++ {
+	for attempt := 1; err != nil && exactClawApprovalFrom(ctx) == nil && isRetryable(err) && !delegate.IsUsageWindow(clawUsageWindow(err, time.Now())); attempt++ {
 		// Error-adaptive budget: a connectivity failure gets the larger
 		// transient budget to ride out a brief outage.
 		maxAttempts := b.retry.effectiveMaxAttempts(err)
@@ -1060,6 +1174,7 @@ func askUserResult(err error) (delegate.Result, bool) {
 		},
 		BackendName:             delegate.BackendClaw,
 		PendingConversation:     ask.Conversation,
+		PendingPermissionInput:  ask.PermissionInput,
 		PendingToolUseID:        ask.PendingToolUseID,
 		PendingCommandNarrowing: ask.CommandNarrowing,
 	}, true
@@ -1932,7 +2047,10 @@ func (b *ClawBackend) executeViaSandboxRunner(ctx context.Context, task delegate
 	// cap the channel's writer refuses it either way; refused HERE the node
 	// fails with the size named and no runner was started, where the same
 	// refusal after the spawn has to kill a process that is already reading.
-	taskEnv, err := delegate.NewTaskEnvelope(b.runnerIOTask(task, resolution.facts.funds))
+	ioTask := b.runnerIOTask(task, resolution.facts.funds)
+	stateRelay := codemodeStateRelay(ctx, task.Codemode)
+	ioTask.CodemodeState = stateRelay != nil
+	taskEnv, err := delegate.NewTaskEnvelope(ioTask)
 	if err != nil {
 		return delegate.Result{}, fmt.Errorf("claw backend: build task envelope: %w", err)
 	}
@@ -2236,13 +2354,23 @@ func (b *ClawBackend) executeViaSandboxRunner(ctx context.Context, task delegate
 			iterlog.BlockPreviewRendered(diag, maxFieldSize))
 	}()
 
-	handler, stranded := b.multiplexerHandler(ctx, task, seed)
+	// approvalSpent records that this crossing's launcher consumed an
+	// approval claim: a crossing that fails afterwards has an unknown
+	// outcome for the approved call, and the failure is typed ambiguous
+	// below so no retry replays it. The same state carries the deferred
+	// asks, which a returned pause must bind to before it checkpoints.
+	crossing := newCrossingApprovalState()
+	approvalSpent := &crossing.spent
+	handler, stranded := b.multiplexerHandler(ctx, task, seed, crossing)
+	handler.OnCodemodeState = stateRelay
 	mirror := handler.OnSessionCapture
 	handler.OnSessionCapture = func(snapshot json.RawMessage) {
 		turns.observe(snapshot)
 		mirror(snapshot)
 	}
 	mux := delegate.NewMultiplexer(stdoutR, stdinPipe, handler)
+	// Let the post-Wait pipe reaper report a reply write cut first.
+	mux.SetReplyDrainTimeout(2 * clawPipeDrainGrace)
 	// The raw line a decode error quotes crosses the run's pass before its
 	// 256-byte cut, or a value straddling the cut publishes its head into
 	// the node's error (iterion#2822).
@@ -2272,6 +2400,26 @@ func (b *ClawBackend) executeViaSandboxRunner(ctx context.Context, task delegate
 			_ = cmd.Process.Kill()
 			_ = wait()
 			return delegate.Result{}, fmt.Errorf("claw backend: send permission_policy: %w", err)
+		}
+		// The approval channel (#3513), before the task with the same
+		// position guarantee: a runner too old to know the type fatals on
+		// "unexpected envelope before task", and a runner without the
+		// announcement refuses an ask-capable policy outright (its bootstrap
+		// twin). Announced only for a policy that can Ask — the runner-side
+		// twin refuses the same predicate, so the two sides cannot disagree
+		// about whether the channel exists.
+		if task.Permission.CanAsk() {
+			approvalEnv, err := delegate.NewApprovalChannelEnvelope()
+			if err != nil {
+				_ = cmd.Process.Kill()
+				_ = wait()
+				return delegate.Result{}, fmt.Errorf("claw backend: build approval_channel envelope: %w", err)
+			}
+			if err := mux.Send(approvalEnv); err != nil {
+				_ = cmd.Process.Kill()
+				_ = wait()
+				return delegate.Result{}, fmt.Errorf("claw backend: send approval_channel: %w", err)
+			}
 		}
 	}
 
@@ -2306,11 +2454,22 @@ func (b *ClawBackend) executeViaSandboxRunner(ctx context.Context, task delegate
 		}
 	}
 
+	if ioTask.CodemodeState {
+		if err := mux.Send(delegate.Envelope{Type: delegate.EnvelopeCodemodeStateV1}); err != nil {
+			_ = cmd.Process.Kill()
+			_ = wait()
+			return delegate.Result{}, fmt.Errorf("claw backend: send codemode state capability: %w", err)
+		}
+	}
+
 	// Send the task envelope — built and sized before the spawn. The runner
 	// blocks on its EnvelopeReader.Read() until this arrives.
 	if err := mux.Send(taskEnv); err != nil {
 		_ = cmd.Process.Kill()
 		_ = wait()
+		if ioTask.CodemodeState {
+			return delegate.Result{}, fmt.Errorf("claw backend: send codemode state task envelope (runner must support codemode state v1): %w", err)
+		}
 		return delegate.Result{}, fmt.Errorf("claw backend: send task envelope: %w", err)
 	}
 
@@ -2361,8 +2520,8 @@ func (b *ClawBackend) executeViaSandboxRunner(ctx context.Context, task delegate
 				stderr: runnerStderr(),
 			}
 		}
-		return delegate.Result{}, fmt.Errorf("claw backend: multiplexer: %w (stderr: %s)",
-			redactedThrough(task.RedactSecrets, runErr), runnerStderr())
+		return delegate.Result{}, crossingFailureAfterSpend(fmt.Errorf("claw backend: multiplexer: %w (stderr: %s)",
+			redactedThrough(task.RedactSecrets, runErr), runnerStderr()), approvalSpent)
 	}
 	if errors.Is(runErr, io.EOF) && ioRes.Error == "" && waitErr == nil {
 		// Runner closed stdout without sending a result envelope and
@@ -2373,7 +2532,7 @@ func (b *ClawBackend) executeViaSandboxRunner(ctx context.Context, task delegate
 	}
 
 	if waitErr != nil && ioRes.Error == "" {
-		return delegate.Result{}, fmt.Errorf("claw backend: runner exited with error: %w (stderr: %s)", waitErr, runnerStderr())
+		return delegate.Result{}, crossingFailureAfterSpend(fmt.Errorf("claw backend: runner exited with error: %w (stderr: %s)", waitErr, runnerStderr()), approvalSpent)
 	}
 	// What the container's call spent rides the result as the runner's own
 	// walk named it through the crossing's record (ADR-161 decision 8: the
@@ -2398,7 +2557,33 @@ func (b *ClawBackend) executeViaSandboxRunner(ctx context.Context, task delegate
 		res.GatewaySpec = gatewaySpecRecord(compatgw.ResolveCatalog(gwRoute.Wire, modelspecs.Default(), getenv))
 	}
 	stampDelegateOutputMeta(res.Output, res, delegate.BackendClaw)
+	// A permission-marked pause from the crossing is legitimate only under
+	// the approval channel (#3513): announced iff the policy can Ask — the
+	// same predicate the runner-side twin refuses on, so the two sides
+	// cannot disagree about whether a pause may exist. Under the channel
+	// the pause must bind to an ask THIS launcher deferred: its question
+	// and marker are replaced with this side's own words, and one that
+	// matches no deferred ask is refused — a hostile or stale container
+	// process never chooses what the human reads. Without the channel, a
+	// runner raising one is stripped and fails the node (the #3504
+	// boundary).
+	questions, _ := res.Output["_interaction_questions"].(map[string]any)
+	_, pauseMarked := questions[permission.InteractionMarkerKey]
+	switch {
+	case res.Output["_needs_interaction"] == true && pauseMarked && task.Permission.CanAsk():
+		if err := crossing.bindRelayedPause(&res); err != nil {
+			return res, fmt.Errorf("claw backend: node %q: %w", task.NodeID, err)
+		}
+	case res.Output["_needs_interaction"] == true && pauseMarked:
+		if rejectSandboxedPermissionPause(&res) {
+			return res, fmt.Errorf("claw backend: node %q: sandbox runner returned an unsupported permission pause", task.NodeID)
+		}
+	}
 	if ioRes.Error != "" {
+		wrappedErr := crossingFailureAfterSpend(fmt.Errorf("claw backend: runner: %s", runnerError), approvalSpent)
+		if _, ambiguous := wrappedErr.(*approvedDispatchInterrupted); ambiguous {
+			return res, wrappedErr
+		}
 		if ioRes.ProviderError != nil {
 			provider := *ioRes.ProviderError
 			provider.Message = redactedFarSide(task, provider.Message)
@@ -3874,6 +4059,23 @@ func refusedMCPServerSummary(refused map[string]delegate.MCPLauncherRefusal) str
 	return "servers " + strings.Join(quoted, ", ")
 }
 
+// rejectSandboxedPermissionPause enforces the launcher's no-Ask contract on
+// incoming results as well as on outgoing tasks. Ordinary ask_user pauses
+// carry no permission marker and keep their resume state.
+func rejectSandboxedPermissionPause(res *delegate.Result) bool {
+	questions, _ := res.Output["_interaction_questions"].(map[string]any)
+	if _, marked := questions[permission.InteractionMarkerKey]; !marked {
+		return false
+	}
+	delete(res.Output, "_needs_interaction")
+	delete(res.Output, "_interaction_questions")
+	res.PendingConversation = nil
+	res.PendingToolUseID = ""
+	res.PendingCommandNarrowing = nil
+	res.PendingPermissionInput = nil
+	return true
+}
+
 // refuseToolsWithNoSandboxPlacement refuses a sandboxed task carrying a tool
 // neither side of the sandbox may serve: the container has no form of it and
 // the launcher would run it on the host (tool.PlacementRefused, which every
@@ -3974,7 +4176,7 @@ func canonicalMCPToolName(name string) string {
 // whole dispatch: the caller reads it after [delegate.Multiplexer.Run] to
 // stamp a pause result the crossing produced while stranded, so the fact
 // travels with the pause (see [executeViaSandboxRunner]).
-func (b *ClawBackend) multiplexerHandler(ctx context.Context, task delegate.Task, seed sessionSeed) (delegate.MultiplexerHandler, *atomic.Bool) {
+func (b *ClawBackend) multiplexerHandler(ctx context.Context, task delegate.Task, seed sessionSeed, approvalSpent *crossingApprovalState) (delegate.MultiplexerHandler, *atomic.Bool) {
 	// Index ToolDefs by name once so OnToolCall is O(1) instead of
 	// scanning the slice on each runner-initiated tool_call.
 	toolByName := make(map[string]delegate.ToolDef, len(task.ToolDefs))
@@ -4003,6 +4205,9 @@ func (b *ClawBackend) multiplexerHandler(ctx context.Context, task delegate.Task
 	stranded.Store(seed.refused || task.SessionStranded)
 	var strandedOnce sync.Once
 	return delegate.MultiplexerHandler{
+		OnPermissionAsk: func(askCtx context.Context, ask delegate.PermissionAskData) (delegate.PermissionDecisionData, error) {
+			return b.servePermissionAsk(askCtx, task, toolByName, toolNames, approvalSpent, ask)
+		},
 		OnToolCall: func(toolCtx context.Context, name string, input json.RawMessage) (string, error) {
 			// A runner forwards the name the tool was advertised under — its
 			// proxy closure captures it — so any other spelling is not one an
@@ -4140,10 +4345,15 @@ func toolDefsToGeneration(defs []delegate.ToolDef) []GenerationTool {
 	tools := make([]GenerationTool, len(defs))
 	for i, d := range defs {
 		tools[i] = GenerationTool{
-			Name:        d.Name,
-			Description: d.Description,
-			InputSchema: d.InputSchema,
-			Execute:     d.Execute,
+			Name:           d.Name,
+			Description:    d.Description,
+			InputSchema:    d.InputSchema,
+			Execute:        d.Execute,
+			concurrentSafe: d.ConcurrentSafe,
+			// The authorship travels with the definition: a deferring node
+			// demotes exactly the tools the author's own `tools:` list
+			// contributed, and never one the runtime appended.
+			authorDeclared: d.AuthorDeclared,
 		}
 	}
 	return tools
@@ -4196,4 +4406,28 @@ func applyAsyncAskExecs(task delegate.Task, tools []GenerationTool) {
 			}
 		}
 	}
+}
+
+// resumeAnswerToolResult shapes the operator's resume answer into the
+// tool_result the pending permission-gated call gets. With the approval
+// channel live (the runner side, which holds no claim), an allow-once
+// answer carries the same re-issue instruction an allow-always does: the
+// authorization is not in the text — the launcher re-authorizes the
+// re-issued call by exact bytes, spending the held claim on a match and
+// deferring to a fresh pause on any difference. Without the channel the
+// legacy split stands: allow-always re-issues under the applied grant,
+// every other answer is a denial the model adapts to.
+func resumeAnswerToolResult(answer string, channelLive bool) (string, bool) {
+	text := answer
+	if text == "" {
+		text = "(no answer provided)"
+	}
+	isErr := false
+	if allow, always := permission.ParseExactApprovalAnswer(text); allow && (always || channelLive) {
+		text = "✅ The operator approved this action. Re-issue the exact same tool call now to perform it."
+	} else {
+		text = "⛔ The operator denied this action. Do not retry it; take a different approach or explain why it is needed."
+		isErr = true
+	}
+	return text, isErr
 }

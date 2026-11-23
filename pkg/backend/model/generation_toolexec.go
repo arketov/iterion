@@ -1,23 +1,25 @@
 package model
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/arketov/iterion/pkg/backend/compatgw"
-	"github.com/arketov/iterion/pkg/backend/modelspecs"
-	"github.com/arketov/iterion/pkg/backend/rewrite"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/arketov/iterion/pkg/claw/pkg/api"
 	"github.com/arketov/iterion/pkg/claw/pkg/api/hooks"
 	clawrt "github.com/arketov/iterion/pkg/claw/pkg/runtime"
 
+	"github.com/arketov/iterion/pkg/backend/compatgw"
 	"github.com/arketov/iterion/pkg/backend/delegate"
 	"github.com/arketov/iterion/pkg/backend/modelroute"
+	"github.com/arketov/iterion/pkg/backend/modelspecs"
 	"github.com/arketov/iterion/pkg/backend/permission"
+	"github.com/arketov/iterion/pkg/backend/rewrite"
 	"github.com/arketov/iterion/pkg/backend/secretguard"
 	"github.com/arketov/iterion/pkg/backend/tool"
 	"github.com/arketov/iterion/pkg/internal/strutil"
@@ -99,6 +101,7 @@ type toolDispatcher struct {
 	runner        *hooks.Runner
 	materialize   func(string) string
 	policy        *permission.Policy
+	parallel      bool
 }
 
 // newToolDispatcher builds the node's door and returns the context that door
@@ -114,14 +117,44 @@ func newToolDispatcher(
 	runner *hooks.Runner,
 	materialize func(string) string,
 	policy *permission.Policy,
+	auditedObservers ...bool,
 ) (*toolDispatcher, context.Context) {
+	// Snapshot both the map and its definitions: capability, executable
+	// identity and the discovery pin must agree for the entire tool round.
+	frozen := make(map[string]*GenerationTool, len(toolMap))
+	for name, def := range toolMap {
+		if def != nil {
+			copy := *def
+			copy.InputSchema = bytes.Clone(def.InputSchema)
+			frozen[name] = &copy
+		}
+	}
+	toolHooks, parallel := runner.ConcurrentToolSnapshot()
+	// A caller-supplied materializer has no concurrency contract.
+	parallel = parallel && materialize == nil && ((onToolStarted == nil && onToolCall == nil) || (len(auditedObservers) == 1 && auditedObservers[0]))
+	if parallel {
+		runner = toolHooks
+	}
+	// Only runtime-owned observers may take this lock. Public callbacks run
+	// on the serial path and never hold it, including on reentrant dispatch.
+	if parallel {
+		var mu sync.Mutex
+		wrap := func(fn func(ToolCallInfo)) func(ToolCallInfo) {
+			if fn == nil {
+				return nil
+			}
+			return func(info ToolCallInfo) { mu.Lock(); defer mu.Unlock(); fn(info) }
+		}
+		onToolStarted, onToolCall = wrap(onToolStarted), wrap(onToolCall)
+	}
 	d := &toolDispatcher{
-		toolMap:       toolMap,
+		toolMap:       frozen,
 		onToolStarted: onToolStarted,
 		onToolCall:    onToolCall,
 		runner:        runner,
 		materialize:   materialize,
 		policy:        policy,
+		parallel:      parallel,
 	}
 	return d, context.WithValue(ctx, dispatcherNodeKey{}, d)
 }
@@ -177,22 +210,21 @@ func newToolDispatcher(
 // cannot disagree with the lookup. A tool whose answer depends on that set —
 // tool_search, which searches the registry's whole catalogue — must speak for
 // THIS node (#2717), and tool.NodeExecutableToolsFrom deliberately reports
-// "not pinned" rather than guessing. TestToolDispatcher_ThePinnedSetFollowsTheToolMap
-// is what holds that, and it fails against a set snapshotted at construction.
-//
-// Because the set is derived per call, d.toolMap is owned by the goroutine
-// that dispatches: a caller changing it between calls does so from that
-// goroutine (as that test does). A concurrent writer is a process-fatal
-// "concurrent map iteration and map write", not a race report — measured.
-// The derivation also costs what it costs: ~5 µs and ~9 KB per dispatch at
-// 120 tools, noise beside any real tool call, but a script host composing
-// thousands of cheap calls a turn pays ~5 ms and ~9 MB per 1000 dispatches.
+// "not pinned" rather than guessing. The table is frozen at construction;
+// each call derives its pin by applying the caller's narrowing to that table.
 func (d *toolDispatcher) dispatch(ctx context.Context, tu toolUseBlock) (api.ContentBlock, error) {
+	return d.dispatchWithApproval(ctx, tu, nil)
+}
+
+func (d *toolDispatcher) dispatchWithApproval(ctx context.Context, tu toolUseBlock, approval *exactDispatchApproval) (api.ContentBlock, error) {
 	if owner, _ := ctx.Value(dispatcherNodeKey{}).(*toolDispatcher); owner != d {
 		return *refusalOutcome(fmt.Sprintf(
 			"tool %q: refused before dispatch — this context did not come from this node's dispatcher. "+
 				"Dispatch with the context newToolDispatcher returned, or a descendant of it",
 			tu.Name), tu, d.onToolCall), nil
+	}
+	if err := ctx.Err(); err != nil {
+		return api.ContentBlock{}, err
 	}
 	// The pin is the set THIS CALLER may run, which stopped being the node's
 	// whole set when a caller gained the ability to be narrowed: a script host
@@ -205,15 +237,33 @@ func (d *toolDispatcher) dispatch(ctx context.Context, tu toolUseBlock) (api.Con
 	// what a script is. A caller that pinned its own set instead would be a
 	// second source of truth for what the node can run.
 	keep, narrowed := tool.ExecutableToolFilterFrom(ctx)
+	if narrowed {
+		key := generationToolKey(d.toolMap, tu.Name)
+		if _, known := d.toolMap[key]; known && !keep(key) {
+			return *refusalOutcome(fmt.Sprintf("tool %q is not available to this caller", tu.Name), tu, d.onToolCall), nil
+		}
+	}
 	names := make([]string, 0, len(d.toolMap))
-	for name := range d.toolMap {
+	catalogue := make([]string, 0, len(d.toolMap))
+	for name, t := range d.toolMap {
 		if narrowed && !keep(name) {
 			continue
 		}
 		names = append(names, name)
+		if t.catalogueOnly {
+			catalogue = append(catalogue, name)
+		}
 	}
 	ctx = tool.WithNodeExecutableTools(ctx, names)
-	return executeOneTool(ctx, tu, d.toolMap, d.onToolStarted, d.onToolCall, d.runner, d.materialize, d.policy)
+	// The deferral split, pinned from the SAME loop the executable set is
+	// derived from — the narrowing included, so a caller whose filter
+	// excludes a catalogue-only tool reads it as unavailable like any
+	// other. Only a deferring node pins anything, so a node without the
+	// split answers as it always has.
+	if len(catalogue) > 0 {
+		ctx = tool.WithCatalogueOnlyTools(ctx, catalogue)
+	}
+	return executeOneToolWithApproval(ctx, tu, d.toolMap, d.onToolStarted, d.onToolCall, d.runner, d.materialize, d.policy, approval)
 }
 
 // executeToolsDirect runs each tool_use block and builds tool_result content blocks.
@@ -238,9 +288,10 @@ func executeToolsDirect(
 	runner *hooks.Runner,
 	materialize func(string) string,
 	policy *permission.Policy,
+	auditedObservers ...bool,
 ) ([]api.ContentBlock, error) {
 	results := make([]api.ContentBlock, 0, len(toolUses))
-	d, ctx := newToolDispatcher(ctx, toolMap, onToolStarted, onToolCall, runner, materialize, policy)
+	d, ctx := newToolDispatcher(ctx, toolMap, onToolStarted, onToolCall, runner, materialize, policy, auditedObservers...)
 
 	for _, tu := range toolUses {
 		block, abort := d.dispatch(ctx, tu)
@@ -269,6 +320,20 @@ func executeOneTool(
 	runner *hooks.Runner,
 	materialize func(string) string,
 	policy *permission.Policy,
+) (api.ContentBlock, error) {
+	return executeOneToolWithApproval(ctx, tu, toolMap, onToolStarted, onToolCall, runner, materialize, policy, nil)
+}
+
+func executeOneToolWithApproval(
+	ctx context.Context,
+	tu toolUseBlock,
+	toolMap map[string]*GenerationTool,
+	onToolStarted func(ToolCallInfo),
+	onToolCall func(ToolCallInfo),
+	runner *hooks.Runner,
+	materialize func(string) string,
+	policy *permission.Policy,
+	approval *exactDispatchApproval,
 ) (api.ContentBlock, error) {
 	gt, ok := lookupGenerationTool(toolMap, tu.Name)
 	if !ok {
@@ -311,13 +376,36 @@ func executeOneTool(
 		}
 	}
 
-	if refusal, abort := permissionGateOutcome(ctx, policy, tu, hookInput, onToolCall); abort != nil {
+	if approval != nil {
+		if err := approval.authorize(ctx, tu, gt, policy, hookInput, materialize); err != nil {
+			return api.ContentBlock{}, err
+		}
+		// Dispatch the same bytes that were checked, not a second materialization.
+		materialize = nil
+	} else if refusal, abort := permissionGateOutcome(ctx, policy, tu, hookInput, onToolCall); abort != nil {
 		return api.ContentBlock{}, abort
 	} else if refusal != nil {
 		return *refusal, nil
 	}
 
+	if err := ctx.Err(); err != nil {
+		return api.ContentBlock{}, err
+	}
 	output, err := runToolExecution(ctx, gt, tu, materialize, onToolStarted, onToolCall)
+	// The tool returned, so its verdict is known: an ordinary error shapes
+	// into the is_error result the model reads. Only a dispatch that never
+	// returned — a cancelled context, or a tool that asked for a pause
+	// instead of answering — is ambiguous.
+	if approval != nil && err != nil {
+		interrupted := ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+		var ask *delegate.ErrAskUser
+		if errors.As(err, &ask) {
+			interrupted = true
+		}
+		if interrupted {
+			return api.ContentBlock{}, &approvedDispatchInterrupted{cause: err}
+		}
+	}
 	return shapeToolOutcome(ctx, runner, tu, hookInput, output, err)
 }
 
@@ -327,11 +415,15 @@ func executeOneTool(
 // in-process loop advertises it sanitized ("mcp_server_tool"); the second
 // lookup bridges the two so the call dispatches.
 func lookupGenerationTool(toolMap map[string]*GenerationTool, name string) (*GenerationTool, bool) {
-	gt, ok := toolMap[name]
-	if !ok {
-		gt, ok = toolMap[canonicalMCPToolName(name)]
-	}
+	gt, ok := toolMap[generationToolKey(toolMap, name)]
 	return gt, ok
+}
+
+func generationToolKey(toolMap map[string]*GenerationTool, name string) string {
+	if _, exact := toolMap[name]; exact {
+		return name
+	}
+	return canonicalMCPToolName(name)
 }
 
 // unknownToolResult renders the isError tool_result for a call naming a
@@ -431,15 +523,29 @@ func permissionGateOutcome(ctx context.Context, policy *permission.Policy, tu to
 		if asksDenied(ctx) {
 			return refusalOutcome(permission.UndelegatableAskMessage(tu.Name, hookInput, rule), tu, onToolCall), nil
 		}
+		// The approval channel (announced pre-task by the launcher): the
+		// Ask forwards across the IPC instead of pausing in-process — the
+		// runner blocks on the correlated decision, which carries the real
+		// tool result on allow. A runner without the announcement never
+		// reaches this branch: the bootstrap twin refused the ask-capable
+		// policy before any model call.
+		if fwd := sandboxApprovalForwarderFrom(ctx); fwd != nil {
+			return sandboxApprovalAskOutcome(ctx, fwd, tu, hookInput, rule, onToolCall)
+		}
 		// Suspend the run for operator approval. The captured
 		// question guides the model after the operator answers
 		// (and grants), so on resume the re-issued call passes the
 		// now-updated gate. Stamp the pending tool_use ID exactly
 		// like the ask_user suspension in shapeToolOutcome.
+		exact, err := permission.CanonicalApprovalInput(json.RawMessage(tu.PartialJSON))
+		if err != nil {
+			return refusalOutcome("cannot request approval: "+err.Error(), tu, onToolCall), nil
+		}
 		return nil, &delegate.ErrAskUser{
 			Question:         permission.AskPrompt(tu.Name, hookInput, rule),
 			PendingToolUseID: tu.ID,
 			PermissionMarker: permission.Marker(tu.Name, hookInput, rule),
+			PermissionInput:  exact,
 		}
 	}
 	// permission.Allow falls through to execution.
@@ -492,7 +598,11 @@ func runToolExecution(ctx context.Context, gt *GenerationTool, tu toolUseBlock, 
 
 	}
 	start := time.Now()
-	output, err := gt.Execute(ctx, execInput)
+	var output string
+	err := ctx.Err()
+	if err == nil {
+		output, err = gt.Execute(ctx, execInput)
+	}
 	dur := time.Since(start)
 
 	if onToolCall != nil {

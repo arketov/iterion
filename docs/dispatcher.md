@@ -249,7 +249,7 @@ what protects a live finish worker, which keeps renewing it until its last
 write. The column is not looked at and the card is not moved; a `paused_*`,
 `failed_resumable`, `cancelled` or in-flight run keeps the claim. The cloud
 board parks a card without a claim, so it needs no such sweep. Design:
-[ADR-171](adr/171-settled-claim-sweep.md).
+[ADR-176](adr/176-settled-claim-sweep.md).
 
 A reboot (new PID) drops the park-claim. `in_progress` stays eligible
 for crash-recovery, but a live `last_run` is **never** replaced by a

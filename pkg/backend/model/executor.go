@@ -260,6 +260,7 @@ type ClawExecutor struct {
 	// ADR-132 §1 forbids the environment as a source for what a node is
 	// configured with.
 	wfCodemode               string
+	wfCodemodeDefer          string
 	wfCodemodeBounds         *ir.CodemodeBounds
 	codemodeOverride         string
 	codemodeBoundsOverride   *ir.CodemodeBounds
@@ -431,7 +432,8 @@ type ClawExecutor struct {
 	// Close(). Without this each BuildExecutor call leaks one watcher — acute
 	// under parallel subbot fan-out, which builds one executor per child and
 	// can march toward fs.inotify.max_user_instances.
-	extraClosers []io.Closer
+	extraClosers  []io.Closer
+	runFilesGrant store.RunFilesGrant
 
 	// hostSecretOnce fires ensureHostSecretFiles exactly once per executor:
 	// on the first Execute call of a HOST (non-sandbox) run it materialises
@@ -1194,6 +1196,7 @@ func NewClawExecutor(registry *Registry, wf *ir.Workflow, opts ...ClawExecutorOp
 		autoMemoryEnvDefault:     envGetenv(context.Background(), automemory.ModeEnv),
 		wfAmbientContext:         wf.AmbientContext,
 		wfCodemode:               wf.Codemode,
+		wfCodemodeDefer:          wf.CodemodeDefer,
 		wfCodemodeBounds:         wf.CodemodeBounds,
 		ambientContextEnvDefault: envGetenv(context.Background(), ambient.PolicyEnv),
 		wfPermission:             wf.Permission,
@@ -1243,6 +1246,14 @@ func (e *ClawExecutor) MCPHealthCheck(ctx context.Context, servers []string) err
 	return e.mcpManager.HealthCheck(ctx, servers)
 }
 
+// WithRunFilesGrant transfers the invocation-owned grant to the executor.
+func WithRunFilesGrant(grant store.RunFilesGrant) ClawExecutorOption {
+	return func(e *ClawExecutor) { e.runFilesGrant = grant }
+}
+
+// RunFilesGrant lends the directory capability; the executor retains ownership.
+func (e *ClawExecutor) RunFilesGrant() store.RunFilesGrant { return e.runFilesGrant }
+
 // Close releases resources held by the executor, including MCP server
 // connections and the per-run host secret-file tempdir (host runs only —
 // sandbox runs never populate it).
@@ -1260,6 +1271,10 @@ func (e *ClawExecutor) Close() error {
 	if e.handoff != nil {
 		e.handoff.Cleanup()
 	}
+	if e.runFilesGrant != nil {
+		errs = append(errs, e.runFilesGrant.Close())
+	}
+
 	return errors.Join(errs...)
 }
 
@@ -1925,30 +1940,7 @@ func (e *ClawExecutor) Execute(ctx context.Context, node ir.Node, input map[stri
 		err = e.scrubNodeError(err)
 	}
 	if err == nil {
-		// Successful node completion: drop any session messages so
-		// the store doesn't grow without bound across long runs.
-		// Sessions are preserved on error so the recovery dispatcher
-		// has something to compact for the next attempt.
-		if e.sessions != nil && runID != "" {
-			key := nodeSessionKey(node)
-			// The node execution is over: the next one starts a tool-step
-			// budget of its own (toolTurnsAnchorCarry).
-			e.sessions.dropAnchor(runID, key)
-			llm, isLLM := node.(ir.LLMNode)
-			persist := isLLM && llm.GetSession() == ir.SessionPersist
-			if persist && output != nil {
-				sid, _ := output[delegate.SessionIDKey].(string)
-				fingerprint, _ := output[delegate.SessionFingerprintKey].(string)
-				if blob := e.packClawSession(runID, key, sid, fingerprint); len(blob) > 0 {
-					output[delegate.SessionStateBlobKey] = blob
-				}
-			} else {
-				e.sessions.evict(runID, key)
-			}
-		}
-		if output != nil && e.hooks.OnNodeFinished != nil {
-			e.hooks.OnNodeFinished(node.NodeID(), output)
-		}
+		e.finalizeNodeOutput(ctx, node, output)
 	}
 	return output, err
 }

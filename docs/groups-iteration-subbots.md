@@ -31,7 +31,7 @@ group review_block(target, max_fix):
     model: "anthropic/claude-sonnet-5-5"
     output: verdict
   tool fix:
-    command: "echo fixing {{params.target}}"
+    command: "echo fixing {{params.target}} >&2"
     output: empty
   check -> fix when not approved
   fix -> check as fix_loop("{{params.max_fix}}")

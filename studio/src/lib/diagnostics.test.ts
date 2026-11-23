@@ -28,7 +28,7 @@ describe("groupDiagnostics structured issues", () => {
   });
 
   it("leaves the position undefined when the issue has none", () => {
-    const g = groupDiagnostics([], [], null, [{ severity: "warning", message: "m", code: "C351" }]);
+    const g = groupDiagnostics([], [], null, [{ severity: "warning", message: "m", code: "C356" }]);
     const d = g.all[0]!;
     expect(d.file).toBeUndefined();
     expect(d.line).toBeUndefined();

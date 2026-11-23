@@ -119,7 +119,7 @@ no context window, no price — and still lists `claude_code` as usable, because
 credential for the provider exists. Read the source, the context window and
 `price_known`, not the last column alone; the recipe is in
 [the quickstart](quickstart.md#name-a-model-and-check-the-name).
-`iterion validate` and `POST /api/validate` warn (`C352`) about such a literal
+`iterion validate` and `POST /api/validate` warn (`C357`) about such a literal
 `anthropic/` or `openai/` id before any run; `usable` itself is unchanged (a
 credential only) and the `/api/models` contract is too.
 

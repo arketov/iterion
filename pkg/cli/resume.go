@@ -195,21 +195,12 @@ func RunResumeWithFile(ctx context.Context, iterFile string, opts ResumeOptions,
 		}
 	}
 
-	// Tee log output to run.log so the studio's Logs panel sees
-	// output for resumed runs. Resume re-uses the same file via
-	// O_APPEND so the original run.log + resume sessions stack into
-	// one timeline, matching what the daemon-launched path produces.
-	logger, logCloser := teeRunLog(logger, level, storeDir, opts.RunID)
-	if logCloser != nil {
-		defer logCloser.Close()
-	}
-
 	s, err := store.New(storeDir, store.WithLogger(logger))
 	if err != nil {
 		return fmt.Errorf("cannot open store: %w", err)
 	}
 
-	r, err := s.LoadRun(ctx, opts.RunID)
+	ctx, r, err := store.LoadRunWithValueFormat(ctx, s, opts.RunID)
 	if err != nil {
 		return fmt.Errorf("cannot load run: %w", err)
 	}
@@ -223,11 +214,22 @@ func RunResumeWithFile(ctx context.Context, iterFile string, opts ResumeOptions,
 	// launch persisted it, the resume replays it, a re-state wins. (Both
 	// AFTER the load check — revi Rf4566c: the first draft dereferenced r
 	// before this check and panicked on an unloadable run.)
+	quotaPatch := runview.CodemodeResumeQuota(opts.CodemodeBounds)
 	opts.Codemode = pickString(opts.Codemode, r.CodemodeOverride)
-	if opts.CodemodeBounds == nil {
-		opts.CodemodeBounds = r.CodemodeBoundsOverride
-	}
+	opts.CodemodeBounds = ir.ReplayCodemodeBounds(opts.CodemodeBounds, r.CodemodeBoundsOverride)
 	opts.Permission = pickString(opts.Permission, r.PermissionOverride)
+
+	// Tee log output to run.log so the studio's Logs panel sees
+	// output for resumed runs. Resume re-uses the same file via
+	// O_APPEND so the original run.log + resume sessions stack into
+	// one timeline, matching what the daemon-launched path produces.
+	logger, logCloser, logErr := teeRunLogContext(ctx, logger, level, storeDir, opts.RunID)
+	if logErr != nil {
+		return fmt.Errorf("open run.log: %w", logErr)
+	}
+	if logCloser != nil {
+		defer logCloser.Close()
+	}
 
 	// Fall back to the FilePath persisted at launch when --file was omitted.
 	// Inline-launched runs have this pointing at the server's inline-source
@@ -265,7 +267,7 @@ func RunResumeWithFile(ctx context.Context, iterFile string, opts ResumeOptions,
 			return fmt.Errorf("force-stale promote: %w", casErr)
 		} else if !changed {
 			// Reload — something else changed it between LoadRun and now.
-			r, err = s.LoadRun(ctx, opts.RunID)
+			_, r, err = store.LoadRunWithValueFormat(ctx, s, opts.RunID)
 			if err != nil {
 				return fmt.Errorf("reload after CAS: %w", err)
 			}
@@ -355,6 +357,9 @@ func RunResumeWithFile(ctx context.Context, iterFile string, opts ResumeOptions,
 	if opts.Codemode != "" || opts.CodemodeBounds != nil {
 		resumeOpts = append(resumeOpts, runtime.WithCodemodeOverride(opts.Codemode, opts.CodemodeBounds))
 	}
+	if quotaPatch != (store.CodemodeScratchLimits{}) {
+		resumeOpts = append(resumeOpts, runtime.WithResumeCodemodeQuota(quotaPatch))
+	}
 	if raw := runview.RunBudgetOverrides(&opts.Budget); raw != nil {
 		resumeOpts = append(resumeOpts, runtime.WithBudgetOverrides(raw))
 	}
@@ -366,10 +371,24 @@ func RunResumeWithFile(ctx context.Context, iterFile string, opts ResumeOptions,
 		hookObservers = []func(store.Event){superviseHub.Publish}
 	}
 
-	executor, err := buildResumeExecutor(opts, wf, s, storeDir, logger, r, hookObservers)
+	executor, err := buildResumeExecutor(ctx, opts, wf, s, storeDir, logger, r, hookObservers)
 	if err != nil {
 		return err
 	}
+	executorClosed := false
+	closeExecutor := func() {
+		if executorClosed || opts.Executor != nil {
+			return
+		}
+		executorClosed = true
+		if c, ok := executor.(interface{ Close() error }); ok {
+			if err := c.Close(); err != nil {
+				logger.Warn("executor close: %v", err)
+			}
+		}
+	}
+	defer closeExecutor()
+
 	// Keep capturing across a resume: stopping here would leave a hole in
 	// the workspace history exactly where the operator is iterating.
 	if tracker := runview.WorkspaceTrackerFor(storeDir); tracker != nil {
@@ -469,6 +488,7 @@ func RunResumeWithFile(ctx context.Context, iterFile string, opts ResumeOptions,
 		return fmt.Errorf("cannot acquire run lock: %w", err)
 	}
 	defer func() { _ = lock.Unlock() }()
+	defer closeExecutor() // close while the run lock still excludes successors
 
 	// Managed-runner mode: the studio server writes the .pid file on
 	// our behalf at spawn time, so we only need to remove it on exit.
@@ -482,7 +502,7 @@ func RunResumeWithFile(ctx context.Context, iterFile string, opts ResumeOptions,
 
 	// Re-check run status under the lock to prevent a TOCTOU race
 	// against a concurrent process that flipped the run to terminal.
-	r, err = s.LoadRun(ctx, opts.RunID)
+	_, r, err = store.LoadRunWithValueFormat(ctx, s, opts.RunID)
 	if err != nil {
 		return fmt.Errorf("cannot reload run: %w", err)
 	}

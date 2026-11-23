@@ -1029,7 +1029,10 @@ const defaultDocumentStore = createDocumentStore();
 const DocumentStoreContext = createContext<DocumentStore | null>(null);
 
 interface DocumentStoreProviderProps {
-  store: DocumentStore;
+  /** The store its subtree reads; null reads the module default, exactly as
+   *  no provider does — for a caller that must keep ONE tree shape whether
+   *  or not it has a store to give. */
+  store: DocumentStore | null;
   children: ReactNode;
 }
 
