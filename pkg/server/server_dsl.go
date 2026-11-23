@@ -465,7 +465,7 @@ func (s *Server) handleValidate(w http.ResponseWriter, r *http.Request) {
 
 // appendMCPCatalogIssues is what `iterion validate` says about the host's MCP
 // catalog, for the studio: plugins skipped at load and `tools:` entries naming
-// an MCP server the catalog lacks (C351). Local/desktop servers only — the
+// an MCP server the catalog lacks (C356). Local/desktop servers only — the
 // catalog is the project's .mcp.json plus the operator's plugins, and a cloud
 // server's WorkDir is not the tenant's project, so there it would warn about
 // servers that exist where the bot runs. Everything is a warning: an
@@ -486,7 +486,7 @@ func (s *Server) appendMCPCatalogIssues(resp *validateResponse, wf *ir.Workflow,
 	// is the request's own, discarded after the response. A server it leaves
 	// out (a reserved name in `.mcp.json`) is a warning of its own and the
 	// catalog it still resolved is checked below: one stray entry no longer
-	// takes C351 down with it.
+	// takes C356 down with it.
 	skipped, err := mcp.PrepareWorkflowReport(wf, projectDir, s.cfg.WorkDir, runview.AnalysisTrust)
 	for _, sk := range skipped {
 		add(DiagnosticDTO{Severity: "warning", Message: sk.Message(), Hint: sk.Hint})
@@ -500,7 +500,7 @@ func (s *Server) appendMCPCatalogIssues(resp *validateResponse, wf *ir.Workflow,
 	}
 }
 
-// appendUnknownModelIssues is C352 for the studio: a literal anthropic/openai
+// appendUnknownModelIssues is C357 for the studio: a literal anthropic/openai
 // model the registry does not list. Unlike the MCP catalog it depends only on
 // the binary and the process's model table, never on the host's project, so it
 // runs in every mode, cloud included. A warning: it never marks the document

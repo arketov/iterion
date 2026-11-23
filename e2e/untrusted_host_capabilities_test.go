@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/arketov/iterion/pkg/backend/model"
 	"github.com/arketov/iterion/pkg/backend/tool"
 	"github.com/arketov/iterion/pkg/dispatcher/native"
 	"github.com/arketov/iterion/pkg/dsl/ir"
@@ -243,8 +244,12 @@ func runHostCapEngine(t *testing.T, trust store.RunTrust, node *ir.AgentNode, wf
 	wf.Edges = []*ir.Edge{{From: "a", To: "done"}}
 	wf.Prompts = map[string]*ir.Prompt{"p": {Name: "p", Body: "Review the diff."}}
 	runID := "host-caps-" + strings.NewReplacer("/", "-", " ", "-").Replace(t.Name())
+	prepared, err := store.PrepareRunInvocation(t.Context(), st, store.NewLegacyRunInvocation{Spec: store.RunCreateSpec{ID: runID, WorkflowName: wf.Name, Inputs: nil}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	ex, err := runview.BuildExecutor(runview.ExecutorSpec{
-		Workflow: wf, Store: st, RunID: runID, StoreDir: storeDir, WorkDir: ws, Logger: iterlog.Nop(),
+		Ctx: prepared.Context, Workflow: wf, Store: st, RunID: runID, StoreDir: storeDir, WorkDir: ws, Logger: iterlog.Nop(),
 		BotID: "e2e-host-caps",
 		// The bench decides the sandbox per row below (none for the trusted
 		// controls, the host-fake driver for the fork rows).
@@ -276,7 +281,7 @@ func runHostCapEngine(t *testing.T, trust store.RunTrust, node *ir.AgentNode, wf
 		)
 	}
 	eng := iterruntime.New(wf, st, ex, opts...)
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := context.WithTimeout(prepared.Context, 90*time.Second)
 	defer cancel()
 	if trust != store.RunTrustDefault {
 		// U5's floors (ADR-162 decision 7): the launcher's ambient env no
@@ -289,7 +294,7 @@ func runHostCapEngine(t *testing.T, trust store.RunTrust, node *ir.AgentNode, wf
 			APIBaseURLs: map[secrets.Provider]string{secrets.ProviderAnthropic: srv.URL},
 		})
 	}
-	runErr := eng.Run(ctx, runID, nil)
+	runErr := eng.RunPrepared(ctx, runID, nil, prepared)
 	events, _ := st.LoadEvents(context.Background(), runID)
 	return hostCapRun{dispatcherDir: filepath.Join(storeDir, "dispatcher"), events: events, err: runErr}
 }
@@ -545,7 +550,6 @@ func TestReviewPR_ConvergeDegradesOnAFork(t *testing.T) {
 	writeExecutable(t, iterionBin, "#!/bin/sh\nexit 0\n")
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("ITERION_BIN", iterionBin)
-	t.Setenv("ITERION_VIBE_BACKEND_EMIT", "")
 
 	for _, trust := range []store.RunTrust{store.RunTrustDefault, store.RunTrustFork} {
 		t.Run(trustLabel(trust), func(t *testing.T) {
@@ -554,13 +558,6 @@ func TestReviewPR_ConvergeDegradesOnAFork(t *testing.T) {
 			t.Setenv("HOME", t.TempDir())
 			t.Setenv("ITERION_HOME", t.TempDir())
 			t.Setenv("ANTHROPIC_API_KEY", "bench-key")
-			// The bench stands in for the claude_code CLI: its converge row
-			// must run on that CLI, so the merge step's three dials are
-			// pointed at the claude slot (ADR-169 made claw + an `openai/…`
-			// model its default, which would dial OpenAI for real here).
-			t.Setenv("ITERION_VIBE_BACKEND_EMIT_GPT", "claude_code")
-			t.Setenv("ITERION_VIBE_MODEL_EMIT_GPT", "claude-opus-5-5")
-			t.Setenv("ITERION_VIBE_PROVIDER_EMIT_GPT", "anthropic")
 			ws := t.TempDir()
 			storeDir := t.TempDir()
 			st, err := store.New(t.TempDir())
@@ -582,9 +579,21 @@ func TestReviewPR_ConvergeDegradesOnAFork(t *testing.T) {
 				wf.Nodes[id] = full.Nodes[id]
 			}
 			runID := "converge-" + trustLabel(trust)
+			prepared, err := store.PrepareRunInvocation(t.Context(), st, store.NewLegacyRunInvocation{Spec: store.RunCreateSpec{ID: runID, WorkflowName: wf.Name, Inputs: map[string]any{"workspace_dir": ws}}})
+			if err != nil {
+				t.Fatal(err)
+			}
 			ex, err := runview.BuildExecutor(runview.ExecutorSpec{
-				Workflow: wf, Store: st, RunID: runID, StoreDir: storeDir, WorkDir: ws, Logger: iterlog.Nop(),
+				Ctx: prepared.Context, Workflow: wf, Store: st, RunID: runID, StoreDir: storeDir, WorkDir: ws, Logger: iterlog.Nop(),
 				BotID: "e2e-host-caps",
+				// The bench stands in for the claude_code CLI: its converge
+				// row must run on that CLI, so a routing cell moves the merge
+				// step's backend, model and provider onto the claude slot
+				// (its authored route is claw + an `openai/…` model, which
+				// would dial OpenAI for real here).
+				ModelOverrides: model.OverridesFrom([]model.OverrideEntry{{
+					Selector: "converge", Backend: "claude_code", Model: "claude-opus-5-5", Provider: "anthropic",
+				}}),
 				// Same per-row decision as runHostCapEngine's.
 				SandboxTiersKnown: true,
 			})
@@ -610,7 +619,7 @@ func TestReviewPR_ConvergeDegradesOnAFork(t *testing.T) {
 					iterruntime.WithTrust(trust, ""),
 				)
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+			ctx, cancel := context.WithTimeout(prepared.Context, 90*time.Second)
 			defer cancel()
 			if trust != store.RunTrustDefault {
 				// Same funding as runHostCapEngine's fork rows: a run-held
@@ -621,7 +630,7 @@ func TestReviewPR_ConvergeDegradesOnAFork(t *testing.T) {
 					APIKeys: map[secrets.Provider]string{secrets.ProviderAnthropic: "sk-bench-fork-lane"},
 				})
 			}
-			runErr := iterruntime.New(wf, st, ex, opts...).Run(ctx, runID, map[string]any{"workspace_dir": ws})
+			runErr := iterruntime.New(wf, st, ex, opts...).RunPrepared(ctx, runID, map[string]any{"workspace_dir": ws}, prepared)
 			r, _ := st.LoadRun(context.Background(), runID)
 			events, _ := st.LoadEvents(context.Background(), runID)
 			finished := false
@@ -722,7 +731,11 @@ func TestHostTools_AToolNodeHoldsWhatTheWorkflowGrants(t *testing.T) {
 					Edges:        []*ir.Edge{{From: "plant", To: "done"}},
 					Capabilities: arm.caps,
 				}
-				ex, err := runview.BuildExecutor(runview.ExecutorSpec{Workflow: wf, Store: st, RunID: "tn", StoreDir: storeDir, WorkDir: ws, Logger: iterlog.Nop(),
+				prepared, err := store.PrepareRunInvocation(t.Context(), st, store.NewLegacyRunInvocation{Spec: store.RunCreateSpec{ID: "tn", WorkflowName: wf.Name, Inputs: map[string]any{"title": "PLANTED", "state": "ready", "bot": "branch-improve-loop"}}})
+				if err != nil {
+					t.Fatal(err)
+				}
+				ex, err := runview.BuildExecutor(runview.ExecutorSpec{Ctx: prepared.Context, Workflow: wf, Store: st, RunID: "tn", StoreDir: storeDir, WorkDir: ws, Logger: iterlog.Nop(),
 					BotID: "e2e-host-caps", SandboxTiersKnown: true})
 				if err != nil {
 					t.Fatal(err)
@@ -747,9 +760,9 @@ func TestHostTools_AToolNodeHoldsWhatTheWorkflowGrants(t *testing.T) {
 						iterruntime.WithTrust(arm.trust, ""),
 					)
 				}
-				ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+				ctx, cancel := context.WithTimeout(prepared.Context, 60*time.Second)
 				defer cancel()
-				runErr := iterruntime.New(wf, st, ex, opts...).Run(ctx, "tn", map[string]any{"title": "PLANTED", "state": "ready", "bot": "branch-improve-loop"})
+				runErr := iterruntime.New(wf, st, ex, opts...).RunPrepared(ctx, "tn", map[string]any{"title": "PLANTED", "state": "ready", "bot": "branch-improve-loop"}, prepared)
 				titles, launchable := hostCapRun{dispatcherDir: filepath.Join(storeDir, "dispatcher")}.cards(t)
 				t.Logf("run_err=%v cards=%v launchable=%d", runErr, titles, launchable)
 				if arm.card {

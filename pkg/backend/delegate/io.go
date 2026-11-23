@@ -167,9 +167,12 @@ type IOTask struct {
 	AmbientContextSource   string                 `json:"ambient_context_source,omitempty"`
 	Codemode               bool                   `json:"codemode,omitempty"`
 	CodemodeBounds         *scripthost.Limits     `json:"codemode_bounds,omitempty"`
-	CompressMode           string                 `json:"compress_mode,omitempty"`
-	Rewriters              []plugin.RewriterSpec  `json:"rewriters,omitempty"`
-	SettingsHooks          json.RawMessage        `json:"settings_hooks,omitempty"`
+	// CodemodeState requires the matching pre-task capability marker. No
+	// bank identity or storage quota crosses this transport.
+	CodemodeState bool                  `json:"codemode_state,omitempty"`
+	CompressMode  string                `json:"compress_mode,omitempty"`
+	Rewriters     []plugin.RewriterSpec `json:"rewriters,omitempty"`
+	SettingsHooks json.RawMessage       `json:"settings_hooks,omitempty"`
 	// Retry is the launcher's claw retry budget, which is the backend's
 	// rather than the task's: no Task field carries it. The runner retries
 	// with it instead of reading its own env, so a variable a repository's
@@ -263,6 +266,11 @@ type IOResult struct {
 	SessionFingerprint  string          `json:"session_fingerprint,omitempty"`
 	PendingConversation json.RawMessage `json:"pending_conversation,omitempty"`
 	PendingToolUseID    string          `json:"pending_tool_use_id,omitempty"`
+	// PendingPermissionInput is the exact captured arguments of a
+	// permission-gate pause (#3513): the approval binds to these bytes, so
+	// the pause cannot checkpoint without them crossing. The in-process
+	// Result field is json:"-" — only this wire form carries it.
+	PendingPermissionInput json.RawMessage `json:"pending_permission_input,omitempty"`
 	// PendingCommandNarrowing rides the pause the container raised (#1717):
 	// the bound the in-container generation held crosses back with the
 	// conversation, or the resumed crossing restarts unbounded.
@@ -477,6 +485,8 @@ func ToIOResult(r Result) IOResult {
 		PendingConversation:     r.PendingConversation,
 		PendingToolUseID:        r.PendingToolUseID,
 		PendingCommandNarrowing: r.PendingCommandNarrowing,
+
+		PendingPermissionInput: r.PendingPermissionInput,
 	}
 }
 
@@ -520,6 +530,8 @@ func FromIOResult(r IOResult) Result {
 		PendingConversation:     r.PendingConversation,
 		PendingToolUseID:        r.PendingToolUseID,
 		PendingCommandNarrowing: r.PendingCommandNarrowing,
+
+		PendingPermissionInput: r.PendingPermissionInput,
 	}
 }
 

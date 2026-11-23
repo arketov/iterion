@@ -23,7 +23,7 @@ func TestDeleteRunContent_LeavesAHeldLockToTheTombstone(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(s.runDir("r1"), "run.json"), []byte("{}"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.deleteRunContent("r1"); err != nil {
+	if err := s.deleteRunContent(context.Background(), "r1"); err != nil {
 		t.Fatalf("deleteRunContent with the run lock held = %v, want nil", err)
 	}
 	if _, err := os.Stat(filepath.Join(s.runDir("r1"), "run.json")); !os.IsNotExist(err) {

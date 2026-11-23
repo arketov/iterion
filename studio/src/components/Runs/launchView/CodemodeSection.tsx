@@ -1,5 +1,5 @@
 // The launch form's codemode override (CM-5f, ADR-165): the mode select,
-// and behind a disclosure the seven bounds an operator can raise for this
+// and behind a disclosure the bounds an operator can raise for this
 // run — the HTTP twin of the CLI's --codemode / --codemode-* flags.
 // Presentational: useRunOverrides owns the state and folds it into
 // createRun() via buildCodemodePayload.
@@ -45,12 +45,15 @@ interface RowSpec {
 
 const rows: RowSpec[] = [
   { key: "toolCalls", id: "launch-codemode-tool-calls", label: "tool_calls", sub: "calls per program", type: "number", step: "1" },
+  { key: "concurrentToolCalls", id: "launch-codemode-concurrent-tool-calls", label: "concurrent_tool_calls", sub: "calls in flight per program", type: "number", step: "1" },
   { key: "wall", id: "launch-codemode-wall", label: "wall", sub: "wall-clock bound", type: "text" },
   { key: "cpu", id: "launch-codemode-cpu", label: "cpu", sub: "CPU-seconds bound", type: "text" },
   { key: "memory", id: "launch-codemode-memory", label: "memory", sub: "bytes", type: "number", step: "1048576" },
   { key: "scriptBytes", id: "launch-codemode-script-bytes", label: "script_bytes", sub: "program size", type: "number", step: "1024" },
   { key: "resultBytes", id: "launch-codemode-result-bytes", label: "result_bytes", sub: "returned value", type: "number", step: "1024" },
   { key: "toolResultBytes", id: "launch-codemode-tool-result-bytes", label: "tool_result_bytes", sub: "one tool result", type: "number", step: "1024" },
+  { key: "storeEntries", id: "launch-codemode-store-entries", label: "store_entries", sub: "keys in the run bank", type: "number", step: "1" },
+  { key: "storeBytes", id: "launch-codemode-store-bytes", label: "store_bytes", sub: "key and JSON bytes in the run bank", type: "number", step: "1" },
 ];
 
 function placeholderOf(
@@ -62,6 +65,8 @@ function placeholderOf(
   switch (key) {
     case "toolCalls":
       return def.tool_calls !== undefined ? String(def.tool_calls) : "inherits";
+    case "concurrentToolCalls":
+      return "inherits";
     case "wall":
       return def.wall || "inherits";
     case "cpu":
@@ -76,6 +81,10 @@ function placeholderOf(
       return def.tool_result_bytes !== undefined
         ? String(def.tool_result_bytes)
         : "inherits";
+    case "storeEntries":
+      return def.store_entries !== undefined ? String(def.store_entries) : "inherits";
+    case "storeBytes":
+      return def.store_bytes !== undefined ? String(def.store_bytes) : "inherits";
   }
 }
 
@@ -140,7 +149,7 @@ export default function CodemodeSection({
               type="button"
               className="text-xs text-fg-muted hover:text-fg-default flex items-center gap-1"
               onClick={onToggle}
-              title="Raise a codemode bound for this run without editing the bot."
+              title="Override a codemode bound for this run without editing the bot."
             >
               <span>{show ? "▾" : "▸"}</span>
               <span>Bounds{overriding ? " — overriding the bot" : ""}</span>
@@ -184,6 +193,12 @@ export default function CodemodeSection({
                   value={values[row.key]}
                   onChange={(e) => onChange({ [row.key]: e.target.value })}
                 />
+                {row.key === "concurrentToolCalls" && limits?.default.concurrent_tool_calls !== undefined && (
+                  <div className="mt-1 text-caption text-fg-subtle">
+                    Platform default: {limits.default.concurrent_tool_calls}
+                    {limits.default.concurrent_tool_calls === 1 ? " (serial)" : ""}.
+                  </div>
+                )}
                 {unreadable.includes(row.label) && (
                   <div className="mt-1 text-caption text-danger">
                     not a positive value — left as inherit, nothing is sent

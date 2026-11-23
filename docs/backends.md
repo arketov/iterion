@@ -1262,13 +1262,20 @@ validation succeed as before with their output. COMPUTE conformance remains
 mandatory (#792): integral floats become integers; fractional integers and
 wrong field types fail with `SCHEMA_VALIDATION`, including in advisory mode.
 LLM outputs retain executor validation and bounded correction.
+One shape is refused in that default: a tool node's `command:` / `script:`
+that declares `output:` and prints non-empty stdout that is not a JSON object
+fails its node with `TOOL_FAILED_PERMANENT`, naming the schema and never the
+output ([the output contract](dsl.md#tool)).
 `WithOutputValidation(true)` selects strict rejection (`SCHEMA_VALIDATION`,
 or deterministic `TOOL_FAILED_PERMANENT` for tools to prevent cloud redelivery
 from repeating side effects). `ITERION_STRICT_OUTPUT_VALIDATION=1` (also `true`,
 `yes`, `y`, `on`, `enabled`, case-insensitive) selects the same strict default
-for run, resume, subbot, studio, runner and dispatcher. An explicit engine option
+for run, resume, subbot, studio, runner and dispatcher. The dial has a third
+position: written out as off (`0`, `false`, `no`, `n`, `off`, `disabled`, or
+`WithOutputValidation(false)`), it also restores the `{"result": "<text>"}`
+wrapper for that non-JSON stdout — unset is not off. An explicit engine option
 overrides the environment; unknown values warn with `OUTPUT_VALIDATION_INVALID`
-and retain advisory validation. Raising the correction budget on resume reopens
+and read as unset. Raising the correction budget on resume reopens
 an exhausted or unchanged episode without resetting spent attempts. Correction
 deadlines apply to corrective calls only;
 expiration of
@@ -1389,24 +1396,30 @@ CLI contract that structurally cannot return an error, so no typed
 trigger can fire for them; Codex is not included in the v1 fallback lane. A sandboxed `claw` route
 works — the trigger comes from the failing route, which `claude_code`
 types correctly — but its own failure is always unclassifiable, and it
-**cannot serve a node whose permission policy can produce an Ask
-decision** (mode `ask`, or any explicit `ask:` rule — which outranks
-mode `deny`).
+**cannot serve an ask that reaches a container-executed tool** (mode
+`ask`, or an explicit `ask:` rule naming one — which outranks mode
+`deny`).
 
-> **Sandboxed `claw` enforces the permission gate for deny-shaped
-> policies.** The policy crosses the IPC as a pre-task
-> `permission_policy` envelope (`permission.PolicyConfig`, re-parsed
-> in-container by the same parser), and the `__claw-runner`'s own tool
-> loop applies it before every tool — local builtins and proxied tools
-> alike. The pre-task position is the mixed-fleet guarantee: a runner
-> binary too old to know the envelope fatals on "unexpected envelope
-> before task" instead of running the gated node with an empty policy,
-> so the combination fails CLOSED, never open. What cannot cross is an
-> **Ask decision** — nothing inside the container can pause the parent
-> run — so an ask-capable policy is refused loudly at dispatch (and
-> C136 warns at compile time). Run the workflow unsandboxed
-> (`sandbox: none` / `--sandbox none` — a node-level `sandbox:` is not
-> honoured at run time), or route the node to `claude_code`.
+> **Sandboxed `claw` enforces the permission gate and serves Ask
+> decisions through the approval channel (#3513).** The policy crosses
+> the IPC as a pre-task `permission_policy` envelope
+> (`permission.PolicyConfig`, re-parsed in-container by the same
+> parser), and the `__claw-runner`'s own tool loop applies it before
+> every tool — local builtins and proxied tools alike. The pre-task
+> position is the mixed-fleet guarantee: a runner binary too old to
+> know the envelope fatals on "unexpected envelope before task"
+> instead of running the gated node with an empty policy, so the
+> combination fails CLOSED, never open. The served scope is
+> **launcher-placed tools** (MCP, in-memory registries): an Ask
+> crosses back as `permission_ask`, the launcher binds the exact call,
+> consumes the approval and executes it itself, and a run-level pause
+> suspends for a human — the container's own words never reach the
+> operator. An ask that can reach a **container-executed tool** (bash,
+> the file tools) refuses the node loudly at dispatch (and C136 warns
+> at compile time): the launcher cannot certify an execution inside
+> the container. Run the workflow unsandboxed (`sandbox: none` /
+> `--sandbox none` — a node-level `sandbox:` is not honoured at run
+> time), or route the node to `claude_code`.
 
 > **A sandboxed `claw` node also refuses a tool the container cannot
 > execute.** Tools the runner does not run locally are proxied back and
@@ -3253,7 +3266,7 @@ unknown name there is dead config, not a failure — and it never touches
 qualified MCP references (`mcp.<server>.<tool>`, the `mcp__server__tool`
 alias form, wildcards), which are resolved when the server connects. One
 host-side check does read them: `iterion validate` and `POST /api/validate`
-warn (`C351`) when such a reference names a server that no `mcp_server`
+warn (`C356`) when such a reference names a server that no `mcp_server`
 block, project `.mcp.json` entry or enabled plugin declares.
 
 What it lets through, and why. iterion's own board and watch tools are
