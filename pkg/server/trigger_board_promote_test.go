@@ -40,9 +40,9 @@ func (c promCloudCoord) DistinctEffectTenants(context.Context) ([]string, error)
 	return []string{c.tenant}, nil
 }
 
-// A trigger promotion is a wholesale bot-args replace on a card that may be
-// webhook-carried: the subscription's own vars land, the card's SERVER-
-// stamped launch context survives the swap — the repo identity, BYOK
+// A trigger promotion MERGES bot-args on a card that may be webhook-carried:
+// the card's own args stay, the subscription's vars land over them, and the
+// card's SERVER-stamped launch context survives untouched — the repo identity, BYOK
 // overrides and integration id the dispatcher meters, bounds and keys the
 // run by. A promotion wiping them launches the card's run unbounded and
 // silently degrades its BYOK resolution.
@@ -88,8 +88,8 @@ func TestCloudBoardPromoteKeepsTheStoredLaunchContext(t *testing.T) {
 	if after.BotArgs["team_var"] != "x" {
 		t.Errorf("the subscription's own var did not land: %v", after.BotArgs)
 	}
-	if _, carried := after.BotArgs["member_var"]; carried {
-		t.Errorf("a promotion must replace the card's own member vars: %v", after.BotArgs)
+	if after.BotArgs["member_var"] != "v1" {
+		t.Errorf("a promotion must keep the card's own member vars the subscription does not set: %v", after.BotArgs)
 	}
 	for k, want := range map[string]string{
 		"__iterion_repo_url":      "https://github.com/acme/widgets.git",
