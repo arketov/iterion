@@ -264,6 +264,7 @@ func NewNativeBoardEffect(store *native.Store, nudger Nudger, logger *iterlog.Lo
 // picks it up, then nudges it to dispatch now. A board trigger fires when a
 // card ENTERS an eligible state (the matcher's subject_states gate), so the
 // card is already dispatchable — promoting only needs to pin which bot runs.
+// The card's bot-args are merged with the subscription's vars, never replaced.
 // Idempotent: a card already pinned to this bot is left untouched, so a board
 // event storm converges.
 func (n *NativeBoardEffect) Promote(_ context.Context, plan LaunchPlan) (string, error) {
@@ -282,12 +283,13 @@ func (n *NativeBoardEffect) Promote(_ context.Context, plan LaunchPlan) (string,
 		return id, nil // already pinned — no churn
 	}
 	bot := plan.BotID
-	// The promotion is a wholesale bot-args replace: the subscription's own
-	// vars land, the card's SERVER-stamped launch context comes back on top
-	// — a webhook-carried card promoted by another bot's subscription keeps
-	// the repo identity, BYOK overrides and integration id its run is
+	// The promotion MERGES bot-args: the card's own args stay, the
+	// subscription's vars land over them, and the card's SERVER-stamped
+	// launch context comes back on top — a card moved to another bot keeps
+	// its parameters (feature branch, specs, …), and a webhook-carried one
+	// keeps the repo identity, BYOK overrides and integration id its run is
 	// metered, bounded and keyed by (card_launch_args.go, #2371).
-	args := native.KeepStoredLaunchContext(iss.BotArgs, native.DropReservedLaunchArgs(plan.Vars))
+	args := native.MergePromotedBotArgs(iss.BotArgs, plan.Vars)
 	if _, err := n.store.Update(id, native.Patch{Bot: &bot, BotArgs: &args}); err != nil {
 		return "", fmt.Errorf("trigger: stamp bot on card %s: %w", id, err)
 	}

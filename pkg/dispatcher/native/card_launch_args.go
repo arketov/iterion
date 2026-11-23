@@ -81,6 +81,23 @@ func KeepStoredLaunchContext(stored, patched map[string]string) map[string]strin
 	return out
 }
 
+// MergePromotedBotArgs is the bot-args a trigger promotion stamps on a card it
+// re-pins to another bot: the card's stored args stay, the subscription's vars
+// (reserved launch-context keys dropped) land over them, and the stored
+// reserved launch context comes back on top. A key the subscription does not
+// set survives the change of bot — the card's own parameters (feature branch,
+// specs, …) are not the promoting bot's to erase.
+func MergePromotedBotArgs(stored, vars map[string]string) map[string]string {
+	merged := make(map[string]string, len(stored)+len(vars))
+	for k, v := range stored {
+		merged[k] = v
+	}
+	for k, v := range DropReservedLaunchArgs(vars) {
+		merged[k] = v
+	}
+	return KeepStoredLaunchContext(stored, merged)
+}
+
 // DropServerMintedLaunchVars keeps the two bot-arg filters one class: a write
 // surface drops what the server mints (the publish grant) and what the server
 // stamps (the launch context) in one gesture, and no surface can drop one and
