@@ -81,7 +81,12 @@ A native-board card created/moved/labeled fires a bot **without** the 30s wait:
   `pkg/server/watch_coordinator.go`.
 - **Effect is "promote the card," never launch directly.**
   `NativeBoardEffect.Promote` stamps the matched card's `Bot`/`BotArgs` (and,
-  if the subscription names one, an eligible state). The dispatcher's existing
+  if the subscription names one, an eligible state). `BotArgs` are **merged,
+  not replaced**: the card's stored args stay, the subscription's vars
+  (reserved `__iterion_*` keys dropped) land over them, and the stored
+  reserved launch context is kept — a key the subscription does not set
+  survives the change of bot (`native.MergePromotedBotArgs`, shared by the
+  local and the cloud effect). The dispatcher's existing
   `tracker.Claim` stays the **sole launch authority** — so the event fast-path
   and the poll safety-net are **structurally unable to double-launch**, and the
   promote is idempotent (a card already pinned to the bot is left untouched, so
