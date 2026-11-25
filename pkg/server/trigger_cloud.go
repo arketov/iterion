@@ -83,12 +83,13 @@ func (c *cloudBoardEffect) Promote(_ context.Context, plan trigger.LaunchPlan) (
 		return id, nil // already pinned — no churn
 	}
 	bot := plan.BotID
-	// The promotion is a wholesale bot-args replace: the subscription's own
-	// vars land, the card's SERVER-stamped launch context comes back on top
-	// — a webhook-carried card promoted by another bot's subscription keeps
-	// the repo identity, BYOK overrides and integration id its run is
+	// The promotion MERGES bot-args: the card's own args stay, the
+	// subscription's vars land over them, and the card's SERVER-stamped
+	// launch context comes back on top — a card moved to another bot keeps
+	// its parameters (feature branch, specs, …), and a webhook-carried one
+	// keeps the repo identity, BYOK overrides and integration id its run is
 	// metered, bounded and keyed by (card_launch_args.go, #2371).
-	args := native.KeepStoredLaunchContext(iss.BotArgs, native.DropReservedLaunchArgs(plan.Vars))
+	args := native.MergePromotedBotArgs(iss.BotArgs, plan.Vars)
 	if _, err := st.Update(id, native.Patch{Bot: &bot, BotArgs: &args}); err != nil {
 		return "", fmt.Errorf("trigger: stamp bot on card %s: %w", id, err)
 	}
