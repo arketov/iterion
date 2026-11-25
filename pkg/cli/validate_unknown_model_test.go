@@ -28,7 +28,7 @@ func validateWithModel(t *testing.T, model string) cli.ValidateResult {
 
 func countC338(r cli.ValidateResult) (n int) {
 	for _, d := range r.Diagnostics {
-		if d.Code == "C357" {
+		if d.Code == "C359" {
 			n++
 		}
 	}
@@ -41,15 +41,15 @@ func TestValidate_UnknownModelWarnsC338(t *testing.T) {
 		t.Errorf("a warning must not invalidate the workflow: %+v", r)
 	}
 	if n := countC338(r); n != 1 {
-		t.Fatalf("C357 count = %d, want 1: %+v", n, r.Diagnostics)
+		t.Fatalf("C359 count = %d, want 1: %+v", n, r.Diagnostics)
 	}
 	for _, d := range r.Diagnostics {
-		if d.Code == "C357" && (d.Severity != "warning" || d.NodeID != "reviewer" || d.Hint == "") {
-			t.Errorf("bad C357: %+v", d)
+		if d.Code == "C359" && (d.Severity != "warning" || d.NodeID != "reviewer" || d.Hint == "") {
+			t.Errorf("bad C359: %+v", d)
 		}
 	}
 	if len(r.CompileDiagnostics) != 0 {
-		t.Errorf("C357 must stay out of compile_diagnostics: %v", r.CompileDiagnostics)
+		t.Errorf("C359 must stay out of compile_diagnostics: %v", r.CompileDiagnostics)
 	}
 }
 

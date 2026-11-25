@@ -53,7 +53,7 @@ func TestShapeToolOutcome_DiagnosticNonzeroPreservesCapturedOutput(t *testing.T)
 
 	block, err := shapeToolOutcome(context.Background(), r,
 		toolUseBlock{ID: "diagnostic-1", Name: "diagnostic_shell"}, nil,
-		"stdout line\nstderr line", errors.New("command exited with error: exit status 7"))
+		"stdout line\nstderr line", errors.New("command exited with error: exit status 7"), false)
 	if err != nil {
 		t.Fatalf("shape diagnostic outcome: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestShapeToolOutcome_DiagnosticOnlySoftensKnownCompletedExit(t *testing.T) 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			block, err := shapeToolOutcome(context.Background(), hooks.NewRunner(),
-				toolUseBlock{ID: "tool-1", Name: tc.toolName}, nil, tc.output, tc.err)
+				toolUseBlock{ID: "tool-1", Name: tc.toolName}, nil, tc.output, tc.err, false)
 			if err != nil {
 				t.Fatalf("shape outcome: %v", err)
 			}
@@ -236,11 +236,14 @@ func TestExecuteToolsDirect_ResultShapesAndOrder(t *testing.T) {
 	}
 }
 
-// TestExecuteToolsDirect_UnknownToolResultAndCallbackQuirk pins the unknown
+// TestExecuteToolsDirect_UnknownToolResultCarriesItsID pins the unknown
 // tool path: an isError "unknown tool: X" result, no execution, no
-// onToolStarted — and the quirk that the OnToolCall info for an unknown tool
-// carries NO ToolUseID (all other error paths stamp it).
-func TestExecuteToolsDirect_UnknownToolResultAndCallbackQuirk(t *testing.T) {
+// onToolStarted — and an OnToolCall info that carries the call's ToolUseID
+// like every other refusal path. This test pinned the opposite once, the id
+// left off this one path; that quirk is removed on purpose (#3451), because
+// a codemode program's call to a tool that does not exist must be
+// attributable to the program it ran in.
+func TestExecuteToolsDirect_UnknownToolResultCarriesItsID(t *testing.T) {
 	t.Parallel()
 	var startedCount int
 	var completed []ToolCallInfo
@@ -271,9 +274,8 @@ func TestExecuteToolsDirect_UnknownToolResultAndCallbackQuirk(t *testing.T) {
 	if completed[0].Error == nil || completed[0].Error.Error() != "unknown tool: nope" {
 		t.Errorf("completed[0].Error = %v", completed[0].Error)
 	}
-	// Quirk: the unknown-tool callback does NOT stamp ToolUseID.
-	if completed[0].ToolUseID != "" {
-		t.Errorf("completed[0].ToolUseID = %q, want empty (current unknown-tool quirk)", completed[0].ToolUseID)
+	if completed[0].ToolUseID != "tu_9" {
+		t.Errorf("completed[0].ToolUseID = %q, want the call's own id tu_9", completed[0].ToolUseID)
 	}
 }
 
@@ -776,5 +778,78 @@ func TestMultiplexerHandler_PinsTheNodesExecutableToolsOnTheForwardedCall(t *tes
 	}
 	if !seen["read_file"] || !seen["tool_search"] || len(seen) != 2 {
 		t.Errorf("the pinned set = %v, want exactly the task's ToolDefs names", seen)
+	}
+}
+
+// An image-result tool's output is its own encoding: one that does not
+// decode reaches the model as an is_error result naming the tool, never as
+// a tool_result quietly holding the raw bytes as text.
+func TestShapeToolOutcome_UnreadableImageResultIsAnError(t *testing.T) {
+	t.Parallel()
+	block, err := shapeToolOutcome(context.Background(), hooks.NewRunner(),
+		toolUseBlock{ID: "img-1", Name: "read_image"}, nil, "iVBORw0KGgo", nil, true)
+	if err != nil {
+		t.Fatalf("shape outcome: %v", err)
+	}
+	if !block.IsError {
+		t.Fatalf("an undecodable image result was handed on as a success: %+v", block)
+	}
+	if text := charToolResultText(t, block); !strings.Contains(text, "read_image") || !strings.Contains(text, "image result") {
+		t.Errorf("error text = %q, want it to name the tool and the unreadable image result", text)
+	}
+}
+
+func TestShapeToolOutcome_ImageResultBecomesImageBlocks(t *testing.T) {
+	t.Parallel()
+	block, err := shapeToolOutcome(context.Background(), hooks.NewRunner(),
+		toolUseBlock{ID: "img-1", Name: "read_image"}, nil,
+		`{"description":"s.png","blocks":[{"type":"image","source":{"type":"base64","media_type":"image/png","data":"QUJD"}}]}`, nil, true)
+	if err != nil || block.IsError {
+		t.Fatalf("shape outcome: err=%v block=%+v", err, block)
+	}
+	if len(block.Content) != 2 || block.Content[1].Type != "image" || block.Content[1].Source == nil || block.Content[1].Source.Data != "QUJD" {
+		t.Fatalf("tool_result content = %+v, want the description then the image block", block.Content)
+	}
+}
+
+// A subagent's read_image is the parent's registration: the child's tool
+// loop must hand its model the image blocks too.
+func TestBuildSubagentTools_KeepsTheImageResultTrait(t *testing.T) {
+	t.Parallel()
+	reg := tool.NewRegistry()
+	if err := tool.RegisterClawReadImage(reg, tool.NewReadScope(t.TempDir())); err != nil {
+		t.Fatalf("register read_image: %v", err)
+	}
+	tools := buildSubagentTools(reg, nil)
+	for _, gt := range tools {
+		if gt.Name == "read_image" {
+			if !gt.imageResult {
+				t.Fatal("the subagent's read_image lost its image-result trait")
+			}
+			return
+		}
+	}
+	t.Fatalf("read_image missing from the subagent tool set: %d tools", len(tools))
+}
+
+// A program calling an image tool receives text only: the image becomes an
+// explicit marker, never a bare success that reads as "seen".
+func TestToolResultText_MarksAnImageAProgramCannotCarry(t *testing.T) {
+	t.Parallel()
+	img := api.ContentBlock{Type: "image", Source: &api.ImageSource{Type: "base64", MediaType: "image/png", Data: "QUJD"}}
+	for name, content := range map[string][]api.ContentBlock{
+		"description and image": {{Type: "text", Text: "schema.png"}, img},
+		"image alone":           {img},
+	} {
+		got := toolResultText(api.ContentBlock{Type: "tool_result", Content: content})
+		if !strings.Contains(got, scriptImageOmitted) {
+			t.Errorf("%s: program text = %q, want the image-omitted marker", name, got)
+		}
+		if strings.Contains(got, "QUJD") {
+			t.Errorf("%s: program text carries the image bytes: %q", name, got)
+		}
+	}
+	if got := toolResultText(api.ToolResult{Content: "plain"}.ToContentBlock()); got != "plain" {
+		t.Errorf("a text result = %q, want it unchanged", got)
 	}
 }

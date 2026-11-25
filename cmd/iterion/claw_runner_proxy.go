@@ -251,9 +251,16 @@ func (d *proxyDispatcher) call(ctx context.Context, env delegate.Envelope) (dele
 // loop's existing pause/resume flow triggers identically to the
 // unsandboxed case (without this the ask_user tool could only ever
 // surface as a generic error and the engine wouldn't know to pause).
+//
+// The call's run-event identity travels with it (model.ExecutingToolCallFrom):
+// a refusal the launcher records then names the same call, under the same
+// parent, as the tool_error this runner emits for it.
 func (d *proxyDispatcher) callTool(ctx context.Context, name string, input json.RawMessage) (string, error) {
 	id := "call-" + strconv.FormatUint(d.nextID.Add(1), 10)
-	env, err := delegate.NewToolCallEnvelope(id, name, input)
+	toolUseID, parent := model.ExecutingToolCallFrom(ctx)
+	env, err := delegate.NewToolCallEnvelopeFor(id, delegate.ToolCallData{
+		Name: name, Input: input, ToolUseID: toolUseID, ParentToolUseID: parent,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -594,8 +601,10 @@ func buildHybridToolDefs(
 						"proxying it would run it on the launcher's host", name, reason)
 			}
 			localExec := local.Execute
+			localDef := local.ToDelegateDef()
 			out[i] = delegate.ToolDef{
-				ConcurrentSafe: local.ToDelegateDef().ConcurrentSafe,
+				ConcurrentSafe: localDef.ConcurrentSafe,
+				ImageResult:    localDef.ImageResult,
 				Name:           name,
 				Description:    td.Description, // keep launcher's description verbatim — it carries any per-recipe wording
 				InputSchema:    td.InputSchema, // and the launcher's schema is the contract the LLM was prompted against

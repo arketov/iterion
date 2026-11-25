@@ -365,12 +365,9 @@ func executeOneToolWithApproval(
 				IsError:   true,
 			}.ToContentBlock()
 			if onToolCall != nil {
-				onToolCall(ToolCallInfo{
-					ToolName:  tu.Name,
-					InputSize: len(tu.PartialJSON),
-					ToolUseID: tu.ID,
-					Error:     err,
-				})
+				info := toolCallInfo(tu)
+				info.Error = err
+				onToolCall(info)
 			}
 			return block, nil
 		}
@@ -406,7 +403,7 @@ func executeOneToolWithApproval(
 			return api.ContentBlock{}, &approvedDispatchInterrupted{cause: err}
 		}
 	}
-	return shapeToolOutcome(ctx, runner, tu, hookInput, output, err)
+	return shapeToolOutcome(ctx, runner, tu, hookInput, output, err, gt.imageResult)
 }
 
 // lookupGenerationTool resolves a tool_use name against the tool map. A
@@ -427,9 +424,9 @@ func generationToolKey(toolMap map[string]*GenerationTool, name string) string {
 }
 
 // unknownToolResult renders the isError tool_result for a call naming a
-// tool the map cannot resolve, and reports it on onToolCall. Quirk pinned
-// by the characterization tests: unlike the other refusal paths, the
-// callback info carries no ToolUseID here.
+// tool the map cannot resolve, and reports it on onToolCall — with the
+// call's id, like every other refusal, so a program's call to a tool that
+// does not exist is attributable to that program.
 func unknownToolResult(tu toolUseBlock, onToolCall func(ToolCallInfo)) api.ContentBlock {
 	block := api.ToolResult{
 		ToolUseID: tu.ID,
@@ -437,11 +434,9 @@ func unknownToolResult(tu toolUseBlock, onToolCall func(ToolCallInfo)) api.Conte
 		IsError:   true,
 	}.ToContentBlock()
 	if onToolCall != nil {
-		onToolCall(ToolCallInfo{
-			ToolName:  tu.Name,
-			InputSize: len(tu.PartialJSON),
-			Error:     fmt.Errorf("unknown tool: %s", tu.Name),
-		})
+		info := toolCallInfo(tu)
+		info.Error = fmt.Errorf("unknown tool: %s", tu.Name)
+		onToolCall(info)
 	}
 	return block
 }
@@ -458,12 +453,9 @@ func malformedInputResult(tu toolUseBlock, jsonErr error, onToolCall func(ToolCa
 		IsError:   true,
 	}.ToContentBlock()
 	if onToolCall != nil {
-		onToolCall(ToolCallInfo{
-			ToolName:  tu.Name,
-			InputSize: len(tu.PartialJSON),
-			ToolUseID: tu.ID,
-			Error:     fmt.Errorf("malformed tool input: %w", jsonErr),
-		})
+		info := toolCallInfo(tu)
+		info.Error = fmt.Errorf("malformed tool input: %w", jsonErr)
+		onToolCall(info)
 	}
 	return block
 }
@@ -471,9 +463,8 @@ func malformedInputResult(tu toolUseBlock, jsonErr error, onToolCall func(ToolCa
 // preToolUseRefusal fires the PreToolUse lifecycle hook and, on a Block
 // decision, renders the synthetic refusal tool_result carrying the
 // decision Reason (defaulting to "blocked by lifecycle hook"). A nil
-// return means the call may proceed. Like the unknown-tool path, the
-// callback info carries no ToolUseID (quirk pinned by the
-// characterization tests).
+// return means the call may proceed. The callback info carries the call's
+// id, so a blocked nested call is attributable to its program.
 func preToolUseRefusal(ctx context.Context, runner *hooks.Runner, tu toolUseBlock, hookInput map[string]any, onToolCall func(ToolCallInfo)) *api.ContentBlock {
 	dec, _ := runner.Fire(ctx, hooks.Context{
 		Event:     hooks.PreToolUse,
@@ -493,11 +484,9 @@ func preToolUseRefusal(ctx context.Context, runner *hooks.Runner, tu toolUseBloc
 		IsError:   true,
 	}.ToContentBlock()
 	if onToolCall != nil {
-		onToolCall(ToolCallInfo{
-			ToolName:  tu.Name,
-			InputSize: len(tu.PartialJSON),
-			Error:     fmt.Errorf("blocked by hook: %s", reason),
-		})
+		info := toolCallInfo(tu)
+		info.Error = fmt.Errorf("blocked by hook: %s", reason)
+		onToolCall(info)
 	}
 	return &block
 }
@@ -561,12 +550,9 @@ func refusalOutcome(reason string, tu toolUseBlock, onToolCall func(ToolCallInfo
 		IsError:   true,
 	}.ToContentBlock()
 	if onToolCall != nil {
-		onToolCall(ToolCallInfo{
-			ToolName:  tu.Name,
-			InputSize: len(tu.PartialJSON),
-			ToolUseID: tu.ID,
-			Error:     errors.New(reason),
-		})
+		info := toolCallInfo(tu)
+		info.Error = errors.New(reason)
+		onToolCall(info)
 	}
 	return &block
 }
@@ -577,14 +563,17 @@ func refusalOutcome(reason string, tu toolUseBlock, onToolCall func(ToolCallInfo
 // placeholder form (tu.PartialJSON) is what the callbacks, hooks, and
 // event log persist, so the real secret never reaches the store — only
 // the live tool call (Layer 1).
+//
+// Two things are armed on the context Execute receives, both per call: the
+// call's identity — its tool_use id, which a tool that makes calls of its own
+// hands them as their parent, and its parent's id, which a tool forwarding the
+// call sends along — and a report sink whose content rides the completion
+// event (a codemode program's bounds and verdict).
 func runToolExecution(ctx context.Context, gt *GenerationTool, tu toolUseBlock, materialize func(string) string, onToolStarted, onToolCall func(ToolCallInfo)) (string, error) {
 	if onToolStarted != nil {
-		onToolStarted(ToolCallInfo{
-			ToolName:  tu.Name,
-			InputSize: len(tu.PartialJSON),
-			ToolUseID: tu.ID,
-			Input:     json.RawMessage(tu.PartialJSON),
-		})
+		info := toolCallInfo(tu)
+		info.Input = json.RawMessage(tu.PartialJSON)
+		onToolStarted(info)
 	}
 
 	execInput := json.RawMessage(tu.PartialJSON)
@@ -597,6 +586,8 @@ func runToolExecution(ctx context.Context, gt *GenerationTool, tu toolUseBlock, 
 		}
 
 	}
+	report := &toolCallReport{}
+	ctx = withToolCallReport(withExecutingToolCall(ctx, tu.ID, tu.Parent), report)
 	start := time.Now()
 	var output string
 	err := ctx.Err()
@@ -606,14 +597,12 @@ func runToolExecution(ctx context.Context, gt *GenerationTool, tu toolUseBlock, 
 	dur := time.Since(start)
 
 	if onToolCall != nil {
-		onToolCall(ToolCallInfo{
-			ToolName:  tu.Name,
-			InputSize: len(tu.PartialJSON),
-			ToolUseID: tu.ID,
-			Output:    output,
-			Duration:  dur,
-			Error:     err,
-		})
+		info := toolCallInfo(tu)
+		info.Output = output
+		info.Duration = dur
+		info.Error = err
+		info.Codemode = report.codemodeReport()
+		onToolCall(info)
 	}
 	return output, err
 }
@@ -627,7 +616,12 @@ func runToolExecution(ctx context.Context, gt *GenerationTool, tu toolUseBlock, 
 // intentionally NOT fired — this isn't a tool failure, it's a suspension
 // request. The pending tool_use ID is stamped so the backend can craft a
 // tool_result block on resume.
-func shapeToolOutcome(ctx context.Context, runner *hooks.Runner, tu toolUseBlock, hookInput map[string]any, output string, err error) (api.ContentBlock, error) {
+//
+// imageResult (the tool's GenerationTool.imageResult) has a successful
+// output decoded into the description and image blocks it encodes, so the
+// model receives the image itself; an output that does not decode, or an
+// image too large to send, shapes into an is_error result naming it.
+func shapeToolOutcome(ctx context.Context, runner *hooks.Runner, tu toolUseBlock, hookInput map[string]any, output string, err error, imageResult bool) (api.ContentBlock, error) {
 	if err != nil {
 		var askErr *delegate.ErrAskUser
 		if errors.As(err, &askErr) {
@@ -667,6 +661,17 @@ func shapeToolOutcome(ctx context.Context, runner *hooks.Runner, tu toolUseBlock
 		ToolInput:  hookInput,
 		ToolResult: output,
 	})
+	if imageResult {
+		content, decodeErr := tool.ImageResultContent(output)
+		if decodeErr != nil {
+			return api.ToolResult{
+				ToolUseID: tu.ID,
+				Content:   fmt.Sprintf("tool error: %s returned an image result the model cannot receive: %v", tu.Name, decodeErr),
+				IsError:   true,
+			}.ToContentBlock(), nil
+		}
+		return api.ContentBlock{Type: "tool_result", ToolUseID: tu.ID, Content: content}, nil
+	}
 	return api.ToolResult{
 		ToolUseID: tu.ID,
 		Content:   output,

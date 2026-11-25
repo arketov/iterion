@@ -26,7 +26,7 @@ func writeMCPProjectFile(t *testing.T, dir, contents string) {
 // TestValidateMCPCatalog_AReservedServerIsASkipNotTheEndOfTheCheck is the
 // witness of the card: a coordinator named a server "iterion" in the project's
 // .mcp.json, /api/validate answered "MCP catalog could not be resolved … uses
-// reserved internal name", and the unknown-server check C356 never ran. Now the
+// reserved internal name", and the unknown-server check C358 never ran. Now the
 // entry is one warning that says how to rename it, and the check runs over the
 // rest of the catalog.
 func TestValidateMCPCatalog_AReservedServerIsASkipNotTheEndOfTheCheck(t *testing.T) {
@@ -54,7 +54,7 @@ func TestValidateMCPCatalog_AReservedServerIsASkipNotTheEndOfTheCheck(t *testing
 		t.Errorf("no warning says the reserved server was skipped and how to rename it: %+v", resp.Issues)
 	}
 	if !c337 {
-		t.Errorf("C356 did not run over the servers that remained: %+v", resp.Issues)
+		t.Errorf("C358 did not run over the servers that remained: %+v", resp.Issues)
 	}
 	if len(resp.Warnings) != len(resp.Issues) {
 		t.Errorf("warnings %v and issues %+v must list the same entries", resp.Warnings, resp.Issues)
@@ -78,7 +78,7 @@ func TestValidateMCPCatalog_AMalformedEntryStillEndsTheCheckWithOneWarning(t *te
 			refused++
 		}
 		if d.Code == string(ir.DiagUnknownMCPServer) {
-			t.Errorf("C356 ran over a catalog that was never resolved: %+v", d)
+			t.Errorf("C358 ran over a catalog that was never resolved: %+v", d)
 		}
 	}
 	if refused != 1 {

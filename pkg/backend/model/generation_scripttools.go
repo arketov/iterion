@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync/atomic"
 
 	"github.com/arketov/iterion/pkg/backend/permission"
 	"github.com/arketov/iterion/pkg/backend/tool"
@@ -69,10 +68,22 @@ type scriptToolServer struct {
 	// exists, which is CM-1b's deliberate state.
 	withheld string
 
-	// Tool events use a unique script prefix and an atomic sequence so
-	// simultaneous scripts cannot collide in the run-wide event sinks.
+	// A nested call's tool_use id is idPrefix, unique per program so two
+	// programs cannot collide in the run-wide event sinks, then the call's
+	// frame ID — program order, as the child minted it, never the order
+	// workers reached this server in.
 	idPrefix string
-	seq      atomic.Int64
+
+	// parent is the tool_use id of the codemode call this program runs
+	// under, which every nested call's events name. Empty when the program
+	// was not started through the door, and its calls then read as
+	// top-level ones.
+	parent string
+
+	// subagentsArmed mirrors the node's armed reserve at server build time:
+	// the one fact the withhold verdict, the concurrency answer and the
+	// catalogue all read, snapshotted before any worker starts.
+	subagentsArmed bool
 }
 
 // newScriptToolServer takes the dispatcher and the context from the ctx of the
@@ -100,7 +111,24 @@ func newScriptToolServer(ctx context.Context, withheld string) (*scriptToolServe
 			"model: a script host can only borrow a node's tool door from the context of that node's own tool call; " +
 				"this context carries none")
 	}
-	s := &scriptToolServer{d: d, withheld: strings.TrimSpace(withheld), idPrefix: "codemode_" + rand.Text()}
+	s := &scriptToolServer{
+		d:        d,
+		withheld: strings.TrimSpace(withheld),
+		idPrefix: "codemode_" + rand.Text(),
+		parent:   executingToolUseIDFrom(ctx),
+		// The reserve arms the script route of the agent tool (CM-13): read
+		// from the node's spend accumulator on this dispatch context, so a
+		// server built for an unarmed node keeps the tool withheld, whatever
+		// `withheld` names.
+		subagentsArmed: func() bool {
+			spend := SubagentSpendFromContext(ctx)
+			if spend == nil {
+				return false
+			}
+			_, armed := spend.ArmedSubagentReserve()
+			return armed
+		}(),
+	}
 
 	// Snapshot any inherited narrowing before workers start. Dispatch pins
 	// its actual table through this same filter; Ask verdicts refuse rather
@@ -115,6 +143,16 @@ func newScriptToolServer(ctx context.Context, withheld string) (*scriptToolServe
 	s.ctx = tool.WithExecutableToolFilter(withAsksDenied(ctx), func(name string) bool {
 		return allowed[name]
 	})
+	// The script admission lives HERE and nowhere else (CM-13): nested
+	// dispatches derive from this context, so a program's agent call admits
+	// against the reserve, while a DIRECT agent call from the model's own
+	// turn — dispatched from a context this server never touches — stays on
+	// today's route (ADR-161).
+	if spend := SubagentSpendFromContext(ctx); spend != nil {
+		if _, armed := spend.ArmedSubagentReserve(); armed {
+			s.ctx = WithSubagentScriptAdmission(s.ctx, spend)
+		}
+	}
 	return s, nil
 }
 
@@ -123,6 +161,13 @@ func newScriptToolServer(ctx context.Context, withheld string) (*scriptToolServe
 func (s *scriptToolServer) ConcurrentSafe(name string) bool {
 	if !s.d.parallel {
 		return false
+	}
+	if s.subagentsArmed && isAgentTool(name) {
+		// A scripted child is a long synchronous call with no shared state
+		// outside the mutex'd spend accumulator; the reserve's Concurrent
+		// cap, enforced at admission, is the real width bound — wider here
+		// would only queue refusals past it.
+		return true
 	}
 	if _, denied := s.withhold(name); denied {
 		return false
@@ -133,23 +178,30 @@ func (s *scriptToolServer) ConcurrentSafe(name string) bool {
 	return known && def.concurrentSafe && (!narrowed || keep(key))
 }
 
-// CallTool implements [scripthost.ToolServer]. The worker supplies only a
-// deadline and cancellation. Values always descend from the attested node.
+// CallTool implements [scripthost.ToolServer]. The worker supplies a
+// deadline, cancellation and the call's frame. Values always descend from the
+// attested node.
 func (s *scriptToolServer) CallTool(worker context.Context, name string, input json.RawMessage) (scripthost.ToolOutcome, error) {
 	if err := worker.Err(); err != nil {
 		return scripthost.ToolOutcome{}, err
 	}
-	if refusal, ok := s.withhold(name); ok {
-		return scripthost.ToolOutcome{Text: refusal, IsError: true}, nil
+	// The id is minted FIRST, before any verdict: a call the server refuses
+	// is still a call the program made, and its refusal is reported under
+	// the same id and parent as a call that ran.
+	//
+	// The frame is the pump's (scripthost.WithCallFrame). A context without
+	// one did not come from a program, and is refused rather than numbered
+	// from a counter: a number minted here would be goroutine order
+	// presented as program order.
+	frame, ok := scripthost.CallFrameFrom(worker)
+	if !ok {
+		return scripthost.ToolOutcome{}, fmt.Errorf("model: the script host served call %q without its call frame; "+
+			"a nested call is dispatched by the script host's tool channel only", name)
 	}
-
-	// A tool_use id a reader can attribute: the run's events carry it, so a
-	// nested call is visible as what it is rather than as an unexplained extra
-	// call on the step.
-	tu := toolUseBlock{
-		ID:          fmt.Sprintf("%s_%d", s.idPrefix, s.seq.Add(1)),
-		Name:        name,
-		PartialJSON: string(normaliseInput(input)),
+	tu := s.nestedToolUse(frame, name, input)
+	if refusal, ok := s.withhold(name); ok {
+		block := refusalOutcome(refusal, tu, s.d.onToolCall)
+		return scripthost.ToolOutcome{Text: toolResultText(*block), IsError: true}, nil
 	}
 
 	parent := s.ctx
@@ -202,6 +254,28 @@ func (s *scriptToolServer) CallTool(worker context.Context, name string, input j
 	return out, nil
 }
 
+// RefusedOnBudget implements [scripthost.BudgetRefusalObserver]: a call the
+// parent refused on the spent budget was never dispatched, and is reported
+// here as the refusal it is, under its own id and parent.
+func (s *scriptToolServer) RefusedOnBudget(frame scripthost.CallFrame, name string, input json.RawMessage, text string) {
+	refusalOutcome(text, s.nestedToolUse(frame, name, input), s.d.onToolCall)
+}
+
+// nestedToolUse is a program's call as the tool_use block the door
+// dispatches: an id a reader can attribute — the run's events carry it, so a
+// nested call is visible as what it is rather than as an unexplained extra
+// call on the step — the program's call as its parent, and the batch slot it
+// came in.
+func (s *scriptToolServer) nestedToolUse(frame scripthost.CallFrame, name string, input json.RawMessage) toolUseBlock {
+	return toolUseBlock{
+		ID:          fmt.Sprintf("%s_%d", s.idPrefix, frame.ID),
+		Name:        name,
+		PartialJSON: string(normaliseInput(input)),
+		Parent:      s.parent,
+		Batch:       frame.Batch,
+	}
+}
+
 // withhold reports the tools a script may not call, by CLASS and not by a list
 // of fully-qualified names.
 //
@@ -230,6 +304,11 @@ func (s *scriptToolServer) CallTool(worker context.Context, name string, input j
 //     quota.
 //   - the script host's own tool, so a script cannot nest another.
 func (s *scriptToolServer) withhold(name string) (string, bool) {
+	if s.subagentsArmed && isAgentTool(name) {
+		// The reserve is armed: the script route exists, the tool is served
+		// and admitted against the node's reserve by its own executor.
+		return "", false
+	}
 	return scriptWithheld(name, s.withheld)
 }
 
@@ -291,20 +370,28 @@ func isAgentTool(name string) bool {
 //
 // A block that carries several text parts is joined rather than truncated to
 // the first: "the first one wins" is a verdict reconstructed from order, which
-// this repo has paid for.
+// this repo has paid for. A program receives text only, so an image block
+// (read_image, screenshot) becomes an explicit marker: a bare success would
+// let the program — and the model reading its result — believe it saw an
+// image it never received.
 func toolResultText(block api.ContentBlock) string {
 	if len(block.Content) == 0 {
 		return ""
 	}
-	if len(block.Content) == 1 {
-		return block.Content[0].Text
-	}
 	parts := make([]string, 0, len(block.Content))
 	for _, c := range block.Content {
+		if c.Type == "image" {
+			parts = append(parts, scriptImageOmitted)
+			continue
+		}
 		parts = append(parts, c.Text)
 	}
 	return strings.Join(parts, "\n")
 }
+
+// scriptImageOmitted stands for an image block in a tool result a program
+// receives.
+const scriptImageOmitted = "[image omitted: a program receives text only — call the tool directly for the model to see the image]"
 
 // normaliseInput makes an empty or absent input the empty object.
 //
