@@ -1591,11 +1591,13 @@ one:
 
 On the team's policy, a restricted key's cell would also route launches the
 key cannot fund onto the gateway — the team's other repositories or bots,
-and for a repository restriction the scheduled, board and pipeline lanes,
-which name no repository (ADR-131 §3) — and under `llm_fallback=none` such a
-launch is refused (§5). Until PR-R stamps the scheduled lane with its
-integration's repository, an integration's own schedules cannot spend a
-repository-restricted key either.
+and for a repository restriction the pipeline lane, which names no
+repository (ADR-131 §3) — and under `llm_fallback=none` such a launch is
+refused (§5). The scheduled lane names its integration's repository (or its
+`repo_url`'s), so an integration's own schedules spend a key restricted to
+that repository; when two gateway keys of the team serve the same bot and
+repository, a schedule's `key_overrides` picks the one it spends
+([byok.md](byok.md#per-webhook-key-override)).
 
 The cell re-targets the `model:` of every LLM node the record reaches — not
 its `backend:` or `provider:`. A node whose backend resolves to claw (named,
@@ -1919,7 +1921,8 @@ run to the runner** — the operator table stays the floor.
   catalog entry with an unpriced one; a declared one answers unpriced
   only where nothing prices the id (below). When a fresh
   feed and the operator table disagree on price, the sync says so: one
-  line per drifting id per refresh, naming both values. A fetched
+  line per drifting id per refresh, naming both values; the cache-read
+  price drifts only when both sides state one. A fetched
   price that is not a finite number — a `litellm` per-token cost
   scaled past what a number holds — fails its refresh, naming the id
   and the field; one a state already holds is left out of the fold,
@@ -1929,7 +1932,15 @@ run to the runner** — the operator table stays the floor.
   `modelsdev` (the aggregator's shape, `provider` qualifier, optional
   `url`), `scaleway` (that adapter with its qualifier pinned; every
   entry keyed both `scaleway/<id>` and `<id>`), `litellm` (a proxy's
-  `model_info` listing, per-token costs scaled to per-mtok), `exec` — a
+  `model_info` listing: input, output and `cache_read_input_token_cost`
+  per-token costs scaled to per-mtok once; `max_input_tokens` is the
+  window and `max_output_tokens` the output cap; the legacy
+  `max_tokens` stands in for the window only when both are absent or
+  null — LiteLLM derives it from the output cap, or from the input
+  window when the cap is 0 — else the window stays unknown; deployments
+  sharing a `model_name` fold their limits (a stated limit beats an
+  absent one, two stated limits keep the smaller); an absent cache price
+  stays unknown, so cached input meters at the input rate), `exec` — a
   command printing the feed-entry JSON on stdout (the operator-table
   shape plus `reasoning_efforts`; no shell; `args` splits on spaces;
   stdout bounded; a descendant holding the pipe cannot stall the
@@ -3266,7 +3277,7 @@ unknown name there is dead config, not a failure — and it never touches
 qualified MCP references (`mcp.<server>.<tool>`, the `mcp__server__tool`
 alias form, wildcards), which are resolved when the server connects. One
 host-side check does read them: `iterion validate` and `POST /api/validate`
-warn (`C356`) when such a reference names a server that no `mcp_server`
+warn (`C358`) when such a reference names a server that no `mcp_server`
 block, project `.mcp.json` entry or enabled plugin declares.
 
 What it lets through, and why. iterion's own board and watch tools are

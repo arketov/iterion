@@ -11,7 +11,7 @@ import (
 	"github.com/arketov/iterion/pkg/dsl/ir"
 )
 
-// UnknownModelDiagnostics is C357: one warning per literal `anthropic/<id>` or
+// UnknownModelDiagnostics is C359: one warning per literal `anthropic/<id>` or
 // `openai/<id>` model on an agent, judge, LLM router or `fallbacks:` route that
 // neither the embedded models.dev snapshot nor the live/cached model table
 // lists — the typo that reads "usable" (a credential is all `usable` checks)

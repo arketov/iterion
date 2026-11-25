@@ -92,6 +92,14 @@ nothing here either: the catalog request names neither, and a launch outside
 the audience never receives the key, so the models only it would fund read
 `unknown`.
 
+The platform tier counts through the launch walk's own gate (the cloud
+publisher's `PlatformTierConsulted`). A team outside an enforced platform
+credential audience, a sovereign team (`llm_fallback=none`) or a team mapped
+to a runner pool never receives a platform credential, so the models only a
+platform key or forfait funds read `unknown` for it. When no publisher can
+answer (a team read that fails), the platform tier is left uncounted with a
+warning in the server log.
+
 The catalog envelope also stamps `reachability: "local"|"cloud"` for the
 surface that was evaluated.
 
@@ -119,7 +127,7 @@ no context window, no price — and still lists `claude_code` as usable, because
 credential for the provider exists. Read the source, the context window and
 `price_known`, not the last column alone; the recipe is in
 [the quickstart](quickstart.md#name-a-model-and-check-the-name).
-`iterion validate` and `POST /api/validate` warn (`C357`) about such a literal
+`iterion validate` and `POST /api/validate` warn (`C359`) about such a literal
 `anthropic/` or `openai/` id before any run; `usable` itself is unchanged (a
 credential only) and the `/api/models` contract is too.
 

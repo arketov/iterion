@@ -289,7 +289,7 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `pkg/runshell` | spawns interactive post-mortem shells in preserved run worktrees (the studio's "Open shell" on a failed run). | — |
 | `pkg/runtime` | — conflict handling for the deferred squash merge. | `AmbiguousEffect`, `CapabilityDenial`, `Compactor`, `EffectiveBackendResolver`, `EffectiveFallbackResolver`, `EffectiveToolSurfaceResolver`, `InventedValues`, `NodeExecutor`, `OutputCorrector`, `OutputCorrectorWithUsage`, `ReviewCompanion`, `SecretScrubber`, `UndecidedRouteReporter` |
 | `pkg/runtime/recovery` | defines typed recovery recipes that decide what to do when a node fails. | `Recipe` |
-| `pkg/runview` | — agent-driven merge-conflict resolution. | `CredentialFundingJudge`, `CredentialPreviewer`, `LaunchPublisher`, `ObservedEventFeed`, `RunLoader` |
+| `pkg/runview` | — agent-driven merge-conflict resolution. | `CredentialFundingJudge`, `CredentialPreviewer`, `LaunchPublisher`, `ObservedEventFeed`, `PlatformTierJudge`, `RunLoader` |
 | `pkg/runview/runstream` | the store-agnostic run-streaming seam (ADR-053): one Source per store delivers BOTH the structured event timeline and the raw log bytes of any run… | `BoundObservationSource`, `EventCursorSource`, `EventSubscription`, `LogSubscription`, `MongoSelection`, `Source` |
 | `pkg/runwatch` | persists the link between a failed target run and the conversational assistant run that will inspect it. | `Store` |
 | `pkg/sandbox` | defines the iterion sandboxing abstraction. | `BindPathIdentity`, `Builder`, `CommandCancellationOwner`, `Driver`, `HostRun`, `ImageEnvScreener`, `PreparedSpec`, `ProcessIsolated`, `ProxiedRun`, `ProxyConfigurer`, `RootOpener`, `Run`, `SchedulingPolicyReporter`, `SecretFileRefresher`, `StartedEnvReader`, `WorkspaceExporter`, `WorkspaceFileRefresher`, `WorkspaceHeadCapturer` |
@@ -303,7 +303,7 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `pkg/sandbox/noop` | provides the always-available passthrough sandbox driver. | — |
 | `pkg/sandbox/registry` | centralises the iterion-shipped sandbox-driver constructor list. | — |
 | `pkg/schedgate` | the shared "should this scheduled bot fire now?" gate used by all three scheduled-launch paths: pkg/cli/schedule (host crontab),… | `ScheduleRunLister` |
-| `pkg/scripthost` | runs model-authored JavaScript in a child process that holds no credential and no capability. | `ToolServer` |
+| `pkg/scripthost` | runs model-authored JavaScript in a child process that holds no credential and no capability. | `BudgetRefusalObserver`, `ToolServer` |
 | `pkg/scripthost/toolindex` | codemode's discovery surface (CM-3, ADR-165): the catalogue of the tools a program may call, their TypeScript declarations, a BM25 index over them,… | — |
 | `pkg/secrets` | seals and unseals sensitive values (BYOK API keys, OAuth credentials, OIDC client secrets) at rest. | `ApiKeyStore`, `BotSecretBindingStore`, `GenericSecretStore`, `KeyedSealer`, `OAuthPendingStore`, `OAuthStore`, `RunSecretsStore`, `Sealer` |
 | `pkg/secure/hostfold` | folds a URL hostname to the name a dial resolves. | — |
@@ -336,6 +336,7 @@ One row per package of this module, excluding vendored and generated trees. The 
 | `pkg/worktreepool` | the safety classifier for the per-run git worktrees iterion parks under `<store>/worktrees/`. | — |
 | `scripts/ci/inpodbench` | Command inpodbench reports what a codemode child actually confines itself to under the posture it is GIVEN, whether that confinement REFUSES, and… | — |
 | `scripts/ci/testcaps` | Command testcaps publishes a deterministic source census of test skips and sleeps, plus optional observations of the runner's literal prerequisites. | — |
+| `scripts/ci/testquarantine` | Command testquarantine reads the checked-in flake quarantine (scripts/ci/test-quarantine.tsv) and prints what the CI jobs consume: 	testquarantine… | — |
 | `scripts/ci/testshards` | Command testshards prints the Go test packages of one deterministic shard, the mechanism the CI matrix legs use to split `./...` across runners (the… | — |
 | `scripts/clawfold` | Command clawfold plans, applies and proves the fold of claw-code-go into pkg/claw (see internal/clawfold). | — |
 | `scripts/docslinks` | Command docslinks checks every relative link and `#anchor` in the repository's tracked markdown against the real tree, the way GitHub resolves them… | — |
