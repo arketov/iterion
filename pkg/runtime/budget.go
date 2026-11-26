@@ -851,6 +851,24 @@ func findWarnings(results []budgetCheckResult) []budgetCheckResult {
 // Budget helpers
 // ---------------------------------------------------------------------------
 
+// nodeSpendsNoModel reports whether the node kind cannot itself spend model
+// money: tool, compute and the terminal done/fail nodes. Agent, judge,
+// router, human, subbot (and unknown nodes) are treated as spending.
+func (e *Engine) nodeSpendsNoModel(nodeID string) bool {
+	if e == nil || e.workflow == nil {
+		return false
+	}
+	node, ok := e.workflow.Nodes[nodeID]
+	if !ok || node == nil {
+		return false
+	}
+	switch node.NodeKind() {
+	case ir.NodeTool, ir.NodeCompute, ir.NodeDone, ir.NodeFail:
+		return true
+	}
+	return false
+}
+
 // checkBudgetBeforeExec checks budget limits before a node runs.
 // It enforces both hard exceeded (100%) and hard limited (90%) thresholds.
 func (e *Engine) checkBudgetBeforeExec(rs *runState, nodeID string) error {
@@ -869,6 +887,21 @@ func (e *Engine) checkBudgetBeforeExec(rs *runState, nodeID string) error {
 	if rs.budget == nil {
 		return nil
 	}
+
+	// Nodes that cannot spend model money (tool, compute, done/fail) pass
+	// both the 90% threshold and the 100% cap: refusing them saves nothing
+	// and only loses work the run has already paid for (a review approved at
+	// 19.03 of a 20 USD cap whose free hand-over nodes were then refused).
+	// A parallel branch keeps the old behaviour: sibling spend lands on the
+	// shared budget concurrently, and the branch scheduler runs its own
+	// twin checks. Caveat: a tool node that itself calls a model (a script
+	// launching a CLI) bypasses this gate — that is the bot author's
+	// responsibility. Post-exec accounting (recordBudget) is unchanged, so
+	// any spend such a node reports is still booked and checked after it.
+	if !rs.branchLocal && e.nodeSpendsNoModel(nodeID) {
+		return nil
+	}
+
 	checks := rs.budget.Check()
 
 	// Hard exceeded (100%+) — unless this node is how the run DELIVERS

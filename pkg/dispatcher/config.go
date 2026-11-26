@@ -234,6 +234,16 @@ type AgentConfig struct {
 	// unbounded behaviour).
 	MaxAttempts int `yaml:"max_attempts,omitempty" json:"max_attempts,omitempty"`
 
+	// NoRetryFailureCodes lists run failure codes (the `code:` of the
+	// workflow's fail node, e.g. IMPL_BLOCKED) that are never retried: a run
+	// failing with one of them moves the card straight to FailedState
+	// without further attempts, whatever max_attempts allows. Matching is
+	// exact and case-sensitive against the run's failure code. Empty (the
+	// default) changes nothing. Like the built-in deterministic-failure arm,
+	// it needs a representable FailedState; with `failed_state: none` the
+	// ordinary bounded retry ladder applies.
+	NoRetryFailureCodes []string `yaml:"no_retry_failure_codes,omitempty" json:"no_retry_failure_codes,omitempty"`
+
 	// RunningState, when non-empty, is the kanban state the dispatcher
 	// transitions a claimed issue to after a successful Claim. Empty
 	// disables the transition (escape hatch for boards without an
@@ -546,6 +556,17 @@ func (c *Config) applyDefaults() {
 		c.Agent.MaxAttempts = DefaultMaxAttempts
 	} else if c.Agent.MaxAttempts < 0 {
 		c.Agent.MaxAttempts = 0
+	}
+	// NoRetryFailureCodes: trim and drop blank entries so a stray "" in the
+	// YAML list cannot match a run whose failure carries no code.
+	if len(c.Agent.NoRetryFailureCodes) > 0 {
+		codes := make([]string, 0, len(c.Agent.NoRetryFailureCodes))
+		for _, code := range c.Agent.NoRetryFailureCodes {
+			if code = strings.TrimSpace(code); code != "" {
+				codes = append(codes, code)
+			}
+		}
+		c.Agent.NoRetryFailureCodes = codes
 	}
 	// Stall: unset → the default; an explicit 0 is the operator's "off" and is
 	// kept; a negative value is the same escape, normalised to 0 like

@@ -133,6 +133,8 @@ export interface AgentConfig {
   max_retry_backoff_ms?: number;
   /** Total attempts per card; a negative value retries forever. */
   max_attempts?: number;
+  /** Failure codes (a fail node's `code`) never retried: the card goes straight to failed_state. */
+  no_retry_failure_codes?: string[];
   /** Board states the dispatcher moves a card through; "none" opts out. */
   running_state?: string;
   completed_state?: string;

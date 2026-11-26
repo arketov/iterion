@@ -691,6 +691,19 @@ func (c *Dispatcher) finishRun(ctx context.Context, issueID string, err error) {
 		}
 		c.scheduleUsageWait(issueID, r, err, usageWake)
 		plan.kind = finishRevert
+	case cfg.Agent.FailedState != "" && noRetryFailureCode(cfg, string(runtimeFailureCode(err))):
+		// The operator listed this failure code under
+		// agent.no_retry_failure_codes: the workflow said it cannot proceed
+		// (e.g. a fail node `code: IMPL_BLOCKED`), so further attempts only
+		// burn budget. Same terminal move as the deterministic arm below.
+		c.logger.Warn("dispatcher: %s failed with code %s (run=%s): %v — NOT retrying (code is listed in agent.no_retry_failure_codes); moving to %q",
+			r.Identifier, runtimeFailureCode(err), r.RunID, err, cfg.Agent.FailedState)
+		c.scheduleRetry(issueID, r, err)
+		plan.kind = finishGiveUp
+		plan.failedState = cfg.Agent.FailedState
+		plan.attemptCount = r.Attempt + 1
+		plan.runID = r.RunID
+		plan.runErrText = runtime.OperatorMessage(err)
 	case cfg.Agent.FailedState != "" && retrypolicy.IsDeterministic(runtimeFailureCode(err)):
 		// A failure the shared classification says a resume cannot cure:
 		// the same step, the same checkpoint, the same verdict. Retrying it
@@ -773,6 +786,20 @@ func (c *Dispatcher) stopClaimSession(r *runningEntry) {
 		r.claim.Stop()
 		r.claim = nil
 	}
+}
+
+// noRetryFailureCode reports whether code is listed in
+// cfg.Agent.NoRetryFailureCodes. An empty code never matches.
+func noRetryFailureCode(cfg *Config, code string) bool {
+	if code == "" {
+		return false
+	}
+	for _, c := range cfg.Agent.NoRetryFailureCodes {
+		if c == code {
+			return true
+		}
+	}
+	return false
 }
 
 // exhausted reports whether a failing issue has reached the configured

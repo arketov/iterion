@@ -1382,6 +1382,19 @@ second path still catches is a node whose **own** spend carries the run
 past `cap × (1+ratio)`: it completes, and the run then ends. The grace
 buys the node its chance to deliver, not immunity from the ceiling.
 
+**Nodes that cannot spend model money skip both gates.** `tool`, `compute`
+and the terminal `done` / `fail` nodes start even at or past 90% of the cap
+and past 100% of it: refusing them saves nothing and only loses work the run
+has already paid for (a review approved at $19.03 of a $20 cap must still be
+able to post its comment and hand over). `agent`, `judge`, `router`, `human`
+and `subbot` nodes stay gated exactly as described here. Two limits: inside a
+parallel / fan-out branch the old behaviour is kept for every node, and a
+`tool` node that itself calls a model (a script launching a CLI, say) bypasses
+the gate — keeping such a node cheap is the bot author's responsibility. The
+spend such a node reports is still booked after it runs. The daily spend cap
+is a separate check and is unchanged; a `max_duration` already past 100% is
+still refused by the second duration check at node start (graced as above).
+
 The grace only exists **past** the cap. The separate 90% hard limit, which
 refuses to start a new node while an axis sits in `[90%, 100%)` to bound
 concurrent overage, is **not** graced and is unchanged: it is reached only

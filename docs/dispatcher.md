@@ -733,6 +733,24 @@ doomed ticket stops burning model spend. If the board cannot represent that
 state the move is refused and the unbounded retry is kept instead — a ticket is
 never frozen in place.
 
+#### Failure codes that are never retried (`agent.no_retry_failure_codes`)
+
+`agent.no_retry_failure_codes` is a list of run failure codes — the `code:` of
+the workflow's `fail` node, for example `IMPL_BLOCKED`. When a run fails with
+a listed code the dispatcher does not retry: the card goes straight to
+`agent.failed_state` (the same terminal move as a give-up), whatever
+`max_attempts` still allows, and the log says the code is listed. Matching is
+exact and case-sensitive; blank entries are dropped. The default is an empty
+list, which changes nothing. Like the built-in give-up on deterministic
+failures, it needs a representable `failed_state` — with `failed_state: none`
+the ordinary bounded retry ladder applies.
+
+```yaml
+agent:
+  max_attempts: 3
+  no_retry_failure_codes: [IMPL_BLOCKED]
+```
+
 Only a failed attempt spends the budget. A run interrupted because the operator
 dragged the card out of `agent.running_state` is not an attempt: it schedules no
 retry, never gives up and never overwrites the column the operator chose (see
