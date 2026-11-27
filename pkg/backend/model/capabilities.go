@@ -45,10 +45,25 @@ func capabilitiesForModel(provider, modelID string) ModelCapabilities {
 	}
 	curated := curatedCapabilities(provider, modelID)
 	spec, ok := modelspecs.Default().Lookup(provider, modelID)
-	if !ok {
-		return curated
+	caps := curated
+	if ok {
+		caps = mergeSpec(spec, curated)
 	}
-	return mergeSpec(spec, curated)
+	// The image flag is read the way the image policy reads a native route
+	// (nativeImageInput), from this process's tables, not the merge's: the
+	// merge falls back to the bare consensus index, which the policy never
+	// reads.
+	caps.ImageInput = nativeImageInput(nativeSpec(provider, modelID))
+	return caps
+}
+
+// nativeSpec spells a (provider, model) pair the way a route names it: a
+// bare id when the provider is empty.
+func nativeSpec(provider, modelID string) string {
+	if provider == "" {
+		return modelID
+	}
+	return provider + "/" + modelID
 }
 
 // taskContextWindow resolves the catalog context window for a delegate
@@ -95,6 +110,7 @@ func gatewayCapabilities(r compatgw.Resolved) ModelCapabilities {
 		Reasoning:       r.Spec.Reasoning,
 		ToolCall:        r.Spec.ToolCall,
 		Temperature:     r.Spec.Temperature,
+		ImageInput:      r.Spec.ImageInput,
 		Source:          CapabilitySource(r.Source),
 		ContextWindow:   r.Spec.ContextWindow,
 		MaxOutputTokens: r.Spec.MaxOutputTokens,
@@ -193,8 +209,8 @@ var glmGenerationRe = regexp.MustCompile(`glm-(\d+)(?:\.(\d+))?`)
 
 // glmContextWindow returns the context window for a GLM model served via
 // z.ai's Anthropic-compatible endpoint. Within the GLM-5 generation the window
-// is 1M tokens from 5.2 on (GLM-5.3 kept it: same base model, newer
-// post-training); GLM-5.1 / GLM-4.6 and earlier are 200K-class. It reads the
+// is 1M tokens from 5.2 on (GLM-5.3 and GLM-5.4 kept it: same base model,
+// newer post-training); GLM-5.1 / GLM-4.6 and earlier are 200K-class. It reads the
 // minor version rather than matching known ids — an exact "glm-5.2" match
 // sized glm-5.3 at a fifth of its window. A major no one has measured yet, or
 // an unparseable id, stays at the conservative 200K: under-sizing costs an

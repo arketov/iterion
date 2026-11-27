@@ -384,7 +384,7 @@ failures; [pkg/server/webhooks_github.go](../pkg/server/webhooks_github.go)):
   `bot_ids` during the window drops the parked launch (with a
   `filtered` delivery naming why), because the sweep re-enters none of
   the admission the inbound request passed; and a parked launch the
-  admission gate refuses (org concurrency, launch rate) or that fails
+  admission gate refuses (team concurrency, team launch rate) or that fails
   outright is **re-armed with backoff**, not dropped — the forge was
   answered `202 deferred` and will never redeliver, so the retry has to
   live here. That chain is bounded (8 attempts, ~45 min); past it, or
@@ -1330,10 +1330,12 @@ hardcoded reviewer and the guard was lost entirely.
 
 A webhook that an auto-provisioned integration has migrated therefore
 carries a **per-bot routing table** (`BotRules`, one entry per
-co-enabled bot). An inbound delivery then **fans out to every bot whose
-own rule claims the event and admits the author** — each with its own
-author filter, label filter, and launch vars, its own idempotency key,
-and a FRESH vars map (so two bots never share one publish grant)
+co-enabled bot). An inbound pull-request delivery then **fans out to
+every bot whose own rule claims the event and admits the author** — each
+with its own author filter and launch vars, its own idempotency key, and
+a FRESH vars map (so two bots never share one publish grant). The table
+carries no label filter the issue lane reads: per-bot labels are the
+subscription routing below
 ([pkg/webhooks/types.go:BotRule](../pkg/webhooks/types.go),
 [pkg/server/webhooks_common.go:resolveForgeEventBots](../pkg/server/webhooks_common.go)).
 
@@ -1364,6 +1366,58 @@ unchanged bot set backfills the table without minting a token or calling
 the forge. One contract change follows from the fan-out: a delivery no
 enabled bot claims is now **filtered (200)** rather than 403 — a 4xx on
 a forge hook is what makes GitHub disable it.
+
+### Per-bot labels on the issue lane — routing by subscription (ADR-172)
+
+On the legacy issue lane a label starts ONE bot, elected per webhook
+(`default_bot_id`, else the implementer, else the reviewer): two label
+bots on one repository start neither. An integration can instead route
+its issue lane **by subscription**
+([ADR-172](adr/172-a-forge-delivery-is-routed-by-the-subscriptions-its-integration-projects.md)):
+every bot of the integration that claims `issue_labeled` gets one
+subscription row, projected from its manifest and the integration's
+per-bot `bot_triggers`, and a label starts **every bot whose row claims
+it**, each in its own invocation's mode and with its own `context_vars`.
+
+- **Declare the labels** in the bot's manifest, on its `kind: forge`
+  invocation: `forge: { event: issue_labeled, actions: [labeled], labels:
+  [securite] }` (`*`, a literal, or a leading-`*` suffix such as
+  `*-chaos`; no prefix wildcard). The key needs the iterion release that
+  ships it (`requires.iterion`). Without manifest labels, an operator sets
+  them per bot on the integration: `PATCH
+  /api/teams/{id}/forge/repo-bots/{integration_id}` with `{"bot_triggers":
+  {"nestor": {"labels": ["securite"]}}}`. The block answers `400` for a bot
+  the integration does not hold, a blank label, or a `launch_vars` key that
+  is the server's (`__iterion_*`, a minted publish var, `ITERION_*`); a
+  manifest var of that kind is dropped from the row and named in the sync
+  report. On an org that requires approval, a change that hands a label to
+  a bot that did not start on it — a residual pin dropped, a bot narrowed
+  beside the residual winner — parks like any widening.
+- **Project, then flip.** `POST …/repo-bots/{integration_id}/subscriptions/sync`
+  projects the rows and answers the report (enabled and disabled rows per
+  bot, their labels and reasons). `PUT …/repo-bots/{integration_id}/routing`
+  with `{"lane": "issues", "mode": "spine"}` flips the lane; it refuses
+  (409) a lane with no enabled row, a bot whose rows overlap, or
+  hand-pinned `launch_vars` on the webhook config (move them to the
+  integration's `launch_vars`). On an org that requires provisioning
+  approval, a flip to spine is an org admin's — unless the org scoped its
+  gate to `shared_credentials` and the team funds its own runs.
+  `{"lane": "issues", "mode": "legacy"}` rolls back, at any time, and
+  nobody's claims are lost either way. The server default
+  (`ITERION_FORGE_ROUTING_DEFAULT`) accepts `legacy` alone: spine is
+  reached through this flip, per integration.
+- **The answers.** A label no row claims answers `200 filtered`, naming
+  each bot and what it wanted; a bot out of scope or disabled is a
+  per-bot filtered row while the others launch — never a 4xx. Rows whose
+  manifests changed since the last projection answer `503
+  subscriptions_stale` until the sync runs again (on GitHub, redeliver
+  the event after it). A flipped integration with no row answers `503`
+  too: it is never routed legacy behind your back.
+- The repository's `label_allowlist` and `hold_labels` still gate first,
+  for every bot: a bot's labels narrow it, never widen past them.
+- Not flipped, an integration answers byte for byte as before. The
+  pull-request and comment lanes stay on the routing table above until
+  their own phases.
 
 ## Idempotency
 
@@ -1496,7 +1550,7 @@ flowchart TD
     EN -- "no" --> E410["410 webhook disabled"]
     EN -- "yes" --> RATE{"per-webhook token bucket, default rate 1.0 and burst 10"}
     RATE -- "empty" --> E429R["429 with Retry-After - NO delivery row, only the throttled metric"]
-    RATE -- "a token taken" --> QUO{"monthly call CAS in webhook_quotas - the org key, then a per-webhook key when capped"}
+    RATE -- "a token taken" --> QUO{"monthly call CAS in webhook_quotas - the team key, then a per-webhook key when capped"}
     QUO -- "cap breached" --> E429Q["429 monthly call quota exceeded - NO delivery row either"]
     QUO -- "the counter is unreadable" --> E500["500 quota check failed"]
     QUO -- "admitted" --> TEAM{"GetTeam on cfg.TenantID"}
@@ -1587,7 +1641,7 @@ middleware before the provider handler runs
 | Verify token (token-mode only) | bad token | 401 `invalid webhook token` |
 | Config not disabled | `enabled=false` | 410 `webhook disabled` |
 | Per-webhook token-bucket rate (default `rate=1.0, burst=10`) | bucket empty | 429 with `Retry-After` |
-| Per-org monthly call quota (default **10 000**; `monthly_call_limit` adds a per-webhook cap) | quota exhausted | 429 `monthly call quota exceeded` |
+| Per-team monthly call quota (**10 000**, a constant with no override, counted under the team's `org\|<team id>` key; `monthly_call_limit` adds a tighter per-webhook cap) | quota exhausted | 429 `monthly call quota exceeded` |
 | The same quota read | the counter is unreadable | 500 `quota check failed` |
 | Org status `active`, from one team lookup | suspended / read-only | 403 `org suspended` |
 | The same team lookup | the team no longer exists | 403 `tenant no longer exists` |

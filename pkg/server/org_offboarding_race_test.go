@@ -1014,6 +1014,7 @@ func (g *slowConfirmGate) DeleteMembership(ctx context.Context, userID, teamID s
 // grantCompensationTimeout of wall clock: that budget being spent IS the
 // scenario, and an instant error cannot witness it.
 func TestOrgOffboarding_aReReadThatAnswersOnlyAtItsDeadlineStillTakesTheGrantBack(t *testing.T) {
+	t.Parallel()
 	s := newOrgCredsTestServer(t)
 	seedRacer(t, s)
 	logs := &lockedBuffer{}
@@ -1989,7 +1990,7 @@ func seedConfigEditorGrant(t *testing.T, s *Server) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tok, _, err := s.authSvc.CreateInvitation(testMintVerdictContext(ctx), "t1", u.Email, identity.RoleConfigEditor, "teamadmin")
+	tok, _, err := s.authSvc.CreateInvitation(testMintVerdictContext(ctx), auth.InvitationRequest{TeamID: "t1", Email: u.Email, Role: identity.RoleConfigEditor, InvitedBy: "teamadmin"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2276,7 +2277,7 @@ func TestTeamMembers_anOrphanLadderGrantCannotReRoleItselfOffTheLadder(t *testin
 // invitationFor mints a team invitation the way the console does.
 func invitationFor(t *testing.T, s *Server, teamID, email string, role identity.Role) (token, id string) {
 	t.Helper()
-	tok, inv, err := s.authSvc.CreateInvitation(testMintVerdictContext(context.Background()), teamID, email, role, "teamadmin")
+	tok, inv, err := s.authSvc.CreateInvitation(testMintVerdictContext(context.Background()), auth.InvitationRequest{TeamID: teamID, Email: email, Role: role, InvitedBy: "teamadmin"})
 	if err != nil {
 		t.Fatalf("mint an invitation for %s on %s: %v", email, teamID, err)
 	}
@@ -2474,7 +2475,7 @@ func (g *offboardingWindowGate) DeleteOrgMembership(ctx context.Context, userID,
 	if !first {
 		return nil
 	}
-	tok, _, err := g.s.authSvc.CreateInvitation(testMintVerdictContext(context.Background()), "t1", g.email, identity.RoleMember, "teamadmin")
+	tok, _, err := g.s.authSvc.CreateInvitation(testMintVerdictContext(context.Background()), auth.InvitationRequest{TeamID: "t1", Email: g.email, Role: identity.RoleMember, InvitedBy: "teamadmin"})
 	if err != nil {
 		return fmt.Errorf("mint the in-window invitation: %w", err)
 	}
@@ -2866,6 +2867,7 @@ func (g *subjectReadGate) DeleteMembership(ctx context.Context, userID, teamID s
 // there holds the request for a third full budget in series to buy the
 // account id the fallback already has.
 func TestOrgOffboarding_theRefusalNamesItsSubjectOnABudgetOfItsOwn(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name string
 		gone bool

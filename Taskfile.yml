@@ -622,6 +622,11 @@ tasks:
     cmds:
       - golangci-lint run
 
+  vuln:
+    desc: Scan the Go module for vulnerabilities reachable from this code (needs the network for the vuln DB — advisory, run by hand; never a member of `task check` or `task ci:gate`)
+    cmds:
+      - govulncheck ./...
+
   run:
     desc: Build and run iterion (pass args after --)
     deps: [build]
@@ -772,7 +777,7 @@ tasks:
       - bash scripts/ci/vendor-check.sh
 
   ci:mongo-conformance:
-    desc: "The local member of CI's `mongo-conformance` required check — a real one-member mongo:8.0 replica set (change streams + transactions), then BOTH `go test` invocations READ FROM the job itself rather than restated here. Needs docker; `ITERION_CI_GATE_EVIDENCE=<dir>` keeps the per-invocation logs and the exit-code matrix"
+    desc: "The local member of CI's held `mongo-conformance` job (heavy layer: push, nightly, dispatch, ci:full) — a real one-member mongo:8.0 replica set (change streams + transactions), then BOTH `go test` invocations READ FROM the job itself rather than restated here. Needs docker; `ITERION_CI_GATE_EVIDENCE=<dir>` keeps the per-invocation logs and the exit-code matrix"
     cmds:
       - bash scripts/ci/mongo-conformance.sh
 
@@ -792,9 +797,9 @@ tasks:
       - bash scripts/ci/codemode-bench-image.sh {{if .FROM}}--from "{{.FROM}}"{{end}} {{if .PUSH}}--push "{{.PUSH}}"{{end}} {{if .LOAD_KIND}}--load-kind "{{.LOAD_KIND}}"{{end}} {{if .PLATFORM}}--platform "{{.PLATFORM}}"{{end}} {{if .KEEP}}--keep{{end}}
 
   bench:codemode-remote:
-    desc: "The posture bench against a cluster this host does not own (#3299): the same measured pod, its posture readback and the Unconfined twin, driven by kubectl against a kubeconfig passed BY REFERENCE. Reports the `containerRuntimeVersion` of the node the MEASURED pod landed on — a default seccomp profile belongs to a containerd BUILD, which is the whole reason this arm exists — and fails if the admitted pods land on nodes reporting different runtimes, since two runtimes attribute nothing. Prints its gaps instead of hiding them: the two `Localhost` seccomp mutants need the kubelet's seccomp root on the node (node-level access), and the Unconfined twin is refused unless the namespace allows it (`CREATE_NS=1` labels it privileged). Exit codes are the bench's contract: 0 held, 1 red verdict, 2 nothing was tested. `NAMESPACE=` is required and `default`/`kube-system`/`kube-public`/`kube-node-lease` are refused. `EXPECT_GROUPS=27,100,1000` (numeric ids) declares the supplementary groups the IMAGE brings — the production runner image needs exactly that, its `devbox` user being in `sudo` and `users`"
+    desc: "The posture bench against a cluster this host does not own (#3299): the same measured pod, its posture readback and the Unconfined twin, driven by kubectl against a kubeconfig passed BY REFERENCE. Reports the `containerRuntimeVersion` of the node the MEASURED pod landed on — a default seccomp profile belongs to a containerd BUILD, which is the whole reason this arm exists — and fails if the admitted pods land on nodes reporting different runtimes, since two runtimes attribute nothing. Prints its gaps instead of hiding them: the two `Localhost` seccomp mutants need the kubelet's seccomp root on the node (node-level access), and the Unconfined twin is refused unless the namespace allows it (`CREATE_NS=1` labels it privileged). Exit codes are the bench's contract: 0 held, 1 red verdict, 2 nothing was tested. `NAMESPACE=` is required and `default`/`kube-system`/`kube-public`/`kube-node-lease` are refused. `EXPECT_GROUPS=27,100,1000` (numeric ids) declares the supplementary groups the IMAGE brings — the production runner image needs exactly that, its `devbox` user being in `sudo` and `users`. `POSTURE=sandbox` measures the pod the kubernetes SANDBOX driver creates for a run instead of the runner's (#3444): rendered by the driver's own builder, small resources, none of the driver's labels so a runner's orphan reaper never takes it for a run; build the bench image FROM the deployment's sandbox image. `SANDBOX_USER=` is the sandbox spec's user (empty = the image's USER; production's default is `1000:1000`) — the arm refuses a posture no LIVE sandbox pod of the namespace runs — and `NAME_PREFIX=` the pod-name prefix"
     cmds:
-      - bash scripts/ci/codemode-remote-bench.sh {{if .BENCH_IMAGE}}--bench-image "{{.BENCH_IMAGE}}"{{end}} {{if .KUBECONFIG_PATH}}--kubeconfig "{{.KUBECONFIG_PATH}}"{{end}} {{if .CONTEXT}}--context "{{.CONTEXT}}"{{end}} {{if .NAMESPACE}}--namespace "{{.NAMESPACE}}"{{end}} {{if .CREATE_NS}}--create-namespace{{end}} {{if .RUN_AS_UID}}--uid "{{.RUN_AS_UID}}"{{end}} {{if .EXPECT_GROUPS}}--expect-groups "{{.EXPECT_GROUPS}}"{{end}} {{if .PULL_POLICY}}--pull-policy "{{.PULL_POLICY}}"{{end}} {{if .MAX_WAIT}}--max-wait "{{.MAX_WAIT}}"{{end}} {{if .KEEP}}--keep{{end}}
+      - bash scripts/ci/codemode-remote-bench.sh {{if .BENCH_IMAGE}}--bench-image "{{.BENCH_IMAGE}}"{{end}} {{if .KUBECONFIG_PATH}}--kubeconfig "{{.KUBECONFIG_PATH}}"{{end}} {{if .CONTEXT}}--context "{{.CONTEXT}}"{{end}} {{if .NAMESPACE}}--namespace "{{.NAMESPACE}}"{{end}} {{if .CREATE_NS}}--create-namespace{{end}} {{if .RUN_AS_UID}}--uid "{{.RUN_AS_UID}}"{{end}} {{if .EXPECT_GROUPS}}--expect-groups "{{.EXPECT_GROUPS}}"{{end}} {{if .PULL_POLICY}}--pull-policy "{{.PULL_POLICY}}"{{end}} {{if .MAX_WAIT}}--max-wait "{{.MAX_WAIT}}"{{end}} {{if .POSTURE}}--posture "{{.POSTURE}}"{{end}} {{if .SANDBOX_USER}}--sandbox-user "{{.SANDBOX_USER}}"{{end}} {{if .NAME_PREFIX}}--name-prefix "{{.NAME_PREFIX}}"{{end}} {{if .KEEP}}--keep{{end}}
 
   ci:gofmt:
     desc: "The local member of the `gofmt (check)` step inside CI's `test-unit` job — which feeds the REQUIRED `test` aggregator, so an unformatted tracked file reddens a required context. Reports, never writes: `task fmt` would repair the defect CI fails on and then report green. The file list is `git ls-files`, not the job's `find .`, because find reaches `.works/`, `.repos/` and every registered worktree — the script says what that changes"
@@ -1503,6 +1508,11 @@ tasks:
     desc: "Check the committed-reading golden internal/mdcode's witness pins over every tracked .md, .yaml and .yml; `task corpus:reading -- --write` rewrites it — a change that edits a pinned file carries the update, and the release cut runs `cmd/corpus-reading --cut` from release-it's before:git:beforeRelease hook, re-pinning only its own edits"
     cmds:
       - go run ./cmd/corpus-reading {{.CLI_ARGS}}
+
+  ci:train:
+    desc: "Land a lot of ready pull requests on ONE local gate (#3736) — `task ci:train -- plan N…` checks the lot; `run N…` squashes each onto origin/main in a worktree under $XDG_STATE_HOME/iterion/ci-train/<id>/ (outside the checkout), refusing forks without -allow-fork and any pull request that touches the train's judge (.github/, scripts/ci/, Taskfile.yml, devbox.*), runs scripts/ci/gate.sh, and on a red lot bisects the red members over the prefixes, ejects the culprit and regates the rest; `land -id <id> [-dry-run]` merges each (admin squash pinned to its head) on an empty queue and checks main's tree is the gated tree after every merge; `clean -id <id>` drops the worktree. Exit 0 green/landed, 1 red or a landing refused before touching main, 2 no verdict, 3 a landing stopped after main changed (lot.json says what landed). Hours long: run it in a unit (systemd-run --user), outside a sandbox that keeps .git/worktrees read-only"
+    cmds:
+      - go run -mod=vendor ./scripts/ci/train {{.CLI_ARGS}}
 
   ci:queue-stats:
     desc: "Measure main's merge queue over a window — enqueue→merge latency, merges that skipped the queue, queue builds a direct push discarded, failing tests (read-only, needs gh; e.g. `task ci:queue-stats -- --since 2026-09-22 --until 2026-09-28`)"

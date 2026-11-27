@@ -42,8 +42,15 @@ import (
 // to the server's Config on top of personal access tokens and WS tickets.
 func newDerivationFixtureWith(t *testing.T, configure func(*Config)) *derivationFixture {
 	t.Helper()
+	return newDerivationFixtureWithAuth(t, nil, configure)
+}
+
+// newDerivationFixtureWithAuth is newDerivationFixtureWith with authConfigure
+// applied to the auth service's Config too (a mailer, a public URL).
+func newDerivationFixtureWithAuth(t *testing.T, authConfigure func(*auth.Config), configure func(*Config)) *derivationFixture {
+	t.Helper()
 	pats := &hookedPATs{MemoryStore: pat.NewMemoryStore()}
-	f := &derivationFixture{authRouteFixture: newAuthRouteFixtureWith(t, func(c *Config) {
+	f := &derivationFixture{authRouteFixture: newAuthRouteFixtureWithAuth(t, authConfigure, func(c *Config) {
 		c.PATs = pats
 		c.WSTickets = wsticket.NewMemoryStore(time.Minute)
 		configure(c)
@@ -309,6 +316,7 @@ func TestPlatformAdmin_APersonalAccessTokenResetsAnotherAccountsPasswordNotItsOw
 // everywhere" and an admin disable remove every such link, and the link an
 // SSO sign-in wrote itself — what an SSO-only account signs in with — stays.
 func TestSSOLinks_SignOutEverywhereAndADisableRemoveWhatASessionLinked(t *testing.T) {
+	t.Parallel()
 	f := newDerivationFixture(t)
 	ctx := context.Background()
 	if err := f.s.authStore().UpsertOIDCLink(ctx, identity.OIDCLink{Provider: "google", ProviderUserID: "signup-sub", UserID: f.user.User.ID, CreatedAt: time.Now().UTC()}); err != nil {
@@ -548,6 +556,7 @@ func TestWSTicket_APersonalAccessTokensTicketDiesWithTheToken(t *testing.T) {
 // session is minted: a password change or a disable landing between the IdP
 // callback and the exchange leaves the ticket nothing to mint.
 func TestDesktopExchange_ATicketWhoseSessionWasRevokedSinceDeliversNothing(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name   string
 		revoke func(t *testing.T, f *derivationFixture)

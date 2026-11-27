@@ -208,6 +208,26 @@ export interface paths {
         patch: operations["patchAdminLlmApiKeysByKeyId"];
         trace?: never;
     };
+    "/api/admin/llm/gateway-alive-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * GET /api/admin/llm/gateway-alive-runs
+         * @description Super-admin only. Per gateway host (sorted), the alive subbot trees (the iterion_gateway_alive_runs gauge) and alive runs (the run-admission ledger's count) holding its capacity subject gw:<host>, all teams together; the trees alive on the host whose subjects do not name it (unnamed_trees: the host read from the key row each stamped fingerprint names, never from content_boundary.gateway_host; a subbot child judged with its tree); per bot of the tree's root, its trees; and the trees that sealed a gateway key whose host cannot be read (unresolved_trees). Counts and bot ids only. Observe-only: nothing is reserved on a gateway.
+         */
+        get: operations["getAdminLlmGatewayAliveRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/llm/oauth/connections": {
         parameters: {
             query?: never;
@@ -1913,7 +1933,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** DELETE /api/me/tokens/{token_id} */
+        /**
+         * DELETE /api/me/tokens/{token_id}
+         * @description Revoke a token. 204 when the revoke ended nothing; 200 naming the pending invitations the token had emailed (ADR-174), now revoked, with invitations_error when the sweep could not take every one out — re-issuing the revoke finishes it.
+         */
         delete: operations["deleteMeTokensByTokenId"];
         options?: never;
         head?: never;
@@ -5131,6 +5154,46 @@ export interface paths {
         patch: operations["patchTeamsByIdForgeRepoBotsByIntegrationId"];
         trace?: never;
     };
+    "/api/teams/{id}/forge/repo-bots/{integration_id}/routing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** PUT /api/teams/{id}/forge/repo-bots/{integration_id}/routing */
+        put: operations["putTeamsByIdForgeRepoBotsByIntegrationIdRouting"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/teams/{id}/forge/repo-bots/{integration_id}/subscriptions/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** POST /api/teams/{id}/forge/repo-bots/{integration_id}/subscriptions/sync */
+        post: operations["postTeamsByIdForgeRepoBotsByIntegrationIdSubscriptionsSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/teams/{id}/forge/repos": {
         parameters: {
             query?: never;
@@ -7776,6 +7839,7 @@ export interface components {
             context_window: number;
             credential_provider: string;
             credential_source?: string;
+            image_input?: boolean;
             input_cost_per_m?: number;
             max_output_tokens?: number;
             model: string;
@@ -8055,7 +8119,9 @@ export interface components {
         };
         Matcher: {
             actions?: string[];
+            added_labels?: string[];
             authors?: string[];
+            exclude_added_labels?: string[];
             kinds?: string[];
             labels?: string[];
             repos?: string[];
@@ -8665,6 +8731,7 @@ export interface components {
         Spec: {
             cache_read_cost_per_m?: number;
             context_window?: number;
+            image_input?: boolean;
             input_cost_per_m?: number;
             max_output_tokens?: number;
             output_cost_per_m?: number;
@@ -8695,10 +8762,12 @@ export interface components {
             created_at: string;
             created_by?: string;
             cron?: string;
+            disabled_reason?: string;
             enabled: boolean;
             filters?: {
                 [key: string]: string[];
             };
+            forge_binding?: string;
             guard?: string;
             guard_timeout?: string;
             guard_var?: string;
@@ -8721,6 +8790,7 @@ export interface components {
             max_concurrent?: number;
             mode?: string;
             no_live_run?: string;
+            opens_mr?: boolean;
             origin?: string;
             overlap?: string;
             poll_query?: {
@@ -8728,6 +8798,7 @@ export interface components {
             };
             poller?: string;
             poller_since?: number;
+            projection_digest?: string;
             repo?: string;
             retry_jitter?: string;
             retry_max_attempts?: number;
@@ -9370,6 +9441,24 @@ export interface components {
             sync_issues_enabled: boolean;
             web_url?: string;
         };
+        gatewayAliveRunsView: {
+            hosts: components["schemas"]["gatewayHostAliveRuns"][];
+            /** Format: date-time */
+            read_at: string;
+            unresolved_trees: number;
+        };
+        gatewayBotAliveTrees: {
+            alive_trees: number;
+            bot_id: string;
+        };
+        gatewayHostAliveRuns: {
+            alive_runs: number;
+            alive_trees: number;
+            bots: components["schemas"]["gatewayBotAliveTrees"][];
+            host: string;
+            subject: string;
+            unnamed_trees: number;
+        };
         launchBudgetSpec: {
             max_cost_usd?: number;
             max_duration?: string;
@@ -9394,6 +9483,7 @@ export interface components {
         };
         modelCapabilitiesResponse: {
             context_window: number;
+            image_input?: boolean;
             input_cost_per_m: number;
             max_output_tokens: number;
             model: string;
@@ -9466,6 +9556,11 @@ export interface components {
         passwordResetConfirmReq: {
             password: string;
             token: string;
+        };
+        patRevokedView: {
+            invitations_error?: string;
+            invitations_revoked: components["schemas"]["revokedInvitationView"][];
+            invitations_revoked_elsewhere?: number;
         };
         pipelineBoardReadyRequest: {
             ready: boolean;
@@ -9771,6 +9866,12 @@ export interface components {
             force?: boolean;
             source?: string;
             timeout?: string;
+        };
+        revokedInvitationView: {
+            email: string;
+            id: string;
+            role: string;
+            team_id: string;
         };
         routingPolicyView: {
             origin: string;
@@ -10456,6 +10557,54 @@ export interface operations {
             };
             /** @description The credential presented may not do this: a personal access token asked for a credential of its own account (a switch, a token, an SSO link, a password) or for a team token that would outlive it (a webhook, share-link or invitation token), an access token naming no session asked for an SSO link, or the account is not a platform super-admin on a platform-admin route. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAdminLlmGatewayAliveRuns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["gatewayAliveRunsView"];
+                };
+            };
+            /** @description The credential presented is refused: the access token's session is revoked (signed out everywhere, refresh reuse, a password change), the account is disabled or pending a password change, the token is expired, or a personal access token's row is revoked, expired or gone. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The credential presented may not do this: a personal access token asked for a credential of its own account (a switch, a token, an SSO link, a password) or for a team token that would outlive it (a webhook, share-link or invitation token), an access token naming no session asked for an SSO link, or the account is not a platform super-admin on a platform-admin route. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The alive runs or the key rows could not be read */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description run_store_without_alive_capacity_listing or api_key_store_without_gateway_key_lookup: the instance does not host the reading */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13722,6 +13871,22 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["patRevokedView"];
+                };
+            };
+            /** @description The revoke ended no invitation: no body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description The credential presented is refused: the access token's session is revoked (signed out everywhere, refresh reuse, a password change), the account is disabled or pending a password change, the token is expired, or a personal access token's row is revoked, expired or gone. */
             401: {
                 headers: {
@@ -18543,6 +18708,48 @@ export interface operations {
             };
             /** @description The credential presented may not do this: a personal access token asked for a credential of its own account (a switch, a token, an SSO link, a password) or for a team token that would outlive it (a webhook, share-link or invitation token), an access token naming no session asked for an SSO link, or the account is not a platform super-admin on a platform-admin route. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    putTeamsByIdForgeRepoBotsByIntegrationIdRouting: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postTeamsByIdForgeRepoBotsByIntegrationIdSubscriptionsSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                integration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Response */
+            default: {
                 headers: {
                     [name: string]: unknown;
                 };

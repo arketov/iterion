@@ -1,12 +1,11 @@
 # Before merge — the required loop, and how a change reaches `main`
 
 Every change lands through a pull request whose `revi/review` gate is green.
-The documented exceptions are the admin bypass below — which allows a direct
-push to `main`, not just a queue skip — the **operator direct-landing lane**
-(§ below, decided 2026-10-22), the **admin merge a parked gate opens**
-(§ [A parked gate is a rerouting signal](#a-parked-gate-is-a-rerouting-signal-not-a-wait),
-decided 2026-11-10), and the release bot, whose
-`chore: release` commits land on `main` with no PR and no gate.
+The documented exceptions: the admin bypass below (a direct push to `main`,
+not just a queue skip), the **operator direct-landing lane** and the **admin
+merge a [parked gate](#a-parked-gate-is-a-rerouting-signal-not-a-wait)
+opens** (§ below), and the release bot, whose `chore: release` commits land
+on `main` with no PR and no gate.
 The loop is:
 
 **local adversarial round → fix → re-attack the fix → push → `/revi` → green**
@@ -41,8 +40,8 @@ For operator-led chantiers where the queue's wall clock is the bottleneck, the
 operator (admin) may land a change **without a PR**, by push to `main`. This
 amends the sentence above for that lane only — every existing PR keeps
 `revi/review` as its blocking gate, save where a parked gate opens the admin
-merge (§ below), and the queue keeps serialising the PRs
-that exist. The lane's blocking proof replaces the PR's:
+merge or a burst lands end to end (both § below), and the queue keeps
+serialising the PRs that exist. The lane's blocking proof replaces the PR's:
 
 1. **The gate, locally reproduced.** The full required-check set a workflow
    job can express — everything but `revi/review`, which item 2 replaces —
@@ -52,40 +51,48 @@ that exist. The lane's blocking proof replaces the PR's:
    `internal/ciguard`'s `TestTheCIGateMapIsTotalAndHonest`. Exit codes are read
    per member, never piped, and the runner prints `ran N of N` against its own
    plan — two members of three cannot read as three.
-   **Every required and staged context is now COVERED** — by a member, or,
-   for the two pure aggregators, by every leg's — so **exit 3**, green
-   members over incomplete coverage, is no longer the standing answer. What a
+   **Every required and staged context is COVERED** — by a member, or,
+   for the two pure aggregators, by every leg's — so **exit 3** (green
+   members, incomplete coverage) is no longer the standing answer. What a
    0 does NOT claim: the verdict NAMES the reached rows that are `partial`
    (`brand`, plus the four legs `test` and `race` speak for), because a
    member is not an equivalence and each row's `residual` says what it leaves
    to CI. **A verdict of 0 satisfies this item and nothing else**: items 2 to
-   5 are still owed, a gate short of 0 is how you see the distance rather
-   than a proof you may land, and a green gate reads "every member passed",
+   5 are still owed, a gate short of 0 measures the distance, never a proof
+   you may land, and a green gate reads "every member passed",
    never "CI can find nothing this did not run".
 2. **A converged local adversarial loop.** Per
    [the loop](adversarial-review-loop.md): rounds until no unassumed
    high/critical finding stands, the fixes re-attacked, the budget respected.
 3. **The train.** The branch rebases onto `origin/main` into an integration
-   branch and the gate runs ON THE INTEGRATED TREE — this is the queue's one
+   branch and the gate runs ON THE INTEGRATED TREE — the queue's one
    unique guarantee (it tests the merge ref) reproduced locally. A red train is
    fixed on the train, never pushed.
 4. **The trailers, greppable.** `Adversarial-Rounds:` / `Adversarial-Model:` as
    everywhere, plus `Landing-Train:` naming the train and its evidence
    directory — a bypass that cannot be grepped is a bypass that did not happen.
-5. **The witnesses, post-hoc.** The GitHub CI still fires on every push to
-   `main`; a cancelled or missing witness run is NOT success in the landing
-   record; a red `main` outranks every other work until green. **Do not read the
-   run for your exact sha** — `tests.yml` holds
-   `concurrency: ${{ github.workflow }}-${{ github.ref }}` with
-   `cancel-in-progress: true`, so on `main` the next commit cancels your run and
-   that cancellation means nothing about your change (measured 2026-11-10: 15 of
-   the last 30 `main` runs cancelled). The witness is the first run that
-   **completes** on a `main` tip containing your commit
-   (`git merge-base --is-ancestor <sha> <tip>`).
+5. **The witnesses, post-hoc.** CI fires on every push to `main`; a cancelled
+   or missing witness run is NOT success in the landing record; a red `main`
+   outranks all other work. A push run is heavy unless a green heavy run
+   landed in `CI_HEAVY_EVERY_HOURS` (6 h)
+   ([ADR-173](../../adr/173-experimental-delivery-mode.md)). **Never read
+   your sha's own run**: one concurrency group keeps the run in progress, a
+   newer push replaces the pending one. The witness is the first run that
+   **completes** on a `main` tip holding your commit (`git merge-base
+   --is-ancestor <sha> <tip>`), a heavy one for the heavy legs.
 
-Courtesies that are duties: warn the sessions with PRs in flight before the
-first push of a wave (a direct push invalidates their merge groups), and warn
-sessions with unpushed branches (each `main` advance costs them a rebase).
+A duty: before a wave's first push, warn the sessions with unpushed branches
+(each `main` advance costs a rebase); queued PRs make the push wait (below).
+
+**One lane per burst** (decided 2026-11-24): a burst of PRs picks ONE lane up
+front — the queue alone, or the
+[extended train lane](../../merge-policy.md#the-extended-train-lane-decided-2026-11-25)
+(dequeue all, train the exact set on current `main`, land without waiting
+for their CI; a later Revi finding is fixed forward). **Any
+admin landing** waits for an empty queue, incident fixes aside
+([queue hygiene](../../merge-policy.md#queue-hygiene-nothing-moves-main-while-entries-are-in-flight-decided-2026-11-25)),
+and runs `task ci:gate`, not `task check` alone: a light PR never ran
+`race-shard` or `test-e2e`.
 
 ## The merge queue
 
@@ -94,35 +101,32 @@ queue"). PRs merge THROUGH the queue (`gh pr merge <n> --auto --squash`), which
 rebuilds each on `main` + earlier-queued PRs and merges only if that combined
 tree is green — closing the semantic inter-PR conflict class (two PRs green
 apart, red combined). Repo **admins bypass** the queue for hotfixes (direct
-push / `--squash` without `--auto`). Required checks: `test`, `race`,
-`vendor-check`, `mongo-conformance`, `golangci`, `brand`, `revi/review`
-(`test` and `race` are aggregator contexts — the work runs in the gated legs
-behind them; see docs/merge-policy.md).
+push / dequeue + `--admin`). Required checks: `test`,
+`vendor-check`, `golangci`, `brand`, `revi/review`; `race` and
+`mongo-conformance` are held out by ADR-173 (`test`, `race` aggregate — the
+work runs in the gated legs; see docs/merge-policy.md).
 `nats-conformance` remains advisory until an admin adds it to ruleset
 18857412; `fmt-check` reports on the PR and in the queue but is not required
-yet (staged — `internal/ciguard`'s `requiredChecks`). A pull request titled
-`chore(brew): update tap to …` skips the heavy ones (in the queue: an entry
-whose squash message starts so — the commit subject of a single-commit pull
-request, its title otherwise) and `brand` verifies it moves nothing but the
-Homebrew tap's `version` and `sha256` values — any other diff under that
-title is refused
+yet (staged — `internal/ciguard`'s `requiredChecks`). A
+`chore(brew): update tap to …` PR skips the heavy jobs; `brand` refuses it
+unless it moves only the tap's `version` and `sha256`
 ([the one verified skip](../../merge-policy.md#the-one-verified-skip-the-homebrew-tap-update)).
-Full details + revert command:
+Details + revert command:
 [../merge-policy.md](../../merge-policy.md). How long merges take, what they cost
 and what fails the queue: `task ci:queue-stats`
 ([measuring the queue](../../merge-policy.md#measuring-the-queue)).
 
 ## The Revi merge gate
 
-**Revi merge gate.** Revi (`bots/review-pr`) posts a
+Revi (`bots/review-pr`) posts a
 deterministic `revi/review` commit status on a PR head — `success` when 0
 findings meet `gate_severity` (default `high`), else `failure`. Add that
 context to another repository's required checks to make its verdict block the
 merge; it is already required here by ruleset 18857412. The verdict is a COUNT
 computed in the bot, never an LLM judgment; the review comments stay
 non-blocking advice. Pairs with the webhook
-`review_on_sync` opt-in (re-review each push so the status tracks the fixed
-head) and Revi's falsifiability `questions` channel (non-blocking assumptions,
+`review_on_sync` opt-in (each push re-reviewed, so the status tracks the fixed
+head: it makes `/revi` a loop and stays on here) and Revi's falsifiability `questions` channel (non-blocking assumptions,
 never gate). The forge-agnostic write path is `forge.CommitStatusClient`
 ([../../pkg/forge/status.go](../../../pkg/forge/status.go)); the endpoint posts it after the
 review ([../../pkg/server/forge_publish.go](../../../pkg/server/forge_publish.go)). See
@@ -131,17 +135,13 @@ sharing one context on the same PR, and the per-repo **opt-in** zero-touch lane
 (`auto_fix_on_gate_failure`) where a red gate launches the repo's fixer once per
 head sha, off by default so the developer keeps the choice.
 
-**GitHub workflow delivery preflight** — Billy checks the runtime token’s actual `workflows:write` proof before analyzing a workflow-changing diff; Vetty checks it before pushing an ALIGNMENT that touches that path, and holds `hold_delivery_permission` rather than attempting the push. The hold needs an ANSWERED refusal: `FORGE_PERMISSION_DENIED` is a credential configuration plus a new launch (approve the App's delivery permissions, or reissue a classic token with the `workflow` scope), while a preflight that did not answer ends the run `FORGE_PREFLIGHT_UNAVAILABLE` publishing no comment and no verdict — the cure is the one the run's reason names (a relaunch where the service went silent, the configuration gap where it names one), and what the PR carries is the server's reconciler closing the launch's own gate claim. Installation grants alone are not proof. See [../../revi-billy-loop.md](../../revi-billy-loop.md).
-
-`review_on_sync` is what makes `/revi` a *loop* rather than a one-shot: each
-push re-reviews the new head, so the status tracks the code you actually fixed.
-It stays on.
+**GitHub workflow delivery preflight** — Billy checks the runtime token’s actual `workflows:write` proof before analyzing a workflow-changing diff; Vetty checks it before pushing an ALIGNMENT that touches that path, and holds `hold_delivery_permission` instead of pushing. The hold needs an ANSWERED refusal: `FORGE_PERMISSION_DENIED` is a credential configuration plus a new launch (approve the App's delivery permissions, or reissue a classic token with the `workflow` scope), while a preflight that did not answer ends the run `FORGE_PREFLIGHT_UNAVAILABLE` publishing no comment and no verdict — the cure is the one the run's reason names (a relaunch where the service went silent, the configuration gap where it names one), and what the PR carries is the server's reconciler closing the launch's own gate claim. Installation grants alone are not proof. See [../../revi-billy-loop.md](../../revi-billy-loop.md).
 
 ## A parked gate is a rerouting signal, not a wait
 
 When `revi/review` parks on provider quota (a `gate-paused` comment carrying
 the retry instant and, when the provider said so, the window it hit), the pull
-request is fine — the credential is not. Waiting for the window to reset is the last resort, never the plan:
+request is fine — the credential is not. Waiting out the window is the last resort, never the plan:
 
 1. **Identify the blocked credential.** `iterion remote admin llm oauth` and
    `iterion remote admin llm api-keys` list what the deployment draws on. A
@@ -169,12 +169,12 @@ request is fine — the credential is not. Waiting for the window to reset is th
    `revi/review`; below it the residual is assumed explicitly, and
    `Adversarial-Rounds:` is where a reader sees which of the two happened.
    `revi/review` stays a required context either way, so the merge is still the
-   admin one and still owes the other six checks green: its conditions and the
-   queue guarantee it gives up are in
+   admin one, owing the four other required checks green under `ci:full`,
+   `task ci:gate` and an empty queue: its conditions and what it gives up are
+   in
    [the parked gate](../../merge-policy.md#a-parked-gate-decided-2026-11-10).
    Steps 1 and 2 stay the first moves; this is for when they are unavailable
    or refused.
-
 
 ## Billy, and the release path
 

@@ -289,6 +289,8 @@ func (s *Server) routes() {
 	if s.forgeOrchestrator != nil && s.authSvc != nil {
 		s.registerForgeRoutes()
 		s.registerForgeProvisioningRoutes()
+		// The forge routing switch and the subscription sync (ADR-172).
+		s.registerForgeRoutingRoutes()
 		// Org ex-ante approval queue over provisioning (handlers are
 		// nil-safe when no approval store is wired).
 		s.registerForgeApprovalRoutes()
@@ -374,6 +376,11 @@ func (s *Server) routes() {
 	// runner-pod env fallback. Gates per credential family internally
 	// (api-keys need the BYOK store, oauth the forfait store).
 	s.registerAdminLLMRoutes()
+
+	// Shared-gateway status (super-admin, ADR-167 T2): per gateway host, the
+	// alive runs and trees holding its capacity subject, and the trees on it
+	// whose subjects do not name it.
+	s.registerGatewayAliveRunsRoutes()
 
 	// Platform forge OAuth apps (super-admin): one registration of a forge
 	// instance's application serves every team's connect flow.

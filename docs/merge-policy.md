@@ -54,12 +54,27 @@ green.
   > is left on #2377; `internal/ciguard` holds the three numbers above to the
   > ceiling this file claims, and holds every site that writes the timeout to
   > one value.
-- **Required checks** (the fast, reliable ones): `test`, `race`, `vendor-check`,
-  `mongo-conformance`, `golangci`, `brand`, `revi/review` — and
-  `nats-conformance` once an admin adds it to ruleset 18857412.
+  >
+  > **One probe per pool (#3701).** Since the runners split into the small,
+  > large and heavy pools of #3694, the canary runs one probe job per pool,
+  > routed through that pool's `CI_*_RUNNER` variable, and judges each pool on
+  > its own job: a pool still waiting no longer reddens the others, and the
+  > heavy pool, saturated by design while the post-merge witness runs, pages
+  > after 90 minutes instead of 25 (`CANARY_STALL_SECONDS`; it carries no
+  > required check). `scripts/ci/arc-canary-aggregate.sh` folds the verdicts:
+  > any red pool pages. Once a pool's variable is set, its probe also checks
+  > that the pool runs the image `ci/arc-runner/` defines
+  > (`scripts/ci/arc-runner-freshness.sh`), since that pin lives outside this
+  > repository.
+- **Required checks** (the fast, reliable ones): `test`, `vendor-check`,
+  `golangci`, `brand`, `revi/review` — and `nats-conformance` once an admin
+  adds it to ruleset 18857412. `race` and `mongo-conformance` are **held** out
+  of the ruleset while the
+  [experimental delivery mode](adr/173-experimental-delivery-mode.md) lasts
+  ([below](#light-runs-heavy-main)), and return to it when the mode ends.
   `test` and `race` are AGGREGATOR CONTEXTS, not test-running jobs: the work
   lives in the gated legs (the `test-unit` matrix, the `test-e2e` matrix,
-  `studio`, `test-native-exec`, the `race-shard` matrix) that run in the queue behind them, and each aggregator
+  `studio`, `test-native-exec`, the `race-shard` matrix) behind them, and each aggregator
   re-verifies every leg's conclusion under `if: ${{ !cancelled() && <tap skip> }}`
   — the run-state clause combined with the one verified skip
   ([below](#the-one-verified-skip-the-homebrew-tap-update)), so an aggregator
@@ -74,7 +89,8 @@ green.
   `pattern=$(CGO_ENABLED=1 GOFLAGS=-race go run -mod=vendor ./scripts/ci/testshards -tests ./e2e -n 4 -i 0)`
   then `CGO_ENABLED=1 go test -race -mod=vendor -count=1 -run "$pattern" -timeout 2400s ./e2e`,
   in the same devbox and build environment, under `set -euo pipefail`.
-  Discovery has its own configurable `-list-timeout` (five minutes; zero
+  Discovery has its own configurable `-list-timeout` (five minutes by default;
+  CI passes ten minutes, the cold `-race` compile on an ARC pod; zero
   disables it); its failure stops execution. Discovery owns a Unix process
   group through cancellation and output drainage, using the shared
   `ITERION_PROC_WAIT_DELAY` override; a descendant starting another session
@@ -92,7 +108,9 @@ green.
   themselves carry the tap skip and nothing else, a contract `internal/ciguard`'s
   `gatedJobs` enforces: a leg any other condition skips reports Success on the
   pull request while reddening its queue entry forever, and a leg without the
-  skip spends the heavy minutes the skip exists to save. `fmt-check` is
+  skip spends the heavy minutes the skip exists to save. The one exception is
+  the heavy legs, which also skip a light run, the merge queue included
+  ([below](#light-runs-heavy-main)). `fmt-check` is
   STAGED: it reports on the pull request AND in the queue, so the context is
   already there the day the ruleset names it, and `internal/ciguard`'s
   `requiredChecks` carries it. Editing that ruleset from the API needs
@@ -108,12 +126,13 @@ green.
   Homebrew tap update ([below](#the-one-verified-skip-the-homebrew-tap-update))
   — which the two aggregators carry combined with their `!cancelled()` clause.
 
-  > **Promoting a check to required is a two-file change.** The eight advisory
-  > jobs — `nats-conformance`, `cloud-e2e`, `helm-lint`, `govulncheck`,
+  > **Promoting a check to required is a two-file change.** The seven advisory
+  > jobs — `nats-conformance`, `helm-lint`, `govulncheck`,
   > `desktop-vet-linux`, `desktop-vet-cross`, `docs-links`, `docs-build` — carry
-  > `if: github.event_name != 'merge_group'` in `.github/workflows/tests.yml`:
-  > a job that cannot block a merge should not hold a runner slot the queue
-  > needs. (`fmt-check` is not listed above and carries no merge-queue skip: it is STAGED
+  > `if: github.event_name != 'merge_group'` in `.github/workflows/tests.yml`,
+  > and the heavy `cloud-e2e` and `mongo-conformance` the heavy literal, which
+  > skips the queue too: a job that cannot block a merge should not hold a
+  > runner slot the queue needs. (`fmt-check` is not listed above and carries no merge-queue skip: it is STAGED
   > to become required — named in `internal/ciguard`'s `requiredChecks`, not
   > yet in the ruleset — and stays in the queue so its context exists the day
   > it names it.) Adding one to this ruleset
@@ -142,10 +161,51 @@ green.
   > nobody would notice wants the same treatment rather than promotion to
   > required.
 - **Every required check from `tests.yml` runs on self-hosted runners** —
-  `test`, `race`, `vendor-check`, `mongo-conformance`, `golangci` and `brand`
-  route to the organisation's `arc-runners` scale set on `merge_group`, because
+  `test`, `vendor-check`, `golangci` and `brand` route to the organisation's
+  `arc-runners` scale set on `merge_group`, and the heavy `race` shards and
+  `mongo-conformance` route there on a heavy push, the nightly, a dispatch and
+  `ci:full`, because
   the 20-job cap above is what makes a cycle slow. That scale set is **outside this repository**, and it was dead
   and unnoticed for over a year before 2026-09-08.
+
+  Three runner classes route it (#3694), and every self-hosted job of
+  `tests.yml` and `merge-queue-gate.yml` is classified into one by its
+  measured peak. Each class ends its `runs-on` expression on its own
+  repository variable, `vars.CI_<CLASS>_RUNNER || 'arc-runners'`:
+
+  | class | variable | jobs |
+  | --- | --- | --- |
+  | small | `CI_SMALL_RUNNER` | the `test` and `race` aggregators, `fmt-check`, `vendor-check`, `govulncheck`, `docs-build`, `desktop-vet-cross`, `brand`, `helm-lint`, the merge-queue-gate mirror |
+  | large | `CI_LARGE_RUNNER` | the heavy jobs the queue requires: `test-unit`, `golangci`, `studio`; and `nats-conformance`, whose JetStream suite does not fit 500m under its 5-minute package bound |
+  | heavy | `CI_HEAVY_RUNNER` | the heavy layer the merge queue does not require, run after the merge (a `ci:full` pull request's `test` and `race` still wait on it): `race-shard`, `test-e2e`, `mongo-conformance`, `cloud-e2e` |
+
+  The variable names the class's scale set (the small one is
+  `arc-runners-small`, 500m / 1 Gi). **Unset means `arc-runners`**: with a
+  variable empty, its jobs route exactly as before, so setting it is the
+  switch and clearing it is the rollback. The three spellings keep every
+  clause — the `CI_SELF_HOSTED` lever, the fork guard and the dependency-bot
+  guard — and `internal/ciguard`'s `TestSelfHostedRoutingExpressionsAgree`
+  pins them byte for byte, one base with only the tail swapped, and which job
+  carries which: a new job in those two files whose `runs-on` names
+  `arc-runners` or a class variable is classified in that test, never
+  silently accepted. `test-native-exec` is pinned by
+  `native_exec_runner_test.go` to the same base with its own
+  `CI_NATIVE_EXEC_RUNNER` tail, whatever class its neighbours take: no class
+  variable can send its Bubblewrap mount to an ARC pod. The other workflows on
+  `arc-runners` (`arc-canary`, `arc-kind-probe`, `test-quarantine`) are
+  outside this guard and stay on `arc-runners`. `arc-canary` probes
+  `arc-runners` only: once a class variable is set, a dead scale set behind
+  it stalls that class unpaged — for `CI_SMALL_RUNNER`, the required `test`,
+  `vendor-check`, `brand` and the queue branch's `revi/review` mirror (and
+  the unrequired `fmt-check`); for `CI_LARGE_RUNNER`, the required `golangci`
+  and, through its legs, `test` — until the queue's
+  `check_response_timeout_minutes`; for `CI_HEAVY_RUNNER` no queue check, but
+  a `ci:full` pull request's required `test` (through `test-e2e`) and its
+  `race` (through `race-shard`) wait too, and with them the admin-merge lane
+  that requires them; so do the heavy jobs of a heavy push run and the
+  nightly, and with them the next push run. Set a
+  variable only once the canary (or a probe) covers its scale set (#3694).
+  The repair is clearing that variable, or `CI_SELF_HOSTED=off`.
 
   > **If nobody can merge and the checks never report, this is the first thing
   > to try.** Set the repository variable **`CI_SELF_HOSTED` to `off`**
@@ -163,6 +223,162 @@ green.
   factory's own adversarial review + the checks are the gate; a reviewer still
   merges deliberately.
 
+## Light runs, heavy main
+
+Decided 2026-11-25, in two steps. Every pull request used to pay the whole
+suite twice — on its own run, then on its `merge_group` run — about 25 ARC
+jobs each on a scale set of ~40 concurrent pods; queue latency reached 4-14
+hours and 8 of 12 merge-group runs were cancelled. #3683 took the heavy legs
+off the light pull request; the
+[experimental delivery mode](adr/173-experimental-delivery-mode.md) (#3691)
+takes them out of the merge queue too, and runs them after the merge, on a
+debounced push (#3737). So each layer gates where it pays:
+
+| layer | pull request | merge queue | light push to `main` | heavy push, nightly, dispatch |
+| --- | --- | --- | --- | --- |
+| `test-unit`, `studio`, `test-native-exec`, `vendor-check`, `golangci`, `brand`, `fmt-check` | runs | runs | runs | runs |
+| `race-shard`, `test-e2e` (heavy legs) | skipped, unless labelled `ci:full` | skipped | skipped | runs |
+| `mongo-conformance`, `cloud-e2e` (heavy, no aggregator) | skipped, unless labelled `ci:full` | skipped | skipped | runs |
+| other advisory jobs | runs | skipped | runs | runs |
+| `revi/review` | runs | mirrored | — | — |
+
+A push to `main` is **light** only behind a **green heavy run** on `main`
+inside the last `CI_HEAVY_EVERY_HOURS` hours (a repository variable, 6 by
+default, at most 720), and **heavy** otherwise. The `heavy-gate` job, on push
+only, decides it from the run history (`scripts/ci/heavy-gate.sh`), and the
+newest run whose heavy legs ran decides: green means a push, schedule or
+dispatch run of this repository, created inside the window plus two hours
+(a rerun of an old run proves an old sha), whose latest attempt concluded
+success with every `race-shard (N)` job a success. **A red heavy run keeps
+every push heavy until a green heavy run lands**: it never buys a light
+window. When the gate cannot read the history or the window it warns and
+decides heavy; a gate that fails leaves no answer, and the push runs heavy
+too. `CI_HEAVY_EVERY_HOURS=0` makes every push heavy. The
+heavy layer thus runs about as often as a nightly would, and only when `main`
+moved: GitHub delays this repository's crons by hours or drops them, so the
+cadence cannot rest on a schedule.
+
+The nightly is `tests.yml`'s own `schedule` (`47 1 * * *`), a backstop: when
+it fires, the full suite runs on `main` in a concurrency group of its own so
+no merge cancels it, and it counts as the window's heavy run. Every push to
+`main` shares one concurrency group that never cancels the run in progress:
+at most one push run is in flight and one pending, a newer push replacing the
+pending run, so each run judges every pull request merged since the last run
+started. A red light push run names a batch; a red heavy job names every batch
+since the last green heavy run. main-watch must tell a heavy run from a light
+one (#3757): a green light run says nothing about the heavy layer.
+
+An automatic release tags only a commit a green heavy run proved, at most once
+a day ([releases](#releases-and-the-queue)): a heavy regression is caught by
+the heavy run before any tag carries it. Both decisions read the same
+predicate, `scripts/ci/heavy-gate.sh`: a red heavy run keeps every push heavy
+and releases nothing, until a green heavy run lands.
+
+`test-unit` stays on the pull request: it is the fast signal (sharded three
+ways, a 40-minute ceiling against the heavy legs' 50) and carries the
+freshness gate, gofmt and vet — the checks behind the queue's most frequent
+ejection, two pull requests regenerating the same artefact.
+`test-native-exec` stays too: one small job on a GitHub-hosted VM.
+
+The aggregators stay honest. `test` and `race` read `LIGHT_RUN`, the negation
+of the heavy legs' own condition, evaluated by GitHub, and accept `skipped`
+from a heavy leg only when it is `true` — in `merge_group`, on a pull request
+without `ci:full` and on a light push; on a heavy push, the nightly, a
+dispatch and a `ci:full` pull request it is `false`, and a skipped heavy leg
+is as red as a failed one.
+`internal/ciguard` pins the condition byte for byte on the heavy legs,
+`mongo-conformance`, `cloud-e2e` and both aggregators, evaluates it per event,
+and runs each aggregator's step under the result.
+
+To run the heavy jobs on a pull request — `race-shard` and `test-e2e` for a
+change to concurrency, the race-sensitive engine, or e2e itself;
+`mongo-conformance` for a change to anything Mongo-backed;
+`cloud-e2e` for a change to `charts/` or the cloud stack — add the `ci:full`
+label, then push: a label alone starts no run, since `labeled` is not among
+the triggers.
+A light pull request's green `test` and `race` never ran the heavy legs, so it
+is not admin-mergeable: an admin merge also gives up the queue's rebuild
+against the entries ahead of it, so it owes the heavy legs on the pull request
+(the [parked gate](#a-parked-gate-decided-2026-11-10) and the
+[fast lane](#the-fast-lane-for-an-incident-fix-and-its-exact-procedure) say
+what they owe). Every admin landing — those two, the direct-landing lane and
+the [extended train lane](#the-extended-train-lane-decided-2026-11-25) — also
+runs `task ci:gate` on the integrated tree: its members `test:race`,
+`test:e2e` and `ci:mongo-conformance` do the work of the heavy jobs a light
+pull request skips, and `task check` alone runs nothing under `-race` and no
+Mongo conformance.
+
+**A red `main` is owned, not waited out.** The heavy layer now finds its
+regressions after the merge, on a heavy push run or the nightly. Until the
+main-watch workflow (#3692) does it on its own, the session that sees a red
+push or nightly run of `tests.yml` reruns the failed jobs once
+(`gh run rerun <id> --failed`): green on rerun, the failing test is a flake —
+a row in `scripts/ci/test-quarantine.tsv` with its open ticket; red again, it
+is a regression — revert the merge that brought it, or fix forward, within
+four hours. The mode's exit criteria (a regression rate, a flake count, an
+untriaged red `main`) are in the ADR, and ending it puts `race` and
+`mongo-conformance` back in the ruleset and the heavy legs back in the queue,
+in one change.
+
+## main-watch: a red main is rerun, quarantined or reverted
+
+Decided 2026-11-25 (#3692). The queue lets the heavy layer reach `main`
+unproven, so `main`'s own runs are the witness, and a deterministic workflow,
+`.github/workflows/main-watch.yml` (no agent), acts on every run of
+`🧪 Tests` on `main`, push or schedule:
+
+| what the run shows | what main-watch does |
+| --- | --- |
+| red on attempt 1 | reruns the failed jobs, once, only if it is `main`'s newest run (push or nightly): a rerun joins the concurrency group and could cancel a newer run, so an older red run is left to the newer one, which main-watch names |
+| green on the rerun: a **flake** | a `flaky:` ticket per failing test under epic #1410, or a comment on the open one (a person's `flaky:` ticket naming the package and the test counts), and one pull request adding the rows to `scripts/ci/test-quarantine.tsv`, auto-merge armed once — never again once it lost its arming (disabled by a person or GitHub, removed from the merge queue); a pull request the queue holds counts as armed |
+| red on the rerun: a **regression** | one `main red` ticket naming the failing tests and the pull requests merged since the last green run |
+| still red 4 h after the red run started | a pull request reverting the most recently merged suspect, auto-merge armed before the ticket records it, and a comment on the original; a revert that cannot be armed is recorded on the ticket for a person; a revert opened and armed whose record failed is recorded by the next pass as it stands — armed or held by the queue (the original told), merged (the step done, the original told), unarmed (for a person), closed unmerged (refused) — never armed again |
+| green (a flake pass that fails still lets it close the episode) | every revert pull request of the episode still open closes, armed or not (named on the ticket, or found by its suspect's `main-watch/revert-N` branch), then the `main red` ticket closes |
+
+Failing tests are read from the failed jobs' logs (`--- FAIL` lines, and the
+tests a `-timeout` panic lists). A job that failed with no FAIL line is
+infrastructure: rerun only, never quarantined, never reverted. A job past its
+`timeout-minutes` concludes cancelled: the ticket names it as a hang (and the
+`<pkg>.test` the runner killed), never quarantined, never reverted. A rerun
+cancelled by a newer push leaves no verdict: main-watch says so and lets the
+newer run judge `main`. A row is added
+only for a test of a job that skips the list (`test-unit`, `test-e2e`,
+`race-shard`, `test-native-exec`, read from `tests.yml` itself); a flake in
+another job gets its ticket and no row, and so does a flake in a skipping job
+whose `runs-on` never names the scale set (`test-native-exec`, on a VM for
+its Bubblewrap mount): the nightly witness runs on the scale set with
+checkout and Go only, so the row would redden it instead. Suspects come from the `(#N)` squash
+subjects between the two runs' commits; the most recent is the one merged
+last. A `(#N)` naming an issue (a commit landed outside a pull request) hands
+the revert to a person. main-watch never reverts a revert or one of its own `main-watch/*`
+changes, reverts once per red episode, and hands a revert that does not apply
+to a person on the ticket.
+
+A half-hour schedule runs the revert clock and judges `main`'s newest run, so
+a missed event is caught; markers in the tickets and branch names keyed by run
+and by pull request make a second judgement a no-op, and a flake pass that failed
+half-way is finished by the next, its sub-issue filing included; a quarantine
+pull request merged or closed gets nothing pushed. The schedule also reads
+every open `main-watch/quarantine-run-*` pull request of this repository: one
+never armed (its arming failed, and no later pass of its run comes) is armed.
+A quarantine pull request, or the open revert a still-red `main red` ticket
+records, that lost its arming afterwards — the queue drops a pull request on
+its own, for failed checks or a conflict — is told once per loss on the
+open tickets of the rows it adds — or, when it adds no row under an open ticket, on the pull request itself — or on the `main red` ticket, and never armed again. A marker counts only in an issue or comment
+written by `github-actions[bot]`, and a person's `flaky:` ticket only when its
+author is an owner, member or collaborator: anyone can open an issue here. The job's
+`GITHUB_TOKEN` reruns, writes the tickets and comments on the pull requests; the token-bureau App token
+pushes the branches and opens the pull requests, whose checks a
+`GITHUB_TOKEN` pull request would never start. The job runs only for push and
+schedule runs of `main` from this repository, checks out `main`, interpolates
+nothing into a shell, and `scripts/ci/mainwatch` refuses any other run again;
+`internal/ciguard/main_watch_test.go` pins each line.
+
+To see a decision without acting, dispatch main-watch with `dry_run` (the
+default) and a `run_id` — everything is read, every write printed. To stop it,
+disable the workflow (`gh workflow disable main-watch.yml`); to keep a
+reverted change, close its revert pull request and fix `main`.
+
 ## The one verified skip: the Homebrew tap update
 
 `brew-update.yml` opens one pull request a night, `chore(brew): update tap to
@@ -175,10 +391,10 @@ queue, where the entry held one of the three build slots for ~25 minutes
 `fmt-check` 1.8, `vendor-check` 1.0 min, measured on #2314).
 
 So the gated legs (`test-unit`, `test-e2e`, `studio`, `test-native-exec`,
-`race-shard`), the
+`race-shard`; the heavy two combine it with the light-run clause), the
 aggregators `test` and `race` that speak for them (combined with their
-`!cancelled()` clause), `mongo-conformance`, `golangci`, `vendor-check` and
-`fmt-check` carry one condition, the only `if:` a required check may carry
+`!cancelled()` clause), `golangci`, `vendor-check` and `fmt-check` carry one
+condition, the only `if:` a required check may carry
 here: they skip a pull request whose title, or a queue entry whose commit
 message, starts with `chore(brew): update tap to ` (the queue squashes a
 single-commit pull request under its commit subject — the repository's
@@ -221,13 +437,11 @@ A code pull request titled like a tap update does not merge: its heavy checks
 skip, `brand` refuses it, and the entry leaves the queue. A push to `main`
 evaluates the predicate false, so `main` still runs everything.
 
-The tap pull request also opens at night. `brew-update.yml` runs when
-`version.yml`'s nightly run completes (00:03–02:21 UTC on its 27 runs since
-2026-09-11), not on a cron of its own: GitHub fired its 04:37 UTC cron between
-10:46 and 12:21 UTC, inside the queue's working hours. Over 2026-09-12..10-12
-each hour from 00:00 to 05:59 UTC saw 2-7 merges in all, against 19-37 for
-each hour from 06:00 to 21:59. It taps the newest tag whose CLI artefacts are
-complete, so the nightly's own tag, still building, waits for the next night;
+The tap pull request opens at most once a day, like the release it follows.
+`brew-update.yml` runs when `release.yml` (📦 Release) completes green for a
+tag — the moment that tag's CLI binaries are attached — so a release is tapped
+as soon as it can be. It taps the newest tag whose CLI artefacts are complete,
+so a tag whose build failed is passed over;
 a cask left behind is caught up once its release holds the desktop ZIP; and
 nothing walks the tap back — `update-brew-tap.sh` never writes a version
 below the one a file carries, and `brew-tap-pr.sh` opens a pull request only
@@ -268,16 +482,23 @@ incident.
 **Then the operator (admin) may merge that pull request, bypassing the parked
 gate.** What it owes:
 
-1. **The other six required checks green, read as a SET** — `gh pr checks`, not
-   the one you are waiting on. The required set is exactly `test`, `race`,
-   `vendor-check`, `mongo-conformance`, `golangci`, `brand` and `revi/review`
-   (ruleset 18857412); the legs behind the two aggregators (`test-unit (n)`,
+1. **The other required checks green, read as a SET** — `gh pr checks`, not
+   the one you are waiting on. The required set is exactly `test`,
+   `vendor-check`, `golangci`, `brand` and `revi/review` (ruleset 18857412),
+   and the bypass owes the held `race` and `mongo-conformance` green too, as
+   it did before the [experimental delivery mode](adr/173-experimental-delivery-mode.md)
+   held them out; the legs behind the two aggregators (`test-unit (n)`,
    `test-e2e (n)`, `studio`, `test-native-exec`, `race-shard (n)`) are deliberately **not** required and
    are where the work is. Queued, cancelled, missing **or skipped** is not
    success: a job skipped by a job-level `if:` reports SUCCESS, so a required
    check that never ran satisfies the gate
    ([tests.yml](../.github/workflows/tests.yml) says so of the Homebrew-tap
-   skip, which five required checks carry).
+   skip, which `test`, `race`, `vendor-check`, `golangci` and `fmt-check`
+   carry). On a [light pull request](#light-runs-heavy-main) `test` and
+   `race` turn green with the heavy legs skipped and `mongo-conformance`
+   skipped: before the admin merge the pull request carries the `ci:full`
+   label, has been pushed since, and every `race-shard (n)`, `test-e2e (n)`
+   and `mongo-conformance` reads `success` on its head, not `skipped`.
 2. **A local adversarial loop, and the trailer says which kind.** At the bar
    [the loop](agents/workflow/adversarial-review-loop.md) states — a round on
    the diff, each finding AND its proposed fix verified independently, a
@@ -299,7 +520,8 @@ gate.** What it owes:
    chasing, and the queue, which would settle it, is the thing the parked gate
    closed. So **build the integrated tree locally and run the gate on it**: a
    fresh worktree on `origin/main`, `git merge --no-ff` each branch going in, then
-   the gate members the diffs touch. That tests the merge ref, which the non-strict
+   `task ci:gate` on that tree — not `task check` alone, which runs nothing
+   under `-race`. That tests the merge ref, which the non-strict
    policy never does. Measured on 2026-11-10 with four branches: `main` had
    re-pinned `docs/merge-gate.md` in the reading golden and one branch changed the
    **adjacent** line (`docs/merge-policy.md`), so the hunks overlapped — green
@@ -318,7 +540,8 @@ gate.** What it owes:
    ([the known gap](merge-gate.md#a-paused-review-says-so-on-the-pr)).
 
 **What this bypass gives up, stated plainly.** The required set ran on real CI,
-on the merge ref as of its run — that is its strength over a locally reproduced
+on the merge ref as of its run, the heavy legs included through `ci:full` —
+that is its strength over a locally reproduced
 gate. What it does not have is the queue's one unique guarantee: the rebuild
 against **current** `main` and against the entries ahead of it, which is what
 closes the semantic inter-PR conflict class (two PRs each green against
@@ -327,7 +550,9 @@ the reading golden being the most frequent shape). On that axis this bypass is
 weaker than both the queue and the direct-landing lane's train.
 
 **What it does not license**: merging while another required check is red,
-skipped or unresolved; skipping the loop because the diff looks small; or
+skipped or unresolved; merging while the queue has an entry in flight
+([queue hygiene](#queue-hygiene-nothing-moves-main-while-entries-are-in-flight-decided-2026-11-25));
+skipping the loop because the diff looks small; or
 reading the pause as a verdict. And `bots/review-pr` is the gate the tenant
 repositories that require its context lean on — a parked gate is a reason to
 lend it a credential, never to quietly lower what it guards.
@@ -355,12 +580,26 @@ gh api graphql -f query='mutation($id:ID!){ dequeuePullRequest(input:{id:$id}){ 
 gh pr merge <n> --repo <owner>/<repo> --squash --admin
 ```
 
+Not for one pull request of a burst whose other entries sit queued:
+[one lane per burst](#one-lane-per-burst-decided-2026-11-24).
+
 Before using it, the same proofs the queue would have demanded must already be
-green **on the PR head**: every required check (`test`, `race`, `vendor-check`,
-`mongo-conformance`, `golangci`, `brand`) and `revi/review`. The bypass skips the
-*rebuild against the queue's other members*, nothing else — so it is legitimate
-when the PR is small, or touches files no queued PR touches, and reckless when
-it is a wide refactor.
+green **on the PR head**: every required check (`test`, `vendor-check`,
+`golangci`, `brand`), the held `race` and `mongo-conformance`, and
+`revi/review`. A light pull request's `test` and `race` are green with the
+heavy legs skipped, so the PR first carries the `ci:full` label and a push
+after it, and every `race-shard (n)`, `test-e2e (n)` and `mongo-conformance`
+reads `success` on the head, not `skipped`. So an incident fix is **opened
+with the `ci:full` label**: opened light, it pays a light cycle, then the push
+after the label pays the heavy one before the admin merge can happen. And the
+operator runs `task ci:gate` on the fix rebased onto current `main`, the
+integrated tree no pull request run tested. With that, the bypass skips the
+*rebuild against the queue's other members*; without it, it also skips
+`-race` and e2e — so it is legitimate when the PR is small, or touches files
+no queued PR touches, and reckless when it is a wide refactor. It is the one admin landing that may move `main` while
+entries are in flight — the incident outranks the rebuild it costs them —
+and it warns their sessions first
+([queue hygiene](#queue-hygiene-nothing-moves-main-while-entries-are-in-flight-decided-2026-11-25)).
 
 After an admin merge, **verify what actually landed**: the queue has merged a
 stale head before (see the note below), and a bypass has no group build to
@@ -381,68 +620,87 @@ Two consequences worth stating plainly:
 - **The durable fix is queue throughput, not exceptions.** Every direct push to
   `main` invalidates every merge group in flight: each one rebuilds from
   scratch on the new base. That is why the brew-tap update lands through the
-  queue as its own pull request, and why the release waits for the queue to
-  drain ([below](#releases-and-the-queue)); an exception buys the rebuild back
-  for one PR only.
+  queue as its own pull request, and why a release lands at most once a day
+  ([below](#releases-and-the-queue)); an exception buys the rebuild back for
+  one PR only.
 
 ## Releases and the queue
 
-A release is a direct push to `main` — `version.yml` runs release-it, which
-commits `chore: release vX.Y.Z` and its tag, the token-bureau App bypassing
-the ruleset — so it invalidates every merge group in flight like any other
-direct push. Releasing after every merge discards the build of whatever is
-queued behind the merged PR while it runs. Measured with `task ci:queue-stats`
-over 2026-09-22..28: 58 releases for 102 merges, and 20 queue
-builds discarded by a direct push while they ran — 15 by a release commit, 5 by
-a pull request merged directly (31 of the 102 skipped the queue through the
-admin bypass, and each of those is a direct push too). Over 2026-09-01..28: 387
-of 1096 queue builds, 242 of them by a release.
+A release is cut only after a **green heavy run** of `🧪 Tests` on `main`, at
+most **once a day**, and only for the **commit that run proved**
+([#3741](https://github.com/SocialGouv/iterion/issues/3741), decided
+2026-11-26). Every tag is therefore proven by the heavy layer — race, e2e,
+mongo and cloud-e2e — and none is cut after each merge.
 
-So `version.yml` holds a **merged pull request's** release while a merge group
-is building — any `gh-readonly-queue/main/*` branch exists — and the merge that
-drains the queue releases everything merged since the last tag. The **nightly**
-(22:27 UTC) and a **`workflow_dispatch`** release regardless, without reading
-the queue at all: the nightly is the backstop for a queue that drains without a merge (its
-last entry ejected) or never drains, and a dispatch is an operator's explicit
-request. A release delayed by a busy queue therefore waits at most until the
-next drain or the next nightly; to ship now, dispatch it.
+`version.yml` runs on `workflow_run` of `🧪 Tests` completing on `main`. The
+job starts for a Tests run of this repository's `main` that **succeeded** and
+came from a push, the schedule or a dispatch — never a pull request's or a
+merge group's run. Then, in order, each step gating the next:
 
-GitHub sometimes leaves a `gh-readonly-queue/main/*` branch behind after its
-group merged (seen on mastodon, cilium, zed, flutter). Counted as a live
-group, one such orphan would hold every merged PR's release until the nightly.
-A branch is named after the pull request at the tail of its group
-(`pr-<n>-<base>`), and a group only exists while that pull request waits in
-the queue, so the hold counts a branch only while its pull request is **open**
-— and, as a backstop for one dequeued but kept open, while its head commit
-(dated when the entry was queued; rebuilds keep the date) is less than a day
-old; from their last enqueue to their merge, the 221 queue merges of
-2026-09-15..29 waited 16 minutes at the median and 80 at most.
-The job's log names every branch it ignored with its pull request's state:
-check it, then **delete it** — `gh api -X DELETE
-repos/SocialGouv/iterion/git/refs/heads/gh-readonly-queue/main/pr-<n>-<sha>`.
+1. **The run was a green heavy run.** The step asks
+   `scripts/ci/heavy-gate.sh --judge-run <run> <attempt>` about the very
+   attempt that completed: green when it concluded `success` with every
+   `race-shard (N)` job a success. A light run skips them (see
+   [light runs, heavy main](#light-runs-heavy-main)), and a skipped leg proves
+   nothing: the run skips with a notice naming the reason. Whatever triggered
+   the heavy layer — a push, the schedule or a dispatch — the jobs say whether
+   it ran. An attempt the script cannot read fails the step: no release on a
+   guess.
+2. **At most one release a day.** The newest `v*` tag younger than 20 hours
+   (`MIN_TAG_AGE_HOURS`) skips the run with a notice; the next green heavy run
+   past the mark releases. 20 rather than 24, so a heavy run that comes a few
+   hours earlier the next day still releases.
+3. **The proven commit only.** The run moves to `main`'s tip and releases only
+   when that tip is the run's `head_sha`. A commit merged since was never
+   judged by the heavy layer: the run skips with a notice naming both commits,
+   and the next green heavy run releases.
+4. **Something to release** since the last tag, then the
+   [major hold](#the-major-hold), then release-it.
 
-The hold is **best effort, not a lock**. The branch list is read just before
-the run moves to `main`'s tip — in that order, so a group that merges between
-the two holds the release rather than leaving release-it on a stale tree — and
-release-it still builds for a few minutes before it pushes; a group that starts
-between the read and the push rebuilds once. What is left is measured, not
-assumed: `task ci:queue-stats` counts the queue builds discarded by a release
-([Measuring the queue](#measuring-the-queue)) — which also counts the nightly
-and dispatched releases that invalidate on purpose; the script cannot tell them
-apart from a merged PR's release that slipped through the window.
+"A green heavy run" has one definition, one jq function in
+`scripts/ci/heavy-gate.sh` read by both the heavy layer's debounce (#3737)
+and the release's judge mode: this repository's push, schedule or dispatch
+run, concluded `success`, every `race-shard (N)` job a success (the debounce
+also requires them inside its window).
+
+A **red heavy run releases nothing**, and the release waits for the next
+green heavy run of `main` — after the fix lands and the heavy layer runs
+again, which can be hours later. Nothing retries on its own.
+
+A **`workflow_dispatch`** is the operator's explicit request, for a fix that
+cannot wait: it releases `main`'s tip as it finds it, without the heavy-run
+proof or the daily cap. The major hold still answers it. To release now:
+`gh workflow run version.yml --repo SocialGouv/iterion --ref main` (the
+`version` input defaults to `minor`; pass `-f version=patch` or an explicit
+`X.Y.Z`). A dispatch tags a commit no heavy run may have judged — dispatch on
+an empty queue, and only when waiting costs more than that.
+`internal/ciguard/release_test.go` pins the rule and runs each step's own text
+over crafted job listings, tag ages and moved tips.
+
+The release is still a direct push to `main` — release-it commits
+`chore: release vX.Y.Z` and its tag, the token-bureau App bypassing the
+ruleset — so it invalidates every merge group in flight like any other direct
+push. Once a day, that is one rebuild of whatever is queued at that moment.
+Releasing after each merge cost far more: over 2026-09-22..28, 58 releases for
+102 merges, and 15 queue builds discarded by a release commit; over
+2026-09-01..28, 242 of 1096 queue builds. A dispatch reads no queue either:
+**dispatch a release only on an empty queue**
+([queue hygiene](#queue-hygiene-nothing-moves-main-while-entries-are-in-flight-decided-2026-11-25)).
+`task ci:queue-stats` counts the queue builds a release discards
+([Measuring the queue](#measuring-the-queue)).
 
 Two release runs never overlap, whatever triggered them: `version.yml` has one
-concurrency group for every trigger, with `queue: max`, and each run that
-releases moves to `main`'s tip before release-it — a run queued behind a
-release finds it already tagged and releases nothing (a nightly or a dispatch
-checks for new commits first, since a dispatch's explicit increment would
-otherwise cut an empty release). Overlap is what must never happen — when a
-push is rejected, release-it rolls back by deleting the remote tag of the
-version it computed, and if the other run had just pushed that same version,
-that is the other run's tag. `queue: max` is there because a group otherwise
-keeps a single pending run and silently replaces it with the next one: a merged
-pull request's run could replace a pending nightly or dispatch, then hold its
-release while the queue builds.
+concurrency group for every trigger, with `queue: max` and
+`cancel-in-progress: false`, and each run that releases moves to `main`'s tip
+before release-it — a run queued behind a release finds the daily cap reached,
+or nothing new since the tag (every run checks for new commits first, since a
+dispatch's explicit increment would otherwise cut an empty release). Overlap is
+what must never happen — when a push is rejected, release-it rolls back by
+deleting the remote tag of the version it computed, and if the other run had
+just pushed that same version, that is the other run's tag. `queue: max` is
+there because a group otherwise keeps a single pending run and silently
+replaces it with the next one: the run following an ordinary Tests completion
+could replace a pending heavy-run release or dispatch.
 
 ## The major hold
 
@@ -454,7 +712,7 @@ asks a **major hold** before release-it; the decision lives in
 [`scripts/ci/release-major-hold.sh`](../scripts/ci/release-major-hold.sh),
 exercised by `internal/ciguard/release_major_hold_test.go`:
 
-- an **automatic run** — a merged pull request or the nightly — whose
+- an **automatic run** — the release that follows a green heavy run — whose
   recommended version is the next major ends **green** with a notice naming
   the version: no tag is cut, main keeps carrying the breaking change;
 - a **dispatch** of `patch`, `minor`, an explicit same-major version or a
@@ -521,8 +779,8 @@ window in UTC so two periods compare:
   does, so a discarded build now reads as `cancelled` rather than as a full
   run nobody waited for; a build that had already finished red had ejected its
   pull request, so its rebuild is a re-enqueue, counted as the queue's).
-  **Queue builds discarded by a direct push** is the line the release hold
-  above exists to shrink. The attribution is
+  **Queue builds discarded by a direct push** is the line the once-a-day
+  release above exists to shrink. The attribution is
   [`queue-rebuild-cause.awk`](../scripts/diagnostics/queue-rebuild-cause.awk),
   its own program so a harness can run it:
   `internal/ciguard/queue_stats_test.go` holds each of its rules to a crafted
@@ -621,11 +879,84 @@ Operator-led chantiers may bypass the queue entirely: no PR, a **train**
 locally ON THE INTEGRATED TREE), then a direct push to `main`. The lane's
 contract — the exhaustive local gate, the converged adversarial loop, the
 `Adversarial-Rounds:` / `Adversarial-Model:` / `Landing-Train:` trailers, the
-post-hoc CI witness, the red-`main` priority, and the duty to warn sessions
-with queued PRs or unpushed branches — lives in
+post-hoc CI witness, the red-`main` priority, and the duty to wait for an
+empty queue and to warn sessions with unpushed branches — lives in
 [the review-and-merge page](agents/workflow/review-and-merge.md#the-operator-direct-landing-lane-decided-2026-10-22).
 Every existing PR keeps the queue and its `revi/review` blocking gate — save
 where [a parked gate](#a-parked-gate-decided-2026-11-10) opens the narrower
-admin merge; the
-lane is the admin bypass generalised from hotfixes to reviewed chantier work,
-and its bypass is greppable in the trailers by design.
+admin merge, or a burst
+[lands end to end](#one-lane-per-burst-decided-2026-11-24); the lane is the
+admin bypass generalised from hotfixes to reviewed chantier work, and its bypass is greppable in the trailers by design.
+
+### One lane per burst (decided 2026-11-24)
+
+A burst — several pull requests landing in the same stretch — takes **one
+lane, chosen up front**, and keeps it to the end:
+
+- **the merge queue alone**: every pull request goes through the queue
+  (`gh pr merge <n> --auto --squash`), and none of its entries is
+  admin-merged while the burst lasts; or
+- **the direct-landing lane end to end**: dequeue every entry of the burst
+  first, run one train of the exact set on the current `main`, then land
+  that set; the lane's full proof (the converged adversarial loop and the
+  train) replaces their `revi/review`.
+
+Never admin-merge one pull request while other entries of the same burst sit
+in the queue. Each direct merge moves `main`, the base of every queued group,
+so GitHub rebuilds those groups and their in-flight `merge_group` runs become
+verdicts nobody reads ([the rebuild](#a-rebuilt-groups-older-runs-are-cancelled)).
+Measured on 2026-11-24: `task ci:queue-stats` counts 22 in-flight
+`merge_group` builds discarded by direct merges that day, 18 of them from the
+burst's 17 direct merges (it counts only the first group of each rebuilt
+chain, so the real cost is higher), on top of the queue's own timeout
+evictions.
+
+### The extended train lane (decided 2026-11-25)
+
+For the operator's bursts, the direct-landing lane end to end takes this
+shape, and lands the pull requests **without waiting for their CI**:
+
+1. **The queue is empty.** Dequeue the burst's own entries; if any other
+   entry is in flight, wait for it to merge or leave: the lane runs only
+   when the merge queue has no entry in flight
+   ([queue hygiene](#queue-hygiene-nothing-moves-main-while-entries-are-in-flight-decided-2026-11-25)).
+2. **One train of the exact burst on current `main`.** A fresh worktree on
+   `origin/main`, each pull request merged in, and `task ci:gate` on that
+   tree — not `task check` alone: a pull request's own run is light since
+   #3683, so its green never ran `race-shard` or `test-e2e`, and the gate's
+   `test:race` and `test:e2e` members are where that work runs. A red train
+   is fixed on the train.
+3. **Admin landing** of the set exactly as trained; an advance of `main`
+   meanwhile means a new train. A `chore: release` commit the release bot
+   pushes during the landing is not such an advance only when `git show
+   --stat` lists `CHANGELOG.md`, `charts/iterion/Chart.yaml`, `package.json`
+   and the reading golden alone (the cut moves two of its reading-golden
+   lines). A cut that realigns a `"next"` floor — a Go pin under `pkg/`, or a
+   bot or example manifest; see [release](agents/workflow/release.md) — moves
+   code, and the pull requests not yet landed are trained again on it. The
+   landing carries the lane's trailers
+   (`Adversarial-Rounds:`, `Adversarial-Model:`, `Landing-Train:`).
+4. **CI on `main` is the witness**, read as for the
+   [direct-landing lane](agents/workflow/review-and-merge.md#the-operator-direct-landing-lane-decided-2026-10-22):
+   a red witness outranks other work, and main-watch handles it as any red
+   push run.
+
+Revi still reviews every pull request of the burst; a finding that arrives
+after the landing is **fixed forward**, in a new pull request.
+
+### Queue hygiene: nothing moves main while entries are in flight (decided 2026-11-25)
+
+Any push to `main` outside the queue — an admin merge, a direct-landing
+push, a dispatched release — rebuilds every group in flight and discards the
+runs they had ([the rebuild](#a-rebuilt-groups-older-runs-are-cancelled)).
+So **admin landings happen only on an empty queue**: the train lane above,
+the [parked gate](#a-parked-gate-decided-2026-11-10) and the direct-landing
+lane wait until no entry is in flight, and so does a release dispatch
+([releases](#releases-and-the-queue)). No entry is in flight when
+`gh api repos/SocialGouv/iterion/git/matching-refs/heads/gh-readonly-queue/main/`
+lists no branch whose pull request is still open. An incident fix — the
+[fast lane](#the-fast-lane-for-an-incident-fix-and-its-exact-procedure), or
+a [hotfix](#direct-pushes-admin-bypass) that un-breaks a red `main` — is the
+one exception, and warns the sessions whose entries it rebuilds. The
+automatic release does not read the queue: it lands at most once a day, on
+the commit a green heavy run proved.

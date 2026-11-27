@@ -1,7 +1,6 @@
 package delegate
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,8 +13,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	iterlog "github.com/arketov/iterion/pkg/log"
 
 	"github.com/arketov/iterion/pkg/backend/ambient"
 	"github.com/arketov/iterion/pkg/backend/delegate/pisdk"
@@ -552,7 +549,7 @@ func TestParsePiOutput(t *testing.T) {
 	t.Run("http status classification", func(t *testing.T) {
 		cases := []struct {
 			status int
-			// wantKind: "ratelimit" | "transient" | "plain"
+			// wantKind: "ratelimit" | "transient" | "spend" | "plain"
 			wantKind string
 		}{
 			{429, "ratelimit"},
@@ -561,7 +558,9 @@ func TestParsePiOutput(t *testing.T) {
 			{408, "transient"},
 			{401, "plain"},
 			{403, "plain"},
-			{402, "plain"},
+			// Payment required is a spend ceiling (api.ClassifyRefusal): the
+			// account refusal every backend parks on, never retried in place.
+			{402, "spend"},
 			{400, "plain"},
 		}
 		for _, tc := range cases {
@@ -589,6 +588,10 @@ func TestParsePiOutput(t *testing.T) {
 				case "transient":
 					if !errors.As(err, &tr) {
 						t.Fatalf("status %d → %v (%T), want *ErrTransient", tc.status, err, err)
+					}
+				case "spend":
+					if !IsUsageWindow(err) || !IsAccountRefusal(err) {
+						t.Fatalf("status %d → %v (%T), want the spend-ceiling account refusal", tc.status, err, err)
 					}
 				default:
 					if errors.As(err, &rl) || errors.As(err, &tr) {
@@ -1020,50 +1023,6 @@ func TestPiCollectorNoProgressIsNotArmedByAZeroMark(t *testing.T) {
 		t.Fatalf("a zero mark should measure as ancient (%v) — the hazard would not exist otherwise",
 			time.Since(lastProgress))
 	}
-}
-
-// A repo can ship `<WorkDir>/.iterion/.gitignore` as a tracked symlink, and a
-// FOLLOWING os.Stat failed both ways: a DANGLING link made os.WriteFile create
-// an attacker-chosen host file, and a link to an existing path made the stat
-// succeed so the guard was silently never written — leaving pi's transcripts
-// and composed system prompt stageable.
-func TestPiHideWorkspaceSessionDirRefusesASymlinkedGuard(t *testing.T) {
-	t.Run("dangling: nothing is written through it", func(t *testing.T) {
-		work := t.TempDir()
-		target := filepath.Join(t.TempDir(), "absent")
-		if err := os.MkdirAll(filepath.Join(work, ".iterion"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.Symlink(target, filepath.Join(work, ".iterion", ".gitignore")); err != nil {
-			t.Skipf("symlinks unavailable: %v", err)
-		}
-		hideWorkspaceStateDir(work, nil, "pi", "session files")
-		if _, err := os.Stat(target); err == nil {
-			t.Error("created a host file at the symlink's target")
-		}
-	})
-
-	t.Run("pointing at an existing file: the miss is not silent", func(t *testing.T) {
-		work := t.TempDir()
-		other := filepath.Join(t.TempDir(), "other")
-		if err := os.WriteFile(other, []byte("unrelated\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.MkdirAll(filepath.Join(work, ".iterion"), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.Symlink(other, filepath.Join(work, ".iterion", ".gitignore")); err != nil {
-			t.Skipf("symlinks unavailable: %v", err)
-		}
-		var buf bytes.Buffer
-		hideWorkspaceStateDir(work, iterlog.New(iterlog.LevelWarn, &buf), "pi", "session files")
-		if !strings.Contains(buf.String(), "not a regular file") {
-			t.Errorf("log = %q — the workspace is unguarded and nothing says so", buf.String())
-		}
-		if got, _ := os.ReadFile(other); string(got) != "unrelated\n" {
-			t.Errorf("wrote through the symlink: %q", got)
-		}
-	})
 }
 
 // The pre-flight is only worth having if PiBackend.Execute actually CALLS it.

@@ -17,6 +17,7 @@ import (
 	iterlog "github.com/arketov/iterion/pkg/log"
 	"github.com/arketov/iterion/pkg/platformcfg"
 	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/schedgate"
 	"github.com/arketov/iterion/pkg/store"
 	mongostore "github.com/arketov/iterion/pkg/store/mongo"
 	"github.com/arketov/iterion/pkg/trigger"
@@ -140,8 +141,8 @@ func (brokenMaintenanceStore) Put(context.Context, platformcfg.Maintenance) erro
 
 func TestFenceReadFailure(t *testing.T) {
 	s := &Server{maintenanceStore: brokenMaintenanceStore{}}
-	if d := s.gateMaintenance(context.Background(), launchSubject{}); d == nil || d.status != 503 || !errors.Is(d.err(), trigger.ErrMaintenanceHold) {
-		t.Fatalf("read failure: %+v", d)
+	if d := s.gateMaintenance(context.Background(), launchSubject{}); d == nil || d.status != 503 || !errors.Is(d.err(), schedgate.ErrMaintenanceFenceUnreadable) || errors.Is(d.err(), schedgate.ErrMaintenanceFenceArmed) {
+		t.Fatalf("read failure: %+v, want the unreadable-fence hold", d)
 	}
 	if d := s.gateMaintenance(context.Background(), launchSubject{ExistingRun: true}); d != nil {
 		t.Fatalf("existing run blocked: %+v", d)

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/arketov/iterion/pkg/backend/tool"
+	"github.com/arketov/iterion/pkg/backend/toolcatalog"
 	"github.com/arketov/iterion/pkg/dsl/ir"
 	iterlog "github.com/arketov/iterion/pkg/log"
 	"github.com/arketov/iterion/pkg/sandbox"
@@ -66,6 +67,13 @@ func TestExecuteToolNodeRecipe_SandboxRefusesARegistryToolThatBelongsInTheContai
 		if !strings.Contains(err.Error(), "outside the run's sandbox") {
 			t.Errorf("tool node `command: %s`: error does not name the sandbox: %v", name, err)
 		}
+		// lsp is typed-refused on every host, so running unsandboxed is no
+		// remedy for it; the other names keep that remedy.
+		_, refusedEverywhere := toolcatalog.ClawRefusesBuiltin(name)
+		if offers := strings.Contains(err.Error(), "run the workflow unsandboxed"); offers == refusedEverywhere {
+			t.Errorf("tool node `command: %s`: the remedy offers running unsandboxed = %v, but the tool is refused on every host = %v: %v",
+				name, offers, refusedEverywhere, err)
+		}
 		if ran[name] {
 			t.Errorf("tool node `command: %s`: the host closure ran", name)
 		}
@@ -99,6 +107,62 @@ func TestVerifiedAction_RegistryRecipeSandboxRefusalFailsTheNode(t *testing.T) {
 	}
 	if ran["bash"] {
 		t.Error("the host closure ran")
+	}
+}
+
+// C159's tool-node sentence: a claw-refused registry recipe fails on every
+// run that reaches it, `policy: best_effort` waives that failure, except
+// `lsp` on a sandboxed run — placement refuses it first, a setup failure
+// best_effort does not waive. The launcher-placed refused names (`cron_*`,
+// `team_*`) reach the claw refusal, which best_effort waives.
+//
+// Reddens on the mutation that folds the setup error back into runErr in
+// runVerifiedRecipe (lsp then continues), and on the one that marks `lsp`
+// PlacementLauncher (it then reaches the waived refusal).
+func TestVerifiedAction_RefusedRecipeBestEffortWaivesAllButSandboxedLsp(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		command   string
+		nodeFails bool
+	}{
+		{"lsp", true},
+		{"cron_create", false},
+		{"team_create", false},
+	} {
+		t.Run(tc.command, func(t *testing.T) {
+			t.Parallel()
+			reg := tool.NewRegistry()
+			if err := tool.RegisterClawAll(reg, tool.ClawDefaults{Workspace: t.TempDir()}); err != nil {
+				t.Fatalf("RegisterClawAll: %v", err)
+			}
+			var logged bytes.Buffer
+			ex := vaExecutor(t, t.TempDir(), WithToolRegistry(reg), WithLogger(iterlog.New(iterlog.LevelInfo, &logged)))
+			ex.SetSandbox(unmetSandboxRun{})
+			node := &ir.ToolNode{
+				BaseNode:      ir.BaseNode{ID: "va_refused"},
+				Command:       tc.command,
+				Postcondition: "test -f done",
+				Policy:        ir.PolicyBestEffort,
+			}
+			out, err := ex.Execute(context.Background(), node, map[string]any{})
+			if tc.nodeFails {
+				if err == nil || !strings.Contains(err.Error(), "outside the run's sandbox") {
+					t.Fatalf("Execute = %v, %v; want the sandbox placement refusal as the node's failure, which best_effort does not waive", out, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Execute = %v; want best_effort to waive the refused recipe's failure", err)
+			}
+			if m := vaMeta(t, out); m["postcondition_met"] != false {
+				t.Errorf("postcondition_met = %v, want false", m["postcondition_met"])
+			}
+			// The waived failure is the claw refusal itself, not an
+			// unregistered tool.
+			if !strings.Contains(logged.String(), "cannot serve") {
+				t.Errorf("the waived recipe failure is not the claw refusal; log: %s", logged.String())
+			}
+		})
 	}
 }
 
