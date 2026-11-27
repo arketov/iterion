@@ -299,13 +299,8 @@ func (c *Client) streamResponses(ctx context.Context, req api.CreateMessageReque
 		defer resp.Body.Close()
 		errBody := readErrorBody(resp.Body)
 		bodyStr := string(errBody)
-		return nil, &api.APIError{
-			Provider:   "openai",
-			StatusCode: resp.StatusCode,
-			Message:    extractOpenAIErrorMessage(bodyStr),
-			Body:       httputil.TruncateBody(bodyStr, httputil.BodyTruncateForLog),
-			Retryable:  api.IsRetryableStatus(resp.StatusCode),
-		}
+		return nil, api.NewHTTPError("openai", resp.StatusCode, extractOpenAIErrorMessage(bodyStr),
+			httputil.TruncateBody(bodyStr, httputil.BodyTruncateForLog))
 	}
 
 	ch := make(chan api.StreamEvent, 64)
@@ -399,11 +394,25 @@ func (c *Client) buildResponsesRequest(req api.CreateMessageRequest) (*oaiRespon
 func convertMessagesToResponsesInput(messages []api.Message) ([]oaiResponsesMessage, error) {
 	var out []oaiResponsesMessage
 
+	// toolImages holds the captioned images of the function_call_outputs
+	// emitted since the last user or assistant message, as the chat
+	// converter does (openaiwire.ConvertMessages): they wait for the end of
+	// the run of outputs — which may span several input messages — then ride
+	// in the next user message, under openaiwire.CarryToolImages's captions,
+	// or alone before the next assistant turn or at the end.
+	var toolImages []oaiResponsesContentPart
+	emitUser := func(parts []oaiResponsesContentPart) {
+		parts = openaiwire.CarryToolImages(toolImages, parts, oaiResponsesContentPart{Type: "input_text", Text: openaiwire.UserContentCaption})
+		toolImages = nil
+		if len(parts) > 0 {
+			out = append(out, oaiResponsesMessage{Role: "user", Content: parts})
+		}
+	}
+
 	for i, msg := range messages {
 		switch msg.Role {
 		case "user":
 			var parts []oaiResponsesContentPart
-			var toolImages []oaiResponsesContentPart
 			for _, block := range msg.Content {
 				switch block.Type {
 				case "text":
@@ -444,15 +453,12 @@ func convertMessagesToResponsesInput(messages []api.Message) ([]oaiResponsesMess
 					})
 				}
 			}
-			parts = append(toolImages, parts...)
 			if len(parts) > 0 {
-				out = append(out, oaiResponsesMessage{
-					Role:    "user",
-					Content: parts,
-				})
+				emitUser(parts)
 			}
 
 		case "assistant":
+			emitUser(nil)
 			var parts []oaiResponsesContentPart
 			for _, block := range msg.Content {
 				switch block.Type {
@@ -481,6 +487,7 @@ func convertMessagesToResponsesInput(messages []api.Message) ([]oaiResponsesMess
 			}
 		}
 	}
+	emitUser(nil)
 
 	return out, nil
 }

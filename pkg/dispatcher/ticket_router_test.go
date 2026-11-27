@@ -140,7 +140,7 @@ func TestRouteUnassignedIssue_NoProbeWarnsOnce(t *testing.T) {
 	}
 }
 
-// TestDispatchRouterOutranksRequireAssignee pins the owner's decision (docs/adr/174-ticket-router-outranks-require-assignee-on-trackers-without-pr-probe.md):
+// TestDispatchRouterOutranksRequireAssignee pins the owner's decision (docs/adr/179-ticket-router-outranks-require-assignee-on-trackers-without-pr-probe.md):
 // with ticket_router on, an unassigned card is NOT refused by require_assignee —
 // the router names the implement bot first, so dispatch proceeds to bot
 // resolution (and honest-fails there on an unresolvable bot) instead of

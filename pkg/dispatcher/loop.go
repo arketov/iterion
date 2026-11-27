@@ -443,7 +443,7 @@ func (c *Dispatcher) dispatch(ctx context.Context, iss tracker.Issue) {
 	// bot/assignee always wins — the router only touches fully-unassigned issues.
 	// The router therefore OUTRANKS require_assignee: it names a bot before
 	// refuseWithoutBot runs, so with the router on an unassigned card is never
-	// refused for want of an assignee (docs/adr/174-ticket-router-outranks-require-assignee-on-trackers-without-pr-probe.md).
+	// refused for want of an assignee (docs/adr/179-ticket-router-outranks-require-assignee-on-trackers-without-pr-probe.md).
 	if cfg.TicketRouter.Enabled && iss.Bot == "" && iss.Assignee == "" {
 		bot, ok := c.routeUnassignedIssue(ctx, cfg, iss)
 		if !ok {

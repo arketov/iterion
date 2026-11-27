@@ -1700,7 +1700,7 @@ pinned to the running iterion version:
 | Variant | Image                                                       | Contents                                                                                            |
 | ------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | **slim** (default) | `ghcr.io/socialgouv/iterion-sandbox-slim:<version>` | git, curl, jq, Node 24, devbox + Nix                                                                |
-| **full** (opt-in)  | `ghcr.io/socialgouv/iterion-sandbox-full:<version>` | slim + Go (+ `g`), Python 3, pnpm, fnm, direnv, gh, yq (mikefarah), kubectl, helm, k9s              |
+| **full** (opt-in)  | `ghcr.io/socialgouv/iterion-sandbox-full:<version>` | slim + Go (+ `g`), Python 3, pnpm, fnm, direnv, gh, yq (mikefarah), kubectl, helm              |
 | **sec** (opt-in)   | `ghcr.io/socialgouv/iterion-sandbox-sec:<version>`   | full + the security-audit toolchain (the sec-audit bots' floor)                                     |
 | **browser** (opt-in) | `ghcr.io/socialgouv/iterion-sandbox-browser:<version>` | slim + Chromium + Playwright MCP (`ULTRA11Y_BROWSER_PATH` names `/usr/bin/chromium`)             |
 | **rgaa** (opt-in)  | `ghcr.io/socialgouv/iterion-sandbox-rgaa:<version>`  | browser + the pinned ultra11y engine, installed globally — the rgaa-audit bot's class               |
@@ -2346,13 +2346,15 @@ carries). The crossing's words stay as the detail of the error.
 >   declares one is refused when it executes, with the remedy in the
 >   message (its `fallbacks:` still get their turn — like the Ask refusal
 >   it is an unclassified failure, which every non-`skip` route accepts
->   whatever its `on:` filter): `lsp` (the language
->   servers are the launcher's children), `screenshot` / `computer_use`
+>   whatever its `on:` filter): `lsp` (iterion registers no language
+>   server for it on any host, so an unsandboxed node is refused every
+>   call to it too), `screenshot` / `computer_use`
 >   (the launcher host's display), and the nine `worker_*` tools (a worker
 >   is keyed on a model-supplied working directory the launcher reads and
 >   writes). Drop the tool, or run the workflow unsandboxed
 >   (`sandbox: none` / `--sandbox none`) — a node-level `sandbox:` is not
->   honoured at run time.
+>   honoured at run time; for `lsp`, dropping it is the only remedy, and
+>   the message says so.
 >
 > A name nothing classifies — a new claw tool — is refused, not
 > proxied: the default direction is the safe one. A name that merely

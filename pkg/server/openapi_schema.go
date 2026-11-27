@@ -212,6 +212,11 @@ func routeSchemas() map[string]routeOp {
 				Tokens []pat.Token `json:"tokens"`
 			}{},
 		},
+		"DELETE /api/me/tokens/{token_id}": {
+			response:    patRevokedView{},
+			description: "Revoke a token. 204 when the revoke ended nothing; 200 naming the pending invitations the token had emailed (ADR-174), now revoked, with invitations_error when the sweep could not take every one out — re-issuing the revoke finishes it.",
+			errors:      map[int]string{http.StatusNoContent: "The revoke ended no invitation: no body"},
+		},
 
 		// Org administration (super-admin).
 		"GET /api/admin/orgs": {
@@ -314,6 +319,14 @@ func routeSchemas() map[string]routeOp {
 		"PUT /api/orgs/{id}/routing-policy":  {response: routingPolicyView{}},
 		"GET /api/teams/{id}/routing-policy": {response: routingPolicyView{}},
 		"PUT /api/teams/{id}/routing-policy": {response: routingPolicyView{}},
+
+		// Shared-gateway status (super-admin, ADR-167 T2) — per gateway host,
+		// the alive runs and subbot trees holding its capacity subject.
+		"GET /api/admin/llm/gateway-alive-runs": {
+			response:    gatewayAliveRunsView{},
+			description: "Super-admin only. Per gateway host (sorted), the alive subbot trees (the iterion_gateway_alive_runs gauge) and alive runs (the run-admission ledger's count) holding its capacity subject gw:<host>, all teams together; the trees alive on the host whose subjects do not name it (unnamed_trees: the host read from the key row each stamped fingerprint names, never from content_boundary.gateway_host; a subbot child judged with its tree); per bot of the tree's root, its trees; and the trees that sealed a gateway key whose host cannot be read (unresolved_trees). Counts and bot ids only. Observe-only: nothing is reserved on a gateway.",
+			errors:      map[int]string{401: "Authentication required", 403: "Super-admin required", 500: "The alive runs or the key rows could not be read", 501: "run_store_without_alive_capacity_listing or api_key_store_without_gateway_key_lookup: the instance does not host the reading"},
+		},
 
 		// Per-credential usage (super-admin) — cross-tenant spend by
 		// tier/fingerprint/repo (query params, not typed by the generator).

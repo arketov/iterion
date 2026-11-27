@@ -15,7 +15,7 @@
 #   - Go version management: g (stefanmaric/g).
 #   - VCS: gh (GitHub CLI).
 #   - Data shaping: jq (inherited from slim), yq (mikefarah).
-#   - Kubernetes ops: kubectl, helm, k9s.
+#   - Kubernetes ops: kubectl, helm.
 #   - Dev env: direnv. (devbox + Nix inherited from slim base.)
 #
 # Heavier language stacks (Rust, JVM, Ruby, …) remain out of scope —
@@ -66,7 +66,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # their step budget (the placeholder cause, run 019ec9d5). Newer/older repos
 # still auto-fetch their own pinned toolchain via the default GOTOOLCHAIN=auto.
 # ---------------------------------------------------------------------
-ARG GO_VERSION=1.26.4
+ARG GO_VERSION=1.26.11
 RUN ARCH=$(dpkg --print-architecture) \
  && curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz" -o /tmp/go.tgz \
  && rm -rf /usr/local/go \
@@ -95,7 +95,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # gitlab-org/cli goreleaser archive; the dpkg arch matches the asset
 # name, and the binary lives at bin/glab inside the tarball.
 # ---------------------------------------------------------------------
-ARG GLAB_VERSION=1.102.0
+# renovate: datasource=gitlab-releases depName=gitlab-org/cli
+ARG GLAB_VERSION=1.133.0
 RUN ARCH=$(dpkg --print-architecture) \
  && curl -fsSL "https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads/glab_${GLAB_VERSION}_linux_${ARCH}.tar.gz" \
         | tar -xz -C /usr/local/bin --strip-components=1 bin/glab \
@@ -110,14 +111,15 @@ RUN ARCH=$(dpkg --print-architecture) \
 #   kubectl          — Kubernetes CLI. Pinned to a recent stable line.
 #   helm             — Kubernetes package manager (official install
 #                      script auto-pins to latest stable v3).
-#   k9s              — Kubernetes TUI for observability work.
 #   fnm              — Node version manager (Schniz/fnm). The slim
 #                      base ships Node 24 system-wide; fnm is for
 #                      bots that need a specific Node version.
 # ---------------------------------------------------------------------
-ARG YQ_VERSION=v4.44.5
-ARG KUBECTL_VERSION=v1.31.4
-ARG K9S_VERSION=v0.32.7
+# renovate: datasource=github-releases depName=mikefarah/yq
+ARG YQ_VERSION=v4.54.3
+# renovate: datasource=github-releases depName=kubernetes/kubernetes
+ARG KUBECTL_VERSION=v1.36.7
+# renovate: datasource=github-releases depName=Schniz/fnm
 ARG FNM_VERSION=v1.38.1
 
 RUN ARCH=$(dpkg --print-architecture) \
@@ -127,9 +129,6 @@ RUN ARCH=$(dpkg --print-architecture) \
  && curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl" \
         -o /usr/local/bin/kubectl \
  && chmod +x /usr/local/bin/kubectl \
- && curl -fsSL "https://github.com/derailed/k9s/releases/download/${K9S_VERSION}/k9s_Linux_${ARCH}.tar.gz" \
-        | tar -xz -C /usr/local/bin k9s \
- && chmod +x /usr/local/bin/k9s \
  && curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 \
         | DESIRED_VERSION="" bash
 
@@ -177,7 +176,6 @@ RUN gh --version \
  && yq --version \
  && kubectl version --client --output=yaml \
  && helm version --short \
- && k9s version --short \
  && fnm --version \
  && command -v g \
  && direnv --version \

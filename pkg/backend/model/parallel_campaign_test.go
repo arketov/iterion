@@ -64,6 +64,7 @@ import (
 // files, refused here and recorded on #2789.
 var serialFamily = map[string]string{
 	"codemode_sandbox_crossing_test.go":     "Setenv",
+	"generation_image_acceptance_test.go":   "SetDefault, Setenv",
 	"sandbox_transport_env_test.go":         "Setenv",
 	"output_correction_composition_test.go": "Setenv",
 	"output_correction_control_test.go":     "Setenv",
@@ -162,6 +163,7 @@ var serialFamily = map[string]string{
 	"gate_can_ask_test.go":                     "Setenv",
 	"gateway_credential_test.go":               "Setenv",
 	"gateway_routing_test.go":                  "Setenv",
+	"generation_cancel_verdict_test.go":        "Setenv", // also runtime.GOMAXPROCS(1), process-wide: the file stays serial when Setenv is freed
 	"generation_test.go":                       "Setenv",
 	"glm_routes_to_zai_test.go":                "SetCredentialsLookup, Setenv",
 	"human_route_test.go":                      "Setenv",

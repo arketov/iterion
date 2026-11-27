@@ -171,11 +171,16 @@ func (t *Ticker) fireIntent(ctx context.Context, intent LaunchIntent, now time.T
 	// Maintenance postpones this intention. Ordinary failures retain
 	// the scheduler's historical terminal verdict for this slot.
 	lerr := t.Launch(ctx, sb)
-	finish(ctx.Err() != nil || errors.Is(lerr, schedgate.ErrMaintenanceHold))
+	hold := ctx.Err() != nil || errors.Is(lerr, schedgate.ErrMaintenanceHold)
+	finish(hold)
 	if lerr != nil {
 		t.warn("launch %s (%s): %v", sb.ID, sb.BotID, lerr)
 	}
-	t.recordLaunchVerdict(ctx, current, lerr, now)
+	// A tick whose context ended says nothing about the schedule: the
+	// replica is stopping and the held slot goes to whoever ticks next.
+	if ctx.Err() == nil {
+		t.recordLaunchVerdict(ctx, current, lerr, now)
+	}
 	if t.Audit != nil {
 		rec := schedgate.NewTickRecord(schedgate.SurfaceCloud, sb.ID, now, schedgate.LaunchDecision(lerr))
 		rec.ScheduleName = sb.BotID
@@ -215,23 +220,78 @@ func (t *Ticker) recordGateVerdict(ctx context.Context, sb ScheduledBot, rec sch
 }
 
 // recordLaunchVerdict persists on the schedule itself what became of the tick
-// that just consumed its slot: a refusal — an org launch-gate denial above all
-// — raises last_error, and the next tick that launches clears it. Written only
-// when the verdict CHANGES, so a schedule that has been refused for a week
-// costs one write, not one per minute. A failed write is logged, never fatal:
-// the slot is already consumed and the audit row still carries the error.
+// that just launched, or tried to launch, its slot — consumed or held: a
+// refusal — an org launch-gate denial above all — raises last_error, and the
+// next tick that launches clears it. A hold that can last across ticks while
+// nothing launches — an unreadable fence record, a run that could not be
+// persisted — is recorded like a refusal, so the watch sees it.
+//
+// Two holds are no verdict on the schedule's health. The operator's armed
+// fence is a postponement they chose: the row keeps its previous verdict and
+// the audit record carries the hold — except an unreadable-fence verdict,
+// which the readable armed fence supersedes and clears. A lost lease means a
+// successor owns the slot and records its own verdict, which this tick's
+// stale read must not overwrite.
 func (t *Ticker) recordLaunchVerdict(ctx context.Context, sb ScheduledBot, launchErr error, now time.Time) {
-	msg := ""
-	if launchErr != nil {
-		msg = launchErr.Error()
+	switch {
+	case errors.Is(launchErr, schedgate.ErrScheduleLeaseLost):
+		return
+	case errors.Is(launchErr, schedgate.ErrMaintenanceFenceArmed):
+		if sb.LastError == schedgate.ErrMaintenanceFenceUnreadable.Error() {
+			t.markLaunchError(ctx, sb, "", now)
+		}
+		return
 	}
-	t.markLaunchError(ctx, sb, msg, now)
+	verdict := launchVerdict(launchErr)
+	if isClassOfRecordedText(launchErr, verdict, sb.LastError) {
+		return
+	}
+	t.markLaunchError(ctx, sb, verdict, now)
+}
+
+// isClassOfRecordedText reports whether verdict is the class of a classed
+// refusal and the row already records that refusal's whole text, as a
+// scheduler that does not read the class writes it. The row keeps that text
+// and its last_error_at: the switch between the whole text and the class is
+// the same refusal, not a new episode for the watch. A refusal with no class
+// is never matched, so any change of its whole text is written.
+func isClassOfRecordedText(launchErr error, verdict, recorded string) bool {
+	var classed schedgate.LaunchVerdictError
+	return verdict != "" && errors.As(launchErr, &classed) && verdict == classed.LaunchVerdict() &&
+		strings.HasPrefix(recorded, verdict+": ")
+}
+
+// launchVerdict is the last_error text of a launch outcome. A typed hold
+// records its sentinel's stable text rather than the whole chain, which
+// embeds a driver error that can vary from tick to tick (a connection id),
+// and a refusal that names its class (schedgate.LaunchVerdictError: a
+// launch-gate denial whose text embeds the active-run count) records that
+// class: markLaunchError writes only a CHANGED verdict, so a stable text
+// keeps one last_error_at, hence one watch episode, for one outage or one
+// refusal. An empty class names no class: the whole text is recorded. The
+// whole chain stays in the tick's audit record and the warn log. The typed
+// holds are matched first: the unreadable-fence denial is also a launch-gate
+// refusal, and its sentinel text is what the watch's sweep compares.
+func launchVerdict(launchErr error) string {
+	var classed schedgate.LaunchVerdictError
+	switch {
+	case launchErr == nil:
+		return ""
+	case errors.Is(launchErr, schedgate.ErrMaintenanceFenceUnreadable):
+		return schedgate.ErrMaintenanceFenceUnreadable.Error()
+	case errors.Is(launchErr, schedgate.ErrLaunchNotPersisted):
+		return schedgate.ErrLaunchNotPersisted.Error()
+	case errors.As(launchErr, &classed) && classed.LaunchVerdict() != "":
+		return classed.LaunchVerdict()
+	default:
+		return launchErr.Error()
+	}
 }
 
 // markLaunchError writes msg as the schedule's health, only when it CHANGES:
 // a schedule refused for a week costs one write, not one per minute. A failed
-// write is logged, never fatal — the slot is already consumed and the audit
-// row still carries the reason.
+// write is logged, never fatal — the slot is already consumed or held, and the
+// audit row still carries the reason.
 func (t *Ticker) markLaunchError(ctx context.Context, sb ScheduledBot, msg string, now time.Time) {
 	if msg == sb.LastError {
 		return

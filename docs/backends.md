@@ -930,18 +930,18 @@ hint and the wire model:
 ```iter fragment
 agent reviewer:
   backend: "claude_code"
-  provider: "zai:glm-5.3,anthropic:claude-opus-5-5"   # glm-5.3 on z.ai, claude-opus-5-5 on Anthropic
+  provider: "zai:glm-5.4,anthropic:claude-opus-5-5"   # glm-5.4 on z.ai, claude-opus-5-5 on Anthropic
 ```
 
 This is the case where the chain's two providers serve **different model
-ids over the same Anthropic-wire API** — `glm-5.3` is a z.ai model that
+ids over the same Anthropic-wire API** — `glm-5.4` is a z.ai model that
 Anthropic would reject, so a hint-only swap would break on fall-through.
 The token is split on the **first** colon (a model id that itself
 contains a colon survives intact). An element **without** a model
-(`anthropic` in `zai:glm-5.3,anthropic`) inherits the node's `model:`
+(`anthropic` in `zai:glm-5.4,anthropic`) inherits the node's `model:`
 baseline; an inheriting element after a model-bearing one restores the
 baseline rather than carrying the previous override. A malformed element
-— a colon with an empty provider (`:glm-5.3`) or empty model (`zai:`) —
+— a colon with an empty provider (`:glm-5.4`) or empty model (`zai:`) —
 warns **C172** at compile time. Env expansion still runs on the whole
 field first, so the `:-` in `${VAR:-x}` is never mistaken for a
 `provider:model` separator.
@@ -1431,11 +1431,13 @@ types correctly — but its own failure is always unclassifiable, and it
 > path, or open a model-supplied URL, and `agent`, run in-container;
 > launcher-owned state (MCP, `ask_user`, the `task_*` / `team_*` /
 > `cron_*` registries, `todo_write`, `config`, `tool_search`, plan mode,
-> the privacy pair, `web_search`) keeps the IPC proxy; and `lsp`,
+> the privacy pair, `web_search`) keeps the IPC proxy; and `lsp`
+> (typed-refused on every host: no language server is registered for it),
 > `screenshot`, `computer_use` and the `worker_*` family have no
 > in-container form, so a sandboxed node declaring one is refused when it
 > executes (its `fallbacks:` still get their turn) — drop it, or run the
-> workflow unsandboxed (`sandbox: none` / `--sandbox none`). A
+> workflow unsandboxed (`sandbox: none` / `--sandbox none`); for `lsp`,
+> drop it is the only remedy. A
 > `tool_policy` allowlist is applied to the in-container tools when the
 > node is built: a tool it denies is not advertised at all. The full table
 > and its reasons: [sandbox.md](sandbox.md#claw-backend-in-sandbox).
@@ -2144,6 +2146,46 @@ context wordings such as `prompt is too long` retain the parent's fresh-sample
 `EXECUTION_FAILED` retry. Tool stderr and model prose never establish this new
 terminal verdict. HTTP 408/5xx, 429 and model-access refusals keep their handling.
 
+**Provider refusals** (#3048) are read before any status, by one classifier on
+the typed error (`api.ClassifyRefusal`, carried by `api.APIError` and the claw
+stream error, read through `api.RefusalOf`, which reads every error of a chain
+in a fixed precedence — budget, capability, grammar, request): a gateway
+serves them under any status, so the status alone would retry them. The
+words are the provider's own — the extracted message, a JSON envelope's
+`error.message` and `error.type`, or a plain-text body — never request content
+it echoes.
+
+| Refusal | Provider words (or status) | Code |
+|---|---|---|
+| budget | `Budget has been exceeded!`, `ExceededBudget:`, `ExceededTokenBudget:`, `exceeded budget for model=`, `credit balance is too low`, `error.type: budget_exceeded`, HTTP 402 | `USAGE_LIMIT_BLOCKED` |
+| capability | `is not a multimodal model`, `image_url is only supported by certain models` | `CAPABILITY_UNSUPPORTED` |
+| grammar | `xgrammar`, `Grammar error` | `SCHEMA_UNUSABLE` |
+| request | HTTP 405, 410, 411, 414, 415, 422, 431 | `PROVIDER_REQUEST_INVALID` |
+
+A **budget** refusal is a spend ceiling, read like claude_code's spend limit:
+claw and pi type it as an account refusal (`delegate.SpendCeilingRefusal`, a
+usage window naming no reset). A declared fallback route (`on:
+[usage_window]`) is taken within the run; then the run parks and the hourly
+probe of the run's credential window relaunches it — a LiteLLM budget often
+reopens by itself (a windowed budget, a released reservation). The usage
+meter keeps no reading for a gateway key (it meters the anthropic wire), so
+the relaunch reuses the same key until the budget clears; the remedy names
+the budget to raise. claude_code reports text, not a typed refusal: its
+spend-limit wording keeps its own reading, and a %v-flattened budget is read
+as a spend ceiling too.
+
+The **other three** are deterministic, and every layer stops on them: the claw
+client's retry (`APIError.IsRetryable`), the executor's in-node retries, node
+recovery (a terminal recipe whose reason quotes the provider), the runner's
+redelivery (acked as a deterministic failure), automatic resume and the forge
+gate's relaunch (its status names the remedy instead). The run stays
+`failed_resumable`: an operator changes the model or the schema, then resumes.
+A grammar refusal of a forced tool choice, HTTP or stream frame alike, is
+first re-asked once without the grammar. In a fallback chain a refusal
+condemns its route alone; the chain keeps a refusal code only when every
+route was refused, and its remedy quotes the routes refused that way. A
+sandboxed node's refusal crosses the runner typed.
+
 Claw preserves typed provider errors through sandbox IPC; pi uses its structured
 provider diagnostics. Claude Code's current result protocol exposes no typed
 HTTP status, so its rendered 400 remains unclassified as a parameter refusal.
@@ -2259,16 +2301,20 @@ HTTP status, so its rendered 400 remains unclassified as a parameter refusal.
 
 The snapshot is regenerated with `task models:snapshot` (the committed diff
 is the review; it carries the source digest and an as-of date, and an answer
-older than 180 days logs a warning). Its **schema 2 holds the numerics and
-the three capability flags models.dev publishes**, each optional: an id the
-aggregator states as `"tool_call": false` reads a stated false on an offline
-or cold-start replica — the refusal a reader owes, not the warning an
-unknown earns — and a flag the aggregator does not state is absent from the
-line and reads unknown, never false. A flag you need honoured AGAINST
-models.dev still goes in `OPENAI_COMPATIBLE_MODELS`, whose entry wins over
-both models.dev tiers. Schema 1 (the numerics alone) is not loadable: the
-file is embedded, so it and its reader ship in the same binary, and a
-mismatch names `task models:snapshot` instead of guessing. An id can LEAVE
+older than 180 days logs a warning). Its **schema 3 holds the numerics and
+the four capability flags models.dev publishes** (`reasoning`, `tool_call`,
+`temperature`, and `image_input`, read from `modalities.input`), each
+optional: an id the aggregator states as `"tool_call": false` reads a
+stated false on an offline or cold-start replica — the refusal a reader
+owes, not the warning an unknown earns — and a flag the aggregator does not
+state is absent from the line and reads unknown, never false. A flag you
+need honoured AGAINST models.dev still goes in `OPENAI_COMPATIBLE_MODELS`,
+whose entry wins over both models.dev tiers, except `image_input`: the
+operator table refuses it, and a feed entry that answers the id states it
+([image acceptance](agents/backends/image-acceptance.md)). Schemas 1 and 2
+are not loadable: the file is embedded, so it and its reader ship in the
+same binary, and a mismatch names `task models:snapshot` instead of
+guessing. An id can LEAVE
 models.dev between two regenerations — it then resolves to unknown, and the
 operator table is the road for a deployment that still serves it. A sandboxed gateway node
 receives the host's own resolution (`ITERION_OPENAI_COMPATIBLE_RESOLVED`),
@@ -3211,7 +3257,7 @@ sensible default for the first available provider (the detector's
 `SuggestedModel` for the first available provider, in this priority
 order) — currently
 `anthropic/claude-opus-5-5` for Anthropic,
-`anthropic/glm-5.3` for z.ai,
+`anthropic/glm-5.4` for z.ai,
 `moonshot/kimi-k2` for Moonshot,
 `openai/gpt-6-sol` for OpenAI, and
 `xai/grok-3` for xAI (the `SuggestedModel` fields of
@@ -3277,7 +3323,7 @@ unknown name there is dead config, not a failure — and it never touches
 qualified MCP references (`mcp.<server>.<tool>`, the `mcp__server__tool`
 alias form, wildcards), which are resolved when the server connects. One
 host-side check does read them: `iterion validate` and `POST /api/validate`
-warn (`C358`) when such a reference names a server that no `mcp_server`
+warn (`C360`) when such a reference names a server that no `mcp_server`
 block, project `.mcp.json` entry or enabled plugin declares.
 
 What it lets through, and why. iterion's own board and watch tools are

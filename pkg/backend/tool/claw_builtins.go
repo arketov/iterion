@@ -336,17 +336,26 @@ func clawImageResultAdapter(fn func(context.Context, map[string]any) (clawtools.
 
 // RegisterClawTool registers a single claw-code-go tool against the
 // registry. Use this to add specialised tools that RegisterClawBuiltins
-// does not include by default.
+// does not include by default. A name on toolcatalog's refused list is
+// refused even here: exec is replaced by the typed refusal and never called.
 func RegisterClawTool(reg *Registry, t api.Tool, exec func(ctx context.Context, input map[string]any) (string, error)) error {
 	return registerClawTool(reg, clawBuiltinSpec{tool: t, exec: exec})
 }
 
 func registerClawTool(reg *Registry, spec clawBuiltinSpec) error {
+	if refusal, refused := toolcatalog.ClawRefusesBuiltin(spec.tool.Name); refused {
+		spec = refusedClawSpec(spec, refusal)
+	}
 	schemaJSON, err := json.Marshal(spec.tool.InputSchema)
 	if err != nil {
 		return fmt.Errorf("marshal schema: %w", err)
 	}
 	wrapped := func(ctx context.Context, input json.RawMessage) (string, error) {
+		if spec.refuses {
+			// The refusal answers before decoding: malformed input to a tool
+			// that cannot run earns the refusal, not a decode error.
+			return spec.exec(ctx, nil)
+		}
 		var args map[string]any
 		if len(input) > 0 {
 			if jerr := json.Unmarshal(input, &args); jerr != nil {
@@ -361,6 +370,38 @@ func registerClawTool(reg *Registry, spec clawBuiltinSpec) error {
 	return reg.registerBuiltin(spec.tool.Name, spec.tool.Description, schemaJSON, wrapped, builtinTraits{concurrentSafe: spec.concurrentSafe, imageResult: spec.imageResult})
 }
 
+// refusedClawSpec turns a claw built-in on toolcatalog's refused list into
+// its typed refusal. Every claw registration crosses registerClawTool, so the
+// list C159 warns from at compile time is the list refused here at run time:
+// no registrar can keep serving a listed name, and no listed name can be
+// refused with words other than the ones the compiler quoted.
+//
+// The tool stays registered — the name resolves, so a declaring node builds
+// and the model reads why it cannot use it — and one refusal feeds both the
+// advertised description, the first surface the model reads, and the error a
+// call earns. Both open on toolcatalog.ClawRefusedToolHeadline, the phrase the
+// ultracode grant conditions "that refusal is final, do not retry" on
+// (delegate.ultracodeOrchestrationInstruction). The input schema is kept, so
+// a provider that validates tool calls against it sees the tool claw ships.
+func refusedClawSpec(spec clawBuiltinSpec, refusal toolcatalog.ClawRefusal) clawBuiltinSpec {
+	name := spec.tool.Name
+	unavailable := "The " + name + " tool is " + toolcatalog.ClawRefusedToolHeadline
+	spec.tool.Description = unavailable +
+		" and every call to it returns an error: " + refusal.Reason + ". " + refusal.Remedy + "."
+	spec.exec = func(context.Context, map[string]any) (string, error) {
+		// spec.refuses: the input is neither decoded nor validated. The
+		// error reaches the model as its tool result and the run log through
+		// the tool-call hook.
+		return "", &delegate.ErrCapabilityUnsupported{
+			Backend:    toolcatalog.ClawBackend,
+			Capability: "the " + name + " tool",
+			Remedy:     unavailable + ". " + refusal.String(),
+		}
+	}
+	spec.refuses = true
+	return spec
+}
+
 type clawBuiltinSpec struct {
 	tool           api.Tool
 	exec           func(ctx context.Context, input map[string]any) (string, error)
@@ -368,6 +409,11 @@ type clawBuiltinSpec struct {
 	// imageResult: exec is a clawImageResultAdapter, its output a claw image
 	// result the tool loop hands the model as image blocks.
 	imageResult bool
+	// refuses marks an exec that answers a typed refusal whatever the input.
+	// registerClawTool then calls it with nil args WITHOUT decoding the input:
+	// the capability is missing whatever the model wrote, and a decode error
+	// would send it rewriting arguments for a tool that cannot run.
+	refuses bool
 }
 
 // RegisterClawSimple registers the no-dependency claw tools that don't
@@ -392,8 +438,35 @@ func RegisterClawSimple(reg *Registry) error {
 // (~/.claw-code/todos/<workspace-fingerprint>.json, CLAW_TODOS_DIR override)
 // so agent runs never dirty git status/diff — each iterion worktree run gets
 // its own file via its worktree path's fingerprint. No dependency.
+//
+// The workspace fingerprint alone is not a session: the parallel branches of
+// a fan-out share one worktree, and so do the rounds of a loop and two runs
+// on one checkout. Keyed by it alone they read and overwrite one checklist —
+// an rgaa-audit adjudicator "reconciled" another batch's todo list and ruled
+// on that batch's criteria instead of its own (#3746). The executor stamps
+// the delegation's own scope on the context (WithTodoScope) and the list is
+// keyed by it; a context with no scope keeps the per-workspace file.
 func RegisterClawTodo(reg *Registry) error {
-	return RegisterClawTool(reg, clawtools.TodoWriteTool(), clawtools.ExecuteTodoWrite)
+	return RegisterClawTool(reg, clawtools.TodoWriteTool(), func(ctx context.Context, input map[string]any) (string, error) {
+		return clawtools.ExecuteTodoWriteScoped(ctx, input, TodoScopeFromContext(ctx))
+	})
+}
+
+type todoScopeKey struct{}
+
+// WithTodoScope returns a derived ctx whose todo_write calls read and write
+// the checklist of scope — one per delegation. Empty scope is a no-op.
+func WithTodoScope(ctx context.Context, scope string) context.Context {
+	if scope == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, todoScopeKey{}, scope)
+}
+
+// TodoScopeFromContext returns the scope set by WithTodoScope, or "".
+func TodoScopeFromContext(ctx context.Context) string {
+	s, _ := ctx.Value(todoScopeKey{}).(string)
+	return s
 }
 
 // AskUserHandler is invoked when the LLM calls ask_user. Returning an
@@ -481,17 +554,16 @@ func RegisterClawSubagents(reg *Registry, runner SubagentRunner) error {
 	// looking for subagents lands on the explanation rather than on nothing.
 	t.Description = unavailable +
 		" and every call to this tool returns an error: " + refusal.Reason + ". " + refusal.Remedy + "."
-	return RegisterClawTool(reg, t, func(context.Context, map[string]any) (string, error) {
-		// The input is not validated first: the capability is missing whatever
-		// the model wrote, and a schema complaint would send it rewriting
-		// arguments for a tool that cannot run. The error reaches the model as
-		// its tool result and the run log through the tool-call hook.
+	return registerClawTool(reg, clawBuiltinSpec{tool: t, refuses: true, exec: func(context.Context, map[string]any) (string, error) {
+		// spec.refuses: the input is neither decoded nor validated. The
+		// error reaches the model as its tool result and the run log through
+		// the tool-call hook.
 		return "", &delegate.ErrCapabilityUnsupported{
 			Backend:    toolcatalog.ClawBackend,
 			Capability: "the agent tool (subagents)",
 			Remedy:     unavailable + ". " + refusal.String(),
 		}
-	})
+	}})
 }
 
 // RegisterClawWebSearch registers the `web_search` tool. Reads
@@ -680,7 +752,10 @@ func RegisterClawWorkers(reg *Registry, workerReg *clawworker.WorkerRegistry) er
 }
 
 // RegisterClawTeams registers the four team_* tools that share a
-// *team.TeamRegistry. Teams are named groupings of task IDs.
+// *team.TeamRegistry. Teams are named groupings of task IDs. Nothing in
+// iterion reads the registry back, so the four names are on toolcatalog's
+// refused list and registerClawTool answers every call with the typed
+// refusal; the registry stays a parameter for claw's own executors.
 func RegisterClawTeams(reg *Registry, teamReg *clawteam.TeamRegistry) error {
 	if teamReg == nil {
 		return fmt.Errorf("register teams: team registry is nil")
@@ -702,7 +777,9 @@ func RegisterClawTeams(reg *Registry, teamReg *clawteam.TeamRegistry) error {
 }
 
 // RegisterClawCron registers the four cron_* tools that share a
-// *team.CronRegistry. Cron entries hold scheduled task prompts.
+// *team.CronRegistry. Cron entries hold scheduled task prompts. No scheduler
+// ever fires them, so the four names are on toolcatalog's refused list and
+// registerClawTool answers every call with the typed refusal.
 func RegisterClawCron(reg *Registry, cronReg *clawteam.CronRegistry) error {
 	if cronReg == nil {
 		return fmt.Errorf("register cron: cron registry is nil")
@@ -843,7 +920,9 @@ type ClawDefaults struct {
 
 	// Tasks, Workers, Teams, Crons, LSP hold the registries each tool
 	// family needs. Leave nil to have RegisterClawAll allocate a fresh
-	// empty registry.
+	// empty registry. Teams, Crons and LSP are accepted but inert: their
+	// tools are on toolcatalog's refused list, and registerClawTool answers
+	// every call with the typed refusal whatever registry is passed here.
 	Tasks   *clawtask.Registry
 	Workers *clawworker.WorkerRegistry
 	Teams   *clawteam.TeamRegistry
@@ -1087,7 +1166,9 @@ func registrySnapshot(reg *Registry) []api.Tool {
 
 // RegisterClawLSP registers the `lsp` action-dispatcher tool. The
 // lsp.Registry tracks connected language servers; build it once via
-// clawlsp.NewRegistry().
+// clawlsp.NewRegistry(). iterion registers no server into it and sets no
+// transport, so `lsp` is on toolcatalog's refused list and registerClawTool
+// answers every call with the typed refusal.
 func RegisterClawLSP(reg *Registry, lspReg *clawlsp.Registry) error {
 	if lspReg == nil {
 		return fmt.Errorf("register lsp: lsp registry is nil")

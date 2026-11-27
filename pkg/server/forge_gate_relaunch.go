@@ -12,6 +12,7 @@ import (
 	"github.com/arketov/iterion/pkg/forge"
 	"github.com/arketov/iterion/pkg/identity"
 	"github.com/arketov/iterion/pkg/knowledge"
+	"github.com/arketov/iterion/pkg/runtime"
 	"github.com/arketov/iterion/pkg/store"
 	"github.com/arketov/iterion/pkg/webhooks"
 )
@@ -159,6 +160,19 @@ func (s *Server) relaunchDeadGateRun(ctx context.Context, d deadGateRun) {
 		if s.logger != nil {
 			s.logger.Info("gate relaunch: run %s declined its task on %s#%d — not relaunching (a refusal is an answer, not a failure to repair): %s",
 				d.run.ID, d.repo, d.number, strings.TrimSpace(d.run.Error))
+		}
+		return
+	}
+	// A run the provider refused deterministically (a model that takes no
+	// image, a schema the gateway cannot compile, a request it refuses) meets
+	// the same refusal on the same head: the relaunch buys the same answer.
+	// The status names the remedy (gateProviderRefusalRemedy). A budget
+	// refusal is not among these: it parks on its usage window, which the
+	// dead-run reading already leaves alone while its retry is armed.
+	if runtime.IsProviderRefusalCode(d.run.FailureCode) {
+		if s.logger != nil {
+			s.logger.Info("gate relaunch: run %s on %s#%d was refused by its provider (%s) — not relaunching; the same request meets the same refusal: %s",
+				d.run.ID, d.repo, d.number, d.run.FailureCode, strings.TrimSpace(d.run.Error))
 		}
 		return
 	}

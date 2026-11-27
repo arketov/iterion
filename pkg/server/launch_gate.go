@@ -16,8 +16,8 @@ import (
 	"github.com/arketov/iterion/pkg/identity"
 	"github.com/arketov/iterion/pkg/orgusage"
 	"github.com/arketov/iterion/pkg/runview"
+	"github.com/arketov/iterion/pkg/schedgate"
 	"github.com/arketov/iterion/pkg/store"
-	"github.com/arketov/iterion/pkg/trigger"
 	"github.com/arketov/iterion/pkg/webhooks"
 )
 
@@ -49,13 +49,16 @@ type OrgLimitDefaults struct {
 // launchDenial is one launch-gate refusal: an HTTP status, a stable
 // machine-readable reason token (the SPA and API clients switch on
 // it), and a human detail. Quota denials carry the month-reset time;
-// throttle denials carry a Retry-After hint.
+// throttle denials carry a Retry-After hint. fenceArmed marks the
+// maintenance denial of the operator's armed fence, as opposed to a fence
+// record that could not be read.
 type launchDenial struct {
 	status     int
 	reason     string
 	detail     string
 	retryAfter time.Duration
 	resetAt    time.Time
+	fenceArmed bool
 }
 
 // launchDeniedError is a gate denial as an error, for the launch surfaces
@@ -63,11 +66,13 @@ type launchDenial struct {
 // (the board dispatcher, whose card keeps the rule that refused it).
 // Reason is the stable denial token below; Detail the sentence the HTTP
 // envelope carries; RetryAfter / ResetAt the hints it would have sent.
+// FenceArmed marks the maintenance denial of the operator's armed fence.
 type launchDeniedError struct {
 	Reason     string
 	Detail     string
 	RetryAfter time.Duration
 	ResetAt    time.Time
+	FenceArmed bool
 }
 
 func (e *launchDeniedError) Error() string {
@@ -77,11 +82,29 @@ func (e *launchDeniedError) Error() string {
 	return "launch gate: " + e.Reason + ": " + e.Detail
 }
 
+// LaunchVerdict is the denial's stable class, the text the cloud ticker
+// records as a schedule's last_error (schedgate.LaunchVerdictError): the
+// reason token alone. Detail can embed a figure measured at the tick — the
+// tenant's active-run count under its concurrency cap, a repository's
+// monthly spend — and a verdict that changes with it re-opens a
+// schedule-outcome watch episode at each change while the refusal lasts.
+func (e *launchDeniedError) LaunchVerdict() string {
+	return "launch gate: " + e.Reason
+}
+
+var _ schedgate.LaunchVerdictError = (*launchDeniedError)(nil)
+
 // Preserve the HTTP denial details while giving durable consumers a typed
 // postponement, distinct from a launch failure with a bounded retry budget.
+// The fence's two holds are the narrower schedgate.ErrMaintenanceFenceArmed
+// and schedgate.ErrMaintenanceFenceUnreadable (gateMaintenance denies on
+// nothing else), which both wrap the hold.
 func (e *launchDeniedError) Unwrap() error {
 	if e.Reason == denyMaintenanceFence {
-		return trigger.ErrMaintenanceHold
+		if e.FenceArmed {
+			return schedgate.ErrMaintenanceFenceArmed
+		}
+		return schedgate.ErrMaintenanceFenceUnreadable
 	}
 	return nil
 }
@@ -112,7 +135,7 @@ func (d *launchDenial) err() error {
 	if d == nil {
 		return nil
 	}
-	return &launchDeniedError{Reason: d.reason, Detail: d.detail, RetryAfter: d.retryAfter, ResetAt: d.resetAt}
+	return &launchDeniedError{Reason: d.reason, Detail: d.detail, RetryAfter: d.retryAfter, ResetAt: d.resetAt, FenceArmed: d.fenceArmed}
 }
 
 // Stable denial reason tokens (API contract — documented in

@@ -573,7 +573,16 @@ const (
 	// itself inherits.
 	DiagCodemodeSubagentsWithModeOff DiagCode = "C357" // codemode subagents reserve declared beside `mode: off` on a node — no program runs, so the reserve arms nothing (warning)
 
-	// DiagUnknownMCPServer is C358: a node's `tools:` names an MCP server
+	// A node whose authored codemode resolves on, under a permission gate
+	// (deny or ask) that does not allow the `codemode` tool itself: the gate
+	// judges the program's vehicle like any tool, so under deny every program
+	// is refused and under ask every program pauses the run. The nested calls
+	// are judged one by one anyway; listing "codemode" in `allow` is the
+	// author's explicit opt-in (#3647). A warning: a launch rung can still
+	// change codemode, and a grant can still change the gate.
+	DiagCodemodeRefusedByPermissionGate DiagCode = "C358" // codemode on under a deny/ask permission gate that does not allow the `codemode` tool — every program is refused (deny) or pauses the run (ask) (warning)
+
+	// DiagUnknownMCPServer is C360: a node's `tools:` names an MCP server
 	// (`mcp.<server>.<tool>`, `mcp.<server>.*` or `mcp__<server>__<tool>`) that
 	// no `mcp_server` block, project `.mcp.json` entry or enabled plugin
 	// declares. The compiler cannot know the host's catalog, so `iterion
@@ -586,10 +595,11 @@ const (
 	// C348 until the v7.5.0 merge (C347–C350: the codemode bounds), then C351 and C352 until the v7.31.0
 	// merge (C351–C355: permission rules / recovery agent with no tool, codemode quota
 	// and defer), then C356 and C357 until the v7.35.0 merge (C356–C357: the codemode
-	// subagents reserve).)
-	DiagUnknownMCPServer DiagCode = "C358" // a node's `tools:` names an MCP server that no `mcp_server` block, `.mcp.json` entry or enabled plugin declares (warning)
+	// subagents reserve), then C358 and C359 until the v7.40.2 merge (C358: codemode
+	// refused by the permission gate; C359 is left to upstream's next code).)
+	DiagUnknownMCPServer DiagCode = "C360" // a node's `tools:` names an MCP server that no `mcp_server` block, `.mcp.json` entry or enabled plugin declares (warning)
 
-	// DiagUnknownModel is C359: a node (agent, judge, LLM router, or one of its
+	// DiagUnknownModel is C361: a node (agent, judge, LLM router, or one of its
 	// `fallbacks:` routes) names a literal `anthropic/<id>` or `openai/<id>`
 	// model that neither the live model table nor the embedded models.dev
 	// snapshot lists. The compiler cannot consult the registry (pkg/backend/model
@@ -597,5 +607,5 @@ const (
 	// it after Compile via model.UnknownModelDiagnostics; without it a typo reads
 	// "usable" and fails only at the first paid call. A warning: a model newer
 	// than the snapshot, or a custom endpoint, is a false positive.
-	DiagUnknownModel DiagCode = "C359" // a literal anthropic/* or openai/* model that neither the live model table nor the embedded snapshot lists (warning)
+	DiagUnknownModel DiagCode = "C361" // a literal anthropic/* or openai/* model that neither the live model table nor the embedded snapshot lists (warning)
 )

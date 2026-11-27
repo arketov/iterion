@@ -104,9 +104,11 @@ type ScheduledBot struct {
 	NextFireAt time.Time  `bson:"next_fire_at" json:"next_fire_at"`
 	LastFireAt *time.Time `bson:"last_fire_at,omitempty" json:"last_fire_at,omitempty"`
 
-	// LastError is the verdict of the last tick that consumed a slot: empty
+	// LastError is the verdict of the last tick that consumed or held a slot
+	// (Ticker.recordLaunchVerdict names the holds that write none): empty
 	// means the launch went through, a message says why it did not (an org
-	// launch-gate denial, a run service that refused the run). LastErrorAt is
+	// launch-gate denial, recorded as its class `launch gate: <reason>`; a
+	// run service that refused the run). LastErrorAt is
 	// when that verdict was recorded. Both are rendered by
 	// GET /api/teams/{id}/schedules and `iterion remote schedules list`, so a
 	// schedule that stopped producing runs is visible to its operator instead
@@ -173,13 +175,18 @@ type Store interface {
 	// ListDue returns enabled schedules whose next_fire_at <= now (capped by
 	// limit, 0 = no cap), oldest-due first.
 	ListDue(ctx context.Context, now time.Time, limit int) ([]ScheduledBot, error)
+	// ListEnabled returns every enabled schedule of every tenant, oldest
+	// next_fire_at first (ties on the id). Uncapped: the schedule-outcome
+	// watch evaluates each row's health, and a capped listing would leave
+	// the rows past the cap unwatched.
+	ListEnabled(ctx context.Context) ([]ScheduledBot, error)
 	// ClaimTick atomically advances a schedule's next_fire_at from expectedNext
 	// to newNext (and stamps last_fire_at = firedAt), returning true only when
 	// THIS caller won the CAS. A losing replica gets (false, nil). This is the
 	// exactly-once primitive — no leader election.
 	ClaimTick(ctx context.Context, id string, expectedNext, newNext, firedAt time.Time) (bool, error)
-	// MarkLaunchError records the verdict of the tick that just consumed a
-	// slot: a non-empty message raises last_error with its instant, "" clears
+	// MarkLaunchError records the verdict of the tick that just consumed or
+	// held a slot: a non-empty message raises last_error with its instant, "" clears
 	// both. A TARGETED field write, never a read-modify-replace: the ticker
 	// holds the copy ListDue returned, and an operator retuning the schedule
 	// in between must not lose the edit to a health write.

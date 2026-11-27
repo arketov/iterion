@@ -7,30 +7,26 @@ name: 🧪 Tests
 # worse, doubled the exposure to a timing-sensitive test: one run green, the
 # other red on the same commit is enough to redden the PR and disarm auto-merge.
 #
-# `merge_group` is load-bearing: test/race/vendor-check/mongo-conformance/
-# golangci/brand are REQUIRED checks, and the queue branch
+# `merge_group` is load-bearing: test/vendor-check/golangci/brand are
+# REQUIRED checks, and the queue branch
 # (gh-readonly-queue/main/...) used to get them from that unfiltered push. A
 # queue build with no checks waits for a context that never arrives and
 # dequeues the PR after the 60-minute timeout.
-# A release commit does not cancel the merge it followed (#3161). The
-# concurrency group below is keyed by ref, which on `main` is the SAME ref for
-# every commit — so each push kills the run before it. A merge is immediately
+# A release commit does not cancel the merge it followed (#3161). A
+# concurrency group with cancel-in-progress is the SAME group for every commit
+# on `main`, so each push kills the run before it. A merge is immediately
 # followed by the release bot's `chore: release`, landing with no PR, so that
-# release cancelled the witness of the merge that triggered it, every time.
-# Measured over the last 100 `main` pushes: 51 runs cancelled, of which 26 were
-# cancelled by a release push and 25 by an ordinary merge. So this removes HALF
-# the cancellations and no more — the other half is merge-on-merge, whose fix is
-# the concurrency key itself (`cancel-in-progress: ${{ github.event_name !=
-# 'push' }}`, or a group keyed by sha on push), which costs runner time on a
-# pool that is already the bottleneck and is therefore a separate decision.
-# Worth doing anyway because of WHERE the release lands: release-cancelled runs
-# died at a median of ~3 minutes, the youngest and cheapest-to-finish of all of
-# them. In the worst drought of the window — 14 consecutive pushes, 2.1 h, zero
-# verdict — this alone would have produced about four verdicts instead of none.
+# release cancelled the witness of the merge that triggered it. Measured over
+# 100 `main` pushes under a ref-keyed cancelling group: 51 runs cancelled, 26
+# by a release push and 25 by an ordinary merge. The concurrency block below
+# never cancels a push run in progress; it keeps one push group, so at most
+# one push run is in flight and one pending, a newer pending run replacing the
+# older one: the heavy load after merges is one witness of the merged batch at
+# a time (ADR-173), not one heavy run per merge.
 #
-# `paths-ignore` is the surgical half of the fix: no run is CREATED for a
-# release commit, so it joins no concurrency group and cancels nothing. It is
-# scoped to `push` alone — a pull request or a queue build touching these files
+# `paths-ignore` keeps a release from costing a heavy run: no run is CREATED
+# for a release commit. It is scoped to `push` alone — a pull request or a
+# queue build touching these files
 # still runs the full suite, and the nine other workflows that fire on push
 # (images, release, docs) are untouched, which `[skip ci]` in the release
 # message could not have said.
@@ -45,12 +41,11 @@ name: 🧪 Tests
 # too. Exactly two releases ever carried a fifth path, both from
 # `cmd/release-floors --apply` realigning syntax-floor pins.
 #
-# A release touching anything outside the list simply creates its run as it
-# does today: the failure mode of this filter is "no improvement", never a new
-# defect. What WOULD break it silently is renaming one of these paths, so
+# A release touching anything outside the list simply creates its own run: the
+# failure mode of this filter is one extra run, never a new defect. What WOULD break it silently is renaming one of these paths, so
 # internal/ciguard pins them against the tree — and pins the one direction that
 # breaks a MERGE rather than a convenience: a path filter must never reach
-# `pull_request:` or `merge_group:`, which produce six required checks.
+# `pull_request:` or `merge_group:`, which produce the required checks.
 #
 # The residual, measured at push level because that is what GitHub filters: of
 # the last 55 pushes to `main`, 17 would be skipped and all 17 are
@@ -71,28 +66,77 @@ on:
   pull_request:
   merge_group:
     types: [checks_requested]
+  # The nightly full suite (ADR-173), a BACKSTOP: GitHub delays this repo's
+  # crons by hours or drops them, so the debounced push (heavy-gate below)
+  # carries the heavy cadence, and a nightly that fires costs one heavy run.
+  # 01:47 UTC — off the :00/:30 marks where every scheduled workflow in the
+  # fleet lands, and away from test-quarantine's 03:17.
+  schedule:
+    - cron: "47 1 * * *"
+  workflow_dispatch: {}
 
 permissions:
   contents: read
 
+# Keyed by event as well as ref: the nightly and a dispatch run on `main`'s
+# ref, and sharing push's group would let a merge displace the nightly — or the
+# nightly a merge's witness. Every push to `main` shares one group, and a push
+# never cancels the run in progress: GitHub keeps that run, holds at most one
+# pending run behind it and replaces the pending one with each newer push. So
+# the post-merge witness runs one at a time, of the batch merged since the
+# last run started (ADR-173), whatever the merge rate, and the heavy-gate of a
+# pending run reads a history in which the run before it has completed; a
+# release push landing behind a merge displaces only a run still pending. No
+# `queue:` key: it would keep every pending run. Every other
+# event cancels in progress, so a newer commit of a pull request still cancels
+# the older run.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
 
+# EXPERIMENTAL DELIVERY MODE (docs/adr/173-experimental-delivery-mode.md,
+# #3691): while the project is experimental the merge queue gates on the
+# LIGHT layer — unit, studio, native exec, lint, vendor, brand, fmt and Revi —
+# and the HEAVY layer (`race-shard`, `test-e2e`, `mongo-conformance`,
+# `cloud-e2e`) runs after the merge instead: on the DEBOUNCED PUSH — the
+# first push to `main` after CI_HEAVY_EVERY_HOURS hours (default 6) without a
+# completed heavy run on main, decided by the `heavy-gate` job (#3737) — on
+# the nightly schedule above, on a dispatch and on a pull request labelled
+# `ci:full`. Every other push to `main` is a LIGHT witness of its batch. ONE
+# literal decides it, the heavy jobs' own condition:
+#
+#   ((github.event_name != 'pull_request' && github.event_name != 'merge_group'
+#       && (github.event_name != 'push'
+#           || needs.heavy-gate.outputs.heavy != 'false'))
+#     || contains(github.event.pull_request.labels.*.name, 'ci:full'))
+#
+# true on schedule and dispatch — any event that is neither a pull request, a
+# queue build nor a push, so a trigger added later runs the full suite by
+# default — on a push the gate did not decide light (`false` is the only
+# light answer: a gate that failed or never answered leaves the output empty,
+# and the push runs heavy), and on a labelled pull request; false in
+# `merge_group`, on an unlabelled pull request and on a push inside the heavy
+# window, the LIGHT runs. Every job that reads it `needs:` heavy-gate, and
+# the heavy jobs prefix it with `!cancelled()`, so they still run where the
+# gate skips (every event but push) or fails.
+#
 # Jobs pick one of THREE sides of the merge queue, and internal/ciguard holds
 # each side to its contract:
 #
-#   1. REQUIRED — the names ruleset 18857412 requires: test, race,
-#      vendor-check, mongo-conformance, golangci, brand, revi/review, plus the
-#      STAGED `fmt-check` (in the queue from day one, so its context exists
-#      the day the ruleset names it). `test` and `race` are AGGREGATORS: they
-#      run no tests, they `needs:` their legs and re-verify every leg's
-#      conclusion, so the required NAME survives while the work scales
-#      sideways. The ruleset lives outside this repo and keeps its names — a
-#      PR that renamed a required job could never pass its own queue build
-#      (the check would never report and the entry would hang 60 minutes).
+#   1. REQUIRED — the names ruleset 18857412 requires: test, vendor-check,
+#      golangci, brand, revi/review, plus the STAGED `fmt-check` (in the
+#      queue from day one, so its context exists the day the ruleset names
+#      it). `test` is an AGGREGATOR: it runs no tests, it `needs:` its legs
+#      and re-verifies every leg's conclusion, so the required NAME survives
+#      while the work scales sideways. The ruleset lives outside this repo and
+#      keeps its names — a PR that renamed a required job could never pass its
+#      own queue build (the check would never report and the entry would hang
+#      60 minutes). `race` and `mongo-conformance` left the ruleset with this
+#      mode and return to it when the mode ends (ADR-173's exit criteria):
+#      `race` stays an aggregator of the same shape, so its context keeps
+#      reporting, and `mongo-conformance` runs with the heavy layer.
 #   2. GATED LEGS — `test-unit`, `test-e2e`, `studio`, `test-native-exec`,
-#      `race-shard`: the real work. They run in the queue and are deliberately NOT required — their
+#      `race-shard`: the real work. They are deliberately NOT required — their
 #      aggregator speaks for them. The only `if:` a leg carries is the tap
 #      skip below, byte for byte, which its aggregator carries too: a leg
 #      that grew any other `if:` would skip silently in the queue while its
@@ -100,11 +144,25 @@ concurrency:
 #      guarantee would die without any queue signal — which is why ciguard
 #      refuses any other `if:` on a leg outright, and refuses a leg without
 #      the skip (it would spend the heavy minutes the skip exists to save).
-#   3. ADVISORY — the eight jobs that cannot block a merge. Running one
-#      inside the queue buys a verdict nobody can act on while holding a
-#      runner slot the queue needs, so they run on the pull request and on
-#      main and skip in `merge_group`.
-#
+#      The HEAVY legs, `race-shard` and `test-e2e`, carry `!cancelled()`
+#      and the heavy literal above on top of it, byte for byte, so a LIGHT
+#      run skips them (#3683 for the pull request, #3691 for the queue, #3737
+#      for a push inside the heavy window). Their aggregators read LIGHT_RUN,
+#      the negation of that same literal evaluated by GitHub, and forgive a
+#      heavy leg's `skipped` only when it is `true`: on a heavy push,
+#      `schedule`, a dispatch and a `ci:full` pull request it is `false`, and
+#      a skipped heavy leg is red like a failed one. ciguard runs each
+#      aggregator under both. To run the heavy legs on a pull request, add
+#      the `ci:full` label and push (a label alone starts no run: `labeled`
+#      is not among the triggers).
+#   3. ADVISORY — the jobs that cannot block a merge. Running one inside the
+#      queue buys a verdict nobody can act on while holding a runner slot the
+#      queue needs, so they run on the pull request and on main and skip in
+#      `merge_group`. `cloud-e2e` and `mongo-conformance`, heavy, carry
+#      `!cancelled()` and the heavy literal alone: it skips the queue, a light
+#      pull request and a light push. `heavy-gate`, the decider, runs on push
+#      alone, so it skips the queue too.
+
 # The trap the aggregator design answers, twice over: a job skipped by a
 # job-level `if:` reports SUCCESS, so a required check that never ran
 # satisfies the gate — every queue entry would merge green on a check that
@@ -131,9 +189,10 @@ concurrency:
 # (internal/ciguard's tap tests rewrite them); running them would spend ~57
 # minutes of compute on each pass, on the pull request and again in the queue
 # (measured on #2314). So the gated legs (`test-unit`, `test-e2e`, `studio`,
-# `test-native-exec`, `race-shard`), the aggregators `test` and `race` that speak for them,
-# `mongo-conformance`, `golangci`, `vendor-check` and `fmt-check` skip it. A
-# title is only a claim, and a
+# `test-native-exec`, `race-shard`), the aggregators `test` and `race` that
+# speak for them, `golangci`, `vendor-check` and `fmt-check` skip it.
+# (`mongo-conformance` carries the heavy literal alone: no light run reaches
+# it.) A title is only a claim, and a
 # skipped job reports SUCCESS: `brand` — required, never skipped, and a
 # reader of both tap files — receives the same predicate, evaluated, and
 # scripts/ci/tap-entry-check.sh fails the pull request or the queue entry
@@ -141,7 +200,8 @@ concurrency:
 # ALLGREEN. Entries stack, so a skipped entry vouches for nothing ahead of it;
 # ALLGREEN is what makes every entry pass on its own checks. internal/ciguard
 # holds the expression, its copies and the verifier step together. `push` to
-# main evaluates the predicate false: main still runs everything.
+# main evaluates the predicate false: a push to main never skips on a tap
+# title, and heavy-gate alone decides its heavy layer.
 
 # WHERE these jobs run. The organisation shares 20 concurrent GitHub-hosted
 # jobs across every repository, which is what makes a cycle here take 40
@@ -203,14 +263,74 @@ concurrency:
 #   dependency-bot pull request    -> GitHub-hosted   (arbitrary upstream code)
 #   everything else                -> arc-runners
 #
+# It comes in THREE spellings, one per runner class, identical up to the
+# variable of the last alternative, each `vars.CI_<CLASS>_RUNNER ||
+# 'arc-runners'`: the repository variable names the class's scale set, and
+# while it is unset the job lands on `arc-runners`, so an unset variable moves
+# no job. SMALL (`CI_SMALL_RUNNER`): the `test` and `race` aggregators,
+# fmt-check, vendor-check, govulncheck, docs-build, nats-conformance,
+# desktop-vet-cross, brand, helm-lint. LARGE (`CI_LARGE_RUNNER`), the heavy
+# jobs the merge queue requires: test-unit, golangci, studio. HEAVY
+# (`CI_HEAVY_RUNNER`), the heavy layer the merge queue does not require, run
+# after the merge (a `ci:full` pull request's `test` and `race` still wait on
+# it): race-shard, test-e2e, mongo-conformance, cloud-e2e. The three clauses above
+# apply to every spelling unchanged.
+#
 # It is repeated per job because `runs-on` cannot read workflow-level `env`,
 # and routing it through a `needs:` job would put every job behind one
 # GitHub-hosted slot — reintroducing the queue this exists to escape. That
 # repetition is a drift risk on a SECURITY decision, so the copies are
 # pinned against each other by TestSelfHostedRoutingExpressionsAgree in
-# internal/ciguard: one copy edited alone turns it red.
+# internal/ciguard: one copy edited alone turns it red, and so does a job on
+# another class's spelling or a self-hosted job it does not classify.
 
 jobs:
+  # ---- the heavy decider: does this push to main run the heavy layer? ----
+
+  heavy-gate:
+    # The DEBOUNCED PUSH (ADR-173, #3737): a push to main stays light only
+    # behind a GREEN heavy run on main inside the last CI_HEAVY_EVERY_HOURS
+    # hours (default 6, at most 720); every other push runs the heavy layer.
+    # GitHub's crons are delayed by hours or dropped on this repository, so
+    # the push itself carries the heavy cadence and the nightly stays a
+    # backstop. scripts/ci/heavy-gate.sh reads the run history; the newest
+    # run whose heavy legs ran decides: a push, schedule or dispatch run of
+    # this repository, created inside the window plus two hours, concluded
+    # success, every `race-shard (N)` job a success. A red heavy run keeps
+    # every push heavy until a green one lands. A rerun (GITHUB_RUN_ATTEMPT
+    # above 1) decides heavy without reading the history, which cannot hold
+    # the run being rerun. On an unreadable history or window it warns and
+    # decides heavy — failing toward more testing.
+    # CI_HEAVY_EVERY_HOURS=0 runs the heavy layer on every push.
+    #
+    # Push only: every other event decides by itself (the heavy literal reads
+    # this job's output only under `github.event_name == 'push'`), and the
+    # merge queue never spends a slot here. The heavy jobs and the aggregators
+    # `needs:` it to read its output; the heavy jobs carry `!cancelled()`, so
+    # where it skips they still run, and where it FAILS its output is empty,
+    # which the heavy literal reads as heavy.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      heavy: ${{ steps.decide.outputs.heavy }}
+    steps:
+      - name: Checkout the decider
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: scripts/ci/heavy-gate.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Decide heavy or light
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAVY_EVERY_HOURS: ${{ vars.CI_HEAVY_EVERY_HOURS || '6' }}
+        run: scripts/ci/heavy-gate.sh
+
   # ---- gated legs: the real work, one side each, aggregated by `test` ----
 
   test-unit:
@@ -236,8 +356,33 @@ jobs:
     # On the scale set: the namespace-bound package (pkg/sandbox/kubernetes,
     # whose native witnesses need a Bubblewrap mount ARC pods refuse) is
     # excluded from the partition and proved by test-native-exec instead.
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
-    timeout-minutes: 30
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_LARGE_RUNNER || 'arc-runners' }}
+    # The ceiling leaves `go test -timeout 1500s` its room: on the scale set a
+    # leg reaches the Unit tests step after up to ~11 min (2026-11-25, 335
+    # successful ARC legs; the last shard's one-time steps are most of it),
+    # and the successful legs' wall reached 29.9 min (shard 1, run
+    # 45568468302), while a 30-min ceiling cancelled legs whose packages were
+    # all still inside their own timeout. A package's 25 min count from its own
+    # test binary's start, not the step's: a hung package panics inside the
+    # ceiling only when its binary starts within the ceiling minus 25 min minus
+    # setup of the step's start, about 4 min on the slowest-setup leg and more
+    # on the others; one
+    # that starts later can still be cut bare (run 45572758932, pkg/runview
+    # started ~4.4 min into the step).
+    # The tail is pool load, not the weights: the shards' slowest legs sat
+    # between 27.1 and 29.9 min while their medians spread from 16 to 22 min,
+    # so rebalancing the shards would not have saved those legs.
+    # The ceiling is bounded by the queue's margin: its
+    # check_response_timeout_minutes (60) runs from the group's creation and
+    # also covers the leg's pod wait and the `test` aggregator's (at most
+    # 13.9 + 3.8 min on 2026-11-25, heavy layer out of the queue), so a leg
+    # hung past its packages' timeout reports after the ceiling plus those
+    # waits, just short of a checks_timed_out that dequeues every entry behind
+    # it. With the heavy layer back the waits grow past that margin.
+    # internal/ciguard (TestUnitLegCeilingLeavesThePackageTimeoutRoom) holds
+    # the ceiling above the package timeout plus setup, under race-shard's,
+    # and under the queue timeout minus the measured waits.
+    timeout-minutes: 40
     env:
       CGO_ENABLED: "0"
     strategy:
@@ -412,7 +557,7 @@ jobs:
         # 10m0s on the next). The same bots sources later passed in 1007s
         # on the PR and reached the 1200s aggregate limit in its merge group
         # while a test had run for only 9s (#2745). Allow 25m per package,
-        # still bounded by the job's 30m including setup and live compilation.
+        # still bounded by the job's 40m including setup and live compilation.
         # Individual test deadlines and all assertions remain in force.
         #
         # The partition goes through an ASSIGNMENT, never inline `$( )`:
@@ -454,9 +599,8 @@ jobs:
     # frontend because `pkg/server/static/` is gitignored and embedded with
     # `//go:embed all:static` — the e2e server boots against nothing without
     # it, and artifact-sharing would serialize this job behind `studio`
-    # through the cache service ADR-105 measured at 1-3 MB/s. Runs in the
-    # merge queue behind the required `test` aggregator; carries the tap skip
-    # and nothing else.
+    # through the cache service ADR-105 measured at 1-3 MB/s. Feeds the
+    # required `test` aggregator.
     #
     # UNDER -race (#3664): this is the package's only run, so the data-race
     # detector proves it here, on the scale set, and race-shard leaves it out
@@ -469,9 +613,15 @@ jobs:
     # third of the package). So each shard keeps race-shard's proven -race
     # bounds, 2400 s per package and a 50-minute job, until ARC -race shard
     # walls are measured.
-    # A Homebrew tap update skips this leg: the header says why, and `brand` verifies it.
-    if: "!startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ')"
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    # HEAVY (#3683, #3691, #3737): a light run — a merge-queue build, a pull
+    # request without `ci:full` or a push inside the heavy window — skips
+    # this leg; the debounced push, the nightly and a dispatch run it. `test`
+    # forgives that skip on a light run only.
+    # A Homebrew tap update skips it too: the header says why, and `brand`
+    # verifies it.
+    needs: [heavy-gate]
+    if: "${{ !cancelled() && ((github.event_name != 'pull_request' && github.event_name != 'merge_group' && (github.event_name != 'push' || needs.heavy-gate.outputs.heavy != 'false')) || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ') }}"
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_HEAVY_RUNNER || 'arc-runners' }}
     timeout-minutes: 50
     strategy:
       fail-fast: false
@@ -530,6 +680,8 @@ jobs:
         # Discovery includes Test, Example and Fuzz corpus names. Subtests
         # stay with their parent. All legs use one commit and Go's own
         # inventory; a discovery failure must stop before running any test.
+        # Discovery is the cold -race compile on an ARC pod with no Go cache:
+        # its bound is ten minutes, and the run below reuses the compile.
         # The per-shard hang bound and e2e/main_test.go's parallel cap stay.
         # The quarantined flakes (scripts/ci/test-quarantine.tsv) are skipped
         # here and run nightly.
@@ -538,7 +690,7 @@ jobs:
           set -euo pipefail
           # Discovery lists under -race, the build execution runs: a file
           # tagged `//go:build race` exists only in that variant.
-          pattern=$(GOFLAGS=-race go run -mod=vendor ./scripts/ci/testshards -tests ./e2e -n 4 -i ${{ matrix.shard }} -list-timeout 5m)
+          pattern=$(GOFLAGS=-race go run -mod=vendor ./scripts/ci/testshards -tests ./e2e -n 4 -i ${{ matrix.shard }} -list-timeout 10m)
           quarantine=$(go run -mod=vendor ./scripts/ci/testquarantine -list scripts/ci/test-quarantine.tsv -skip)
           go test -race -mod=vendor -count=1 -v -run "$pattern" -skip "$quarantine" -timeout 2400s ./e2e
 
@@ -550,7 +702,7 @@ jobs:
     # nothing else.
     # A Homebrew tap update skips this leg: the header says why, and `brand` verifies it.
     if: "!startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ')"
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_LARGE_RUNNER || 'arc-runners' }}
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -685,15 +837,27 @@ jobs:
     # byte for byte. The step then re-verifies each leg's result rather than
     # trusting the needs-graph, so a red leg can only ever produce a red
     # required check.
-    needs: [test-unit, test-e2e, studio, test-native-exec]
+    #
+    # ONE forgiven result (#3683, #3691, #3737): on a LIGHT run — a
+    # merge-queue build, a pull request without the `ci:full` label, or a
+    # push heavy-gate decided light — test-e2e skips by design and runs on
+    # the debounced push instead, so `skipped` from it is accepted there and
+    # nowhere else. LIGHT_RUN is the negation of the very expression the
+    # heavy leg runs on, evaluated by GitHub: `false` on a heavy push,
+    # schedule, dispatch and a `ci:full` pull request, where a skipped
+    # test-e2e is as red as a failed one. heavy-gate is needed for its output
+    # alone: it is no leg, and its result is not re-verified — where it fails
+    # its output is empty, the run is heavy, and every heavy leg must pass.
+    needs: [heavy-gate, test-unit, test-e2e, studio, test-native-exec]
     if: "${{ !cancelled() && !startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ') }}"
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_SMALL_RUNNER || 'arc-runners' }}
     timeout-minutes: 5
     env:
       TEST_UNIT_RESULT: ${{ needs.test-unit.result }}
       TEST_E2E_RESULT: ${{ needs.test-e2e.result }}
       STUDIO_RESULT: ${{ needs.studio.result }}
       TEST_NATIVE_EXEC_RESULT: ${{ needs.test-native-exec.result }}
+      LIGHT_RUN: ${{ !((github.event_name != 'pull_request' && github.event_name != 'merge_group' && (github.event_name != 'push' || needs.heavy-gate.outputs.heavy != 'false')) || contains(github.event.pull_request.labels.*.name, 'ci:full')) }}
     steps:
       - name: Every leg reported success
         shell: bash
@@ -703,6 +867,10 @@ jobs:
           for pair in "test-unit:${TEST_UNIT_RESULT}" "test-e2e:${TEST_E2E_RESULT}" "studio:${STUDIO_RESULT}" "test-native-exec:${TEST_NATIVE_EXEC_RESULT}"; do
             leg="${pair%%:*}"
             result="${pair#*:}"
+            if [ "$leg" = "test-e2e" ] && [ "$result" = "skipped" ] && [ "$LIGHT_RUN" = "true" ]; then
+              echo "::notice::leg ${leg} skipped on a light run (merge queue, a pull request without ci:full, or a push to main inside the heavy window) — the first push to main after CI_HEAVY_EVERY_HOURS without a heavy run, the nightly and a dispatch run it, so this green is not admin-mergeable; label the pull request ci:full and push to run it there."
+              continue
+            fi
             if [ "$result" != "success" ]; then
               echo "::error::leg ${leg} reported ${result} — the required verdict is red because its leg is red."
               fail=1
@@ -742,12 +910,18 @@ jobs:
     # `runs-on` stays at the JOB level, outside the matrix, where the
     # ciguard regex and the fork guard can read it (the desktop-vet-cross
     # lesson: a matrix over runs-on diverges from its id silently).
-    # A Homebrew tap update skips this leg: the header says why, and `brand` verifies it.
-    if: "!startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ')"
+    # HEAVY (#3683, #3691, #3737): a light run — a merge-queue build, a pull
+    # request without `ci:full` or a push inside the heavy window — skips
+    # this leg; the debounced push, the nightly and a dispatch run it. `race`
+    # forgives that skip on a light run only.
+    # A Homebrew tap update skips it too: the header says why, and `brand`
+    # verifies it.
+    needs: [heavy-gate]
+    if: "${{ !cancelled() && ((github.event_name != 'pull_request' && github.event_name != 'merge_group' && (github.event_name != 'push' || needs.heavy-gate.outputs.heavy != 'false')) || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ') }}"
     # On the scale set: the namespace-bound package (pkg/sandbox/kubernetes,
     # whose native witnesses need a Bubblewrap mount ARC pods refuse) is
     # excluded from the partition and proved by test-native-exec instead.
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_HEAVY_RUNNER || 'arc-runners' }}
     timeout-minutes: 50
     env:
       CGO_ENABLED: "1"
@@ -818,10 +992,14 @@ jobs:
           echo "shard ${{ matrix.shard }} runs $(echo "$pkgs" | wc -w) packages"
           go test -race -mod=vendor -count=1 -timeout 2400s -skip "$quarantine" $pkgs
 
-  # ---- required aggregator: the name the ruleset requires ----
+  # ---- held aggregator: a name the ruleset requires again when ADR-173 ends ----
 
   race:
-    # REQUIRED — the ruleset requires the NAME `race`; this job reports it and
+    # HELD — ruleset 18857412 required the NAME `race` until the experimental
+    # delivery mode (ADR-173) and requires it again when the mode ends, so
+    # the context keeps reporting, held to the required aggregator's contract.
+    # In the merge queue it vouches for test-native-exec alone: race-shard
+    # skips there, and a notice says so. This job reports the name and
     # re-verifies the three shards' conclusions and test-native-exec's, whose
     # second step runs pkg/sandbox/kubernetes under -race. Every package but
     # e2e runs under -race behind this verdict; e2e runs under -race in
@@ -833,13 +1011,20 @@ jobs:
     # (the header's catastrophe, one level up). Combined with the tap skip
     # the shards carry, so this job skips exactly the entries they skip and
     # re-verifies every other one; ciguard pins the spelling byte for byte.
-    needs: [race-shard, test-native-exec]
+    #
+    # ONE forgiven result (#3683, #3691, #3737): on a light run race-shard
+    # skips by design, so `skipped` from it is accepted there and nowhere
+    # else — the `test` aggregator's rule, through the same LIGHT_RUN, read
+    # from heavy-gate's output. test-native-exec is not heavy: it runs on
+    # every event.
+    needs: [heavy-gate, race-shard, test-native-exec]
     if: "${{ !cancelled() && !startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ') }}"
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_SMALL_RUNNER || 'arc-runners' }}
     timeout-minutes: 5
     env:
       RACE_SHARD_RESULT: ${{ needs.race-shard.result }}
       TEST_NATIVE_EXEC_RESULT: ${{ needs.test-native-exec.result }}
+      LIGHT_RUN: ${{ !((github.event_name != 'pull_request' && github.event_name != 'merge_group' && (github.event_name != 'push' || needs.heavy-gate.outputs.heavy != 'false')) || contains(github.event.pull_request.labels.*.name, 'ci:full')) }}
     steps:
       - name: Every shard reported success
         shell: bash
@@ -849,6 +1034,10 @@ jobs:
           for pair in "race-shard:${RACE_SHARD_RESULT}" "test-native-exec:${TEST_NATIVE_EXEC_RESULT}"; do
             leg="${pair%%:*}"
             result="${pair#*:}"
+            if [ "$leg" = "race-shard" ] && [ "$result" = "skipped" ] && [ "$LIGHT_RUN" = "true" ]; then
+              echo "::notice::leg ${leg} skipped on a light run (merge queue, a pull request without ci:full, or a push to main inside the heavy window) — the first push to main after CI_HEAVY_EVERY_HOURS without a heavy run, the nightly and a dispatch run it, so this green is not admin-mergeable; label the pull request ci:full and push to run it there."
+              continue
+            fi
             if [ "$result" != "success" ]; then
               echo "::error::leg ${leg} reported ${result} — the required verdict is red because its leg is red."
               fail=1
@@ -868,9 +1057,16 @@ jobs:
     # checkout + go build) and a compile error here surfaces the same
     # failure the `test` job would. Sequential `needs: test` cost 3-4
     # min of wall-clock without catching anything earlier.
-    # A Homebrew tap update skips this job: the header says why, and `brand` verifies it.
-    if: "!startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ')"
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    # HEAVY (#3691, #3737): out of the merge queue, of a light pull request
+    # and of a light push, it runs on the debounced push, the nightly, a
+    # dispatch and a `ci:full` pull request — `!cancelled()` and the heavy
+    # literal, byte for byte, alone: no light run reaches it, so the tap skip
+    # has nothing left to skip. Out of ruleset 18857412 while the
+    # experimental delivery mode lasts (ADR-173); a regression in the Mongo
+    # store lands on `main` and the next heavy push run is what reddens.
+    needs: [heavy-gate]
+    if: "${{ !cancelled() && ((github.event_name != 'pull_request' && github.event_name != 'merge_group' && (github.event_name != 'push' || needs.heavy-gate.outputs.heavy != 'false')) || contains(github.event.pull_request.labels.*.name, 'ci:full')) }}"
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_HEAVY_RUNNER || 'arc-runners' }}
     # The sum of the inner `go test -timeout`s (20m + 15m + 5m + 5m, and the
     # subbot step's 5m) plus setup, kept under the merge queue's 60-minute
     # check_response_timeout: a hang is named by go test's own timeout, and
@@ -1032,7 +1228,7 @@ jobs:
     # in-tree so a developer's plain `go test ./...` skips them; CI
     # provides the URI explicitly so the contract stays enforced.
     # Mirror of the mongo-conformance job above.
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_LARGE_RUNNER || 'arc-runners' }}
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -1081,8 +1277,13 @@ jobs:
 
   cloud-e2e:
     # Advisory: not a required check, so it cannot block a merge — see the
-    # merge-queue note at the top of this file.
-    if: github.event_name != 'merge_group'
+    # merge-queue note at the top of this file. Heavy too (#3683, #3691,
+    # #3737): `!cancelled()` and the heavy literal alone keep it out of the
+    # merge queue, of a light pull request and of a light push, so it runs on
+    # the debounced push, the nightly, a dispatch and a pull request that
+    # carries the `ci:full` label.
+    needs: [heavy-gate]
+    if: "${{ !cancelled() && ((github.event_name != 'pull_request' && github.event_name != 'merge_group' && (github.event_name != 'push' || needs.heavy-gate.outputs.heavy != 'false')) || contains(github.event.pull_request.labels.*.name, 'ci:full')) }}"
     # Builds the iterion image, spins kind + Helm-installs the cloud
     # stack with its dev Mongo + NATS + SeaweedFS (values-dev.yaml), then
     # exercises the full chain (server → NATS → runner → Mongo →
@@ -1098,7 +1299,7 @@ jobs:
     # https://github.com/SocialGouv/iterion/actions/runs/41671007928
     # Keep the same fork/bot isolation and operator escape hatch as every
     # other job using the scale set.
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_HEAVY_RUNNER || 'arc-runners' }}
     # 79 m sits 3 m above the 76 m floor (25 + 32 + 19, witnessed in
     # charts/iterion/kind_wait_test.go): a 25 m budget for the preamble
     # (checkout, Go setup, image build, kind up, image load, chart deps),
@@ -1326,7 +1527,7 @@ jobs:
     # fresher go.mod. Fail the PR before the drift lands.
     # A Homebrew tap update skips this job: the header says why, and `brand` verifies it.
     if: "!startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ')"
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_SMALL_RUNNER || 'arc-runners' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1355,7 +1556,7 @@ jobs:
     # surfaces before the cloud-e2e kind cluster bootstrap. The
     # --strict pass on values-prod.yaml additionally rejects unknown
     # keys, the most common foot-gun on a Helm chart upgrade.
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_SMALL_RUNNER || 'arc-runners' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: Azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
@@ -1432,7 +1633,7 @@ jobs:
     # branch-protection required checks to gate merges on a clean lint.
     # A Homebrew tap update skips this job: the header says why, and `brand` verifies it.
     if: "!startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ')"
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_LARGE_RUNNER || 'arc-runners' }}
     timeout-minutes: 20
     env:
       CGO_ENABLED: "0"
@@ -1485,7 +1686,7 @@ jobs:
     #
     # Deliberately NOT `task brand:check` (the asset-drift guard): that one
     # needs magick/pngquant/oxipng from devbox and is a different cost.
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_SMALL_RUNNER || 'arc-runners' }}
     # The other required jobs carry a timeout budget; brand is the one
     # required job without one. Two shell scripts, ~40 s: 10 minutes is ~15x
     # headroom, and a hung script fails this queue entry instead of holding
@@ -1576,7 +1777,7 @@ jobs:
     # it. Inside a matrix `include:` it would be invisible to that guard, which
     # would trade two runner slots for a blind spot in a fork guard.
     if: github.event_name != 'merge_group'
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_SMALL_RUNNER || 'arc-runners' }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -1608,7 +1809,7 @@ jobs:
     # noise — we keep both. Advisory-only for now: a zero-day disclosure
     # mid-release shouldn't gate a hotfix; results surface in the GitHub
     # Security tab via SARIF so an operator can still triage.
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_SMALL_RUNNER || 'arc-runners' }}
     timeout-minutes: 15
     permissions:
       security-events: write
@@ -1633,10 +1834,27 @@ jobs:
           if ! python3 -c 'import json; json.load(open("govulncheck.sarif"))' 2>/dev/null; then
             printf '%s' '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[]}' > govulncheck.sarif
           fi
+      - name: Deduplicate SARIF stacks
+        # govulncheck emits the same call stack twice for some findings; the
+        # SARIF schema requires uniqueItems and upload-sarif validates the
+        # whole file before publishing, refusing it with "stacks contains
+        # duplicate item". Deduplicate (unique sorts; the UI order does not
+        # matter) so the file passes validation. The update is scoped to the
+        # result, not to `.stacks`: assigning through a missing key would
+        # create `"stacks": null` on every stack-less result, which the
+        # schema refuses just as hard. `results[]?`: a run's `results` key is
+        # optional in SARIF 2.1.0 (only `tool` is required), and iterating a
+        # missing one would abort jq and red the job with nothing to publish.
+        run: |
+          jq '.runs[].results[]? |= (if (.stacks | type) == "array" then .stacks |= unique else . end)' \
+            govulncheck.sarif > govulncheck.dedup.sarif && mv govulncheck.dedup.sarif govulncheck.sarif
       - name: Upload SARIF
-        # Advisory-only (see job header): a SARIF-upload hiccup must not red
-        # the suite, so the result is informational, not a gate.
-        continue-on-error: true
+        # The job is advisory (not a required check): findings themselves
+        # never red it — the run step above swallows govulncheck's exit code.
+        # The upload is the opposite concern and stays LOUD: a red here means
+        # vulnerabilities were found and their results are not published, the
+        # one failure nobody would notice otherwise. It still cannot block a
+        # merge — the job is not in the ruleset.
         uses: github/codeql-action/upload-sarif@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3.36.2
         with:
           sarif_file: govulncheck.sarif
@@ -1658,12 +1876,12 @@ jobs:
     # exactly this command.
     # The org's runners, like every other pure-Go job that stays in the
     # queue: a GitHub-hosted slot is one of the 20 the org shares, and this
-    # job needs nothing a self-hosted image lacks. The expression is copied
-    # byte-for-byte from vendor-check — TestSelfHostedRoutingExpressionsAgree
-    # asserts every copy is identical.
+    # job needs nothing a self-hosted image lacks. The expression is the
+    # small one, copied byte-for-byte from vendor-check —
+    # TestSelfHostedRoutingExpressionsAgree asserts every copy is identical.
     # A Homebrew tap update skips this job: the header says why, and `brand` verifies it.
     if: "!startsWith(github.event.merge_group.head_commit.message || github.event.pull_request.title, 'chore(brew): update tap to ')"
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_SMALL_RUNNER || 'arc-runners' }}
     timeout-minutes: 10
     permissions:
       contents: read
@@ -1709,6 +1927,11 @@ jobs:
           # archive is pure overhead against this job's 10-minute budget.
           cache: false
       - name: Links broken by this change
+        # Only pull_request and push carry a base (base.sha, before): on the
+        # nightly and a dispatch SINCE would render empty and docslinks would
+        # report the whole backlog as broken by this change. The whole-tree
+        # step below covers those runs.
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
         # Step-level rather than job-level on purpose: a job-level
         # continue-on-error still paints the job red on the pull request,
         # which is the one thing an advisory verdict must not do. Here the
@@ -1753,7 +1976,7 @@ jobs:
     # Go change under pkg/, and the generated pages in docs/references/ are
     # exactly where a Go change lands.
     if: github.event_name != 'merge_group'
-    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || 'arc-runners' }}
+    runs-on: ${{ (vars.CI_SELF_HOSTED == 'off' || (github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || endsWith(github.event.pull_request.user.login, 'renovate[bot]') || github.event.pull_request.user.login == 'dependabot[bot]'))) && 'ubuntu-latest' || vars.CI_SMALL_RUNNER || 'arc-runners' }}
     timeout-minutes: 15
     permissions:
       contents: read

@@ -206,7 +206,74 @@ func (s *Server) handleRevokePAT(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.auditTenant(r, id.TeamID, "pat.revoked", "token", tokenID, map[string]any{"name": t.Name})
-	w.WriteHeader(http.StatusNoContent)
+	// What the token sent by email ends with it (ADR-174): an accept refuses
+	// an invitation whose minting token no longer stands, so the sweep takes
+	// those rows out of the pending lists and NAMES them — a rotation (the
+	// CLI's `teams switch`) must show who to invite again, not end their
+	// invitations in silence.
+	ended, sweepErr := s.revokeInvitationsMintedWith(r, tokenID)
+	if len(ended) == 0 && sweepErr == "" {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	// The revoke reaches any token of the account, but a credential pinned
+	// to one team reads no other team's invitations: those it ended are
+	// counted, not named.
+	view := patRevokedView{InvitationsRevoked: []revokedInvitationView{}, InvitationsError: sweepErr}
+	for _, inv := range ended {
+		if id.PinRefusesTeam(inv.TeamID) {
+			view.InvitationsRevokedElsewhere++
+			continue
+		}
+		view.InvitationsRevoked = append(view.InvitationsRevoked, inv)
+	}
+	writeJSON(w, view)
+}
+
+// patRevokedView answers a revoke that ended invitations: the pending ones
+// the token minted, now revoked — named where the caller's own pin reaches
+// their team, counted otherwise — and, when the sweep could not finish, why,
+// the rows it left being refused at accept all the same.
+type patRevokedView struct {
+	InvitationsRevoked          []revokedInvitationView `json:"invitations_revoked"`
+	InvitationsRevokedElsewhere int                     `json:"invitations_revoked_elsewhere,omitempty"`
+	InvitationsError            string                  `json:"invitations_error,omitempty"`
+}
+
+type revokedInvitationView struct {
+	ID     string `json:"id"`
+	Email  string `json:"email"`
+	TeamID string `json:"team_id"`
+	Role   string `json:"role"`
+}
+
+// revokeInvitationsMintedWith deletes the pending invitations personal
+// access token tokenID minted, with one invitation.deleted audit line each
+// (reason minting_pat_revoked), and answers the ones it took and the first
+// failure in words ("" when none). It runs on a context detached from the
+// request: the token is already revoked, and the sweep is its consequence.
+func (s *Server) revokeInvitationsMintedWith(r *http.Request, tokenID string) ([]revokedInvitationView, string) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), grantCompensationTimeout)
+	defer cancel()
+	// Never null on the wire: a client reads an empty list beside the error.
+	ended := []revokedInvitationView{}
+	invs, err := s.authStore().ListPendingInvitationsMintedWith(ctx, tokenID)
+	if err != nil {
+		return ended, fmt.Sprintf("listing the invitations this token sent failed (%v): they stand, an accept refuses them since the token no longer stands, and re-issuing this revoke takes them out", err)
+	}
+	failure := ""
+	for _, inv := range invs {
+		if err := s.authStore().DeleteInvitation(ctx, inv.ID); err != nil && !errors.Is(err, identity.ErrNotFound) {
+			if failure == "" {
+				failure = fmt.Sprintf("revoking invitation %s failed (%v): it stands, an accept refuses it since the token no longer stands, and re-issuing this revoke takes it out", inv.ID, err)
+			}
+			continue
+		}
+		s.auditTenant(r, inv.TeamID, "invitation.deleted", "invitation", inv.ID,
+			map[string]any{"email": inv.Email, "reason": "minting_pat_revoked", "minted_with": tokenID})
+		ended = append(ended, revokedInvitationView{ID: inv.ID, Email: inv.Email, TeamID: inv.TeamID, Role: string(inv.Role)})
+	}
+	return ended, failure
 }
 
 // patIdentityFailure marks a PAT resolution that FAILED — a row the server
@@ -356,8 +423,12 @@ func (s *Server) wirePATState() {
 		return
 	}
 	s.authSvc.SetPATState(func(ctx context.Context, id string, now time.Time) (bool, error) {
+		// With personal access tokens off, none authenticates
+		// (resolvePATIdentity refuses every one), so none stands: what such
+		// a token minted while they were on — an emailed invitation — is
+		// refused as the token's own request would be, not left failing.
 		if s.pats == nil {
-			return false, errors.New("personal access tokens not enabled")
+			return false, nil
 		}
 		t, err := s.pats.Get(ctx, id)
 		if errors.Is(err, pat.ErrNotFound) {

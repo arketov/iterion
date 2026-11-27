@@ -1597,6 +1597,9 @@
           "credential_source": {
             "type": "string"
           },
+          "image_input": {
+            "type": "boolean"
+          },
           "input_cost_per_m": {
             "type": "number"
           },
@@ -2485,7 +2488,19 @@
             },
             "type": "array"
           },
+          "added_labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "authors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "exclude_added_labels": {
             "items": {
               "type": "string"
             },
@@ -4505,6 +4520,9 @@
           "context_window": {
             "type": "integer"
           },
+          "image_input": {
+            "type": "boolean"
+          },
           "input_cost_per_m": {
             "type": "number"
           },
@@ -4600,6 +4618,9 @@
           "cron": {
             "type": "string"
           },
+          "disabled_reason": {
+            "type": "string"
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -4611,6 +4632,9 @@
               "type": "array"
             },
             "type": "object"
+          },
+          "forge_binding": {
+            "type": "string"
           },
           "guard": {
             "type": "string"
@@ -4671,6 +4695,9 @@
           "no_live_run": {
             "type": "string"
           },
+          "opens_mr": {
+            "type": "boolean"
+          },
           "origin": {
             "type": "string"
           },
@@ -4688,6 +4715,9 @@
           },
           "poller_since": {
             "type": "integer"
+          },
+          "projection_digest": {
+            "type": "string"
           },
           "repo": {
             "type": "string"
@@ -6882,6 +6912,78 @@
         ],
         "type": "object"
       },
+      "gatewayAliveRunsView": {
+        "properties": {
+          "hosts": {
+            "items": {
+              "$ref": "#/components/schemas/gatewayHostAliveRuns"
+            },
+            "type": "array"
+          },
+          "read_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "unresolved_trees": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "read_at",
+          "hosts",
+          "unresolved_trees"
+        ],
+        "type": "object"
+      },
+      "gatewayBotAliveTrees": {
+        "properties": {
+          "alive_trees": {
+            "type": "integer"
+          },
+          "bot_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bot_id",
+          "alive_trees"
+        ],
+        "type": "object"
+      },
+      "gatewayHostAliveRuns": {
+        "properties": {
+          "alive_runs": {
+            "type": "integer"
+          },
+          "alive_trees": {
+            "type": "integer"
+          },
+          "bots": {
+            "items": {
+              "$ref": "#/components/schemas/gatewayBotAliveTrees"
+            },
+            "type": "array"
+          },
+          "host": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "unnamed_trees": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "host",
+          "subject",
+          "alive_trees",
+          "alive_runs",
+          "unnamed_trees",
+          "bots"
+        ],
+        "type": "object"
+      },
       "launchBudgetSpec": {
         "properties": {
           "max_cost_usd": {
@@ -6961,6 +7063,9 @@
         "properties": {
           "context_window": {
             "type": "integer"
+          },
+          "image_input": {
+            "type": "boolean"
           },
           "input_cost_per_m": {
             "type": "number"
@@ -7222,6 +7327,26 @@
         "required": [
           "token",
           "password"
+        ],
+        "type": "object"
+      },
+      "patRevokedView": {
+        "properties": {
+          "invitations_error": {
+            "type": "string"
+          },
+          "invitations_revoked": {
+            "items": {
+              "$ref": "#/components/schemas/revokedInvitationView"
+            },
+            "type": "array"
+          },
+          "invitations_revoked_elsewhere": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "invitations_revoked"
         ],
         "type": "object"
       },
@@ -8289,6 +8414,29 @@
         },
         "type": "object"
       },
+      "revokedInvitationView": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "team_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "team_id",
+          "role"
+        ],
+        "type": "object"
+      },
       "routingPolicyView": {
         "properties": {
           "origin": {
@@ -9215,6 +9363,40 @@
           }
         },
         "summary": "PATCH /api/admin/llm/api-keys/{key_id}",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/llm/gateway-alive-runs": {
+      "get": {
+        "description": "Super-admin only. Per gateway host (sorted), the alive subbot trees (the iterion_gateway_alive_runs gauge) and alive runs (the run-admission ledger's count) holding its capacity subject gw:\u003chost\u003e, all teams together; the trees alive on the host whose subjects do not name it (unnamed_trees: the host read from the key row each stamped fingerprint names, never from content_boundary.gateway_host; a subbot child judged with its tree); per bot of the tree's root, its trees; and the trees that sealed a gateway key whose host cannot be read (unresolved_trees). Counts and bot ids only. Observe-only: nothing is reserved on a gateway.",
+        "operationId": "getAdminLlmGatewayAliveRuns",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/gatewayAliveRunsView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "description": "The credential presented is refused: the access token's session is revoked (signed out everywhere, refresh reuse, a password change), the account is disabled or pending a password change, the token is expired, or a personal access token's row is revoked, expired or gone."
+          },
+          "403": {
+            "description": "The credential presented may not do this: a personal access token asked for a credential of its own account (a switch, a token, an SSO link, a password) or for a team token that would outlive it (a webhook, share-link or invitation token), an access token naming no session asked for an SSO link, or the account is not a platform super-admin on a platform-admin route."
+          },
+          "500": {
+            "description": "The alive runs or the key rows could not be read"
+          },
+          "501": {
+            "description": "run_store_without_alive_capacity_listing or api_key_store_without_gateway_key_lookup: the instance does not host the reading"
+          }
+        },
+        "summary": "GET /api/admin/llm/gateway-alive-runs",
         "tags": [
           "admin"
         ]
@@ -12280,8 +12462,22 @@
     },
     "/api/me/tokens/{token_id}": {
       "delete": {
+        "description": "Revoke a token. 204 when the revoke ended nothing; 200 naming the pending invitations the token had emailed (ADR-174), now revoked, with invitations_error when the sweep could not take every one out — re-issuing the revoke finishes it.",
         "operationId": "deleteMeTokensByTokenId",
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/patRevokedView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "204": {
+            "description": "The revoke ended no invitation: no body"
+          },
           "401": {
             "description": "The credential presented is refused: the access token's session is revoked (signed out everywhere, refresh reuse, a password change), the account is disabled or pending a password change, the token is expired, or a personal access token's row is revoked, expired or gone."
           },
@@ -17991,6 +18187,70 @@
           }
         },
         "summary": "PATCH /api/teams/{id}/forge/repo-bots/{integration_id}",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/teams/{id}/forge/repo-bots/{integration_id}/routing": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "path",
+          "name": "integration_id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "operationId": "putTeamsByIdForgeRepoBotsByIntegrationIdRouting",
+        "responses": {
+          "default": {
+            "description": "Response"
+          }
+        },
+        "summary": "PUT /api/teams/{id}/forge/repo-bots/{integration_id}/routing",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/teams/{id}/forge/repo-bots/{integration_id}/subscriptions/sync": {
+      "parameters": [
+        {
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "in": "path",
+          "name": "integration_id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "postTeamsByIdForgeRepoBotsByIntegrationIdSubscriptionsSync",
+        "responses": {
+          "default": {
+            "description": "Response"
+          }
+        },
+        "summary": "POST /api/teams/{id}/forge/repo-bots/{integration_id}/subscriptions/sync",
         "tags": [
           "teams"
         ]

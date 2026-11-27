@@ -48,21 +48,44 @@ point at an untrusted tree; the bot points it at the engine's own package.
 The dependency closure is pinned at install time by the lockfile, not at
 load time.
 
-## Contract facts the tests pin (ultra11y 5.49.0)
+## Contract facts the tests pin (ultra11y 9.6.6)
 
-- `verify --apply` folds **partially by default**: exit 0 as soon as one
-  verdict lands, refusals named in `issues` / `rejectedCriteria`, exit 1
-  only when nothing lands or under `--strict` (which leaves the audit
-  untouched; a complete adjudication folds under it). A `C` without
-  citations is refused; every criterion absent from the file is a coverage
-  gap.
+- `verify --apply` folds **partially by default**: every accepted verdict
+  lands, refusals named in `issues` / `rejectedCriteria` (each line opens
+  with `criterion <id>:`). Exit 0 only when the gate refused nothing; any
+  refusal exits 1 — an *incomplete fold*: the accepted verdicts are written
+  (`auditPath`), `ok: false` (SocialGouv/ultra11y#223) — and so does a fold
+  where nothing landed (no audit written) or `--strict` with a refusal
+  (which leaves the audit untouched; a complete adjudication folds under
+  it). 2 is usage. The bot reads every fold through `L.foldJSON`: exit 0/1
+  with JSON whose `ok` matches is data, anything else a crash. A `C` without
+  citations is refused. A criterion absent from the file is a coverage gap:
+  no refusal — it is named apart in `notInWorklist`, out of `rejected`,
+  `rejectedCriteria` and `issues` (only `--strict` lists it there) — and it
+  stays « à évaluer »; `fold_probe` re-asks it like a refusal.
+- `verify --manual` writes the verdict contract every brief shares once, as
+  `ADJUDICATE.contract.md` beside `ADJUDICATE.md`; the briefs refer to it
+  instead of repeating it. The worklist node hands its path to the
+  adjudicators (`contract_path`).
+- `scan --sample --merge --json` opens its document with a `pages` summary
+  (`{sample, recorded, refused: [{id, reason}]}`). A partial sample (a page
+  that redirects elsewhere or answers HTTP ≥ 400) exits 1 with the merged
+  audit written; `render` accepts it (`L.scanOutcome`), counts the engine's
+  refused pages and the annex names them. No page recorded exits 1 with
+  nothing written, and fails the layer.
+- Since 9.0.1 an `<img>` without `alt` is a decisive engine NC on 1.1, so
+  1.1 never reaches the fixture's worklist; the tests that leave a judgment
+  criterion open use 1.2.
 - Three different rates: the `pack-audit` document's root `conformancePct`
-  is the *automatic* pass rate (engine-decided C ÷ engine C + NC); `report
-  --json` and the fold JSON echo the *core* (WCAG) rate; the **RGAA** rate
-  (validated ÷ validated + NC + à évaluer, NA excluded) is in no JSON — it
-  is computed from `criteria[]` and asserted against the report's « Taux de
-  conformité » line, as the « Décidés » line is asserted against the
-  document. The rate lives in the business summary; the counts and automatic
+  is the *automatic* pass rate (engine-decided C ÷ engine C + NC); the fold
+  JSON's `conformancePct` is the *core* (WCAG) rate, beside
+  `automaticPassRatePct` (the same number) and `conformanceRatePct` (the
+  **RGAA** rate); `report --json`'s `conformancePct` is the RGAA rate
+  (validated ÷ validated + NC + à évaluer, NA excluded), its operands under
+  `conformance` and the automatic rate as `automaticPct`. The bot still
+  computes the RGAA rate from `criteria[]` and asserts it against the
+  report's « Taux de conformité » line, as the « Décidés » line is asserted
+  against the document. The rate lives in the business summary; the counts and automatic
   rate live in the linked technical annex. Both `check` and `verify` load it.
 - The C gate grounds citations on the **source** (file exists, snippet
   matches when given), not on the evidence the item was shown: a stray
@@ -98,7 +121,38 @@ instead of crashing, bare NA verdicts on harvested evidence are refused,
 and trial grounding accepts the evidence-anchor fallback used by the fold.
 The 5.49.0 migration moved one contract: the trial's scope grew from the
 agents' conformities to their clearing claims (above), and the bot's
-dispatch and refuter prompts followed it.
+dispatch and refuter prompts followed it. The 6.0.0 migration moved two:
+coverage gaps left the fold's refusals for `notInWorklist`
+(SocialGouv/ultra11y#136), and `report --json` carries the RGAA rate
+instead of the core one (#116, #125). The 7.0.0–7.2.0 migration moved
+none: 7.0.0 removed commands and flags the bot never called (`mcp`, `dev`,
+`judge`, `affected`, `import`, `audit --lite`, `--format sarif|github`,
+`init --ci`, `--baseline`, `render --e2e`, `pages --diff`, `scan --runtime
+docker`; the bot runs `scan --runtime local`), and 7.1.0 adds Jest/Vitest
+`__snapshots__/*.snap` files to what `audit` reads (`scope.unitSnapshots`).
+7.2.0 pins axe-core by source: `scan` injects ultra11y's own exact
+`axe-core` 4.13.0 (nested under `node_modules/ultra11y/` in the lockfile,
+beside the 4.14.0 `@axe-core/playwright` brings) and records it as
+`axe: {version, origin: "ultra11y"}` (the merged audit: `scope.axe`).
+Its route inventory (`pages discover
+--write` → `.ultra11y/routes.json`, `scan --all-routes`, annex section F,
+`scope.routes`) is not called by the bot yet.
+The 7.2.0–9.6.6 migration moved three: 9.6.1 makes an incomplete fold exit
+1 (SocialGouv/ultra11y#223) and writes the verdict contract once as
+`ADJUDICATE.contract.md`; `scan --sample` exits 1 on a partial sample with
+its result written; 9.0.1 decides 1.1 on a missing `alt`. 8.0.0 removed
+`capture write`, `render --setup` / `--scaffold` and the `.snap` audit;
+9.0.0 made RGAA the only shown standard (engine result under `core`,
+`--standard wcag` exits 2) and removed `pack`, `--pack`, `--override` and
+`--guidance`. The bot called none of them and already read `core`. 9.6.2–9.6.6 moved
+nothing the bot reads: page verdicts on still-manual criteria (with a
+`notShownHere` field), absence-grounded page NA, a missing default ledger
+exiting 0 on `verify --apply` (the bot always passes an explicit one),
+sample pages counted with their journey states folded in, decision
+protocols in the briefs, and (9.6.5) distinct no-page labels in the report
+and a French default fix text, and (9.6.6) axe-core's own French locale
+under `--lang fr` — rendered findings' messages are French, their identity
+unchanged. The tests passed unchanged.
 The workflow retains its count/rate comparison, relevance gate, literal
 citation restoration and once-only mutation records. They provide independent
 checks and preserve replay behavior; historical defect tests are not treated

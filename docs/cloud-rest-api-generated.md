@@ -63,6 +63,7 @@ registered by `board_forge.go`, `local_secrets_routes.go`, `notifications_routes
 | `POST` | `/api/admin/llm/api-keys` | platform admin | yes |
 | `DELETE` | `/api/admin/llm/api-keys/{key_id}` | platform admin | yes |
 | `PATCH` | `/api/admin/llm/api-keys/{key_id}` | platform admin | yes |
+| `GET` | `/api/admin/llm/gateway-alive-runs` | platform admin | yes |
 | `GET` | `/api/admin/llm/oauth/connections` | platform admin | yes |
 | `DELETE` | `/api/admin/llm/oauth/{kind}` | platform admin | yes |
 | `PATCH` | `/api/admin/llm/oauth/{kind}` | platform admin | yes |
@@ -691,6 +692,8 @@ registered by `board_forge.go`, `local_secrets_routes.go`, `notifications_routes
 | `GET` | `/api/teams/{id}/forge/repo-bots/preview` | session | yes |
 | `DELETE` | `/api/teams/{id}/forge/repo-bots/{integration_id}` | session | yes |
 | `PATCH` | `/api/teams/{id}/forge/repo-bots/{integration_id}` | session | yes |
+| `PUT` | `/api/teams/{id}/forge/repo-bots/{integration_id}/routing` | session | yes |
+| `POST` | `/api/teams/{id}/forge/repo-bots/{integration_id}/subscriptions/sync` | session | yes |
 | `GET` | `/api/teams/{id}/forge/repos` | session | yes |
 | `POST` | `/api/teams/{id}/forge/repos` | session | yes |
 | `GET` | `/api/teams/{id}/intakes` | session | yes |

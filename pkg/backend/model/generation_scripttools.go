@@ -11,6 +11,7 @@ import (
 	"github.com/arketov/iterion/pkg/backend/permission"
 	"github.com/arketov/iterion/pkg/backend/tool"
 	"github.com/arketov/iterion/pkg/claw/pkg/api"
+	"github.com/arketov/iterion/pkg/dsl/ir"
 	"github.com/arketov/iterion/pkg/scripthost"
 )
 
@@ -18,19 +19,14 @@ import (
 // The script host's tool server: a nested call IS a direct call.
 // ---------------------------------------------------------------------------
 
-// ScriptHostToolName is the name the codemode tool will carry when a later
-// slice registers it on a node.
+// ScriptHostToolName is the name the codemode tool carries on a node.
 //
-// Declared now, and already honoured by [keepsPlaceholders] and by the
-// withheld class, because the two defects it guards are both the kind that
-// pass unnoticed: a materialised secret in the script source, and a script
-// nesting another script host. Naming it here means the slice that registers
-// the tool inherits both rather than rediscovering them — and a constant one
-// `grep` finds beats a string literal in three files.
-//
-// No tool answers to it yet. CM-1b is driven by tests, which is why nothing
-// model-facing opens with it.
-const ScriptHostToolName = "codemode"
+// It is honoured by [keepsPlaceholders] and by the withheld class, because the
+// two defects it guards are both the kind that pass unnoticed: a materialised
+// secret in the script source, and a script nesting another script host. It
+// IS the compiler's ir.CodemodeToolName, so the tool the C358 warning asks the
+// permission gate about is the one the dispatcher gates.
+const ScriptHostToolName = ir.CodemodeToolName
 
 // scriptToolServer answers a script's tool call by dispatching it through the
 // NODE'S OWN DOOR.
@@ -230,7 +226,10 @@ func (s *scriptToolServer) CallTool(worker context.Context, name string, input j
 	if s.budget > 0 {
 		ctx = scripthost.WithScriptResultBudget(ctx, s.budget)
 	}
-	block, abort := s.d.dispatch(ctx, tu)
+	// A program reads text only: an image tool's result reaches it as its
+	// description and the image-omitted marker, never as image bytes the
+	// route's image bounds would weigh.
+	block, abort := s.d.dispatchTextOnly(ctx, tu)
 	if abort != nil {
 		if err := worker.Err(); err != nil && errors.Is(abort, ctx.Err()) {
 			return scripthost.ToolOutcome{}, err
@@ -390,8 +389,9 @@ func toolResultText(block api.ContentBlock) string {
 }
 
 // scriptImageOmitted stands for an image block in a tool result a program
-// receives.
-const scriptImageOmitted = "[image omitted: a program receives text only — call the tool directly for the model to see the image]"
+// receives — the marker the text-only door already puts in place of a tool's
+// images.
+const scriptImageOmitted = tool.TextOnlyImageMarker
 
 // normaliseInput makes an empty or absent input the empty object.
 //

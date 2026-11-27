@@ -728,6 +728,55 @@ and access on a cloud runner. The next scheduled run uses the repaired environme
 Use **Pause** while making that repair if repeated launches are undesirable,
 then **Resume** when ready. A later successful run clears the failure advice.
 
+The platform operator does not have to look: when operator alerts are on
+(`ITERION_ALERTS_WEBHOOK_URL`), every server replica assesses each enabled
+schedule every 10 minutes and sends one `schedule_stalled` alert per episode
+to the operator channel when the row shows that the schedule stopped
+producing successful runs:
+
+- **overdue** — `next_fire_at` lies more than 2 hours (or three scheduler
+  ticks, when `ITERION_SCHEDULER_INTERVAL` is longer) in the past, and so
+  does the row's last edit: no scheduler claimed the slot. A schedule
+  resumed after a long pause carries a stale slot the ticker catches up on
+  its next tick, so the grace runs from the resume;
+- **launch refused** — `last_error` is set: the last tick launched no run.
+  A slot held by the operator's armed maintenance fence is postponed, not
+  refused: it leaves `last_error` as it was and raises nothing, except
+  that it clears a "fence could not be read" verdict a read blip left. A
+  fence record that cannot be read, or a run that cannot be persisted
+  while the replica holds the schedule's lease, holds the slot too but
+  writes `last_error` (the hold's stable text, so one outage is one
+  episode) and alerts. Under an armed fence, a sweep that reads the fence
+  sets a "fence could not be read" verdict aside and judges the rest of the
+  row, so a failed run behind it still alerts; a fence store that fails the
+  sweep's read too still raises one alert per episode it catches, and a
+  store that flaps re-opens an episode at each failed read after an armed
+  tick. A launch-gate refusal writes its class, `launch gate: <reason
+  token>` (`concurrency_cap_exceeded`, `repo_quota_exceeded`, …), not its
+  detail: the detail carries a figure measured at the tick (the active-run
+  count, a repository's monthly spend) and stays in the tick-audit row, so
+  a refusal that lasts is one episode. A row that already holds that
+  refusal's whole text, as a release that records the detail writes it,
+  keeps it while the same class lasts, so a rolling deploy opens no new
+  episode. Any other refusal records its whole
+  text, and one whose text changes from tick to tick opens a new episode
+  at each change. A replica whose run persistence is refused because it
+  lost the schedule's lease writes nothing: its successor owns the slot;
+- **run failed** — `last_run_status` is `failed` or `failed_resumable`.
+
+The causes are checked in that order, so an older failed run does not hide
+a scheduler that stopped. Each clears from the row itself, so a recovered
+schedule goes quiet. A new episode — another failed run, a refusal raised
+again after a clear, another stuck slot — alerts again. The episode claim is
+shared by every replica, so one episode is delivered once. A paused schedule
+never alerts, and neither does a cancelled run. The watch lives in
+[pkg/server/schedule_outcome_watch.go](../pkg/server/schedule_outcome_watch.go).
+
+A schedule held by a live run under `overlap: skip` is not watched here:
+its skipped slots write nothing on the row. A live run with no activity
+raises the run-level stall alert, and one waiting for a human is a
+decision. Read `last_fire_at` moving while `last_run_at` stays put.
+
 For CLI inspection, `iterion remote schedules list` returns the cloud record
 as JSON, including `last_run_status`, `last_run_error_code`, `last_run_error`
 and `last_error`. `iterion schedule list` lists the local cron manifest instead;

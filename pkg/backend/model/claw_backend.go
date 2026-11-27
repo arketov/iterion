@@ -12,6 +12,7 @@ import (
 	"os"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -292,6 +293,12 @@ const DefaultClawToolMaxSteps = 5
 // no in-container form, Ask-capable permission policies, async interaction,
 // and an MCP server this launcher may not start for a sandboxed run).
 func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result delegate.Result, err error) {
+	// The todo_write scope is decided HERE, before the placement branch: the
+	// sandboxed runner has neither the run id nor the home scope, so it
+	// keys the in-container list by the scope this launcher sends across
+	// the IPC (delegate.IOTask.TodoScope) — a runner left to compute its
+	// own would fall back to the workspace and share it across branches.
+	task = withClawTodoScope(ctx, task)
 	defer func() {
 		// The one exit both placements return through (in process, and the
 		// sandboxed runner's relayed provider error).
@@ -522,6 +529,7 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 	// ends with the node (docs/adr/127-an-agent-nodes-processes-end-with-the-node.md).
 	// A runner whose launcher ends the session draws none: everything here
 	// already carries the launcher's, whose end stops and reports it.
+	ctx = tool.WithTodoScope(ctx, task.TodoScope)
 	if !launcherEndsNodeSession(ctx) {
 		token, since := proc.NewNodeSessionToken(), delegate.NodeSessionSince()
 		ctx = proc.WithNodeSessionEnv(ctx, token)
@@ -963,9 +971,16 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 		if err != nil || pending.Name != approval.toolName || len(opts.Messages) == 0 {
 			return delegate.Result{}, fmt.Errorf("claw: exact approval has no matching pending conversation")
 		}
-		dispatcher, dispatchCtx := newToolDispatcher(WithoutExactClawApproval(ctx), buildToolMap(opts.Tools), opts.OnToolStarted, opts.OnToolCall, opts.Hooks, opts.MaterializeSecrets, opts.Permission)
+		// The approved call's result joins the conversation the route
+		// receives: its images are shaped under the route's policy, like
+		// every call GenerateTextDirect dispatches.
+		imagesCtx, err := withRouteImagePolicy(WithoutExactClawApproval(ctx), &opts)
+		if err != nil {
+			return delegate.Result{}, fmt.Errorf("claw backend: %w", err)
+		}
+		dispatcher, dispatchCtx := newToolDispatcher(imagesCtx, buildToolMap(opts.Tools), opts.OnToolStarted, opts.OnToolCall, opts.Hooks, opts.MaterializeSecrets, opts.Permission)
 		call := toolUseBlock{ID: task.ResumePendingToolUseID, Name: pending.Name, PartialJSON: string(pending.Input)}
-		block, err := dispatcher.dispatchWithApproval(dispatchCtx, call, approval)
+		block, err := dispatcher.dispatchWithApproval(dispatchCtx, call, approval, dispatcher.images)
 		if err != nil {
 			return delegate.Result{}, err
 		}
@@ -1068,6 +1083,12 @@ func (b *ClawBackend) Execute(ctx context.Context, task delegate.Task) (result d
 func clawUsageWindow(err error, now time.Time) error {
 	if err == nil || delegate.IsUsageWindow(err) {
 		return err
+	}
+	// A budget refusal, under whatever status or channel the gateway served
+	// it (LiteLLM: 400, 422, 429, 500, a stream frame), is the spend ceiling
+	// every backend parks on as an account refusal.
+	if spend, ok := delegate.SpendCeilingRefusal(delegate.BackendClaw, err); ok {
+		return spend
 	}
 	var detail string
 	var httpErr *api.APIError
@@ -1830,7 +1851,14 @@ func (b *ClawBackend) generateTextWithToolsAndSchema(ctx context.Context, client
 		if !ran {
 			finalTurn = fmt.Sprintf("none on this attempt, the conversation it replays already holding the %d tool turns of its tool_max_steps", toolStepBudgetFrom(ctx).limit)
 		}
-		return meteredFailure(ctx, task, billed), fmt.Errorf("claw backend: text+tools generation produced empty response after tool loop and structured-output recovery failed — the tool loop's final turn: %s; the recovery pass: %v",
+		// The recovery's error is WRAPPED: its type is the cause of record
+		// (a provider refusal, a context overflow, a transient fault), and
+		// every layer above — the in-node retry, node recovery, the run's
+		// redelivery — decides from it rather than from this text.
+		if recErr == nil {
+			recErr = errors.New("no structured object returned")
+		}
+		return meteredFailure(ctx, task, billed), fmt.Errorf("claw backend: text+tools generation produced empty response after tool loop and structured-output recovery failed — the tool loop's final turn: %s; the recovery pass: %w",
 			finalTurn, recErr)
 	}
 	output := map[string]any{"text": text}
@@ -1996,6 +2024,41 @@ func clawRunnerHome(ctx context.Context, task delegate.Task) string {
 	}
 	sum := sha256.Sum256([]byte(kind + "\x00" + identity))
 	return clawRunnerHomePrefix + hex.EncodeToString(sum[:])
+}
+
+// withClawTodoScope stamps the delegation's todo scope on the task unless it
+// already carries one — the scope a launcher sent across the sandbox IPC is
+// the one the in-container Execute keeps.
+func withClawTodoScope(ctx context.Context, task delegate.Task) delegate.Task {
+	if task.TodoScope == "" {
+		task.TodoScope = clawTodoScope(ctx, task)
+	}
+	return task
+}
+
+// clawTodoScope names the delegation whose todo_write checklist this is: the
+// run or fan-out branch (the runner-home identity), the node and its loop
+// iteration. Keyed by the workspace alone, the parallel branches of one
+// fan-out — and the rounds of a loop — shared a single checklist and worked
+// each other's items (#3746). "" when no identity is wired (a library
+// dispatch), which keeps the per-workspace file.
+func clawTodoScope(ctx context.Context, task delegate.Task) string {
+	identity := task.HomeScope
+	if identity == "" {
+		identity = RunnerHomeScopeFromContext(ctx)
+	}
+	if identity == "" {
+		identity = RunIDFromContext(ctx)
+	}
+	if identity == "" {
+		return ""
+	}
+	iteration := task.Iteration
+	if iteration == 0 {
+		iteration = LoopIterationFromContext(ctx)
+	}
+	sum := sha256.Sum256([]byte(identity + "\x00" + task.NodeID + "\x00" + strconv.Itoa(iteration)))
+	return hex.EncodeToString(sum[:12])
 }
 
 // executeViaSandboxRunner forwards the task to the iterion-claw-runner
@@ -3291,6 +3354,13 @@ func forwardableProviderEnv(ctx context.Context, model, providerHint string) (ma
 	for _, name := range clawStreamTimeoutEnvVars {
 		env[name] = envtrust.Inherited(name)
 	}
+	// The route image bounds' escape hatches cross the same way: the
+	// generation that shapes tool images and builds requests runs in the
+	// container for a sandboxed node, which must bound them as the host
+	// reads them — planted-as-unset, an explicit empty included.
+	for _, name := range clawImageBoundEnvVars {
+		env[name] = envtrust.Inherited(name)
+	}
 	// The workspace-agent ceiling crosses ALWAYS, the routing pattern pushed
 	// one step further: the host's value when the operator set one, an
 	// explicit empty otherwise. An ABSENT name is one the runner's workspace
@@ -4170,8 +4240,8 @@ func refuseToolsWithNoSandboxPlacement(task delegate.Task) error {
 	for _, td := range task.ToolDefs {
 		if placement, reason := tool.SandboxPlacementOf(td.Name); placement == tool.PlacementRefused {
 			return fmt.Errorf(
-				"claw backend: node %q declares tool %q, which a sandboxed runner cannot execute in-container (%s) — "+
-					"drop it, or run the workflow unsandboxed (`sandbox: none` / `--sandbox none`)", task.NodeID, td.Name, reason)
+				"claw backend: node %q declares tool %q, which a sandboxed runner cannot execute in-container (%s) — drop it%s",
+				task.NodeID, td.Name, reason, tool.UnsandboxedRemedy(td.Name))
 		}
 	}
 	return nil

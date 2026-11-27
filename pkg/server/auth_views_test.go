@@ -394,6 +394,13 @@ func newAuthRouteFixture(t *testing.T) *authRouteFixture {
 // access tokens' are only mounted when their store is configured).
 func newAuthRouteFixtureWith(t *testing.T, configure func(*Config)) *authRouteFixture {
 	t.Helper()
+	return newAuthRouteFixtureWithAuth(t, nil, configure)
+}
+
+// newAuthRouteFixtureWithAuth is newAuthRouteFixtureWith with authConfigure
+// applied to the auth service's Config too (a mailer, a public URL).
+func newAuthRouteFixtureWithAuth(t *testing.T, authConfigure func(*auth.Config), configure func(*Config)) *authRouteFixture {
+	t.Helper()
 	ctx := context.Background()
 	key := make([]byte, 32)
 	if _, err := rand.Read(key); err != nil {
@@ -410,10 +417,14 @@ func newAuthRouteFixtureWith(t *testing.T, configure func(*Config)) *authRouteFi
 		tickets:  &ticketGate{MemoryStore: desktopsso.NewMemoryStore(time.Minute)},
 		logs:     &syncBuffer{},
 	}
-	svc, err := auth.NewService(auth.Config{
+	authCfg := auth.Config{
 		Store: f.ids, Sessions: f.sessions, Signer: signer,
 		SignupMode: auth.SignupOpen, RefreshTTL: time.Hour, Resets: f.resets,
-	})
+	}
+	if authConfigure != nil {
+		authConfigure(&authCfg)
+	}
+	svc, err := auth.NewService(authCfg)
 	if err != nil {
 		t.Fatalf("auth service: %v", err)
 	}
@@ -531,6 +542,7 @@ func cookieValue(w *httptest.ResponseRecorder, base string) string {
 // fact about the user: the answer is the failure, never a 200 whose empty
 // or partial tree claims "you belong to no organization".
 func TestHandleMe_StoreFailureIsNotAnEmptyTree(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name, read string
 		call       int
@@ -675,6 +687,7 @@ func credentialRoutes() []credentialRoute {
 // registration retried into "email already taken", a reset link burnt by a
 // blip, a switch persisted under an error answer).
 func TestCredentialRoutes_DeliverTheSessionWithoutTheTree(t *testing.T) {
+	t.Parallel()
 	for _, rt := range credentialRoutes() {
 		t.Run(rt.name, func(t *testing.T) {
 			f := newAuthRouteFixture(t)
@@ -761,6 +774,7 @@ func TestHandleRefresh_DeadCredentialIs401AndClearsTheCookies(t *testing.T) {
 // token expired together, a desktop's concurrent 401s. Both are answered
 // with the same rotated token, and the account's other sessions survive.
 func TestHandleRefresh_ConcurrentRefreshesShareTheSuccessor(t *testing.T) {
+	t.Parallel()
 	for trial := 0; trial < 10; trial++ {
 		f := newAuthRouteFixture(t)
 		srv := httptest.NewServer(f.s.Handler())
@@ -838,6 +852,7 @@ func refreshWithHeader(s *Server, token string) *httptest.ResponseRecorder {
 // answered 500 with the generic body — the driver's text, which names the
 // cluster's hosts, goes to the log — and delivers no session.
 func TestHandleLogin_StoreFailureIsGeneric(t *testing.T) {
+	t.Parallel()
 	for _, read := range []string{"GetUserByEmail", "ListMembershipsByUser", "GetTeam"} {
 		t.Run(read, func(t *testing.T) {
 			f := newAuthRouteFixture(t)

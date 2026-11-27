@@ -280,6 +280,19 @@ var operatorInfraNames = map[string]bool{
 	// a read that becomes a billed system prompt — "0" unbounds it, so no
 	// bot var may speak for it.
 	"ITERION_CLAW_WORKSPACE_AGENT_MAX_BYTES": true,
+	// The image bounds of a claw node's requests (#3649): bytes per image
+	// and per request, images per request, the longer side, the many-image
+	// side rule and the decode bound of a reduced capture. "0" unbounds each,
+	// and the decode bound guards the runner's memory, so no bot var may
+	// speak for them.
+	"ITERION_IMAGE_ACCEPTANCE":              true,
+	"ITERION_IMAGE_MAX_BASE64_BYTES":        true,
+	"ITERION_IMAGE_MAX_DECODE_PIXELS":       true,
+	"ITERION_IMAGE_MAX_SIDE":                true,
+	"ITERION_REQUEST_IMAGE_MAX_BYTES":       true,
+	"ITERION_REQUEST_IMAGE_MAX_COUNT":       true,
+	"ITERION_REQUEST_MANY_IMAGES_MAX_SIDE":  true,
+	"ITERION_REQUEST_MANY_IMAGES_THRESHOLD": true,
 	// The bound on a shell script node's data written into its script
 	// (#3291): what data may cost the script file, "0" unbounding it, so
 	// no bot var may speak for it.
@@ -383,6 +396,9 @@ var operatorInfraNames = map[string]bool{
 	// escape hatch on the GitLab quick-action guard (pkg/forge).
 	"ITERION_FORGE_READBACK_BUDGET":      true,
 	"ITERION_FORGE_GITLAB_QUICK_ACTIONS": true,
+	// The server-wide default routing of the forge lanes (ADR-172): a
+	// process knob that decides which router a forge delivery takes.
+	"ITERION_FORGE_ROUTING_DEFAULT": true,
 	// Identities presented to forges and providers.
 	"ITERION_FORGE_BRAND_AVATAR": true,
 	"ITERION_GIT_AUTHOR_NAME":    true,
